@@ -18,6 +18,8 @@ foreach ($name in @('New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane')) {
 Invoke-WithOwnedTmux {
     param($fixture)
 
+    # tmux 3.2a otherwise sizes detached windows from the command client.
+    $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
     $trace = Join-Path $fixture.DirectoryPath 'calls'
     $wrapper = Join-Path $fixture.DirectoryPath 'tmux'
     $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
@@ -84,7 +86,8 @@ exec /bin/cat
     Assert-True ($split -is [LibTmux.Pane] -and $split.Width -eq 20 -and $split.Height -eq $target.Height -and
         $split.CurrentPath -ceq $directory -and $split.AtLeft) 'Pane split lost direction, cell size, working directory or native output.'
     $output = Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-J', '-t', $split.Id.ToString())
-    Assert-True ($output.StdOut.Split("`n") -ccontains $literal) 'Pane creation changed shell-command quoting or its process environment.'
+    # Older tmux versions retain terminal-cell padding with capture-pane -J.
+    Assert-True ($output.StdOut.Split("`n").TrimEnd([char] ' ') -ccontains $literal) 'Pane creation changed shell-command quoting or its process environment.'
     $active = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $newWindow.Id.ToString(), '#{pane_id}')
     Assert-True ($active.StdOut.Trim() -ceq $split.Id.ToString()) 'Activate did not select the split pane.'
     $percent = $target | LibTmux\Split-TmuxPane -Percentage 30 -Command 'exec /bin/sh' -Confirm:$false

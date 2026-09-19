@@ -15,7 +15,7 @@ Choose an endpoint you control and remove the created resources when done.
 ## Create a detached session
 
 The following command assumes `$server` is an endpoint you own. It creates a
-detached session and sets the initial window's name and dimensions:
+detached session with the requested window name and dimensions:
 
 ```powershell
 $session = $server | New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30
@@ -25,6 +25,10 @@ Omitting `-Name` lets tmux choose a name. An existing name remains an error;
 this command does not replace or attach to an existing session. Omitting
 dimensions retains tmux's defaults. Names and working directories retain
 tmux's format expansion rules, including the meaning of `#`.
+
+Dimensions remain subject to tmux's `window-size` policy. On tmux 3.2a,
+detached creation can use the command client's dimensions unless
+`window-size` is `manual`.
 
 ## Create a window or split
 
