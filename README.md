@@ -4,9 +4,10 @@ Native C# cmdlets over the LibTmux .NET core, with a separate workspace
 module. This is a local alpha implementation; no release is published.
 
 The current packages provide local endpoint construction, explicit connection
-and snapshot acquisition, typed session/window/pane listing, capture, refresh,
-raw commands and workspace YAML parsing. Dedicated mutation commands, complete
-workspace planning and the remaining suite are under development.
+and snapshot acquisition, typed session/window/pane listing and creation,
+capture, refresh, raw commands and workspace YAML parsing. Remaining mutation
+commands, complete workspace planning and the rest of the suite are under
+development.
 
 From an installed module, construct a handle for later operations:
 
@@ -23,6 +24,8 @@ and explicit owner parameters. Use `@(...)` for stable zero/one/many arrays;
 ordinary `Where-Object` predicates filter captured objects locally.
 [Capture and raw commands](docs/capture.md) describe rendered text, capture
 flags, replacement refresh and mutation previews.
+[Create sessions, windows and panes](docs/create.md) covers native owners,
+detached defaults, split sizing, command strings and environment entries.
 
 Parse YAML without running its commands:
 

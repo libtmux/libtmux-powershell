@@ -11,7 +11,8 @@
     CmdletsToExport = @(
         'New-TmuxServer', 'Connect-TmuxServer', 'Get-TmuxSnapshot',
         'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane',
-        'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane'
+        'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
+        'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane'
     )
     VariablesToExport = @()
     AliasesToExport = @()

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Read', 'Formatting', 'Capture', 'Runtime', 'Help', 'Examples', 'Fixture', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Read', 'Formatting', 'Capture', 'Create', 'Runtime', 'Help', 'Examples', 'Fixture', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot
 )
 
@@ -16,6 +16,8 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $root
+    $null = $start.Environment.Remove('TMUX')
+    $null = $start.Environment.Remove('TMUX_PANE')
     $start.ArgumentList.Add('-NoLogo')
     $start.ArgumentList.Add('-NoProfile')
     $start.ArgumentList.Add('-File')
@@ -49,7 +51,7 @@ try {
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path)
     }
     if ($Suite -in @('Fixture', 'All')) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'Read', 'Formatting', 'Capture', 'Runtime', 'Help', 'Examples', 'All')) {
+    if ($Suite -in @('Package', 'Read', 'Formatting', 'Capture', 'Create', 'Runtime', 'Help', 'Examples', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -78,6 +80,11 @@ try {
             }
             if ($Suite -in @('Capture', 'All')) {
                 Invoke-TestScript 'tests/Capture.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            if ($Suite -in @('Create', 'All')) {
+                Invoke-TestScript 'tests/Create.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed, '-FailAfterCreation') $installed
             }
             if ($Suite -eq 'Help') {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed) $installed
