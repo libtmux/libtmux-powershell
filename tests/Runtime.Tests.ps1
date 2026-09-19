@@ -13,7 +13,9 @@ $references = @(
     [LibTmux.Server].Assembly.Location
     [System.Management.Automation.PSCmdlet].Assembly.Location
 ) + @(Get-ChildItem "$PSHOME/ref/*.dll" | Select-Object -ExpandProperty FullName)
-Add-Type -Path "$PSScriptRoot/support/RuntimeProbe.cs" -ReferencedAssemblies $references
+# The probe combines the installed 7.4-baseline module with the current host API.
+# Execute that binding below; other compiler diagnostics still fail the test.
+Add-Type -Path "$PSScriptRoot/support/RuntimeProbe.cs" -ReferencedAssemblies $references -CompilerOptions '/nowarn:1701'
 
 function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
