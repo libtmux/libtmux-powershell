@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="System.Management.Automation" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="LibTmux" />
+    <PackageReference Include="LibTmux.Workspace" />
+  </ItemGroup>
+</Project>

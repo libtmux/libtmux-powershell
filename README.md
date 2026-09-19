@@ -1,17 +1,46 @@
-<!-- libtmux-logo -->
-<p align="center">
-  <picture>
-    <source srcset="assets/logo.svg" type="image/svg+xml">
-    <img src="assets/logo.png" width="128" height="128" alt="libtmux for PowerShell">
-  </picture>
-</p>
-<!-- /libtmux-logo -->
-
-<div align="center">
-
 # libtmux for PowerShell
 
-PowerShell bindings for [LibTmux](https://github.com/libtmux/libtmux-dotnet)
-are in development. This repository currently contains the project scaffold.
+Native C# cmdlets over the LibTmux .NET core, with a separate workspace
+module. This is a local alpha implementation; no release is published.
 
-</div>
+The current packages provide local endpoint construction, explicit connection
+and snapshot acquisition, typed session/window/pane listing, capture, refresh,
+raw commands and workspace YAML parsing. Dedicated mutation commands, complete
+workspace planning and the remaining suite are under development.
+
+From an installed module, construct a handle for later operations:
+
+```powershell
+LibTmux\New-TmuxServer -SocketName development
+```
+
+The result is a native `LibTmux.Server`. Constructing a handle does not own
+the daemon or establish that it exists. Properties and default formatting
+perform no tmux I/O.
+
+[Read commands](docs/read.md) acquire native objects with exact selectors
+and explicit owner parameters. Use `@(...)` for stable zero/one/many arrays;
+ordinary `Where-Object` predicates filter captured objects locally.
+[Capture and raw commands](docs/capture.md) describe rendered text, capture
+flags, replacement refresh and mutation previews.
+
+Parse YAML without running its commands:
+
+```powershell
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
+```
+
+The result is a native `LibTmux.Workspace.WorkspaceFile`. Parsing accepts
+the current engine's subset; it does not yet implement the full workspace
+contract. Install both modules at the same version. A conflicting loaded
+LibTmux assembly requires a fresh PowerShell process.
+
+The build targets PowerShell 7.4 and .NET 8. Selected package, read and
+formatting milestones pass on Linux x64 with PowerShell 7.4.20 and 7.6.6.
+macOS, the complete tmux compatibility matrix and the full product remain
+unverified. Local packages do not establish a supported release.
+
+See [contributing](.github/CONTRIBUTING.md) for local build, packaging and
+verification commands. The separately packaged
+[LibTmux.Mcp tool](https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp)
+supplies the MCP product; this repository does not host another protocol engine.
