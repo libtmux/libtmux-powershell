@@ -12,7 +12,8 @@
         'New-TmuxServer', 'Connect-TmuxServer', 'Get-TmuxSnapshot',
         'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane',
         'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
-        'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane'
+        'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane',
+        'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane'
     )
     VariablesToExport = @()
     AliasesToExport = @()

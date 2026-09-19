@@ -123,9 +123,10 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Capture`, `Create`, `Formatting`, `Runtime`, `Help` and `Examples` suites use the
-same artifact argument. `All` runs the implemented suites; it does not imply
-the full architecture or compatibility matrix is complete.
+The `Capture`, `Create`, `Remove`, `Formatting`, `Runtime`, `Help` and
+`Examples` suites use the same artifact argument. `All` runs the implemented
+suites; it does not imply the full architecture or compatibility matrix is
+complete.
 The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
 processes. `Create` verifies native creation plus first-daemon cleanup on
 success and injected consumer failure in separate disposable processes.

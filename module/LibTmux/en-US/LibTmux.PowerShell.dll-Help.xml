@@ -1930,6 +1930,415 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Remove-TmuxPane</command:name>
+      <maml:description>
+        <maml:para>Remove an explicit native pane without emitting an object.</maml:para>
+      </maml:description>
+      <command:verb>Remove</command:verb>
+      <command:noun>TmuxPane</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Remove the supplied native LibTmux.Pane. The endpoint and daemon generation
+come from that handle. Removing the last pane destroys its window; sessions
+left without windows can also disappear. A shared window is affected in all
+sessions that link it.
+
+This high-impact operation requests confirmation by default. WhatIf performs
+no acquisition or mutation. Cancellation does not restore removed resources.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Remove-TmuxPane</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Pane</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Pane</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Pane</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Pane</maml:name>
+        <maml:description>
+          <maml:para>The native pane to remove. Select it explicitly using Get-TmuxPane on
+the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Pane</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Pane selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty input pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.PaneRemoveFailed and retain the original core exception,
+its dispatch information and the failed owner. ErrorAction Continue permits
+later owners to be processed; ErrorAction Stop stops on the first failure.
+A missing target remains an error. No mutation is retried. Previously captured
+handles retain their old data after removal and are not refreshed in place.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Remove the previously selected native $pane from an endpoint you own.
+This example explicitly suppresses confirmation; omitting Confirm uses the
+normal high-impact confirmation behavior.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$pane | LibTmux\Remove-TmuxPane -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Remove-TmuxPane.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove sessions, windows and panes</maml:linkText>
+        <maml:uri>../../remove.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Remove-TmuxSession</command:name>
+      <maml:description>
+        <maml:para>Remove an explicit native session without emitting an object.</maml:para>
+      </maml:description>
+      <command:verb>Remove</command:verb>
+      <command:noun>TmuxSession</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Remove the supplied native LibTmux.Session. The endpoint and daemon generation
+come from that handle. Windows linked into another session survive; windows
+owned only by the removed session and their panes are destroyed. Removing the
+last session can stop the daemon when its configuration requires that.
+
+This high-impact operation requests confirmation by default. WhatIf performs
+no acquisition or mutation. Cancellation does not restore removed resources.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Remove-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native session to remove. Select it explicitly using Get-TmuxSession
+on the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Session selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty input pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.SessionRemoveFailed and retain the original core exception,
+its dispatch information and the failed owner. ErrorAction Continue permits
+later owners to be processed; ErrorAction Stop stops on the first failure.
+A missing target remains an error. No mutation is retried. Previously captured
+handles retain their old data after removal and are not refreshed in place.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Remove the previously selected native $session from an endpoint you own.
+This example explicitly suppresses confirmation; omitting Confirm uses the
+normal high-impact confirmation behavior.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$session | LibTmux\Remove-TmuxSession -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Remove-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove sessions, windows and panes</maml:linkText>
+        <maml:uri>../../remove.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Remove-TmuxWindow</command:name>
+      <maml:description>
+        <maml:para>Remove a physical window and all its session links.</maml:para>
+      </maml:description>
+      <command:verb>Remove</command:verb>
+      <command:noun>TmuxWindow</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Remove the supplied native LibTmux.Window from every session that links it,
+including repeated links in the same session. This destroys its panes. To
+remove only one session placement, use the separate core unlink operation;
+this command always kills the physical window.
+
+The endpoint and daemon generation come from the native handle. This
+high-impact operation requests confirmation by default. WhatIf performs no
+acquisition or mutation. Cancellation does not restore removed resources.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Remove-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native physical window to remove from every session. A handle acquired
+through one session still identifies the shared physical window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Window selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty input pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.WindowRemoveFailed and retain the original core exception,
+its dispatch information and the failed owner. ErrorAction Continue permits
+later owners to be processed; ErrorAction Stop stops on the first failure.
+A missing target remains an error. No mutation is retried. Previously captured
+handles retain their old data after removal and are not refreshed in place.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Remove the previously selected native $window from an endpoint you own.
+This example explicitly suppresses confirmation; omitting Confirm uses the
+normal high-impact confirmation behavior.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$window | LibTmux\Remove-TmuxWindow -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Remove-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove sessions, windows and panes</maml:linkText>
+        <maml:uri>../../remove.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Split-TmuxPane</command:name>
       <maml:description>
         <maml:para>Split an explicit pane and return the newly created pane.</maml:para>

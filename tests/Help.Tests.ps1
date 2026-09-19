@@ -13,6 +13,11 @@ $assertions = Get-HelpExampleAssertion
 
 function Invoke-HelpExample($Example, $Assertion, $Context) {
     $SocketPath = $Context.Fixture.SocketPath
+    if ($Assertion.ContainsKey('Prepare')) {
+        # Preparation binds the documented native owner in this example's local scope.
+        . $Assertion.Prepare $Context
+        Register-OwnedTmuxPane $Context.Fixture
+    }
     $result = @(& ([scriptblock]::Create($Example.Code)))
     $Context.Executed = $true
     if ($Assertion.Isolated) { Register-OwnedTmuxPane $Context.Fixture }
@@ -172,8 +177,10 @@ exec /bin/cat
                     Invoke-WithOwnedTmux {
                         param($isolatedFixture)
                         $owned.Add($isolatedFixture)
-                        $original = Invoke-OwnedTmux $isolatedFixture -Arguments @('display-message', '-p', '#{pane_id}')
-                        $isolated = @{ Fixture = $isolatedFixture; PaneId = $original.StdOut.Trim(); Executed = $false }
+                        $original = Invoke-OwnedTmux $isolatedFixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0',
+                            '#{session_id}|#{session_name}|#{window_id}|#{window_name}|#{pane_id}|#{pane_pid}')
+                        $anchor = $original.StdOut.Trim()
+                        $isolated = @{ Fixture = $isolatedFixture; PaneId = $anchor.Split('|')[4]; Anchor = $anchor; Executed = $false }
                         Invoke-HelpExample $example $assertion $isolated
                     }
                 } else {

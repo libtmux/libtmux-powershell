@@ -1,4 +1,8 @@
 function Get-HelpExampleAssertion {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
+        Justification = 'Zero-output removal assertions use fixture state and retain the shared result/context callback signature.')]
+    param()
+
     # Each packaged example needs its own outcome assertion, including examples with no output.
     @{
         'LibTmux\New-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
@@ -74,7 +78,51 @@ function Get-HelpExampleAssertion {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
             } }
+        'LibTmux\Remove-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
+                $session = $server | LibTmux\New-TmuxSession -Name 'help-remove-session' -Command 'exec /bin/sh' -Confirm:$false
+                $Context.TargetId = $session.Id.ToString()
+                $before = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Context.TargetId, '#{session_id}')
+                if ($before.StdOut.Trim() -cne $Context.TargetId) { throw 'Session removal example did not prepare its native target.' }
+            }; Assert = {
+                param($Result, $Context)
+                Assert-HelpRemovalOutcome $Context @('list-sessions', '-F', '#{session_id}')
+            } }
+        'LibTmux\Remove-TmuxWindow#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
+                $window = $server | LibTmux\Get-TmuxSession -Name 'fixture' |
+                    LibTmux\New-TmuxWindow -Name 'help-remove-window' -Command 'exec /bin/sh' -Confirm:$false
+                $Context.TargetId = $window.Id.ToString()
+                $before = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Context.TargetId, '#{window_id}')
+                if ($before.StdOut.Trim() -cne $Context.TargetId) { throw 'Window removal example did not prepare its native target.' }
+            }; Assert = {
+                param($Result, $Context)
+                Assert-HelpRemovalOutcome $Context @('list-windows', '-a', '-F', '#{window_id}')
+            } }
+        'LibTmux\Remove-TmuxPane#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
+                $pane = $server | LibTmux\Get-TmuxPane | LibTmux\Split-TmuxPane -Command 'exec /bin/sh' -Confirm:$false
+                $Context.TargetId = $pane.Id.ToString()
+                $before = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Context.TargetId, '#{pane_id}')
+                if ($before.StdOut.Trim() -cne $Context.TargetId) { throw 'Pane removal example did not prepare its native target.' }
+            }; Assert = {
+                param($Result, $Context)
+                Assert-HelpRemovalOutcome $Context @('list-panes', '-a', '-F', '#{pane_id}')
+            } }
     }
+}
+
+function Assert-HelpRemovalOutcome($Context, [string[]] $ListArguments) {
+    $remaining = Invoke-OwnedTmux $Context.Fixture -Arguments $ListArguments
+    if ($remaining.StdOut.Split("`n", [StringSplitOptions]::RemoveEmptyEntries) -ccontains $Context.TargetId) {
+        throw "Removal example left its native target: $($Context.TargetId)"
+    }
+    $anchor = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0',
+        '#{session_id}|#{session_name}|#{window_id}|#{window_name}|#{pane_id}|#{pane_pid}')
+    if ($anchor.StdOut.Trim() -cne $Context.Anchor) { throw 'Removal example changed the unrelated fixture anchor.' }
 }
 
 function Assert-HelpExampleRegistration($Examples, [hashtable] $Assertions) {
@@ -86,6 +134,9 @@ function Assert-HelpExampleRegistration($Examples, [hashtable] $Assertions) {
         if ($entry.Assert -isnot [scriptblock] -or $entry.ExpectedCount -isnot [int] -or
             $entry.ExpectedCount -lt 0 -or $entry.Isolated -isnot [bool]) {
             throw "Invalid help example assertion: $($example.Id)"
+        }
+        if ($entry.ContainsKey('Prepare') -and (!$entry.Isolated -or $entry.Prepare -isnot [scriptblock])) {
+            throw "Invalid isolated help example preparation: $($example.Id)"
         }
     }
     foreach ($id in $Assertions.Keys) {

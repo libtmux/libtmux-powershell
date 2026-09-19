@@ -23,6 +23,28 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         bool enumerateCollection = false)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        RunOperation(token =>
+        {
+            T result = operation(token).GetAwaiter().GetResult();
+            WriteObject(result, enumerateCollection);
+        }, errorId, target);
+    }
+
+    /// <summary>Waits for a core operation without emitting a success object.</summary>
+    /// <param name="operation">The cancellable core operation.</param>
+    /// <param name="errorId">The stable identifier for an operation failure.</param>
+    /// <param name="target">The object whose operation failed.</param>
+    private protected void ExecuteOperation(
+        Func<CancellationToken, Task> operation,
+        string errorId,
+        object target)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        RunOperation(token => operation(token).GetAwaiter().GetResult(), errorId, target);
+    }
+
+    private void RunOperation(Action<CancellationToken> operation, string errorId, object target)
+    {
         CancellationTokenSource cancellation;
         lock (cancellationLock)
         {
@@ -36,8 +58,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
 
         try
         {
-            T result = operation(cancellation.Token).GetAwaiter().GetResult();
-            WriteObject(result, enumerateCollection);
+            operation(cancellation.Token);
         }
         catch (Exception exception) when (
             exception is not PipelineStoppedException and not ActionPreferenceStopException)
