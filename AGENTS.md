@@ -24,9 +24,9 @@ requested work.
 ## Which policy applies
 
 - Setup, testing, tmux isolation, and pull requests:
-  [CONTRIBUTING.md](CONTRIBUTING.md).
+  [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 - Documentation, user-facing text, comments, and commit messages:
-  [WRITING.md](WRITING.md).
+  [WRITING.md](.github/WRITING.md).
 
 Each guide is the single home for its subject. `CLAUDE.md` is a relative
 symlink to this file; keep the instructions here.

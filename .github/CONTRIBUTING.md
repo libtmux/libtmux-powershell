@@ -4,7 +4,7 @@ This repository is the scaffold for libtmux for PowerShell. It contains
 repository configuration and contribution guides. There is no cmdlet
 implementation, module manifest, package, test suite, or release workflow yet.
 
-Read [AGENTS.md](AGENTS.md) for change discipline and [WRITING.md](WRITING.md)
+Read [AGENTS.md](../AGENTS.md) for change discipline and [WRITING.md](WRITING.md)
 for prose and commit conventions.
 
 ## Planned module
@@ -35,11 +35,11 @@ These are naming and packaging decisions, not available package contents.
 
 ## Setup
 
-[.tool-versions](.tool-versions) pins PowerShell and the .NET SDK for the
+[.tool-versions](../.tool-versions) pins PowerShell and the .NET SDK for the
 planned PowerShell 7.4 and .NET 8 baseline. Development pins do not establish
 tested platform or tmux compatibility.
 
-Install the pinned tools with mise:
+Install the pinned tools with mise from the repository root:
 
 ```console
 $ mise install
@@ -119,7 +119,7 @@ request; scaffold work does not establish a release process.
 
 ## Repository metadata
 
-[.github/repository.json](.github/repository.json) records the description,
+[repository.json](repository.json) records the description,
 visibility, default branch, topics, and issue labels for both repositories:
 
 - `origin`: [libtmux/libtmux-powershell](https://github.com/libtmux/libtmux-powershell).
