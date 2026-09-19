@@ -1,0 +1,43 @@
+# Build, package, and test output
+/build/
+/dist/
+/artifacts/
+/coverage/
+/tmp/
+**/bin/
+**/obj/
+TestResults/
+BenchmarkDotNet.Artifacts/
+*.nupkg
+*.snupkg
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.vs/
+*.suo
+*.user
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local environment and worktrees
+/.cache/
+/.direnv/
+/.envrc.local
+.env
+.env.*
+!.env.example
+/.worktrees/
+/worktrees/
+/scratch/
+
+# Local agent configuration and plans
+CLAUDE.local.md
+.claude/settings.local.json
+/docs/superpowers/
+/plans/
+/superpowers/
