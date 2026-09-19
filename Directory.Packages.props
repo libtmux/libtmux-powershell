@@ -4,7 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="System.Management.Automation" Version="[7.4.20]" />
-    <PackageVersion Include="LibTmux" Version="[0.0.0-alpha.12.ps.4]" />
-    <PackageVersion Include="LibTmux.Workspace" Version="[0.0.0-alpha.12.ps.4]" />
+    <PackageVersion Include="LibTmux" Version="[0.0.0-alpha.12.ps.5]" />
+    <PackageVersion Include="LibTmux.Workspace" Version="[0.0.0-alpha.12.ps.5]" />
   </ItemGroup>
 </Project>
