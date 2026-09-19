@@ -131,6 +131,22 @@ The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
 processes. `Create` verifies native creation plus first-daemon cleanup on
 success and injected consumer failure in separate disposable processes.
 
+Task-guide fences are checked against `examples/Guides.ps1`. Check source IDs,
+registration and snippet drift without importing the product or starting tmux:
+
+```console
+$ pwsh -NoLogo -NoProfile -File tests/GuideExamples.Tests.ps1
+```
+
+Execute the guide operations from installed packages with native outcomes and
+owned cleanup. The `Guides` suite is also included in `All`:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Guides \
+    -PackageRoot artifacts/local-build
+```
+
 Install the pinned analyzer and help generator during setup:
 
 ```console

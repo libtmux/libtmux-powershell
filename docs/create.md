@@ -17,6 +17,7 @@ Choose an endpoint you control and remove the created resources when done.
 The following command assumes `$server` is an endpoint you own. It creates a
 detached session with the requested window name and dimensions:
 
+<!-- example: create.session -->
 ```powershell
 $session = $server | New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30
 ```
@@ -34,6 +35,7 @@ detached creation can use the command client's dimensions unless
 
 Create a window at an explicit nonnegative index and make it current:
 
+<!-- example: create.window -->
 ```powershell
 $window = $session | New-TmuxWindow -Name 'tools' -Index 5 -Activate
 ```
@@ -45,6 +47,7 @@ selecting one does not attach a PowerShell process to the terminal.
 Given a selected native `$pane`, place a new pane to its left and request
 twenty columns:
 
+<!-- example: create.split -->
 ```powershell
 $newPane = $pane | Split-TmuxPane -Horizontal -Before -Size 20
 ```
@@ -66,6 +69,7 @@ quote shell syntax deliberately and keep untrusted input out of that string.
 Omitting it uses the configured tmux default command or shell. For example,
 on a Unix host with `/bin/sh` available:
 
+<!-- example: create.command -->
 ```powershell
 $window = $session | New-TmuxWindow -Name 'shell' -Command 'exec /bin/sh'
 ```
@@ -84,6 +88,7 @@ owners. They become tmux's per-session or per-process environment entries;
 the PowerShell host environment remains unchanged. Spaces, quotes and
 semicolons in each value remain part of that argument.
 
+<!-- example: create.environment -->
 ```powershell
 $window = $session | New-TmuxWindow -Environment @{ APP_MODE = 'development'; OPTIONAL = '' }
 ```

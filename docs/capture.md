@@ -14,12 +14,14 @@ refer to that selected pane and server. None chooses a global active server.
 
 Return one string per captured screen line:
 
+<!-- example: capture.lines -->
 ```powershell
 $pane | Get-TmuxPaneContent
 ```
 
 Capture the retained history as one string, joining wrapped screen lines:
 
+<!-- example: capture.history -->
 ```powershell
 $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw
 ```
@@ -28,6 +30,7 @@ Capture an inclusive range, from ten lines before the visible screen through
 its fifth line. Zero identifies the top visible line; negative values address
 scrollback. Omitted bounds use tmux's normal visible-screen bounds.
 
+<!-- example: capture.range -->
 ```powershell
 $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4
 ```
@@ -66,6 +69,7 @@ core connection's configuration.
 
 Retain the replacement returned by an explicit refresh:
 
+<!-- example: capture.refresh -->
 ```powershell
 $currentPane = $pane | Update-TmuxPane
 ```
@@ -81,6 +85,7 @@ the core's contextual-target limitations.
 Pass each argument as a separate array element. The adapter does not join
 arguments into a shell command or expand their contents.
 
+<!-- example: capture.raw-list -->
 ```powershell
 $server | Invoke-TmuxCommand -Arguments @('list-sessions', '-F', '#{session_name}')
 ```
@@ -97,6 +102,7 @@ Raw commands can mutate tmux or execute shell work. They always support
 Confirmation precedes discovery and dispatch. Preview shows the endpoint and
 command name; argument contents are not included in the confirmation text.
 
+<!-- example: capture.raw-preview -->
 ```powershell
 $server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf
 ```

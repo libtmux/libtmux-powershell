@@ -11,6 +11,7 @@ development.
 
 From an installed module, construct a handle for later operations:
 
+<!-- example: read.endpoint -->
 ```powershell
 LibTmux\New-TmuxServer -SocketName development
 ```
@@ -31,6 +32,7 @@ shared-window effects and native-owner deletion.
 
 Parse YAML without running its commands:
 
+<!-- example: workspace.parse -->
 ```powershell
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
 ```

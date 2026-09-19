@@ -10,12 +10,14 @@ confirmation preference prompts before removal. Review the endpoint and ID
 in that prompt; use `-Confirm:$false` when an unattended caller has already
 chosen the target. `-WhatIf` describes the removal without contacting tmux:
 
+<!-- example: remove.preview -->
 ```powershell
 $session | Remove-TmuxSession -WhatIf
 ```
 
 Remove an owned session after its work finishes:
 
+<!-- example: remove.session -->
 ```powershell
 $session | Remove-TmuxSession -Confirm:$false
 ```
@@ -33,6 +35,7 @@ its links in every session.** It does not merely unlink the placement through
 which the window was selected. Repeated placements of that physical window
 are removed together:
 
+<!-- example: remove.window -->
 ```powershell
 $window | Remove-TmuxWindow -Confirm:$false
 ```
@@ -45,6 +48,7 @@ session also removes that session; tmux may exit when no sessions remain.
 These commands do not give the module ownership of the daemon or arrange
 cleanup for other resources.
 
+<!-- example: remove.pane -->
 ```powershell
 $pane | Remove-TmuxPane -Confirm:$false
 ```

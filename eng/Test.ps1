@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Read', 'Formatting', 'Capture', 'Create', 'Remove', 'Runtime', 'Help', 'Examples', 'Fixture', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Read', 'Formatting', 'Capture', 'Create', 'Remove', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
     [ValidateSet('1.1.1', '1.2.0')]
     [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
@@ -54,7 +54,7 @@ try {
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -in @('Fixture', 'All')) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'Read', 'Formatting', 'Capture', 'Create', 'Remove', 'Runtime', 'Help', 'Examples', 'All')) {
+    if ($Suite -in @('Package', 'Read', 'Formatting', 'Capture', 'Create', 'Remove', 'Runtime', 'Help', 'Examples', 'Guides', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -97,6 +97,9 @@ try {
             }
             if ($Suite -in @('Examples', 'All')) {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed, '-RunExamples') $installed
+            }
+            if ($Suite -in @('Guides', 'All')) {
+                Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed, '-RunExamples') $installed
             }
             if ($Suite -in @('Runtime', 'All')) {
                 Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
