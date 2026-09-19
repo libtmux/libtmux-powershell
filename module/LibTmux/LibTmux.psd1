@@ -13,7 +13,8 @@
         'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane',
         'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
         'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane',
-        'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane'
+        'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane',
+        'Send-TmuxText', 'Send-TmuxKey'
     )
     VariablesToExport = @()
     AliasesToExport = @()

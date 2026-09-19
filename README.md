@@ -5,7 +5,8 @@ module. This is a local alpha implementation; no release is published.
 
 The current packages provide local endpoint construction, explicit connection
 and snapshot acquisition, typed session/window/pane listing, creation and
-removal, capture, refresh, raw commands and workspace YAML parsing. Remaining mutation
+removal, text and key input, capture, refresh, raw commands and workspace
+YAML parsing. Remaining mutation
 commands, complete workspace planning and the rest of the suite are under
 development.
 
@@ -29,6 +30,8 @@ flags, replacement refresh and mutation previews.
 detached defaults, split sizing, command strings and environment entries.
 [Remove sessions, windows and panes](docs/remove.md) explains confirmation,
 shared-window effects and native-owner deletion.
+[Send input](docs/input.md) separates literal text from tmux key tokens,
+including ordering, confirmation and partial failure.
 
 Parse YAML without running its commands:
 

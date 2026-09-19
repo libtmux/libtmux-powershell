@@ -2339,6 +2339,341 @@ $window | LibTmux\Remove-TmuxWindow -Confirm:$false
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Send-TmuxKey</command:name>
+      <maml:description>
+        <maml:para>Send an ordered sequence of tmux key tokens to a native pane.</maml:para>
+      </maml:description>
+      <command:verb>Send</command:verb>
+      <command:noun>TmuxKey</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Each array element is interpreted by tmux as a key token, such as C-a or
+Enter. Unrecognized key names follow tmux's character-sending behavior. No
+additional Enter is appended. Null, empty and NUL-containing tokens are
+rejected before I/O. The command owns a snapshot of the supplied array.
+
+Keys run in input order through one core command chain. A failure can leave
+earlier keys delivered and prevent later keys from running.
+
+The endpoint and daemon generation come from the supplied native pane.
+WhatIf performs no acquisition or sending. Confirmation names the endpoint
+and pane without displaying the supplied text or keys. Successful sending
+confirms tmux accepted input; use an explicit application readiness signal
+before checking that a command has finished.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Send-TmuxKey</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Pane</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Pane</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Pane</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Key</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts for confirmation before sending input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Key</maml:name>
+        <maml:description>
+          <maml:para>Key tokens in sending order. Use an array for a sequence and quote tokens
+such as 'C-a'. This command does not split one string on whitespace.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Pane</maml:name>
+        <maml:description>
+          <maml:para>The native pane selected from the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Pane</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the intended input operation without acquiring or sending anything.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native pane selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty owner pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.KeySendFailed and retain the original core exception,
+its dispatch information and the failed pane. ErrorAction Continue permits
+later owners to be processed; ErrorAction Stop stops on the first failure.
+NUL and invalid key-token content use Tmux.InvalidInput before dispatch;
+PowerShell handles parameter binding errors. Cancellation stops pending work
+but cannot undo delivered input. Nothing is retried.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Use a previously selected native $pane on an endpoint you own.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$pane | LibTmux\Send-TmuxKey -Key @('C-a', 'Enter') -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Send-TmuxKey.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Capture pane output</maml:linkText>
+        <maml:uri>../../capture.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Send-TmuxText</command:name>
+      <maml:description>
+        <maml:para>Send literal text and optional Enter to a native pane.</maml:para>
+      </maml:description>
+      <command:verb>Send</command:verb>
+      <command:noun>TmuxText</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Text is literal: key names, leading dashes, semicolons and tmux format markers
+remain text. Enter is sent only when requested. Newlines already present in
+Text are delivered regardless of the Enter switch; they can execute commands
+in the receiving shell or application. NUL characters are rejected before I/O.
+
+An empty string is accepted, including with Enter to send just that key.
+
+The endpoint and daemon generation come from the supplied native pane.
+WhatIf performs no acquisition or sending. Confirmation names the endpoint
+and pane without displaying the supplied text or keys. Successful sending
+confirms tmux accepted input; use an explicit application readiness signal
+before checking that a command has finished.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Send-TmuxText</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Pane</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Pane</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Pane</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Text</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Enter</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts for confirmation before sending input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Enter</maml:name>
+        <maml:description>
+          <maml:para>Send one Enter key after the literal text. Omitted by default.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Pane</maml:name>
+        <maml:description>
+          <maml:para>The native pane selected from the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Pane</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Text</maml:name>
+        <maml:description>
+          <maml:para>Literal text to send. Empty text is valid; NUL is unsupported. Newlines and
+control characters can affect the receiving application.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the intended input operation without acquiring or sending anything.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native pane selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty owner pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.TextSendFailed and retain the original core exception,
+its dispatch information and the failed pane. ErrorAction Continue permits
+later owners to be processed; ErrorAction Stop stops on the first failure.
+NUL and invalid key-token content use Tmux.InvalidInput before dispatch;
+PowerShell handles parameter binding errors. Cancellation stops pending work
+but cannot undo delivered input. Nothing is retried.
+If text was sent but the following Enter fails, the core reports unknown
+partial dispatch. Retrying the whole operation can duplicate effects.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Use a previously selected native $pane on an endpoint you own.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$pane | LibTmux\Send-TmuxText -Text 'Enter' -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Send-TmuxText.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Capture pane output</maml:linkText>
+        <maml:uri>../../capture.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Split-TmuxPane</command:name>
       <maml:description>
         <maml:para>Split an explicit pane and return the newly created pane.</maml:para>

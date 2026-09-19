@@ -1,6 +1,8 @@
 function Get-HelpExampleAssertion {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'pane',
+        Justification = 'Preparation binds the documented pane variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
-        Justification = 'Zero-output removal assertions use fixture state and retain the shared result/context callback signature.')]
+        Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
 
     # Each packaged example needs its own outcome assertion, including examples with no output.
@@ -77,6 +79,26 @@ function Get-HelpExampleAssertion {
                 if ($target -ceq $Context.PaneId -or $actual.StdOut.Trim() -cne '20|0') {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
+            } }
+        'LibTmux\Send-TmuxText#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $session = $server | LibTmux\Get-TmuxSession -Name 'fixture'
+                $Context.InputReceiver = New-InputReceiver $Context.Fixture $session 5
+                $pane = $Context.InputReceiver.Pane
+            }; Assert = {
+                param($Result, $Context)
+                Assert-Received $Context.Fixture $Context.InputReceiver ([Text.Encoding]::UTF8.GetBytes('Enter'))
+            } }
+        'LibTmux\Send-TmuxKey#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $session = $server | LibTmux\Get-TmuxSession -Name 'fixture'
+                $Context.InputReceiver = New-InputReceiver $Context.Fixture $session 2
+                $pane = $Context.InputReceiver.Pane
+            }; Assert = {
+                param($Result, $Context)
+                Assert-Received $Context.Fixture $Context.InputReceiver ([byte[]] @(1, 13))
             } }
         'LibTmux\Remove-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)

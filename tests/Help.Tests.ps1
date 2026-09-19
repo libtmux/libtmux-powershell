@@ -128,6 +128,7 @@ Assert-HelpExampleRegistration $examples $assertions
 if ($RunExamples) {
     # Outer integration: packaged examples execute against owned sockets with native outcome checks.
     . "$PSScriptRoot/support/OwnedTmux.ps1"
+    . "$PSScriptRoot/support/InputReceiver.ps1"
     $owned = [Collections.Generic.List[object]]::new()
     $negative = @{ Executed = $false; Fixture = $null }
     $wrong = $assertions[$omittedId].Clone()
