@@ -104,6 +104,11 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
+The `Install` and `All` suites select PSResourceGet 1.1.1 on the baseline
+runtime and 1.2.0 on PowerShell 7.6 or later. Both are exact pins; the runner
+does not download a missing version. Use `-PSResourceGetVersion` to select
+either pin explicitly when verifying a different installed tool combination.
+
 Execute the owned real-tmux fixture's lifecycle checks:
 
 ```console

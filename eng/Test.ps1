@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Package', 'Install', 'Read', 'Formatting', 'Capture', 'Create', 'Runtime', 'Help', 'Examples', 'Fixture', 'All')] [string] $Suite = 'All',
-    [string] $PackageRoot
+    [string] $PackageRoot,
+    [ValidateSet('1.1.1', '1.2.0')]
+    [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +50,8 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
 try {
     if ($Suite -in @('Install', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
-        Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path)
+        Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
+            '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -in @('Fixture', 'All')) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
     if ($Suite -in @('Package', 'Read', 'Formatting', 'Capture', 'Create', 'Runtime', 'Help', 'Examples', 'All')) {
