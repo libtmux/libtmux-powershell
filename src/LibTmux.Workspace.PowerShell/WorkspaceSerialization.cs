@@ -1,0 +1,73 @@
+using System.Text.Json;
+using YamlDotNet.Serialization;
+
+namespace LibTmux.Workspace.PowerShell;
+
+internal static class WorkspaceSerialization
+{
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+    internal static string ToYaml(WorkspaceFile workspace)
+    {
+        string text = new SerializerBuilder()
+            .WithQuotingNecessaryStrings(quoteYaml1_1Strings: true)
+            .DisableAliases()
+            .Build()
+            .Serialize(Project(workspace));
+        _ = WorkspaceFile.Parse(text);
+        return text;
+    }
+
+    internal static string ToJson(WorkspaceFile workspace)
+    {
+        string text = JsonSerializer.Serialize(Project(workspace), JsonOptions);
+        _ = WorkspaceFile.Parse(text);
+        return text;
+    }
+
+    private static Dictionary<string, object?> Project(WorkspaceFile workspace)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        bool resolved = workspace.DocumentDirectory is not null;
+        Dictionary<string, object?> result = new(StringComparer.Ordinal)
+        {
+            ["session_name"] = workspace.SessionName,
+            ["start_directory"] = Directory(workspace.StartDirectory, resolved),
+            ["options"] = workspace.Options,
+            ["environment"] = workspace.Environment,
+            ["shell_command_before"] = workspace.ShellCommandsBefore,
+            ["windows"] = workspace.Windows.Select(window => Project(window, resolved)).ToArray(),
+        };
+        // Unlike nullable path/name fields, the parser rejects an explicit null host command.
+        if (workspace.BeforeScript is not null)
+        {
+            result.Add("before_script", workspace.BeforeScript);
+        }
+        return result;
+    }
+
+    private static Dictionary<string, object?> Project(WorkspaceWindow window, bool resolved) => new(StringComparer.Ordinal)
+    {
+        ["window_name"] = window.WindowName,
+        ["start_directory"] = Directory(window.StartDirectory, resolved),
+        ["layout"] = window.Layout,
+        ["focus"] = window.Focus,
+        ["options"] = window.Options,
+        ["environment"] = window.Environment,
+        ["shell_command_before"] = window.ShellCommandsBefore,
+        ["panes"] = window.Panes.Select(pane => Project(pane, resolved)).ToArray(),
+    };
+
+    private static Dictionary<string, object?> Project(WorkspacePane pane, bool resolved) => new(StringComparer.Ordinal)
+    {
+        ["shell_command"] = pane.ShellCommands,
+        ["start_directory"] = Directory(pane.StartDirectory, resolved),
+        ["focus"] = pane.Focus,
+        ["options"] = pane.Options,
+        ["environment"] = pane.Environment,
+        ["shell_command_before"] = pane.ShellCommandsBefore,
+    };
+
+    private static string? Directory(string? path, bool resolved) =>
+        resolved ? path?.Replace("$", "$$", StringComparison.Ordinal) : path;
+}

@@ -23,6 +23,12 @@ Parse a workspace declaration without executing it.
 Import-TmuxWorkspace [-LiteralPath] <string>
 ```
 
+### File
+
+```text
+Import-TmuxWorkspace -File <FileInfo>
+```
+
 ### Yaml
 
 ```text
@@ -35,7 +41,16 @@ None.
 
 ## DESCRIPTION
 
-Read a literal file path or parse supplied YAML text into a native WorkspaceFile. Parsing does not start tmux, send shell commands or execute host scripts. This command accepts the current shared engine subset; complete plan/apply is still under development.
+Read a literal filesystem path, a FileInfo pipeline or supplied YAML/JSON text
+into a native WorkspaceFile. Inputs must be seekable UTF-8 files; a UTF-8 BOM
+is accepted. Named pipes are rejected without waiting for a writer.
+Admission stops at 1048576 characters, before retaining an oversized document.
+Malformed YAML/JSON and invalid UTF-8 preserve their exceptions as InvalidData
+errors.
+
+Parsing does not start tmux, execute host scripts or expand paths and variables.
+Resolve-TmuxWorkspace supplies an explicit document base and allowed variables.
+Test-TmuxWorkspace checks declaration completeness and execution policy.
 
 ## EXAMPLES
 
@@ -70,9 +85,30 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -File
+
+A FileInfo returned by Get-Item or workspace discovery. Its path is literal.
+
+```yaml
+Type: System.IO.FileInfo
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: File
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: true
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### -Yaml
 
-Yaml declaration text.
+YAML or JSON declaration text.
 
 ```yaml
 Type: System.String
@@ -100,6 +136,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
+### System.IO.FileInfo
+
+A file to read and parse.
+
 ## OUTPUTS
 
 ### LibTmux.Workspace.WorkspaceFile
@@ -108,8 +148,11 @@ Native pipeline type for this command.
 
 ## NOTES
 
-LiteralPath reads the specified file without wildcard expansion. Yaml accepts declaration text. Neither form is a workspace loader.
+File errors retain Tmux.InvalidWorkspace and allow later pipeline files with
+ErrorAction Continue. ErrorAction Stop terminates. No form applies a workspace.
 
 ## RELATED LINKS
 
-[Task guide](../../read.md)
+[Resolve-TmuxWorkspace](Resolve-TmuxWorkspace.md)
+
+[Test-TmuxWorkspace](Test-TmuxWorkspace.md)

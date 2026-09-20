@@ -82,7 +82,7 @@ uses a unique tmux channel to capture output after the shell signals completion.
 | Product | Use it for |
 | --- | --- |
 | [LibTmux](docs/reference/LibTmux) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
-| [LibTmux.Workspace](docs/reference/LibTmux.Workspace) | Parsing workspace declarations; planning and application are under development |
+| [LibTmux.Workspace](docs/workspace.md) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
 | [LibTmux.Mcp](https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp) | Giving an assistant tmux tools through the separately installed .NET MCP server |
 
 The workspace module parses YAML into a native
@@ -135,6 +135,7 @@ checks. Run the examples in that PowerShell session.
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
   [event streams, jobs and parallel workers](docs/watch.md).
+- **Workspaces:** [load a declaration, review its plan and apply it](docs/workspace.md).
 
 Examples are shared with the [executable guides](examples/Guides.ps1) and run
 against real tmux through the installed modules. See

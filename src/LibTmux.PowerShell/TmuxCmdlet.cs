@@ -72,15 +72,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
                 throw new PipelineStoppedException();
             }
 
-            ErrorCategory category = exception switch
-            {
-                OperationCanceledException => ErrorCategory.OperationStopped,
-                TimeoutException => ErrorCategory.OperationTimeout,
-                ArgumentException => ErrorCategory.InvalidArgument,
-                InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
-                TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
-                _ => ErrorCategory.InvalidOperation,
-            };
+            ErrorCategory category = GetErrorCategory(exception);
             WriteError(new ErrorRecord(exception, errorId, category, target));
         }
         finally
@@ -98,6 +90,19 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             }
         }
     }
+
+    /// <summary>Classifies an operation failure for the PowerShell error stream.</summary>
+    /// <param name="exception">The original operation exception.</param>
+    /// <returns>The category emitted without replacing the exception.</returns>
+    protected virtual ErrorCategory GetErrorCategory(Exception exception) => exception switch
+    {
+        OperationCanceledException => ErrorCategory.OperationStopped,
+        TimeoutException => ErrorCategory.OperationTimeout,
+        ArgumentException => ErrorCategory.InvalidArgument,
+        InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
+        TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
+        _ => ErrorCategory.InvalidOperation,
+    };
 
     /// <inheritdoc />
     protected override void StopProcessing() => CancelActiveOperation();

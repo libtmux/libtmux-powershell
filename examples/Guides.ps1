@@ -9,6 +9,9 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'job', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'query', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'queryPlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspace', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspacePlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspaceResult', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 param()
 
 @{
@@ -150,6 +153,26 @@ $server | Invoke-TmuxChain -Command @((New-TmuxCommand -Name 'display-message' -
     'environment.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru } }
     'environment.unset' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' } }
     'environment.mark-removed' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved } }
+    'workspace.01-load' = @{ Requires = @('workspacePath', 'projectRoot'); Code = {
+$workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
+    Import-TmuxWorkspace -ErrorAction Stop |
+    Resolve-TmuxWorkspace -BaseDirectory (Split-Path -LiteralPath $workspacePath) -Variables @{ PROJECT_ROOT = $projectRoot } -ErrorAction Stop
+    } }
+    'workspace.02-validate' = @{ Requires = @('workspace'); Code = {
+$workspace | Test-TmuxWorkspace -ErrorAction Stop
+    } }
+    'workspace.03-plan' = @{ Requires = @('workspace', 'server'); Code = {
+$workspacePlan = $workspace | Get-TmuxWorkspacePlan -Server $server -ExistingSession Error -ServerStartup CreateOrJoin -ErrorAction Stop
+    } }
+    'workspace.04-review' = @{ Requires = @('workspacePlan'); Code = {
+$workspacePlan.Actions
+    } }
+    'workspace.05-preview' = @{ Requires = @('workspacePlan'); Code = {
+$workspacePlan | Invoke-TmuxWorkspace -WhatIf
+    } }
+    'workspace.06-apply' = @{ Requires = @('workspacePlan'); Code = {
+$workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    } }
     'workspace.parse' = @{ Requires = @(); Code = { LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development' } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }

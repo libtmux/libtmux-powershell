@@ -311,6 +311,78 @@ $assertions = @{
             $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-environment', '-t', $o.Session.Id.ToString(), 'APP_MODE')).StdOut.TrimEnd("`n")
             Assert-Guide ($actual -ceq '-APP_MODE') 'explicit environment removal marker'
         } }
+    'workspace.01-load' = @{ Group = 'Workspace'; Count = 0; Prepare = {
+            param($c)
+            $c.ProjectRoot = [IO.Directory]::CreateDirectory((Join-Path $c.Fixture.DirectoryPath 'project')).FullName
+            $c.WorkspacePath = Join-Path $c.Fixture.DirectoryPath 'development.yaml'
+            $text = [IO.File]::ReadAllText("$root/docs/workspace.md")
+            $declaration = [regex]::Match($text.Replace("`r`n", "`n"), '(?m)<!-- declaration: workspace.basic -->\s*^```yaml\n(?<yaml>[\s\S]*?)^```$')
+            Assert-Guide $declaration.Success 'workspace guide declaration missing'
+            [IO.File]::WriteAllText($c.WorkspacePath, $declaration.Groups['yaml'].Value)
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Workspace -is [LibTmux.Workspace.WorkspaceFile] -and
+                $o.Workspace.SessionName -ceq 'development' -and
+                $o.Workspace.DocumentDirectory -ceq $o.Context.Fixture.DirectoryPath -and
+                $o.Workspace.StartDirectory -ceq $o.Context.ProjectRoot -and
+                $o.Workspace.Windows.Count -eq 1 -and $o.Workspace.Windows[0].Panes.Count -eq 2 -and
+                $o.Workspace.Windows[0].Panes[1].StartDirectory -ceq $o.Context.ProjectRoot) 'native file import and explicit inherited resolution'
+            $o.Context.Workspace = $o.Workspace
+        } }
+    'workspace.02-validate' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [bool] -and $o.Result[0]) 'pure workspace validation'
+        } }
+    'workspace.03-plan' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
+            $plan = $o.WorkspacePlan
+            Assert-Guide ($plan -is [LibTmux.Workspace.WorkspacePlan] -and
+                [object]::ReferenceEquals($plan.Endpoint, $o.Server) -and
+                $plan.SessionName -ceq 'development' -and $plan.ExistingSessionPolicy -eq 'Error' -and
+                $plan.ServerStartup -eq 'CreateOrJoin' -and $plan.Readiness -eq 'Immediate' -and
+                @($plan.Actions | Where-Object Kind -eq RunHostScript).Count -eq 0 -and
+                $plan.Actions[$plan.Actions.Count - 1].Kind -eq 'CaptureResult' -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'explicit endpoint plan with frozen policies'
+            Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.TrimEnd("`n") -ceq 'fixture') 'planning created a session'
+            $o.Context.WorkspacePlan = $plan
+        } }
+    'workspace.04-review' = @{ Group = 'Workspace'; Count = -1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result.Count -eq $o.WorkspacePlan.Actions.Count) 'review action cardinality'
+            for ($index = 0; $index -lt $o.Result.Count; $index++) {
+                Assert-Guide ($o.Result[$index] -is [LibTmux.Workspace.WorkspaceAction] -and
+                    [object]::ReferenceEquals($o.Result[$index], $o.WorkspacePlan.Actions[$index])) 'review exact native action'
+            }
+        } }
+    'workspace.05-preview' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ((Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'workspace preview dispatched'
+        } }
+    'workspace.06-apply' = @{ Group = 'Workspace'; Count = 0; Prepare = {
+            param($c)
+            [IO.File]::Delete($c.WorkspacePath)
+        }; Assert = {
+            param($o)
+            $result = $o.WorkspaceResult
+            Assert-Guide ($result -is [LibTmux.Workspace.WorkspaceResult] -and
+                $result.Session.Name -ceq 'development' -and $result.Windows.Count -eq 1 -and
+                $result.Windows[0].Name -ceq 'editor' -and $result.Windows[0].Panes.Count -eq 2 -and
+                $result.Unsupported.Count -eq 0 -and $result.Journal.Count -eq $o.WorkspacePlan.Actions.Count -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'applied the reviewed declaration after its source file was removed'
+            for ($index = 0; $index -lt $result.Journal.Count; $index++) {
+                Assert-Guide ([object]::ReferenceEquals($result.Journal[$index].Action, $o.WorkspacePlan.Actions[$index]) -and
+                    $result.Journal[$index].State -eq [LibTmux.Workspace.WorkspaceActionState]::Completed) 'workspace exact-plan completed journal'
+            }
+            $panes = $result.Windows[0].Panes
+            Assert-Guide ($panes[0].CurrentPath -ceq $o.Context.ProjectRoot -and
+                $panes[1].CurrentPath -ceq $o.Context.ProjectRoot -and
+                [Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and
+                $panes[0].Height -eq $panes[1].Height -and
+                ($panes[0] | Get-TmuxOption -Name '@role').Value.Raw -ceq 'editor' -and
+                $result.Windows[0].ActivePane.Value.Id -eq $panes[1].Id) 'workspace directory, layout, pane option and final focus'
+            Assert-Guide ((Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'workspace preserved unrelated anchor'
+            $o.Context.WorkspaceResult = $result
+        } }
     'workspace.parse' = @{ Group = 'Pure'; Count = 1; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -450,7 +522,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query', 'Workspace') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -609,16 +681,22 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     $currentPane = $newPane = $null
     $captured = $Context['Captured']
     $query, $queryPlan = $Context['Query'], $Context['QueryPlan']
+    $workspacePath, $projectRoot = $Context['WorkspacePath'], $Context['ProjectRoot']
+    $workspace, $workspacePlan, $workspaceResult = $Context['Workspace'], $Context['WorkspacePlan'], $Context['WorkspaceResult']
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
     $result = @(. $sources[$Id].Code)
     $Context.Executed.Add($Id)
-    if ($entry.Group -eq 'Create') { Register-OwnedTmuxPane $Context.Fixture }
+    if ($entry.Group -eq 'Create' -or $Id -ceq 'workspace.06-apply') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
-        Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Query = $query; QueryPlan = $queryPlan; Context = $Context; BeforeDispatch = $before }
+        Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Query = $query; QueryPlan = $queryPlan;
+        Workspace = $workspace; WorkspacePlan = $workspacePlan; WorkspaceResult = $workspaceResult; Context = $Context; BeforeDispatch = $before }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
+    }
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('workspace.03-plan', 'workspace.06-apply')) {
+        Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {
         Assert-Guide ((Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $Context.Anchor) 'unrelated removal anchor'
@@ -658,7 +736,7 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query', 'Workspace')) {
     $context = @{ Executed = $completed }
     $run = {
         $control = $null

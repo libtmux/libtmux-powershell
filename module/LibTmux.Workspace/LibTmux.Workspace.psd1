@@ -8,7 +8,11 @@
     CompatiblePSEditions = @('Core')
     RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '0.1.0' })
     FunctionsToExport = @()
-    CmdletsToExport = @('Import-TmuxWorkspace')
+    CmdletsToExport = @(
+        'Import-TmuxWorkspace', 'Resolve-TmuxWorkspace', 'Test-TmuxWorkspace',
+        'Get-TmuxWorkspace', 'Get-TmuxWorkspacePlan', 'Invoke-TmuxWorkspace',
+        'ConvertTo-TmuxWorkspaceYaml', 'ConvertTo-TmuxWorkspaceJson'
+    )
     VariablesToExport = @()
     AliasesToExport = @()
     PrivateData = @{

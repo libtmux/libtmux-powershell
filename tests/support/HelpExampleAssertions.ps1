@@ -13,8 +13,70 @@ function Get-HelpExampleAssertion {
         Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
 
+    $prepareWorkspacePlan = {
+        param($Context)
+        $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+        $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: workspace-help, options: {default-command: "exec /bin/cat"}, windows: [{window_name: editor}]}'
+        $Plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server
+        $Context.Plan = $Plan
+    }
+
     # Each packaged example needs its own outcome assertion, including examples with no output.
     @{
+        'LibTmux.Workspace\Get-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $WorkspacePath = Join-Path $Context.Fixture.DirectoryPath '[team].yaml'
+                [IO.File]::WriteAllText($WorkspacePath, 'session_name: discovered')
+                $Context.WorkspacePath = $WorkspacePath
+            }; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [IO.FileInfo] -or $Result[0].FullName -cne $Context.WorkspacePath -or
+                    ($Result[0] | LibTmux.Workspace\Import-TmuxWorkspace).SessionName -cne 'discovered') {
+                    throw 'Workspace discovery example did not return its literal native file.'
+                }
+            } }
+        'LibTmux.Workspace\Resolve-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                $expectedBase = (Get-Location).Path
+                if ($Result[0] -isnot [LibTmux.Workspace.WorkspaceFile] -or
+                    $Result[0].DocumentDirectory -cne $expectedBase -or
+                    $Result[0].Windows[0].Panes[0].StartDirectory -cne (Join-Path $expectedBase 'src')) {
+                    throw 'Workspace resolution example lost the explicit base or inherited expansion.'
+                }
+            } }
+        'LibTmux.Workspace\Get-TmuxWorkspacePlan#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                $plan = $Result[0]
+                if ($plan -isnot [LibTmux.Workspace.WorkspacePlan] -or $plan.SessionName -cne 'development' -or
+                    $plan.Endpoint.ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath -or
+                    @($plan.Actions | Where-Object Kind -EQ CreateWindow).Count -ne 1 -or
+                    @($plan.Endpoint | LibTmux\Get-TmuxSession -Name development).Count -ne 0) {
+                    throw 'Workspace plan example lost its native actions or created its session during planning.'
+                }
+            } }
+        'LibTmux.Workspace\Invoke-TmuxWorkspace#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = $prepareWorkspacePlan; Assert = {
+                param($Result, $Context)
+                if (@($Context.Plan.Endpoint | LibTmux\Get-TmuxSession -Name workspace-help).Count -ne 0) {
+                    throw 'Workspace preview example created the planned session.'
+                }
+            } }
+        'LibTmux.Workspace\Invoke-TmuxWorkspace#2' = @{ ExpectedCount = 1; Isolated = $true; Prepare = $prepareWorkspacePlan; Assert = {
+                param($Result, $Context)
+                $applied = $Result[0]
+                if ($applied -isnot [LibTmux.Workspace.WorkspaceResult] -or
+                    $applied.Session.Name -cne 'workspace-help' -or $applied.Windows.Count -ne 1 -or
+                    $applied.Windows[0].Name -cne 'editor' -or $applied.Windows[0].Panes.Count -ne 1 -or
+                    $applied.Journal.Count -eq 0 -or
+                    ![object]::ReferenceEquals($applied.Journal[0].Action, $Context.Plan.Actions[0])) {
+                    throw 'Workspace apply example did not execute its exact plan into the expected captured session.'
+                }
+            } }
+        'LibTmux.Workspace\Test-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                if ($Result[0] -isnot [bool] -or !$Result[0]) {
+                    throw 'Workspace validation example did not accept its complete declaration.'
+                }
+            } }
         'LibTmux\Get-TmuxQueryPlan#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $plan = $Result[0]
@@ -136,6 +198,26 @@ function Get-HelpExampleAssertion {
         'LibTmux\Get-TmuxPaneContent#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if (!$Result[0].Contains('libtmux-help-example-output')) { throw 'Capture example lost the completed fixture output.' }
+            } }
+        'LibTmux.Workspace\ConvertTo-TmuxWorkspaceYaml#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $Result[0]
+                if ($Result[0] -isnot [string] -or $workspace.SessionName -cne 'development' -or
+                    $workspace.Windows[0].Panes.Count -ne 2 -or
+                    $workspace.Windows[0].Panes[0].ShellCommands[0] -cne 'nvim' -or
+                    $workspace.Windows[0].Panes[1].ShellCommands[0] -cne '') {
+                    throw 'YAML conversion example lost the declared workspace or pane order.'
+                }
+            } }
+        'LibTmux.Workspace\ConvertTo-TmuxWorkspaceJson#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $Result[0]
+                if ($Result[0] -isnot [string] -or $workspace.SessionName -cne 'development' -or
+                    $workspace.Windows[0].Panes.Count -ne 2 -or
+                    $workspace.Windows[0].Panes[0].ShellCommands[0] -cne 'nvim' -or
+                    $workspace.Windows[0].Panes[1].ShellCommands[0] -cne '') {
+                    throw 'JSON conversion example lost the declared workspace or pane order.'
+                }
             } }
         'LibTmux.Workspace\Import-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
