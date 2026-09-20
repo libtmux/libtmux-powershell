@@ -127,7 +127,7 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`, `Hooks`, `Environment`, `Formatting`, `Runtime`, `Help` and
+The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Clients`, `Formatting`, `Runtime`, `Help` and
 `Examples` suites use the same artifact argument. `All` runs the implemented
 suites; it does not imply the full architecture or compatibility matrix is
 complete.

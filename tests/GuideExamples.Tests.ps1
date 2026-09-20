@@ -73,6 +73,55 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'layout.pane-size' = @{ Group = 'Settings'; Count = 1; Prepare = {
+            param($c)
+            $c.Window = $c.Session | Get-TmuxWindow | Select-Object -First 1
+            $null = $c.Window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru
+            $null = $c.Pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Pane] -and $o.Result[0].Width -eq 40 -and
+                (Get-GuideField $o.Context $o.Pane.Id.ToString() '#{pane_width}') -ceq '40') 'pane size readback and live width'
+        } }
+    'layout.select' = @{ Group = 'Settings'; Count = 1; Assert = {
+            param($o)
+            $panes = @($o.Result[0] | Get-TmuxPane)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Window] -and $panes.Count -eq 2 -and
+                [Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and $panes[0].Height -eq 40) 'horizontal layout geometry'
+        } }
+    'layout.window-size' = @{ Group = 'Settings'; Count = 1; Prepare = {
+            param($c)
+            $null = $c.Window | Set-TmuxWindowSize -Width 100 -Height 30 -PassThru
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Window] -and $o.Result[0].Width -eq 120 -and
+                $o.Result[0].Height -eq 40 -and
+                (Get-GuideField $o.Context $o.Window.Id.ToString() '#{window_width}x#{window_height}') -ceq '120x40') 'window size observed and live dimensions'
+        } }
+    'layout.zoom' = @{ Group = 'Settings'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ((Get-GuideField $o.Context $o.Pane.Id.ToString() '#{window_zoomed_flag}') -ceq '1') 'zoom toggle applied'
+        } }
+    'clients.read' = @{ Group = 'Clients'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Client] -and $o.Result[0].Name -ceq $o.Client.Name -and $o.Result[0].IsControlClient) 'native attached client listing'
+        } }
+    'clients.refresh' = @{ Group = 'Clients'; Count = 1; Prepare = {
+            param($c)
+            $other = $c.Server | New-TmuxSession -Name 'client-other' -Command 'exec /bin/cat'
+            $c.OtherId = $other.Id
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('switch-client', '-c', $c.Client.Name, '-t', $other.Id.ToString())
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Client] -and $o.Result[0].AttachedSessionId -eq $o.Context.OtherId -and
+                $o.Client.AttachedSessionId -ne $o.Context.OtherId) 'replacement client captures changed session'
+        } }
+    'clients.attachment' = @{ Group = 'Clients'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.ClientAttachment] -and
+                $o.Result[0].Session.Id -eq $o.Client.AttachedSessionId -and
+                $o.Result[0].Window -is [LibTmux.Window] -and $o.Result[0].Pane -is [LibTmux.Pane]) 'live native client attachment'
+        } }
     'options.read' = @{ Group = 'Settings'; Count = 1; Prepare = {
             param($c)
             $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-option', '-g', 'status-keys', 'vi')
@@ -294,7 +343,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -441,6 +490,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
         if (!$Context.ContainsKey($required) -or $null -eq $Context[$required]) { throw "Guide prerequisite missing: $Id/$required" }
     }
     $server, $session, $pane, $window = $Context['Server'], $Context['Session'], $Context['Pane'], $Context['Window']
+    $client = $Context['Client']
     $currentPane = $newPane = $null
     $captured = $Context['Captured']
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
@@ -449,7 +499,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Create') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
-        CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
+        Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Remove') {
         Assert-Guide ((Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $Context.Anchor) 'unrelated removal anchor'
@@ -489,16 +539,23 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients')) {
     $context = @{ Executed = $completed }
     $run = {
-        foreach ($id in $sources.Keys | Sort-Object) {
-            if ($assertions[$id].Group -ceq $group) { Invoke-GuideUnit $id $context }
-        }
-        if ($group -eq 'Readme') {
-            $wrapper = $context.Server.ConnectionOptions.TmuxBinaryPath
-            $originalWrapper = [IO.File]::ReadAllText($wrapper)
-            $rejection = @'
+        $control = $null
+        try {
+            if ($group -eq 'Clients') {
+                $control = $context.Server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+                $context.Client = $context.Server.GetClientsAsync().GetAwaiter().GetResult()[0]
+                $null = $context.Fixture.OwnedProcessIds.Add([int] $context.Client.RawFormatFields['client_pid'])
+            }
+            foreach ($id in $sources.Keys | Sort-Object) {
+                if ($assertions[$id].Group -ceq $group) { Invoke-GuideUnit $id $context }
+            }
+            if ($group -eq 'Readme') {
+                $wrapper = $context.Server.ConnectionOptions.TmuxBinaryPath
+                $originalWrapper = [IO.File]::ReadAllText($wrapper)
+                $rejection = @'
 for argument in "$@"; do
     if [ "$argument" = split-window ]; then
         printf '%s\n' 'injected guide split failure' >&2
@@ -506,18 +563,21 @@ for argument in "$@"; do
     fi
 done
 '@
-            $failed = $false
-            try {
-                [IO.File]::WriteAllText($wrapper, $originalWrapper.Replace("#!/bin/sh`n", "#!/bin/sh`n$rejection`n"))
-                try { Invoke-GuideUnit 'readme.create' $context } catch {
-                    if ($_.FullyQualifiedErrorId -notlike 'Tmux.PaneSplitFailed,*' -or
-                        $_.Exception.Message -notlike '*injected guide split failure*') { throw }
-                    $failed = $true
-                }
-                Assert-Guide $failed 'demo accepted injected split failure'
-                $sessions = (Invoke-OwnedTmux $context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
-                Assert-Guide ($sessions -cnotcontains 'demo' -and $sessions -ccontains 'fixture') 'demo failure cleanup and unrelated session'
-            } finally { [IO.File]::WriteAllText($wrapper, $originalWrapper) }
+                $failed = $false
+                try {
+                    [IO.File]::WriteAllText($wrapper, $originalWrapper.Replace("#!/bin/sh`n", "#!/bin/sh`n$rejection`n"))
+                    try { Invoke-GuideUnit 'readme.create' $context } catch {
+                        if ($_.FullyQualifiedErrorId -notlike 'Tmux.PaneSplitFailed,*' -or
+                            $_.Exception.Message -notlike '*injected guide split failure*') { throw }
+                        $failed = $true
+                    }
+                    Assert-Guide $failed 'demo accepted injected split failure'
+                    $sessions = (Invoke-OwnedTmux $context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+                    Assert-Guide ($sessions -cnotcontains 'demo' -and $sessions -ccontains 'fixture') 'demo failure cleanup and unrelated session'
+                } finally { [IO.File]::WriteAllText($wrapper, $originalWrapper) }
+            }
+        } finally {
+            if ($control) { $null = $control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
         }
     }
     if ($group -eq 'Pure') { & $run } else {

@@ -12,29 +12,33 @@ $ModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path
 $assertions = Get-HelpExampleAssertion
 
 function Invoke-HelpExample($Example, $Assertion, $Context) {
-    $SocketPath = $Context.Fixture.SocketPath
-    if ($Assertion.ContainsKey('Prepare')) {
-        # Preparation binds the documented native owner in this example's local scope.
-        . $Assertion.Prepare $Context
-        Register-OwnedTmuxPane $Context.Fixture
-    }
-    $result = @(& ([scriptblock]::Create($Example.Code)))
-    $Context.Executed = $true
-    if ($Assertion.Isolated) { Register-OwnedTmuxPane $Context.Fixture }
-    if ($result.Count -ne $Assertion.ExpectedCount) {
-        throw "$($Example.Id) expected $($Assertion.ExpectedCount) output objects; received $($result.Count)."
-    }
-    foreach ($item in $result) {
-        $types = @($Example.Command.OutputType | ForEach-Object Type)
-        $matchingTypes = @($types | Where-Object { $null -ne $_ -and $item -is $_ })
-        if (!$matchingTypes.Count) { throw "$($Example.Id) returned the wrong native type." }
-        $nativeEntity = $item -is [LibTmux.Session] -or $item -is [LibTmux.Window] -or $item -is [LibTmux.Pane]
-        if ($Assertion.Isolated -and $nativeEntity -and $item.Server.ConnectionOptions.SocketPath -cne $SocketPath) {
-            throw "$($Example.Id) returned an object from the wrong server."
+    try {
+        $SocketPath = $Context.Fixture.SocketPath
+        if ($Assertion.ContainsKey('Prepare')) {
+            # Preparation binds the documented native owner in this example's local scope.
+            . $Assertion.Prepare $Context
+            Register-OwnedTmuxPane $Context.Fixture
         }
+        $result = @(& ([scriptblock]::Create($Example.Code)))
+        $Context.Executed = $true
+        if ($Assertion.Isolated) { Register-OwnedTmuxPane $Context.Fixture }
+        if ($result.Count -ne $Assertion.ExpectedCount) {
+            throw "$($Example.Id) expected $($Assertion.ExpectedCount) output objects; received $($result.Count)."
+        }
+        foreach ($item in $result) {
+            $types = @($Example.Command.OutputType | ForEach-Object Type)
+            $matchingTypes = @($types | Where-Object { $null -ne $_ -and $item -is $_ })
+            if (!$matchingTypes.Count) { throw "$($Example.Id) returned the wrong native type." }
+            $nativeEntity = $item -is [LibTmux.Session] -or $item -is [LibTmux.Window] -or $item -is [LibTmux.Pane]
+            if ($Assertion.Isolated -and $nativeEntity -and $item.Server.ConnectionOptions.SocketPath -cne $SocketPath) {
+                throw "$($Example.Id) returned an object from the wrong server."
+            }
+        }
+        # Zero-output examples still require their registered state-change assertion.
+        & $Assertion.Assert $result $Context $Assertion['Expected']
+    } finally {
+        if ($Assertion.ContainsKey('Cleanup')) { & $Assertion.Cleanup $Context }
     }
-    # Zero-output examples still require their registered state-change assertion.
-    & $Assertion.Assert $result $Context $Assertion['Expected']
 }
 
 function Assert-HelpFixtureCleanup($Fixtures) {
@@ -151,6 +155,28 @@ if ($RunExamples) {
     }
     if (!$rejected -or !$negative.Executed) { throw 'Wrong-output control did not reject a live example outcome.' }
     'PASS wrong help example outcome rejected after live execution; owned resources removed'
+
+    Invoke-WithOwnedTmux {
+        param($fixture)
+        $owned.Add($fixture)
+        $clientExample = $examples | Where-Object Id -CEQ 'LibTmux\Get-TmuxClient#1'
+        $clientAssertion = $assertions[$clientExample.Id].Clone()
+        $clientAssertion.Assert = { throw 'injected client help assertion failure' }
+        $clientContext = @{ Fixture = $fixture; Executed = $false }
+        $failed = $false
+        try { Invoke-HelpExample $clientExample $clientAssertion $clientContext } catch {
+            if ($_.Exception.Message -cne 'injected client help assertion failure') { throw }
+            $failed = $true
+        }
+        if (!$failed -or !$clientContext.Executed -or $clientContext.Control.IsRunning -or
+            $clientContext.Client.Server.GetClientsAsync().GetAwaiter().GetResult().Count -ne 0) {
+            throw 'Failed client help example left its owned control client.'
+        }
+        if ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') {
+            throw 'Client help cleanup removed its borrowed session.'
+        }
+    }
+    'PASS failed client help assertion closes its owned client and preserves the session'
 
     try {
         Invoke-WithOwnedTmux {

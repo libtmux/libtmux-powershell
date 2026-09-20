@@ -5,6 +5,8 @@ function Get-HelpExampleAssertion {
         Justification = 'Preparation binds the documented server variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'session',
         Justification = 'Preparation binds the documented session variable in the example execution scope.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'window',
+        Justification = 'Preparation binds the documented window variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
         Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
@@ -87,6 +89,56 @@ function Get-HelpExampleAssertion {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
             } }
+        'LibTmux\Set-TmuxLayout#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $window = $server | LibTmux\Get-TmuxWindow | Select-Object -First 1
+                $pane = $window | LibTmux\Get-TmuxPane
+                $null = $pane | LibTmux\Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+            }; Assert = {
+                param($Result)
+                $panes = @($Result[0] | LibTmux\Get-TmuxPane)
+                if ($panes.Count -ne 2 -or [Math]::Abs($panes[0].Width - $panes[1].Width) -gt 1) { throw 'Layout help did not tile both panes.' }
+            } }
+        'LibTmux\Set-TmuxWindowSize#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $window = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxWindow | Select-Object -First 1
+            }; Assert = {
+                param($Result)
+                if ($Result[0].Width -ne 120 -or $Result[0].Height -ne 40) { throw 'Window-size help did not resize.' }
+            } }
+        'LibTmux\Set-TmuxPaneSize#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $pane = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxPane | Select-Object -First 1
+                $null = $pane | LibTmux\Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+            }; Assert = {
+                param($Result)
+                if ($Result[0].Width -ne 40) { throw 'Pane-size help did not resize.' }
+            } }
+        'LibTmux\Get-TmuxClient#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $client = Initialize-HelpClient $Context
+                $server = $client.Server
+            }; Assert = {
+                param($Result, $Context)
+                if ($Result[0].Name -cne $Context.Client.Name) { throw 'Client help selected the wrong client.' }
+            }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
+        'LibTmux\Update-TmuxClient#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $client = Initialize-HelpClient $Context
+                $server = $client.Server
+            }; Assert = {
+                param($Result, $Context)
+                if ($Result[0].Name -cne $Context.Client.Name) { throw 'Client help selected the wrong client.' }
+            }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
+        'LibTmux\Get-TmuxClientAttachment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $client = Initialize-HelpClient $Context
+                $server = $client.Server
+            }; Assert = {
+                param($Result, $Context)
+                if ($Result[0].Session.Id -ne $Context.Client.AttachedSessionId -or !$Result[0].Window -or !$Result[0].Pane) { throw 'Attachment help did not resolve native relations.' }
+            }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
         'LibTmux\Get-TmuxOption#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -247,6 +299,14 @@ function Assert-HelpRemovalOutcome($Context, [string[]] $ListArguments) {
     if ($anchor.StdOut.Trim() -cne $Context.Anchor) { throw 'Removal example changed the unrelated fixture anchor.' }
 }
 
+function Initialize-HelpClient($Context) {
+    $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+    $Context.Control = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+    $Context.Client = $server.GetClientsAsync().GetAwaiter().GetResult()[0]
+    $null = $Context.Fixture.OwnedProcessIds.Add([int] $Context.Client.RawFormatFields['client_pid'])
+    $Context.Client
+}
+
 function Assert-HelpExampleRegistration($Examples, [hashtable] $Assertions) {
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($example in $Examples) {
@@ -256,6 +316,9 @@ function Assert-HelpExampleRegistration($Examples, [hashtable] $Assertions) {
         if ($entry.Assert -isnot [scriptblock] -or $entry.ExpectedCount -isnot [int] -or
             $entry.ExpectedCount -lt 0 -or $entry.Isolated -isnot [bool]) {
             throw "Invalid help example assertion: $($example.Id)"
+        }
+        if ($entry.ContainsKey('Cleanup') -and (!$entry.Isolated -or $entry.Cleanup -isnot [scriptblock])) {
+            throw "Invalid isolated help example cleanup: $($example.Id)"
         }
         if ($entry.ContainsKey('Prepare') -and (!$entry.Isolated -or $entry.Prepare -isnot [scriptblock])) {
             throw "Invalid isolated help example preparation: $($example.Id)"

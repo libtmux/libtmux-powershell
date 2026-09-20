@@ -137,6 +137,10 @@ drives tmux, use the separately packaged
 
 ## Guides
 
+- [Arrange panes and resize windows](docs/layout.md): layouts, dimensions and
+  zoom toggling.
+- [Inspect attached clients](docs/clients.md): captured state and current
+  attachment.
 - [Create sessions, windows and panes](docs/create.md): owners, sizing,
   commands and environment entries.
 - [Remove sessions, windows and panes](docs/remove.md): confirmation and

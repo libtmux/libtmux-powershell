@@ -43,6 +43,13 @@ $captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
     }
 }
     } }
+    'layout.pane-size' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Width '40' -PassThru } }
+    'layout.select' = @{ Requires = @('window'); Code = { $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru } }
+    'layout.window-size' = @{ Requires = @('window'); Code = { $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru } }
+    'layout.zoom' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Zoom } }
+    'clients.read' = @{ Requires = @('server'); Code = { $server | Get-TmuxClient } }
+    'clients.refresh' = @{ Requires = @('client'); Code = { $client | Update-TmuxClient } }
+    'clients.attachment' = @{ Requires = @('client'); Code = { $client | Get-TmuxClientAttachment } }
     'options.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxOption -Name 'status-keys' -IncludeInherited } }
     'options.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxOption -Name '@project' -Value 'api' -PassThru } }
     'options.remove' = @{ Requires = @('session'); Code = { $session | Remove-TmuxOption -Name '@scratch' } }

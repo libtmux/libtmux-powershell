@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
     [ValidateSet('1.1.1', '1.2.0')]
     [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
@@ -54,7 +54,7 @@ try {
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -in @('Fixture', 'All')) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Runtime', 'Help', 'Examples', 'Guides', 'All')) {
+    if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Runtime', 'Help', 'Examples', 'Guides', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -94,6 +94,12 @@ try {
             }
             if ($Suite -in @('Remove', 'All')) {
                 Invoke-TestScript 'tests/Remove.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            if ($Suite -in @('Layout', 'All')) {
+                Invoke-TestScript 'tests/Layout.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            if ($Suite -in @('Clients', 'All')) {
+                Invoke-TestScript 'tests/Clients.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
             if ($Suite -in @('Environment', 'All')) {
                 Invoke-TestScript 'tests/Environment.Tests.ps1' @('-ModuleRoot', $installed) $installed
