@@ -43,6 +43,19 @@ $captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
     }
 }
     } }
+    'commands.chain' = @{ Requires = @('server'); Code = {
+$server | Invoke-TmuxChain -Command @((New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')), (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')))
+    } }
+    'commands.control' = @{ Requires = @('server'); Code = {
+& {
+    $control = $server | Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+    try {
+        $control | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', '#{session_name}')) -ErrorAction Stop
+    } finally {
+        $control | Disconnect-TmuxControl -Confirm:$false
+    }
+}
+    } }
     'layout.pane-size' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Width '40' -PassThru } }
     'layout.select' = @{ Requires = @('window'); Code = { $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru } }
     'layout.window-size' = @{ Requires = @('window'); Code = { $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru } }

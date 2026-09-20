@@ -19,7 +19,9 @@
         'Get-TmuxHook', 'Set-TmuxHook', 'Invoke-TmuxHook', 'Remove-TmuxHook',
         'Get-TmuxEnvironment', 'Set-TmuxEnvironment', 'Remove-TmuxEnvironment',
         'Set-TmuxLayout', 'Set-TmuxWindowSize', 'Set-TmuxPaneSize',
-        'Get-TmuxClient', 'Update-TmuxClient', 'Get-TmuxClientAttachment'
+        'Get-TmuxClient', 'Update-TmuxClient', 'Get-TmuxClientAttachment',
+        'New-TmuxCommand', 'Invoke-TmuxChain', 'Connect-TmuxControl',
+        'Invoke-TmuxControlCommand', 'Disconnect-TmuxControl'
     )
     VariablesToExport = @()
     AliasesToExport = @()

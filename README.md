@@ -139,6 +139,8 @@ drives tmux, use the separately packaged
 
 - [Arrange panes and resize windows](docs/layout.md): layouts, dimensions and
   zoom toggling.
+- [Compose commands and reuse control clients](docs/commands.md): ordered
+  chains, native replies and explicit connection cleanup.
 - [Inspect attached clients](docs/clients.md): captured state and current
   attachment.
 - [Create sessions, windows and panes](docs/create.md): owners, sizing,

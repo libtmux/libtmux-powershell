@@ -2,6 +2,154 @@
 <helpItems xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" schema="maml" xmlns="http://msh">
   <command:command>
     <command:details>
+      <command:name>Connect-TmuxControl</command:name>
+      <maml:description>
+        <maml:para>Attach a native control client to an explicit tmux target.</maml:para>
+      </maml:description>
+      <command:verb>Connect</command:verb>
+      <command:noun>TmuxControl</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Attach one control client and return its native IControlModeSession. The
+caller owns the returned client and must dispose it or use
+Disconnect-TmuxControl in finally. The server and its sessions are borrowed.
+
+Target is raw tmux target syntax, resolved when connecting. A name, index or
+ID does not carry a captured entity identity guard. No implicit current
+session is selected. WhatIf does not attach a client. An empty server pipeline
+performs no work.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Connect-TmuxControl</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Target</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The explicit endpoint that receives the operation.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Target</maml:name>
+        <maml:description>
+          <maml:para>Nonempty raw tmux target to attach to. NUL and whitespace-only values are rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Show the operation without contacting tmux.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native endpoint to attach to.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The newly attached client. Its ownership transfers to the caller.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.ControlConnectFailed retains the original failure and server target. If
+pipeline output fails before the client transfers to the caller, the cmdlet
+disposes it. Stop cancels attachment; it never kills the borrowed tmux server.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Attach to fixture on a previously selected $server. Retain the returned
+client and close it in finally with Disconnect-TmuxControl; the task guide
+shows a complete ownership scope.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$server | LibTmux\Connect-TmuxControl -Target 'fixture'
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Connect-TmuxControl.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Connect-TmuxServer</command:name>
       <maml:description>
         <maml:para>Discover the server at an explicit endpoint.</maml:para>
@@ -84,6 +232,132 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Connect-TmuxServer
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Disconnect-TmuxControl</command:name>
+      <maml:description>
+        <maml:para>Dispose an explicitly supplied tmux control client.</maml:para>
+      </maml:description>
+      <command:verb>Disconnect</command:verb>
+      <command:noun>TmuxControl</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Dispose the native control client and await its cleanup. The tmux daemon,
+sessions and panes remain running. This is an explicit ownership action:
+other callers using the same connection lose that client.
+
+The operation emits no success object. An empty pipeline performs no work.
+WhatIf leaves the connection usable.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Disconnect-TmuxControl</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Connection</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IControlModeSession</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.IControlModeSession</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Connection</maml:name>
+        <maml:description>
+          <maml:para>The native control client. This operation borrows the supplied client.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Show the operation without contacting tmux.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The client the caller explicitly chooses to close.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success output.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.ControlDisconnectFailed retains the native failure and connection
+target. The native disposal API has no cancellation token; cleanup is awaited
+rather than abandoned when a pipeline stops.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Close the $control client owned by the surrounding scope; use this in finally.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$control | LibTmux\Disconnect-TmuxControl -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Disconnect-TmuxControl.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2207,6 +2481,189 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxWindow
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Invoke-TmuxChain</command:name>
+      <maml:description>
+        <maml:para>Execute an ordered command chain against one server.</maml:para>
+      </maml:description>
+      <command:verb>Invoke</command:verb>
+      <command:noun>TmuxChain</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Execute an explicit array of native commands in order and return one merged
+TmuxCommandResult. Native generation and window-placement guards are retained.
+An empty server pipeline performs no work. Admission validates the complete
+array before confirmation or dispatch.
+
+A failed command stops the remaining chain; earlier mutations remain. The
+result is merged stdout/stderr, not one receipt per command. Chains are not
+transactions. Cancellation cannot undo a command already sent to tmux.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxChain</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Command</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">TmuxCommand[]</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.TmuxCommand[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxCommands</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxInputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int64</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int64</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Command</maml:name>
+        <maml:description>
+          <maml:para>A nonempty array of native commands in dispatch order.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.TmuxCommand[]</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxCommand[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxCommands</maml:name>
+        <maml:description>
+          <maml:para>Positive admitted command count. Default: 1024.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxInputBytes</maml:name>
+        <maml:description>
+          <maml:para>Positive UTF-8 budget for command names and argument text, including one NUL terminator per item. Default: 1048576. This is an argv-text budget, not a process-memory or response budget. Native transport and operating-system limits still apply.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int64</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int64</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The explicit endpoint that receives the operation.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Show the operation without contacting tmux.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native server to execute against.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxCommandResult</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native merged result after success.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.InvalidChain terminates invalid admission. Tmux.ChainFailed retains the
+native failure and server target. ErrorAction Continue permits later servers
+to run; Stop terminates. WhatIf dispatches nothing. Do not automatically retry
+an uncertain mutation.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Print two values in order on a previously selected $server.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$server | LibTmux\Invoke-TmuxChain -Command @((LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')), (LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')))
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Invoke-TmuxChain.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Invoke-TmuxCommand</command:name>
       <maml:description>
         <maml:para>Execute literal tmux arguments against an explicit server.</maml:para>
@@ -2339,6 +2796,155 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxCommand -Arg
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../capture.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-TmuxControlCommand</command:name>
+      <maml:description>
+        <maml:para>Run a native command on a borrowed control client.</maml:para>
+      </maml:description>
+      <command:verb>Invoke</command:verb>
+      <command:noun>TmuxControlCommand</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Send one native command and emit its reply lines as strings. Commands with
+no reply emit no success object. Native commands retain their generation and
+placement guards; raw commands use tmux target resolution.
+
+Concurrent callers receive their correlated replies from the core. Cancelling
+stops this caller waiting, not a command already sent, and does not dispose
+the borrowed client. A later send remains usable after the cancelled command
+finishes. WhatIf sends nothing; an empty connection pipeline performs no work.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxControlCommand</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Connection</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IControlModeSession</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.IControlModeSession</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Command</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">TmuxCommand</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.TmuxCommand</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Command</maml:name>
+        <maml:description>
+          <maml:para>The native command. Raw commands contain no captured entity identity guard.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.TmuxCommand</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxCommand</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Connection</maml:name>
+        <maml:description>
+          <maml:para>The native control client. This operation borrows the supplied client.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Show the operation without contacting tmux.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The borrowed client to send through.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native reply lines, in reply order.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.InvalidCommand rejects a global option in the command-name position
+before dispatch. Tmux.ControlCommandFailed retains native exceptions and the
+connection target. ErrorAction Continue permits later clients to run. The
+core bounds pending requests and replies; rejected admission does not retry.
+Confirmation identifies the supplied connection without inventing endpoint
+metadata absent from IControlModeSession.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Print the attached session name using an existing $control owned by your surrounding try/finally scope.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$control | LibTmux\Invoke-TmuxControlCommand -Command (LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', '#{session_name}'))
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Invoke-TmuxControlCommand.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2716,6 +3322,117 @@ $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
       <maml:navigationLink>
         <maml:linkText>Hooks</maml:linkText>
         <maml:uri>../../hooks.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>New-TmuxCommand</command:name>
+      <maml:description>
+        <maml:para>Construct a native tmux command without running it.</maml:para>
+      </maml:description>
+      <command:verb>New</command:verb>
+      <command:noun>TmuxCommand</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Create one native TmuxCommand with literal argument boundaries. Construction
+performs no tmux I/O, starts no shell and copies the supplied string array.
+Empty strings remain arguments; null and NUL-containing arguments are rejected.
+
+Use this value with Invoke-TmuxChain or Invoke-TmuxControlCommand. Values
+returned by native typed requests can be passed directly to those commands;
+reconstructing a typed request as raw text would discard its identity guards.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>New-TmuxCommand</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Arguments</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Arguments</maml:name>
+        <maml:description>
+          <maml:para>Literal command arguments. The default is an empty array.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>A tmux command name or alias. Empty, whitespace, NUL and leading global options are rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxCommand</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native command value; no execution result.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.InvalidCommand terminates invalid construction before any tmux I/O.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Construct a command that prints text containing spaces and punctuation.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'hello; tmux')
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/New-TmuxCommand.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

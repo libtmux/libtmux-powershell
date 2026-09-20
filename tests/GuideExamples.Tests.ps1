@@ -73,6 +73,17 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'commands.chain' = @{ Group = 'Commands'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxCommandResult] -and $o.Result[0].ExitCode -eq 0 -and
+                [string]::Join('|', $o.Result[0].StandardOutputLines) -ceq 'first|second') 'chain merged result'
+        } }
+    'commands.control' = @{ Group = 'Commands'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [string] -and $o.Result[0] -ceq 'fixture' -and
+                @($o.Server | Get-TmuxClient).Count -eq 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'control reply, client cleanup and borrowed topology'
+        } }
     'layout.pane-size' = @{ Group = 'Settings'; Count = 1; Prepare = {
             param($c)
             $c.Window = $c.Session | Get-TmuxWindow | Select-Object -First 1
@@ -343,7 +354,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -539,7 +550,7 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands')) {
     $context = @{ Executed = $completed }
     $run = {
         $control = $null

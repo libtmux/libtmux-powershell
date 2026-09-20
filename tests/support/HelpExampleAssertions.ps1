@@ -7,6 +7,8 @@ function Get-HelpExampleAssertion {
         Justification = 'Preparation binds the documented session variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'window',
         Justification = 'Preparation binds the documented window variable in the example execution scope.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'control',
+        Justification = 'Preparation binds the documented control variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
         Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
@@ -223,6 +225,65 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-environment', '-t', 'fixture', 'APP_MODE')).StdOut.TrimEnd("`n")
                 if ($actual -cne '-APP_MODE') { throw 'Environment help removal did not leave a marker.' }
+            } }
+        'LibTmux\New-TmuxCommand#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                if ($Result[0].Name -cne 'display-message' -or [string]::Join('|', $Result[0].Arguments) -cne '-p|hello; tmux') {
+                    throw 'Command example lost literal argv.'
+                }
+            } }
+        'LibTmux\Invoke-TmuxChain#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+            }; Assert = {
+                param($Result)
+                if ($Result[0].ExitCode -ne 0 -or [string]::Join('|', $Result[0].StandardOutputLines) -cne 'first|second') {
+                    throw 'Chain example lost ordered merged output.'
+                }
+            } }
+        'LibTmux\Connect-TmuxControl#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $Context.Control = $null
+            }; Assert = {
+                param($Result, $Context)
+                $Context.Control = $Result[0]
+                if (!$Result[0].IsRunning -or
+                    [string]::Join('|', $Result[0].SendAsync([LibTmux.TmuxCommand]::Create('display-message', [string[]] @('-p', '#{session_name}'))).GetAwaiter().GetResult()) -cne 'fixture') {
+                    throw 'Control attachment example selected the wrong session.'
+                }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+                if (@(LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxClient).Count) {
+                    throw 'Control attachment example leaked its client.'
+                }
+            } }
+        'LibTmux\Invoke-TmuxControlCommand#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $Context.Control = $control = $server | LibTmux\Connect-TmuxControl -Target fixture
+            }; Assert = {
+                param($Result)
+                if ($Result[0] -cne 'fixture') { throw 'Control send example did not print the attached session.' }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+            } }
+        'LibTmux\Disconnect-TmuxControl#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $Context.Control = $control = $server | LibTmux\Connect-TmuxControl -Target fixture
+            }; Assert = {
+                param($Result, $Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                if ($Context.Control.IsRunning -or @($server | LibTmux\Get-TmuxClient).Count -ne 0 -or
+                    @($server | LibTmux\Get-TmuxSession -Name fixture).Count -ne 1) {
+                    throw 'Control disconnect example leaked a client or removed a borrowed session.'
+                }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
             } }
         'LibTmux\Wait-TmuxChannel#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)

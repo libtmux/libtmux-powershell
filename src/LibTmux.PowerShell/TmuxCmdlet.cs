@@ -43,7 +43,11 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         RunOperation(token => operation(token).GetAwaiter().GetResult(), errorId, target);
     }
 
-    private void RunOperation(Action<CancellationToken> operation, string errorId, object target)
+    /// <summary>Runs one cancellable operation on the active pipeline callback.</summary>
+    /// <param name="operation">Callback work; workers must not invoke PowerShell output APIs.</param>
+    /// <param name="errorId">The stable identifier for an operation failure.</param>
+    /// <param name="target">The object whose operation failed.</param>
+    private protected void RunOperation(Action<CancellationToken> operation, string errorId, object target)
     {
         CancellationTokenSource cancellation;
         lock (cancellationLock)
