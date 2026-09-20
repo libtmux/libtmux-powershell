@@ -4,9 +4,9 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.15, 0.0.0-alpha.15]",
-        "resolved": "0.0.0-alpha.15",
-        "contentHash": "NJC2bks9f5RhfQUzXZP8NlC/BQ6eKTX8bowDVliH35VY1PvFZSAXcSdxjar1FbRl48FW9nTOpeznARBH5vqgdQ==",
+        "requested": "[0.0.0-alpha.15.ps.9, 0.0.0-alpha.15.ps.9]",
+        "resolved": "0.0.0-alpha.15.ps.9",
+        "contentHash": "Bb8sd9UTtHXxshqjOPhHK820o4hvStvXMsKRJEMxg1/i4smqdgKuLymBK5LqG86cQekZqqHvL9wEi7mIuerfNQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }

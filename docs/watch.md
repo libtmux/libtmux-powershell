@@ -69,11 +69,16 @@ no text bytes. These limits bound text payload, not object overhead or the
 size of serialized Job data. An event that cannot fit produces an explicit
 error before output; earlier events remain valid.
 
-The bundled alpha.15 core bounds the upstream queue by event count. The
-watcher's handoff does not impose an aggregate byte limit on that upstream
-queue. A slow consumer can receive `TmuxEventsDroppedEvent`; use a fresh
-snapshot if you need current topology after loss. Stopping may consume a
-record that has not reached the pipeline.
+The native upstream queue separately defaults to 512 events and 4 MiB of
+decoded UTF-8 payload. `ServerConnectionOptions.ControlModeEventBufferCapacity`
+and `ControlModeEventBufferMaxBytes` configure those positive limits before
+connecting. Its byte accounting includes output data, notification names and
+arguments, and exit reasons; it excludes pane IDs and object overhead.
+The oldest events are discarded until both queue limits hold. An oversized
+event is dropped; an oversized exit reason is omitted while the exit event
+is retained. `TmuxEventsDroppedEvent` reports each loss without blocking
+command replies. Use a fresh snapshot when current topology matters after
+loss. Stopping may consume a record that has not reached the pipeline.
 
 ## Run independent commands concurrently
 

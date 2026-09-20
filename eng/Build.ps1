@@ -3,7 +3,9 @@ param(
     [switch] $Restore,
     [switch] $UpdateLock,
     [string] $CoreSource,
-    [switch] $PackCore
+    [switch] $PackCore,
+    [string] $CorePackageDirectory,
+    [string] $PackageCache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +14,9 @@ $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
 $feed = Join-Path $root 'build/nuget'
 $cache = Join-Path $root 'build/packages'
+if ($CorePackageDirectory -and !$Restore) { throw '-CorePackageDirectory requires -Restore to resolve the inspected archives.' }
+if ($CorePackageDirectory) { $feed = (Resolve-Path -LiteralPath $CorePackageDirectory).Path }
+if ($PackageCache) { $cache = [IO.Path]::GetFullPath($PackageCache) }
 $modules = Join-Path $root 'build/Modules'
 [xml] $versions = Get-Content "$root/Directory.Packages.props" -Raw
 $version = $versions.SelectSingleNode('//PackageVersion[@Include="LibTmux"]/@Version').Value.Trim('[', ']')
@@ -27,7 +32,27 @@ function Invoke-BuildCommand([string[]] $Arguments) {
 
 Push-Location $root
 try {
-    $null = New-Item $feed, $cache -ItemType Directory -Force
+    if ($CorePackageDirectory) {
+        if ($PackCore) { throw '-CorePackageDirectory consumes inspected archives and cannot be combined with -PackCore.' }
+        $workspaceVersion = $versions.SelectSingleNode('//PackageVersion[@Include="LibTmux.Workspace"]/@Version').Value.Trim('[', ']')
+        if ($workspaceVersion -cne $version) { throw 'An inspected review requires matching core and workspace dependency pins.' }
+        $provenance = Get-Content -LiteralPath (Join-Path $feed 'provenance.json') -Raw | ConvertFrom-Json
+        if ($provenance.version -cne $version -or $provenance.inspection -cne 'passed' -or
+            $provenance.revision -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'Review package provenance does not match the pinned dependency version and inspected source.'
+        }
+        foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+            $file = "$name.$version.nupkg"
+            $record = @($provenance.packages | Where-Object file -CEQ $file)
+            if ($record.Count -ne 1 -or
+                (Get-FileHash -LiteralPath (Join-Path $feed $file)).Hash.ToLowerInvariant() -cne $record[0].sha256) {
+                throw "Review package bytes differ from the inspected archive: $file"
+            }
+        }
+    } else {
+        $null = New-Item $feed -ItemType Directory -Force
+    }
+    $null = New-Item $cache -ItemType Directory -Force
     if ($PackCore) {
         if (!$CoreSource) { throw '-PackCore requires -CoreSource.' }
         $CoreSource = (Resolve-Path $CoreSource).Path

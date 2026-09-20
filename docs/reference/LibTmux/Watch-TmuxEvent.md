@@ -268,8 +268,14 @@ Byte accounting includes decoded UTF-8 text in pane IDs, output data,
 notification names and arguments, and exit reasons. Numeric loss counts add
 no text bytes. This bounds text payload, not object overhead or serialized
 PowerShell Job data. Set BOTH MaxEvents and MaxOutputBytes for unattended jobs.
-The bundled alpha.15 core has a count-bounded upstream notification queue; this
-handoff limit does not add an aggregate byte limit to that upstream queue.
+The native upstream queue separately defaults to 512 events and 4 MiB of
+decoded UTF-8 payload. Configure its positive ControlModeEventBufferCapacity
+and ControlModeEventBufferMaxBytes through ServerConnectionOptions before
+connecting. Queue bytes include output data, notification names and arguments,
+and exit reasons, excluding pane IDs and object overhead. Oldest events are
+discarded until both queue limits hold. An oversized event is dropped; an
+oversized exit reason is omitted while the exit event remains. Loss is reported
+by TmuxEventsDroppedEvent without blocking command replies.
 
 Ctrl+C, pipeline early exit and module removal stop the reader and await its
 disposal. Module removal cancels active watches only in the importing runspace;

@@ -126,6 +126,21 @@ try {
 . "$PSScriptRoot/support/OwnedTmux.ps1"
 Invoke-WithOwnedTmux {
     param($fixture)
+    $byteOptions = [LibTmux.ServerConnectionOptions] @{
+        SocketPath = $fixture.SocketPath
+        TmuxBinaryPath = $fixture.TmuxPath
+        ControlModeEventBufferCapacity = 4096
+        ControlModeEventBufferMaxBytes = 1
+    }
+    $byteServer = [LibTmux.Server]::Open($byteOptions)
+    $byteControl = $byteServer | Connect-TmuxControl -Target fixture
+    try {
+        $null = $byteControl | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'rename-window' -Arguments @('exceeds-byte-budget'))
+        $events = @($byteControl | Watch-TmuxEvent -MaxEvents 1 -MaxOutputBytes 100)
+        Assert-Watch ($events.Count -eq 1 -and $events[0] -is [LibTmux.TmuxEventsDroppedEvent] -and
+            $events[0].Count -gt 0 -and $events[0].Count -lt 4096) 'native byte ceiling did not disclose loss below the count limit'
+        Assert-Watch (($byteControl | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'after-byte-loss'))) -ceq 'after-byte-loss') 'native byte overflow blocked command replies'
+    } finally { $byteControl | Disconnect-TmuxControl -Confirm:$false }
     $options = [LibTmux.ServerConnectionOptions] @{
         SocketPath = $fixture.SocketPath
         TmuxBinaryPath = $fixture.TmuxPath
