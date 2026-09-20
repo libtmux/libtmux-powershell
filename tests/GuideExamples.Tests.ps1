@@ -47,10 +47,31 @@ function Get-GuideField($Context, [string] $Target, [string] $Format) {
 }
 
 $assertions = @{
-    'read.endpoint' = @{ Group = 'Pure'; Count = 1; Assert = {
+    'read.endpoint' = @{ Group = 'Pure'; Count = 0; Assert = {
             param($o)
-            Assert-Guide ($o.Result[0] -is [LibTmux.Server] -and !$o.Result[0].IsMaterialized -and
-                $o.Result[0].ConnectionOptions.SocketName -ceq 'development') 'endpoint identity'
+            Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
+                $o.Server.ConnectionOptions.SocketName -ceq 'development') 'endpoint identity'
+        } }
+    'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Captured -is [LibTmux.Session] -and $o.Captured.Name -ceq 'demo' -and
+                $o.Captured.Panes.Count -eq 2 -and $o.Captured.Windows.Count -eq 1 -and
+                @($o.Captured.Panes | Where-Object { $_.Width -eq 40 }).Count -eq 1) 'captured split session'
+            $o.Context.Captured = $o.Captured
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'demo' -and $sessions -ccontains 'fixture') 'demo cleanup and unrelated session'
+        } }
+    'readme.filter' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0].Width -eq 59 -and $o.Result[0].Height -eq 30 -and
+                $o.Result[0].Id -is [LibTmux.PaneId] -and (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured pane filtering'
+        } }
+    'readme.input' = @{ Group = 'Readme'; Count = -1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result -ccontains 'hello from PowerShell' -and
+                @($o.Result | Where-Object { $_ -isnot [string] }).Count -eq 0) 'input completion and captured output'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
     'workspace.parse' = @{ Group = 'Pure'; Count = 1; Assert = {
             param($o)
@@ -191,7 +212,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -256,7 +277,7 @@ $drifted = $documents.Clone()
 $drifted['capture.history'] += ' -WhatIf'
 Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions } 'Guide source drift: capture.history'
 Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
-'PASS 17 guide units: source/document/assertion discovery, drift and negative controls'
+"PASS $($sources.Count) guide units: source/document/assertion discovery, drift and negative controls"
 if (!$RunExamples) { return }
 if (!$ModuleRoot) { throw '-ModuleRoot is required with -RunExamples.' }
 $ModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path
@@ -295,7 +316,8 @@ function Invoke-GuideFixture([Alias('Setup')] [scriptblock] $GuideSetup, [Alias(
 function Initialize-GuideContext($Fixture, [hashtable] $Context, [string] $Group) {
     $Context.Fixture = $Fixture
     $Context.Trace = Join-Path $Fixture.DirectoryPath 'dispatch'
-    $wrapper = Join-Path $Fixture.DirectoryPath 'tmux'
+    $wrapperName = if ($Group -eq 'Readme') { "tmux 'guide" } else { 'tmux' }
+    $wrapper = Join-Path $Fixture.DirectoryPath $wrapperName
     $quotedTmux = ConvertTo-GuideShellLiteral $Fixture.TmuxPath
     $quotedTrace = ConvertTo-GuideShellLiteral $Context.Trace
     @"
@@ -338,13 +360,14 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     }
     $server, $session, $pane, $window = $Context['Server'], $Context['Session'], $Context['Pane'], $Context['Window']
     $currentPane = $newPane = $null
+    $captured = $Context['Captured']
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
     $result = @(. $sources[$Id].Code)
     $Context.Executed.Add($Id)
     if ($entry.Group -eq 'Create') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
-        CurrentPane = $currentPane; NewPane = $newPane; Context = $Context; BeforeDispatch = $before }
+        CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Remove') {
         Assert-Guide ((Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $Context.Anchor) 'unrelated removal anchor'
@@ -384,16 +407,40 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme')) {
     $context = @{ Executed = $completed }
     $run = {
         foreach ($id in $sources.Keys | Sort-Object) {
             if ($assertions[$id].Group -ceq $group) { Invoke-GuideUnit $id $context }
+        }
+        if ($group -eq 'Readme') {
+            $wrapper = $context.Server.ConnectionOptions.TmuxBinaryPath
+            $originalWrapper = [IO.File]::ReadAllText($wrapper)
+            $rejection = @'
+for argument in "$@"; do
+    if [ "$argument" = split-window ]; then
+        printf '%s\n' 'injected guide split failure' >&2
+        exit 1
+    fi
+done
+'@
+            $failed = $false
+            try {
+                [IO.File]::WriteAllText($wrapper, $originalWrapper.Replace("#!/bin/sh`n", "#!/bin/sh`n$rejection`n"))
+                try { Invoke-GuideUnit 'readme.create' $context } catch {
+                    if ($_.FullyQualifiedErrorId -notlike 'Tmux.PaneSplitFailed,*' -or
+                        $_.Exception.Message -notlike '*injected guide split failure*') { throw }
+                    $failed = $true
+                }
+                Assert-Guide $failed 'demo accepted injected split failure'
+                $sessions = (Invoke-OwnedTmux $context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+                Assert-Guide ($sessions -cnotcontains 'demo' -and $sessions -ccontains 'fixture') 'demo failure cleanup and unrelated session'
+            } finally { [IO.File]::WriteAllText($wrapper, $originalWrapper) }
         }
     }
     if ($group -eq 'Pure') { & $run } else {
         Invoke-GuideFixture -Setup { param($fixture) Initialize-GuideContext $fixture $context $group } -Body $run
     }
 }
-Assert-Guide ($completed.Count -eq 17) 'not every registered guide operation executed'
-'PASS 17 exact guide operations, assigned results, native outcomes and owned cleanup'
+Assert-Guide ($completed.Count -eq $sources.Count) 'not every registered guide operation executed'
+"PASS $($sources.Count) exact guide operations, assigned results, native outcomes and owned cleanup"
