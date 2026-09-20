@@ -28,7 +28,8 @@ function Invoke-HelpExample($Example, $Assertion, $Context) {
         $types = @($Example.Command.OutputType | ForEach-Object Type)
         $matchingTypes = @($types | Where-Object { $null -ne $_ -and $item -is $_ })
         if (!$matchingTypes.Count) { throw "$($Example.Id) returned the wrong native type." }
-        if ($Assertion.Isolated -and $item.Server.ConnectionOptions.SocketPath -cne $SocketPath) {
+        $nativeEntity = $item -is [LibTmux.Session] -or $item -is [LibTmux.Window] -or $item -is [LibTmux.Pane]
+        if ($Assertion.Isolated -and $nativeEntity -and $item.Server.ConnectionOptions.SocketPath -cne $SocketPath) {
             throw "$($Example.Id) returned an object from the wrong server."
         }
     }

@@ -3176,4 +3176,148 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane | Select-O
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Wait-TmuxChannel</command:name>
+      <maml:description>
+        <maml:para>Wait for a tmux channel signal with a timeout and owned withdrawal.</maml:para>
+      </maml:description>
+      <command:verb>Wait</command:verb>
+      <command:noun>TmuxChannel</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Wait on the supplied native server and emit True after observing a channel
+signal. A pending signal from before the call also completes the wait. An
+empty owner pipeline performs no work and emits no output.
+
+Use one open waiter per channel and give each operation a unique channel.
+tmux has no individual waiter deregistration: withdrawing signals the channel
+and wakes every waiter registered there. This command owns and disposes its
+wait, including on timeout or pipeline cancellation, so an abandoned client
+cannot consume a later signal. The borrowed server remains running.
+
+The timeout bounds the wait attempt. Withdrawal is awaited before returning;
+cleanup time is additional. A signal racing withdrawal can leave the channel
+pending for a later caller. Do not infer that no signal arrived from a timeout,
+and do not reuse a channel to identify a different operation.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Wait-TmuxChannel</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Channel</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Timeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Channel</maml:name>
+        <maml:description>
+          <maml:para>The nonempty, non-whitespace channel reserved for this operation. NUL is rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The native server endpoint that owns the channel.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Timeout</maml:name>
+        <maml:description>
+          <maml:para>The wait budget in seconds. Fractions are accepted. The default is 10; the
+valid range is 0.0000001 through 86400. NaN and infinity are rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native server to wait on.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Boolean</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>True after observing a signal. Timeout emits an error, not False.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.ChannelWaitFailed retains the native server as its target. Timeout uses
+TimeoutException with the OperationTimeout category and emits no success
+object. ErrorAction Continue permits later owners to run; ErrorAction Stop
+terminates on failure. Ctrl+C cancels the attempt and withdraws the waiter
+before the pipeline stops. Cancellation cannot undo work in the producer.
+Invalid channels and timeouts fail before contacting tmux.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Use a previously selected native $server and reserve build-finished for one
+waiter. Have the producer run tmux wait-for -S build-finished on that server
+after its work completes. The producer may signal before this command starts.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$server | LibTmux\Wait-TmuxChannel -Channel 'build-finished' -Timeout 10
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Wait-TmuxChannel.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Send input and wait for completion</maml:linkText>
+        <maml:uri>../../input.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
 </helpItems>

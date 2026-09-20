@@ -1,6 +1,8 @@
 function Get-HelpExampleAssertion {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'pane',
         Justification = 'Preparation binds the documented pane variable in the example execution scope.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server',
+        Justification = 'Preparation binds the documented server variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
         Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
@@ -82,6 +84,14 @@ function Get-HelpExampleAssertion {
                 if ($target -ceq $Context.PaneId -or $actual.StdOut.Trim() -cne '20|0') {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
+            } }
+        'LibTmux\Wait-TmuxChannel#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('wait-for', '-S', 'build-finished')
+            }; Assert = {
+                param($Result)
+                if ($Result[0] -isnot [bool] -or !$Result[0]) { throw 'Wait example did not consume its pending signal.' }
             } }
         'LibTmux\Send-TmuxText#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)

@@ -32,7 +32,11 @@ objects; an empty owner pipeline performs no work.
 
 Sending input confirms acceptance by tmux. Use an explicit signal from the
 receiving application before asserting completion or
-[capturing its output](capture.md). A successful send is not a command result
+[capturing its output](capture.md). Use
+[Wait-TmuxChannel](reference/LibTmux/Wait-TmuxChannel.md) for a cooperative
+`tmux wait-for -S` signal. Give each operation a unique channel with one waiter;
+its timeout and cancellation cleanup withdraw the registration so it cannot
+consume a later signal. A successful send is not a command result
 or shell exit status.
 
 Failures retain the original core exception, dispatch information and target

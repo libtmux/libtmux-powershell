@@ -14,7 +14,7 @@
         'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
         'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane',
         'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane',
-        'Send-TmuxText', 'Send-TmuxKey'
+        'Send-TmuxText', 'Send-TmuxKey', 'Wait-TmuxChannel'
     )
     VariablesToExport = @()
     AliasesToExport = @()

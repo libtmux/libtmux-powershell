@@ -71,6 +71,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             ErrorCategory category = exception switch
             {
                 OperationCanceledException => ErrorCategory.OperationStopped,
+                TimeoutException => ErrorCategory.OperationTimeout,
                 ArgumentException => ErrorCategory.InvalidArgument,
                 InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
                 TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
