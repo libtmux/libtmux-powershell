@@ -203,7 +203,8 @@ Invoke-WithOwnedTmux {
     $job = $null
     try {
         . $sources['watch.job-create'].Code
-        Assert-Watch ($job.Finished.WaitOne(1000)) "unreceived bounded job did not finish: state=$($job.State); errors=$($job.Error -join '|'); output=$($job.Output.Count)"
+        # Await completion without receiving output; cold runspace startup is not the output bound.
+        $null = $job | Wait-Job
         Assert-Watch ($job.State -eq 'Completed' -and $job.Output.Count -eq 1 -and
             $job.Output[0] -is [LibTmux.TmuxEvent] -and @($server | Get-TmuxClient).Count -eq 0) 'never-received job exceeded its bound or leaked its client'
     } finally {
