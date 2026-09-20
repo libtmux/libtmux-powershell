@@ -45,10 +45,12 @@ the current engine's subset; it does not yet implement the full workspace
 contract. Install both modules at the same version. A conflicting loaded
 LibTmux assembly requires a fresh PowerShell process.
 
-The build targets PowerShell 7.4 and .NET 8. Selected package, read and
-formatting milestones pass on Linux x64 with PowerShell 7.4.20 and 7.6.6.
-macOS, the complete tmux compatibility matrix and the full product remain
-unverified. Local packages do not establish a supported release.
+The build targets PowerShell 7.4 and .NET 8. All currently implemented package
+suites pass on Linux x64 with PowerShell 7.4.20 and 7.6.6, each on tmux 3.2a
+and 3.7c. Checks include native installation, snapshots, input, executable
+help and guides, cancellation and owned cleanup. macOS, the complete tmux
+compatibility matrix and the full product remain unverified. Local packages
+do not establish a supported release.
 
 See [contributing](.github/CONTRIBUTING.md) for local build, packaging and
 verification commands. The separately packaged
