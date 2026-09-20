@@ -43,6 +43,17 @@ $captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
     }
 }
     } }
+    'options.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxOption -Name 'status-keys' -IncludeInherited } }
+    'options.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxOption -Name '@project' -Value 'api' -PassThru } }
+    'options.remove' = @{ Requires = @('session'); Code = { $session | Remove-TmuxOption -Name '@scratch' } }
+    'hooks.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxHook -Name 'alert-bell' } }
+    'hooks.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxHook -Name 'alert-bell[7]' -Command 'display-message "build finished"' -PassThru } }
+    'hooks.invoke' = @{ Requires = @('session'); Code = { $session | Invoke-TmuxHook -Name 'alert-bell' } }
+    'hooks.remove' = @{ Requires = @('session'); Code = { $session | Remove-TmuxHook -Name 'alert-bell[7]' } }
+    'environment.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxEnvironment -Name 'APP_MODE' } }
+    'environment.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru } }
+    'environment.unset' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' } }
+    'environment.mark-removed' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved } }
     'workspace.parse' = @{ Requires = @(); Code = { LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development' } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }

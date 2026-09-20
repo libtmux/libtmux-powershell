@@ -73,6 +73,88 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'options.read' = @{ Group = 'Settings'; Count = 1; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-option', '-g', 'status-keys', 'vi')
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxOption] -and $o.Result[0].Value.Raw -ceq 'vi' -and $o.Result[0].Inherited) 'native inherited option'
+        } }
+    'options.set' = @{ Group = 'Settings'; Count = 1; Assert = {
+            param($o)
+            $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-options', '-v', '-t', $o.Session.Id.ToString(), '@project')).StdOut.TrimEnd("`n")
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxOptionValue] -and $o.Result[0].Raw -ceq 'api' -and $actual -ceq 'api') 'stored option readback'
+        } }
+    'options.remove' = @{ Group = 'Settings'; Count = 0; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-option', '-t', $c.Session.Id.ToString(), '@scratch', 'temporary')
+        }; Assert = {
+            param($o)
+            $actual = Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-options', '-q', '-t', $o.Session.Id.ToString(), '@scratch')
+            Assert-Guide ($actual.StdOut -ceq '') 'removed user option'
+        } }
+    'hooks.read' = @{ Group = 'Settings'; Count = 1; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-hook', '-t', $c.Session.Id.ToString(), 'alert-bell[7]', 'display-message seven')
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxHook] -and $o.Result[0].Name -ceq 'alert-bell' -and
+                @($o.Result[0].Values | Where-Object Index -EQ 7).Count -eq 1) 'grouped hook entry'
+        } }
+    'hooks.set' = @{ Group = 'Settings'; Count = 1; Assert = {
+            param($o)
+            $entry = $o.Result[0].Values | Where-Object Index -EQ 7
+            $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-hooks', '-t', $o.Session.Id.ToString(), 'alert-bell')).StdOut
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxHook] -and $entry.Command.Contains('build finished') -and
+                $actual.Contains('alert-bell[7]') -and $actual.Contains('build finished')) 'indexed hook stored readback'
+        } }
+    'hooks.invoke' = @{ Group = 'Settings'; Count = 0; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-hook', '-t', $c.Session.Id.ToString(), 'alert-bell', 'wait-for -S guide-hook-completed')
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Context.Server | Wait-TmuxChannel -Channel 'guide-hook-completed' -Timeout 0.5) 'hook completion signal'
+        } }
+    'hooks.remove' = @{ Group = 'Settings'; Count = 0; Prepare = {
+            param($c)
+            foreach ($index in @(7, 19)) {
+                $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-hook', '-t', $c.Session.Id.ToString(), "alert-bell[$index]", "display-message $index")
+            }
+        }; Assert = {
+            param($o)
+            $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-hooks', '-t', $o.Session.Id.ToString(), 'alert-bell')).StdOut
+            Assert-Guide (!$actual.Contains('alert-bell[7]') -and $actual.Contains('alert-bell[19]')) 'indexed hook removal preserves neighbour'
+        } }
+    'environment.read' = @{ Group = 'Settings'; Count = 1; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-environment', '-t', $c.Session.Id.ToString(), 'APP_MODE', 'development')
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxEnvironmentEntry] -and $o.Result[0].Value -ceq 'development' -and
+                !$o.Result[0].IsRemoved) 'native environment value'
+        } }
+    'environment.set' = @{ Group = 'Settings'; Count = 1; Assert = {
+            param($o)
+            $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-environment', '-t', $o.Session.Id.ToString(), 'APP_MODE')).StdOut.TrimEnd("`n")
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxEnvironmentEntry] -and $o.Result[0].Value -ceq 'development' -and
+                $actual -ceq 'APP_MODE=development') 'stored environment readback'
+        } }
+    'environment.unset' = @{ Group = 'Settings'; Count = 0; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-environment', '-t', $c.Session.Id.ToString(), 'APP_MODE', 'development')
+        }; Assert = {
+            param($o)
+            $actual = Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-environment', '-t', $o.Session.Id.ToString(), 'APP_MODE') -AllowFailure
+            Assert-Guide ($actual.ExitCode -ne 0 -and $actual.StdErr.Contains('unknown variable')) 'unset removes the local entry'
+        } }
+    'environment.mark-removed' = @{ Group = 'Settings'; Count = 0; Prepare = {
+            param($c)
+            $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-environment', '-g', 'APP_MODE', 'inherited')
+        }; Assert = {
+            param($o)
+            $actual = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('show-environment', '-t', $o.Session.Id.ToString(), 'APP_MODE')).StdOut.TrimEnd("`n")
+            Assert-Guide ($actual -ceq '-APP_MODE') 'explicit environment removal marker'
+        } }
     'workspace.parse' = @{ Group = 'Pure'; Count = 1; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -212,7 +294,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -407,7 +489,7 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings')) {
     $context = @{ Executed = $completed }
     $run = {
         foreach ($id in $sources.Keys | Sort-Object) {

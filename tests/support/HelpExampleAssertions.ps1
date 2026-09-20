@@ -3,6 +3,8 @@ function Get-HelpExampleAssertion {
         Justification = 'Preparation binds the documented pane variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server',
         Justification = 'Preparation binds the documented server variable in the example execution scope.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'session',
+        Justification = 'Preparation binds the documented session variable in the example execution scope.')]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
         Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
     param()
@@ -84,6 +86,91 @@ function Get-HelpExampleAssertion {
                 if ($target -ceq $Context.PaneId -or $actual.StdOut.Trim() -cne '20|0') {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
+            } }
+        'LibTmux\Get-TmuxOption#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-option', '-g', 'status-keys', 'vi')
+            }; Assert = {
+                param($Result)
+                if ($Result[0].Value.Raw -cne 'vi' -or !$Result[0].Inherited) { throw 'Option help read lost inheritance.' }
+            } }
+        'LibTmux\Set-TmuxOption#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+            }; Assert = {
+                param($Result, $Context)
+                $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-options', '-v', '-t', 'fixture', 'status-keys')).StdOut.TrimEnd("`n")
+                if ($Result[0].Raw -cne 'vi' -or $actual -cne 'vi') { throw 'Option help set did not store its readback.' }
+            } }
+        'LibTmux\Remove-TmuxOption#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-option', '-t', 'fixture', '@scratch', 'temporary')
+            }; Assert = {
+                param($Result, $Context)
+                if ((Invoke-OwnedTmux $Context.Fixture -Arguments @('show-options', '-q', '-t', 'fixture', '@scratch')).StdOut -cne '') { throw 'Option help remove left its entry.' }
+            } }
+        'LibTmux\Get-TmuxHook#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-hook', '-t', 'fixture', 'alert-bell[7]', 'display-message seven')
+            }; Assert = {
+                param($Result)
+                if ($Result[0].Name -cne 'alert-bell' -or $Result[0].Values[0].Index -ne 7) { throw 'Hook help read lost grouped index.' }
+            } }
+        'LibTmux\Set-TmuxHook#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+            }; Assert = {
+                param($Result, $Context)
+                $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-hooks', '-t', 'fixture', 'alert-bell')).StdOut
+                if ($Result[0].Values[0].Index -ne 7 -or !$actual.Contains('alert-bell[7]') -or !$actual.Contains('build finished')) { throw 'Hook help set lost its indexed command.' }
+            } }
+        'LibTmux\Invoke-TmuxHook#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-hook', '-t', 'fixture', 'alert-bell', 'wait-for -S help-hook-completed')
+            }; Assert = {
+                param($Result, $Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                if (!($server | LibTmux\Wait-TmuxChannel -Channel 'help-hook-completed' -Timeout 0.5)) { throw 'Hook help invoke did not signal completion.' }
+            } }
+        'LibTmux\Remove-TmuxHook#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                foreach ($index in @(7, 19)) {
+                    $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-hook', '-t', 'fixture', "alert-bell[$index]", "display-message $index")
+                }
+            }; Assert = {
+                param($Result, $Context)
+                $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-hooks', '-t', 'fixture', 'alert-bell')).StdOut
+                if ($actual.Contains('alert-bell[7]') -or !$actual.Contains('alert-bell[19]')) { throw 'Hook help remove changed the wrong entries.' }
+            } }
+        'LibTmux\Get-TmuxEnvironment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-environment', '-t', 'fixture', 'APP_MODE', 'development')
+            }; Assert = {
+                param($Result)
+                if ($Result[0].Name -cne 'APP_MODE' -or $Result[0].Value -cne 'development' -or $Result[0].IsRemoved) { throw 'Environment help read lost stored value.' }
+            } }
+        'LibTmux\Set-TmuxEnvironment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+            }; Assert = {
+                param($Result, $Context)
+                $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-environment', '-t', 'fixture', 'APP_MODE')).StdOut.TrimEnd("`n")
+                if ($Result[0].Value -cne 'development' -or $actual -cne 'APP_MODE=development') { throw 'Environment help set did not store its readback.' }
+            } }
+        'LibTmux\Remove-TmuxEnvironment#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
+                $null = Invoke-OwnedTmux $Context.Fixture -Arguments @('set-environment', '-g', 'APP_MODE', 'inherited')
+            }; Assert = {
+                param($Result, $Context)
+                $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-environment', '-t', 'fixture', 'APP_MODE')).StdOut.TrimEnd("`n")
+                if ($actual -cne '-APP_MODE') { throw 'Environment help removal did not leave a marker.' }
             } }
         'LibTmux\Wait-TmuxChannel#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)

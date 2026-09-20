@@ -146,3 +146,9 @@ drives tmux, use the separately packaged
 - [Capture and raw commands](docs/capture.md): scrollback, rendered text and
   tmux commands without a dedicated cmdlet.
 - [Send input](docs/input.md): literal text, keys and partial failure.
+- [Read and change options](docs/options.md): scoped tables, inheritance and
+  indexed values.
+- [Configure and run hooks](docs/hooks.md): indexed commands and explicit
+  invocation.
+- [Set the environment for new panes](docs/environment.md): local overrides,
+  empty values and removal markers.
