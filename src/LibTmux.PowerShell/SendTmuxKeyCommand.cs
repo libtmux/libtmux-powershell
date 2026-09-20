@@ -32,7 +32,7 @@ public sealed class SendTmuxKeyCommand : TmuxCmdlet
                 "Tmux.InvalidInput", ErrorCategory.InvalidArgument, nameof(Key)));
         }
 
-        requests = [.. Key.Select(static key => new SendKeysRequest(key, enter: false))];
+        requests = [.. Key.Select(static key => new SendKeysRequest { Text = key, Enter = false })];
     }
 
     /// <inheritdoc />

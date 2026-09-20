@@ -32,11 +32,13 @@ public sealed class NewTmuxServerCommand : PSCmdlet
     {
         try
         {
-            WriteObject(Server.Open(new ServerConnectionOptions(
-                tmuxBinaryPath: TmuxBinaryPath,
-                socketName: SocketName,
-                socketPath: SocketPath,
-                configurationFile: ConfigurationFile)));
+            WriteObject(Server.Open(new ServerConnectionOptions
+            {
+                TmuxBinaryPath = TmuxBinaryPath,
+                SocketName = SocketName,
+                SocketPath = SocketPath,
+                ConfigurationFile = ConfigurationFile
+            }));
         }
         catch (ArgumentException exception)
         {

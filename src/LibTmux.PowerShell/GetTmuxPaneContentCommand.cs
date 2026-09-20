@@ -99,21 +99,23 @@ public sealed class GetTmuxPaneContentCommand : TmuxCmdlet
             ? CapturePanePosition.BeginningOfHistory
             : StartLine is int first ? new CapturePanePosition(first) : null;
         CapturePanePosition? end = EndLine is int last ? new CapturePanePosition(last) : null;
-        var request = new CapturePaneRequest(
-            startLine: start,
-            endLine: end,
-            escapeSequences: EscapeSequences,
-            escapeNonPrintable: EscapeNonPrintable,
-            joinWrappedLines: JoinWrappedLines,
-            preserveTrailingSpaces: PreserveTrailingSpaces,
-            trimTrailingSpaces: TrimTrailingSpaces,
-            alternateScreen: AlternateScreen,
-            quiet: Quiet,
-            modeScreen: ModeScreen,
-            pending: Pending,
-            hyperlinks: Hyperlinks,
-            lineNumbers: LineNumbers,
-            lineFlags: LineFlags);
+        var request = new CapturePaneRequest
+        {
+            StartLine = start,
+            EndLine = end,
+            EscapeSequences = EscapeSequences,
+            EscapeNonPrintable = EscapeNonPrintable,
+            JoinWrappedLines = JoinWrappedLines,
+            PreserveTrailingSpaces = PreserveTrailingSpaces,
+            TrimTrailingSpaces = TrimTrailingSpaces,
+            AlternateScreen = AlternateScreen,
+            Quiet = Quiet,
+            ModeScreen = ModeScreen,
+            Pending = Pending,
+            Hyperlinks = Hyperlinks,
+            LineNumbers = LineNumbers,
+            LineFlags = LineFlags
+        };
         IReadOnlyList<string> lines = await Pane.CaptureAsync(request, cancellationToken).ConfigureAwait(false);
         return Raw ? string.Join('\n', lines) : lines;
     }

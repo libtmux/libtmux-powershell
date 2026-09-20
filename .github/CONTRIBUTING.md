@@ -45,32 +45,36 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-The dependency source uses its own SDK pin. Build local NuGet packages from
-an explicitly selected .NET checkout, restore locked dependencies, and stage
-both PowerShell modules. Supply a checkout through the `CORE_SOURCE` shell
-variable; do not build into a checkout another task is compiling concurrently.
+Restore the pinned NuGet dependencies, build the cmdlets, and stage both
+PowerShell modules:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
+    -Restore
+```
+
+The exact dependency versions are in
+[Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
+the optional `build/nuget` feed, and an isolated `build/packages` cache.
+Ordinary restore checks the committed lockfiles. When changing a dependency,
+update its exact reference and run with `-Restore -UpdateLock`.
+
+To test unpublished core changes, select a distinct local prerelease version
+in `Directory.Packages.props` and supply a .NET checkout through the
+`CORE_SOURCE` shell variable. The checkout uses its own SDK pin; do not build
+into one another task is compiling concurrently.
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -Restore \
+    -UpdateLock \
     -PackCore \
     -CoreSource "$CORE_SOURCE"
 ```
 
-The exact local dependency versions are in
-[Directory.Packages.props](../Directory.Packages.props); these are not
-published releases. Restore uses `build/nuget` and an isolated
-`build/packages` cache.
-The initial implementation depends on local .NET core fixes for linked-window
-placements, strict session acquisition, captured pane fields and send-key
-composition. A clean upstream checkout does not yet supply that complete
-dependency. Keep the branch in draft until those source changes and their
-reproducible package identity are available to reviewers; do not substitute
-different source under the pinned local version. Packaging records the
-selected revision, branch and source-file hashes beside the local packages.
-Do not replace an immutable dependency package with changed source under the
-same version. Bump its local suffix and update exact references and locks
-with `-Restore -UpdateLock`; ordinary restore uses locked mode.
+Local packaging records the revision, branch and source-file hashes beside
+the packages. Do not replace an immutable package with changed source under
+the same version or reuse a published version for a local build.
 
 After restore, rebuild and stage without network access:
 

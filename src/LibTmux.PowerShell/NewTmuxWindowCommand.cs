@@ -52,13 +52,15 @@ public sealed class NewTmuxWindowCommand : TmuxCmdlet
     {
         try
         {
-            request = new NewWindowRequest(
-                name: Name,
-                index: Index?.ToString(CultureInfo.InvariantCulture),
-                startDirectory: StartDirectory,
-                command: Command,
-                attach: Activate,
-                environment: CreationEnvironment.Copy(Environment));
+            request = new NewWindowRequest
+            {
+                Name = Name,
+                Index = Index?.ToString(CultureInfo.InvariantCulture),
+                StartDirectory = StartDirectory,
+                Command = Command,
+                Attach = Activate,
+                Environment = CreationEnvironment.Copy(Environment)
+            };
         }
         catch (ArgumentException exception)
         {

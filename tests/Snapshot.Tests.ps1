@@ -14,9 +14,9 @@ function Assert-CapturedGraph($Snapshot) {
     foreach ($session in $Snapshot.Sessions) {
         Assert-Snapshot ([object]::ReferenceEquals($Snapshot, $session.Server)) 'Session lost its captured root.'
         Assert-Snapshot (@($session.Windows | Where-Object {
-                    [object]::ReferenceEquals($_, $session.ActiveWindow)
+                    [object]::ReferenceEquals($_, $session.ActiveWindow.Value)
                 }).Count -eq 1) 'Active window lost its captured placement.'
-        Assert-Snapshot ([object]::ReferenceEquals($session.ActiveWindow, $session.ActivePane.Window)) 'Active pane lost its window placement.'
+        Assert-Snapshot ([object]::ReferenceEquals($session.ActiveWindow.Value, $session.ActivePane.Value.Window)) 'Active pane lost its window placement.'
     }
     foreach ($window in $Snapshot.Windows) {
         Assert-Snapshot ([object]::ReferenceEquals($Snapshot, $window.Server)) 'Window lost its captured root.'
@@ -24,7 +24,7 @@ function Assert-CapturedGraph($Snapshot) {
                     [object]::ReferenceEquals($_, $window.Session)
                 }).Count -eq 1) 'Window lost its captured session.'
         Assert-Snapshot (@($window.Panes | Where-Object {
-                    [object]::ReferenceEquals($_, $window.ActivePane)
+                    [object]::ReferenceEquals($_, $window.ActivePane.Value)
                 }).Count -eq 1) 'Active pane lost its captured instance.'
         foreach ($pane in $window.Panes) {
             Assert-Snapshot ([object]::ReferenceEquals($window, $pane.Window) -and

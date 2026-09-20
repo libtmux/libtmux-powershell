@@ -36,7 +36,7 @@ public sealed class SendTmuxTextCommand : TmuxCmdlet
                 "Tmux.InvalidInput", ErrorCategory.InvalidArgument, nameof(Text)));
         }
 
-        request = new SendKeysRequest(Text, enter: Enter, literal: true);
+        request = new SendKeysRequest { Text = Text, Enter = Enter, Literal = true };
     }
 
     /// <inheritdoc />

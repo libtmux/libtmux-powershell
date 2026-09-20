@@ -58,14 +58,16 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
     {
         try
         {
-            request = new NewSessionRequest(
-                name: Name,
-                windowName: WindowName,
-                startDirectory: StartDirectory,
-                command: Command,
-                width: Width?.ToString(CultureInfo.InvariantCulture),
-                height: Height?.ToString(CultureInfo.InvariantCulture),
-                environment: CreationEnvironment.Copy(Environment));
+            request = new NewSessionRequest
+            {
+                Name = Name,
+                WindowName = WindowName,
+                StartDirectory = StartDirectory,
+                Command = Command,
+                Width = Width?.ToString(CultureInfo.InvariantCulture),
+                Height = Height?.ToString(CultureInfo.InvariantCulture),
+                Environment = CreationEnvironment.Copy(Environment)
+            };
         }
         catch (ArgumentException exception)
         {

@@ -71,16 +71,18 @@ public sealed class SplitTmuxPaneCommand : TmuxCmdlet
             PaneDirection direction = Horizontal
                 ? Before ? PaneDirection.Left : PaneDirection.Right
                 : Before ? PaneDirection.Above : PaneDirection.Below;
-            request = new SplitPaneRequest(
-                direction: direction,
-                size: Size?.ToString(CultureInfo.InvariantCulture),
-                percentage: Percentage,
-                startDirectory: StartDirectory,
-                command: Command,
-                attach: Activate,
-                fullWindow: FullWindow,
-                zoom: Zoom,
-                environment: CreationEnvironment.Copy(Environment));
+            request = new SplitPaneRequest
+            {
+                Direction = direction,
+                Size = Size?.ToString(CultureInfo.InvariantCulture),
+                Percentage = Percentage,
+                StartDirectory = StartDirectory,
+                Command = Command,
+                Attach = Activate,
+                FullWindow = FullWindow,
+                Zoom = Zoom,
+                Environment = CreationEnvironment.Copy(Environment)
+            };
         }
         catch (ArgumentException exception)
         {

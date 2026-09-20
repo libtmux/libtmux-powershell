@@ -41,10 +41,13 @@ access never reads tmux. Captured panes expose `CurrentCommand` and
 not captured raises `IncompleteSnapshotException`; a captured empty string
 or null retains that value.
 
-Captured children retain their root through `Server`. Parent and active-child
-properties return the captured instances when that depth is available. A pane's
-`Window` retains its session/index placement, including repeated links to the
-same window. `Window.LinkedSessions` contains each related session once.
+Captured children retain their root through `Server`. Parent properties return
+the captured instances when that depth is available. `ActiveWindow` and
+`ActivePane` return `CapturedValue<T>`: inspect `IsCaptured`, then read `Value`
+for the captured object. Reading an unavailable `Value` raises
+`IncompleteSnapshotException`; `OrNull()` explicitly opts into null instead.
+A pane's `Window` retains its session/index placement, including repeated
+links to the same window. `Window.LinkedSessions` contains each related session once.
 Filtering a collection changes only selected membership; traversing its
 parents still reaches their complete captured children. Active properties use
 the IDs from their own parent's row, so separate reads can record different
