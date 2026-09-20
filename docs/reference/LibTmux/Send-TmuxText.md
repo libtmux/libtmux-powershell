@@ -186,7 +186,7 @@ No success objects are emitted. An empty owner pipeline performs no work.
 Failures use Tmux.TextSendFailed and retain the original core exception,
 its dispatch information and the failed pane. ErrorAction Continue permits
 later owners to be processed; ErrorAction Stop stops on the first failure.
-NUL and invalid key-token content use Tmux.InvalidInput before dispatch;
+NUL content uses Tmux.InvalidInput before dispatch;
 PowerShell handles parameter binding errors. Cancellation stops pending work
 but cannot undo delivered input. Nothing is retried.
 If text was sent but the following Enter fails, the core reports unknown

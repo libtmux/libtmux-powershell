@@ -72,7 +72,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             {
                 OperationCanceledException => ErrorCategory.OperationStopped,
                 ArgumentException => ErrorCategory.InvalidArgument,
-                InvalidDataException or IncompleteSnapshotException => ErrorCategory.InvalidData,
+                InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
                 TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
                 _ => ErrorCategory.InvalidOperation,
             };

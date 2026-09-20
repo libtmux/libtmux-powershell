@@ -21,7 +21,10 @@ function Get-HelpExampleAssertion {
             } }
         'LibTmux\Get-TmuxSnapshot#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
-                if ($Result[0].Panes.Count -ne 1 -or $Result[0].Panes[0].Id.ToString() -cne $Context.PaneId) {
+                if ($Result[0].Panes.Count -ne 1 -or $Result[0].Panes[0].Id.ToString() -cne $Context.PaneId -or
+                    $Result[0].SnapshotMetadata.Depth -ne [LibTmux.SnapshotDepth]::Panes -or
+                    ![object]::ReferenceEquals($Result[0], $Result[0].Panes[0].Server) -or
+                    ![object]::ReferenceEquals($Result[0].Windows[0], $Result[0].Panes[0].Window)) {
                     throw 'Snapshot example did not capture the fixture pane.'
                 }
             } }

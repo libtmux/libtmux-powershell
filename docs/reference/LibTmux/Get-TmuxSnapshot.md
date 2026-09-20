@@ -29,7 +29,18 @@ None.
 
 ## DESCRIPTION
 
-Read the explicit server endpoint to the requested Depth. The default Panes depth captures sessions, contextual windows and panes. Shallower snapshots leave deeper relations unavailable. The input handle and previous captures remain unchanged.
+Read the explicit server endpoint to the requested Depth. The default Panes
+depth captures sessions, contextual windows and panes. Shallower snapshots
+leave deeper relations unavailable. The input handle and previous captures
+remain unchanged.
+
+SnapshotMetadata records depth, daemon generation, UTC start/end readings and
+monotonic Elapsed time. Use Elapsed for duration because UTC can be adjusted.
+Even Server depth performs a fresh generation-guarded read.
+
+Captured parents and active children retain their exact graph instances when
+the requested depth includes them. Repeated links keep their session/index
+placement; filtering panes does not prune their parent's captured relations.
 
 ## EXAMPLES
 
@@ -106,7 +117,12 @@ Native pipeline type for this command.
 
 ## NOTES
 
-Acquisition spans multiple tmux commands and does not promise an atomic view. Property access uses captured data; unavailable relations throw rather than appearing empty.
+Acquisition spans multiple tmux commands and does not promise an atomic view.
+Contradictory topology or active references fail with InconsistentSnapshotException
+without publishing a partial graph or retrying. Equal-count changes can escape
+detection. Tmux.SnapshotFailed retains the native exception and target; use
+ErrorAction Stop to stop later owners. Property access uses captured data;
+unavailable relations throw rather than appearing empty.
 
 ## RELATED LINKS
 
