@@ -7,9 +7,47 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'captured', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'job', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'query', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'queryPlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 param()
 
 @{
+    'query.01-capture' = @{ Requires = @('server'); Code = {
+$captured = $server | Get-TmuxServer -ErrorAction Stop | Get-TmuxSnapshot -ErrorAction Stop
+    } }
+    'query.02-native' = @{ Requires = @('captured'); Code = {
+$captured.Panes | Where-Object { $_.Width -ge 50 -and $_.Height -gt 0 }
+    } }
+    'query.03-criteria' = @{ Requires = @(); Code = {
+$query = New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } }
+    } }
+    'query.04-select' = @{ Requires = @('query', 'captured'); Code = {
+$captured.Panes | Select-TmuxPane -Query $query
+    } }
+    'query.05-fields' = @{ Requires = @(); Code = {
+Get-TmuxQueryField -Target Pane | Where-Object WireName -CEQ 'pane_width'
+    } }
+    'query.06-related' = @{ Requires = @('captured'); Code = {
+$captured.Windows | Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } } } }
+    } }
+    'query.07-boolean' = @{ Requires = @('captured'); Code = {
+$captured.Windows | Select-TmuxWindow -Criteria @{ Or = @(@{ Name = @{ StartsWith = 'api-' } }, @{ Name = 'logs' }); Not = @{ Name = @{ Contains = 'scratch' } } }
+    } }
+    'query.08-regex' = @{ Requires = @('captured'); Code = {
+$captured.Windows | Select-TmuxWindow -Criteria @{ Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } } }
+    } }
+    'query.09-json' = @{ Requires = @('query'); Code = {
+New-TmuxQuery -Json ($query | ConvertTo-TmuxQueryJson)
+    } }
+    'query.10-plan' = @{ Requires = @('query', 'captured'); Code = {
+$queryPlan = $query | Get-TmuxQueryPlan -DaemonVersion $captured.DaemonVersion
+    } }
+    'query.11-execute' = @{ Requires = @('server', 'queryPlan'); Code = {
+$server | Invoke-TmuxQuery -Plan $queryPlan -AsResult -ErrorAction Stop
+    } }
+    'query.12-one' = @{ Requires = @('captured'); Code = {
+$captured.Sessions | Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
+    } }
     'read.endpoint' = @{ Requires = @(); Code = { $server = LibTmux\New-TmuxServer -SocketName development } }
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {

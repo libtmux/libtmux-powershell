@@ -237,6 +237,95 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Connect-TmuxServer
   </command:command>
   <command:command>
     <command:details>
+      <command:name>ConvertTo-TmuxQueryJson</command:name>
+      <maml:description>
+        <maml:para>Serialize a native query document.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxQueryJson</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Serialize a native query document through LibTmux.Query.Json. The returned
+string uses the shared schema 2 contract. Serialization performs no tmux I/O.
+Restore the document with New-TmuxQuery -Json.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxQueryJson</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>The native document to serialize.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native query documents.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One JSON string per document.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.QueryJsonFailed terminates invalid serialization.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Serialize a pane-width filter for storage or another native consumer.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } } | LibTmux\ConvertTo-TmuxQueryJson
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/ConvertTo-TmuxQueryJson.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Disconnect-TmuxControl</command:name>
       <maml:description>
         <maml:para>Dispose an explicitly supplied tmux control client.</maml:para>
@@ -2069,6 +2158,360 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane | Select-O
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Get-TmuxQueryField</command:name>
+      <maml:description>
+        <maml:para>Discover query fields, operators and native bindings.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxQueryField</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return immutable descriptors from the shared LibTmux field catalog. Each
+descriptor identifies the wire field, supported operations, capture depth and
+native bindings. Discovery is local and requires no server or tmux executable.
+Client descriptors are available for inspection; the PowerShell structured
+selectors accept Session, Window and Pane targets. Operators use the native
+wire vocabulary: greaterThanOrEqual corresponds to the PowerShell criteria
+key Ge. See the [criteria keys](../../query.md#criteria-vocabulary) for the full mapping.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxQueryField</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Target</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Client</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">QueryTarget</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryTarget</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Target</maml:name>
+        <maml:description>
+          <maml:para>The entity whose catalog fields are returned.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Client</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryTarget</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryTarget</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryFieldDescriptor</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native descriptors in wire-name order.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Catalog discovery does not refresh captured objects.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Inspect the pane-width field and its supported operations.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\Get-TmuxQueryField -Target Pane | Where-Object WireName -EQ 'pane_width'
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Get-TmuxQueryField.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Get-TmuxQueryPlan</command:name>
+      <maml:description>
+        <maml:para>Inspect how a query will run against a known tmux version.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxQueryPlan</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Prepare a native query plan without contacting tmux. The plan exposes pushed
+and residual predicates, required fields, snapshot depth and fallback reasons.
+Displaying the plan or reading its properties performs no I/O. Pass it to
+Invoke-TmuxQuery with an explicit server to execute it.
+
+Auto evaluates supported conditions inside tmux and the remainder locally.
+Never evaluates the complete predicate locally. Require rejects predicates
+that need local evaluation. All modes retain the complete acquired graph;
+source evaluation does not reduce the captured rows.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxQueryPlan</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>DaemonVersion</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">TmuxVersion</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.TmuxVersion</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Pushdown</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Auto</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Never</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Require</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">QueryPushdown</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryPushdown</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>DaemonVersion</maml:name>
+        <maml:description>
+          <maml:para>The known daemon version. Execution verifies it against the selected endpoint.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.TmuxVersion</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxVersion</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Pushdown</maml:name>
+        <maml:description>
+          <maml:para>Where predicates may be evaluated. Require concerns predicate evaluation; parsing and object construction still occur locally.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Auto</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Never</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Require</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryPushdown</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryPushdown</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>A native Session, Window or Pane document.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A query document.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryPlan&lt;T&gt;</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native plan targeting Session, Window or Pane.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Invalid or unsupported planning terminates with Tmux.QueryPlanFailed. Planning does not discover the installed client or daemon version.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Prepare an exact pane-ID query for tmux 3.2a without opening a connection.
+Use the observed daemon version when preparing a plan for execution.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } | LibTmux\Get-TmuxQueryPlan -DaemonVersion ([LibTmux.TmuxVersion]::Parse('3.2a')) -Pushdown Require
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Get-TmuxQueryPlan.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Invoke-TmuxQuery</maml:linkText>
+        <maml:uri>Invoke-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Get-TmuxServer</command:name>
+      <maml:description>
+        <maml:para>Inspect an existing tmux daemon's identity and version.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxServer</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Read the selected endpoint and return a native Server with its daemon generation
+and DaemonVersion. An absent daemon produces no output. Inspection never starts
+a daemon and leaves the input handle unchanged.
+
+Sessions, windows and panes remain uncaptured. Pipe the inspected server to
+Get-TmuxSnapshot to acquire those relationships and retain the inspected version
+for Get-TmuxQueryPlan.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxServer</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The server endpoint to inspect.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native endpoint handle.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Inspected daemon, when present.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.ServerInspectionFailed retains the native exception and target. Inspection
+of an absent endpoint is successful and emits no object; other failures use the
+error stream. Use ErrorAction Stop to stop the pipeline on those failures.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Inspect the existing daemon identified by $SocketPath.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxServer
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Get-TmuxServer.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Read tmux state</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Structured queries</maml:linkText>
+        <maml:uri>../../query.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Get-TmuxSession</command:name>
       <maml:description>
         <maml:para>Read sessions with optional exact selectors.</maml:para>
@@ -3327,6 +3770,305 @@ $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Invoke-TmuxQuery</command:name>
+      <maml:description>
+        <maml:para>Acquire fresh tmux objects using an explicit query.</maml:para>
+      </maml:description>
+      <command:verb>Invoke</command:verb>
+      <command:noun>TmuxQuery</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Inspect the supplied endpoint, acquire a fresh snapshot and emit matching native
+objects in captured order. A query document is planned against the observed
+daemon version. A prepared plan must match that version. Execution never starts
+an absent daemon.
+
+Use AsResult to retain one native QueryResult, including its complete snapshot
+when there are no matches. Filtering does not prune parent or child relations.
+Acquisition spans tmux commands and does not promise an atomic observation.
+Use Select-TmuxPane, Select-TmuxWindow or Select-TmuxSession for local filtering
+of objects already acquired.
+
+NativeFilter is a separate raw tmux-format escape hatch. It returns matching
+rows without a complete structured-query snapshot. It cannot be combined with
+Query, Plan, Pushdown or AsResult.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxQuery</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Pushdown</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Auto</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Never</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Require</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">QueryPushdown</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryPushdown</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AsResult</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxQuery</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Plan</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AsResult</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxQuery</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Target</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">QueryTarget</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryTarget</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>NativeFilter</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>AsResult</maml:name>
+        <maml:description>
+          <maml:para>Emit one native result with matches and its complete captured graph.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>NativeFilter</maml:name>
+        <maml:description>
+          <maml:para>Uninterpreted tmux format text. The caller owns its semantics; it is not a structured portable query.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Plan</maml:name>
+        <maml:description>
+          <maml:para>A native QueryPlan&lt;Session&gt;, QueryPlan&lt;Window&gt; or QueryPlan&lt;Pane&gt; prepared by Get-TmuxQueryPlan or the .NET API.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Pushdown</maml:name>
+        <maml:description>
+          <maml:para>Auto permits exact source evaluation and local residuals; Never evaluates locally; Require rejects residual predicates.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Auto</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Never</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Require</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryPushdown</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryPushdown</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>A native document planned using the observed daemon version.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The explicit endpoint to inspect and query.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Target</maml:name>
+        <maml:description>
+          <maml:para>The native entity searched by NativeFilter.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryTarget</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryTarget</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>An explicit server endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Matching sessions.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Matching window placements.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Matching panes in their captured placement context.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryResult&lt;T&gt;</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native result when AsResult is set.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Execution failures write Tmux.QueryExecutionFailed for the affected endpoint. Use ErrorAction Stop to terminate the pipeline. Cancellation stops the pending native operation. No matches are emitted from a failed acquisition.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Acquire panes at least 80 columns wide from an explicit socket.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxQuery -Query (LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } })
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 2 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Keep the query result and its captured graph, including an empty selection.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxQuery -Query (LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }) -AsResult
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Invoke-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxQueryPlan</maml:linkText>
+        <maml:uri>Get-TmuxQueryPlan.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Select-TmuxPane</maml:linkText>
+        <maml:uri>Select-TmuxPane.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>New-TmuxCommand</command:name>
       <maml:description>
         <maml:para>Construct a native tmux command without running it.</maml:para>
@@ -3433,6 +4175,161 @@ LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'hello; tmux'
       <maml:navigationLink>
         <maml:linkText>Commands and control clients</maml:linkText>
         <maml:uri>../../commands.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>New-TmuxQuery</command:name>
+      <maml:description>
+        <maml:para>Build reusable criteria for captured tmux objects.</maml:para>
+      </maml:description>
+      <command:verb>New</command:verb>
+      <command:noun>TmuxQuery</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Construct a native LibTmux query document from a criteria map or serialized
+schema 2 JSON. Construction copies and validates data without contacting tmux.
+Use Where-Object for ordinary PowerShell predicates; structured criteria also
+support serialization, field discovery and explicit source planning.
+
+Map keys use native property names or catalog wire names. Bare values mean
+equality; fields in a map are combined with And. Use operator maps such as
+@{ Width = @{ Ge = 80 } }. Get-TmuxQueryField lists native catalog fields and operator names. The
+[criteria reference](../../query.md#criteria-vocabulary) maps those names to accepted
+PowerShell keys such as Ge, Some and Is.
+Unknown fields, duplicate aliases, unsupported operators, ScriptBlocks, cycles
+and oversized data are rejected before evaluation.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>New-TmuxQuery</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Target</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">QueryTarget</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryTarget</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Criteria</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>New-TmuxQuery</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Json</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Criteria</maml:name>
+        <maml:description>
+          <maml:para>A bounded data map. Values must have the native field type; strings and Boolean values are not converted to numbers.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Json</maml:name>
+        <maml:description>
+          <maml:para>A complete document serialized by ConvertTo-TmuxQueryJson. Only the current schema is accepted.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Target</maml:name>
+        <maml:description>
+          <maml:para>The native entity described by Criteria.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Pane</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryTarget</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryTarget</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One validated native document.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.InvalidQuery terminates invalid construction. The packaged libtmux-query-v2.schema.json describes the JSON representation.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Build a reusable filter for panes at least 80 columns wide.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Select-TmuxPane</maml:linkText>
+        <maml:uri>Select-TmuxPane.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxQueryField</maml:linkText>
+        <maml:uri>Get-TmuxQueryField.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxQueryJson</maml:linkText>
+        <maml:uri>ConvertTo-TmuxQueryJson.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -5556,6 +6453,546 @@ $window | LibTmux\Remove-TmuxWindow -Confirm:$false
       </maml:navigationLink>
       <maml:navigationLink>
         <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Select-TmuxPane</command:name>
+      <maml:description>
+        <maml:para>Filter captured native panes.</maml:para>
+      </maml:description>
+      <command:verb>Select</command:verb>
+      <command:noun>TmuxPane</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Evaluate criteria against captured native objects using the shared .NET query
+evaluator. Selection preserves input order, duplicates, object identity and the
+complete graph behind each object. It does not contact tmux or refresh data.
+Use Where-Object when an ordinary PowerShell predicate is sufficient.
+
+Ordinary selection streams each match. ExactlyOne retains a match until finite
+input completes, then emits it only if exactly one input matched. A second
+match, invalid object, unavailable captured relation, evaluation failure or
+pipeline stop terminates selection before that retained object is emitted.
+ExactlyOne counts only the successful objects it receives. An upstream
+nonterminating error is outside that guarantee. When completeness is required
+before mutation, use -ErrorAction Stop on every upstream acquisition.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxPane</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Criteria</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxPane</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Criteria</maml:name>
+        <maml:description>
+          <maml:para>The criteria map copied before input begins. An empty map accepts every valid native input.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ExactlyOne</maml:name>
+        <maml:description>
+          <maml:para>Require exactly one match from successfully completed finite input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>Native LibTmux.Pane objects, individually or in an array. The callback validates each object and rejects nulls or lookalike objects.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>A native query document whose target is Pane.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Captured native panes; no property-name binding.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The original matching objects.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Errors terminate even with -ErrorAction Continue. Tmux.NoMatch and
+Tmux.MultipleMatches report cardinality failures. Tmux.InvalidQuery reports
+invalid criteria or a mismatched target; Tmux.QuerySelectionFailed retains
+the native evaluation exception and failing input. ExactlyOne cannot prove
+cardinality on an input stream that never completes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Capture the existing endpoint selected by $SocketPath, then select panes at least 80 columns wide.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Panes | LibTmux\Select-TmuxPane -Criteria @{ Width = @{ Ge = 80 } }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Select-TmuxPane.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Read captured objects</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Select-TmuxSession</command:name>
+      <maml:description>
+        <maml:para>Filter captured native sessions.</maml:para>
+      </maml:description>
+      <command:verb>Select</command:verb>
+      <command:noun>TmuxSession</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Evaluate criteria against captured native objects using the shared .NET query
+evaluator. Selection preserves input order, duplicates, object identity and the
+complete graph behind each object. It does not contact tmux or refresh data.
+Use Where-Object when an ordinary PowerShell predicate is sufficient.
+
+Ordinary selection streams each match. ExactlyOne retains a match until finite
+input completes, then emits it only if exactly one input matched. A second
+match, invalid object, unavailable captured relation, evaluation failure or
+pipeline stop terminates selection before that retained object is emitted.
+ExactlyOne counts only the successful objects it receives. An upstream
+nonterminating error is outside that guarantee. When completeness is required
+before mutation, use -ErrorAction Stop on every upstream acquisition.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Criteria</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Criteria</maml:name>
+        <maml:description>
+          <maml:para>The criteria map copied before input begins. An empty map accepts every valid native input.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ExactlyOne</maml:name>
+        <maml:description>
+          <maml:para>Require exactly one match from successfully completed finite input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>Native LibTmux.Session objects, individually or in an array. The callback validates each object and rejects nulls or lookalike objects.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>A native query document whose target is Session.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Captured native sessions; no property-name binding.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The original matching objects.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Errors terminate even with -ErrorAction Continue. Tmux.NoMatch and
+Tmux.MultipleMatches report cardinality failures. Tmux.InvalidQuery reports
+invalid criteria or a mismatched target; Tmux.QuerySelectionFailed retains
+the native evaluation exception and failing input. ExactlyOne cannot prove
+cardinality on an input stream that never completes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Capture the existing endpoint selected by $SocketPath, then select detached sessions.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Sessions | LibTmux\Select-TmuxSession -Criteria @{ Attached = $false }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Select-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Read captured objects</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Select-TmuxWindow</command:name>
+      <maml:description>
+        <maml:para>Filter captured native windows.</maml:para>
+      </maml:description>
+      <command:verb>Select</command:verb>
+      <command:noun>TmuxWindow</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Evaluate criteria against captured native objects using the shared .NET query
+evaluator. Selection preserves input order, duplicates, object identity and the
+complete graph behind each object. It does not contact tmux or refresh data.
+Use Where-Object when an ordinary PowerShell predicate is sufficient.
+
+Ordinary selection streams each match. ExactlyOne retains a match until finite
+input completes, then emits it only if exactly one input matched. A second
+match, invalid object, unavailable captured relation, evaluation failure or
+pipeline stop terminates selection before that retained object is emitted.
+ExactlyOne counts only the successful objects it receives. An upstream
+nonterminating error is outside that guarantee. When completeness is required
+before mutation, use -ErrorAction Stop on every upstream acquisition.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Criteria</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Select-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Query</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">QueryDocument</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Query.QueryDocument</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExactlyOne</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Criteria</maml:name>
+        <maml:description>
+          <maml:para>The criteria map copied before input begins. An empty map accepts every valid native input.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ExactlyOne</maml:name>
+        <maml:description>
+          <maml:para>Require exactly one match from successfully completed finite input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>Native LibTmux.Window objects, individually or in an array. The callback validates each object and rejects nulls or lookalike objects.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Query</maml:name>
+        <maml:description>
+          <maml:para>A native query document whose target is Window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Query.QueryDocument</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Query.QueryDocument</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Captured native windows; no property-name binding.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The original matching objects.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Errors terminate even with -ErrorAction Continue. Tmux.NoMatch and
+Tmux.MultipleMatches report cardinality failures. Tmux.InvalidQuery reports
+invalid criteria or a mismatched target; Tmux.QuerySelectionFailed retains
+the native evaluation exception and failing input. ExactlyOne cannot prove
+cardinality on an input stream that never completes.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Capture the existing endpoint selected by $SocketPath, then select active window placements.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Windows | LibTmux\Select-TmuxWindow -Criteria @{ IsActive = $true }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Select-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>New-TmuxQuery</maml:linkText>
+        <maml:uri>New-TmuxQuery.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Read captured objects</maml:linkText>
         <maml:uri>../../read.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>

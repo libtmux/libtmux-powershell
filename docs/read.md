@@ -17,7 +17,7 @@ connected replacement. An already connected handle is returned unchanged.
 | `Get-TmuxWindow` | `LibTmux.Server` or `LibTmux.Session` | `LibTmux.Window` objects |
 | `Get-TmuxPane` | `LibTmux.Server`, `LibTmux.Session`, or `LibTmux.Window` | `LibTmux.Pane` objects |
 
-Every `Get-Tmux*` command reads tmux explicitly. `-Id` selects a literal tmux
+The acquisition commands above read tmux explicitly. `-Id` selects a literal tmux
 identifier, such as `$0`, `@1`, or `%2`; use single quotes for a session ID.
 Session and window commands also accept `-Name`. Selectors compare ordinally
 and distinguish case. They do not expand wildcards. Combining selectors
@@ -26,7 +26,22 @@ error. Wrap a pipeline in `@(...)` when its count matters.
 
 Owners bind by their native type. An arbitrary object's `Server`, `Session`,
 or `Window` property does not bind automatically. Use `Where-Object` after
-acquisition for further local filtering.
+acquisition for further local filtering. For reusable criteria, use
+[New-TmuxQuery](reference/LibTmux/New-TmuxQuery.md) and the local
+[Select-TmuxPane](reference/LibTmux/Select-TmuxPane.md),
+[Select-TmuxWindow](reference/LibTmux/Select-TmuxWindow.md) or
+[Select-TmuxSession](reference/LibTmux/Select-TmuxSession.md) commands.
+[Get-TmuxQueryField](reference/LibTmux/Get-TmuxQueryField.md) discovers the
+shared query catalog locally.
+
+For a fresh query, pass an explicit endpoint and a query document to
+[Invoke-TmuxQuery](reference/LibTmux/Invoke-TmuxQuery.md). It emits matching
+native objects; `-AsResult` retains the result and its complete captured graph,
+including an empty selection. Use
+[Get-TmuxQueryPlan](reference/LibTmux/Get-TmuxQueryPlan.md) with a known daemon
+version to inspect source evaluation, local residuals and fallback reasons
+before execution. Planning performs no I/O. The [query guide](query.md) walks
+through native filtering, reusable criteria, relationships and source plans.
 
 `Get-TmuxSnapshot` defaults to `-Depth Panes`. Shallower depths are `Server`,
 `Sessions`, and `Windows`. It returns a replacement graph and leaves the

@@ -15,6 +15,77 @@ function Get-HelpExampleAssertion {
 
     # Each packaged example needs its own outcome assertion, including examples with no output.
     @{
+        'LibTmux\Get-TmuxQueryPlan#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                $plan = $Result[0]
+                if ($plan -isnot [LibTmux.Query.QueryPlan[LibTmux.Pane]] -or
+                    $plan.DaemonVersion.Raw -cne '3.2a' -or
+                    $plan.Pushdown -ne [LibTmux.Query.QueryPushdown]::Require -or
+                    $null -eq $plan.PushedPredicate -or $null -ne $plan.ResidualPredicate) {
+                    throw 'Plan example did not preserve the native exact pane-ID source plan.'
+                }
+            } }
+        'LibTmux\Invoke-TmuxQuery#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.Pane] -or
+                    $Result[0].Id.ToString() -cne $Context.PaneId -or $Result[0].Width -lt 80) {
+                    throw 'Source query example did not emit the captured wide pane.'
+                }
+            } }
+        'LibTmux\Invoke-TmuxQuery#2' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                $queryResult = $Result[0]
+                if ($queryResult -isnot [LibTmux.Query.QueryResult[LibTmux.Pane]] -or
+                    $queryResult.Count -ne 1 -or $queryResult[0].Id.ToString() -cne $Context.PaneId -or
+                    $queryResult.Snapshot.Panes.Count -ne 1 -or
+                    ![object]::ReferenceEquals($queryResult[0], $queryResult.Snapshot.Panes[0])) {
+                    throw 'Result example did not retain matching rows from its complete snapshot.'
+                }
+            } }
+        'LibTmux\New-TmuxQuery#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                $query = $Result[0]
+                $snapshot = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath | LibTmux\Get-TmuxSnapshot
+                $selectedPanes = @($snapshot.Panes | LibTmux\Select-TmuxPane -Query $query)
+                if ($query.Version -ne 2 -or $query.Target -ne [LibTmux.Query.QueryTarget]::Pane -or
+                    $selectedPanes.Count -ne 1 -or $selectedPanes[0].Width -lt 80 -or
+                    ($query | LibTmux\ConvertTo-TmuxQueryJson) -notmatch 'pane_width') {
+                    throw 'Query example did not construct the documented native pane-width criterion.'
+                }
+            } }
+        'LibTmux\ConvertTo-TmuxQueryJson#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                $query = LibTmux\New-TmuxQuery -Json $Result[0]
+                if ($query.Version -ne 2 -or $query.Target -ne [LibTmux.Query.QueryTarget]::Pane -or
+                    ($query | LibTmux\ConvertTo-TmuxQueryJson) -cne $Result[0] -or $Result[0] -notmatch 'pane_width') {
+                    throw 'Query JSON example did not round-trip the documented pane-width criterion.'
+                }
+            } }
+        'LibTmux\Get-TmuxQueryField#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                if ($Result[0].WireName -cne 'pane_width' -or $Result[0].ScalarPropertyPath -cne 'Width' -or
+                    $Result[0].ValueKind -ne [LibTmux.Query.QueryValueKind]::Int64) {
+                    throw 'Field discovery example did not return the native numeric Width binding.'
+                }
+            } }
+        'LibTmux\Select-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                if ($Result[0].Id.ToString() -cne $Context.PaneId -or $Result[0].Width -lt 80) {
+                    throw 'Pane selection example did not return the captured wide pane.'
+                }
+            } }
+        'LibTmux\Select-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result)
+                if ($Result[0].Name -cne 'fixture' -or $Result[0].Attached) {
+                    throw 'Session selection example did not return the detached fixture session.'
+                }
+            } }
+        'LibTmux\Select-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                if ($Result[0].Id.ToString() -cne $Context.WindowId -or !$Result[0].IsActive) {
+                    throw 'Window selection example did not return the active captured placement.'
+                }
+            } }
         'LibTmux\New-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].IsMaterialized -or $Result[0].ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath) {
@@ -25,6 +96,14 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 if (!$Result[0].IsMaterialized -or $Result[0].ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath) {
                     throw 'Connection example did not materialize the owned endpoint.'
+                }
+            } }
+        'LibTmux\Get-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
+                param($Result, $Context)
+                $version = (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
+                if (!$Result[0].IsMaterialized -or $Result[0].DaemonVersion.Raw -cne $version -or
+                    $Result[0].Sessions.IsCaptured -or $Result[0].ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath) {
+                    throw 'Inspection example did not preserve daemon identity and version without capturing relationships.'
                 }
             } }
         'LibTmux\Get-TmuxSnapshot#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {

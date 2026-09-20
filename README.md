@@ -127,7 +127,7 @@ checks. Run the examples in that PowerShell session.
 
 ## Guides
 
-- **Read:** [snapshots and filtering](docs/read.md),
+- **Read:** [snapshots and filtering](docs/read.md), [structured queries](docs/query.md),
   [pane contents and scrollback](docs/capture.md), [attached clients](docs/clients.md).
 - **Automate:** [create](docs/create.md), [send text and keys](docs/input.md),
   [arrange and resize](docs/layout.md), [remove](docs/remove.md).

@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.15.ps.9, 0.0.0-alpha.15.ps.9]",
-        "resolved": "0.0.0-alpha.15.ps.9",
-        "contentHash": "Bb8sd9UTtHXxshqjOPhHK820o4hvStvXMsKRJEMxg1/i4smqdgKuLymBK5LqG86cQekZqqHvL9wEi7mIuerfNQ==",
+        "requested": "[0.0.0-alpha.15.ps.11, 0.0.0-alpha.15.ps.11]",
+        "resolved": "0.0.0-alpha.15.ps.11",
+        "contentHash": "6VtFSU7HSHXFh6gD0ByQOhNwL7leuPW5UehNOQTBqItZnaiHy39BOVauycnd6kneU9xr/gdPgYHOLpMdqvp1wA==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Workspace": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.15.ps.9, 0.0.0-alpha.15.ps.9]",
-        "resolved": "0.0.0-alpha.15.ps.9",
-        "contentHash": "SSbW7v0i1+kCnXqs+cNurOCnKs1vilmP+HXKCetd2qvqVyg6mi5jRDV1Cl4K2dTpEN8lqK+DaSirD27FYWuquw==",
+        "requested": "[0.0.0-alpha.15.ps.11, 0.0.0-alpha.15.ps.11]",
+        "resolved": "0.0.0-alpha.15.ps.11",
+        "contentHash": "qj+V/tf+x53snYOmDQIFSr5bL/vz06z+9uWFrejNlJum68Q5rryQouB4gHjxTIHfBuGlU0Ep8NruI7CEL1YzxQ==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.15.ps.9",
+          "LibTmux": "0.0.0-alpha.15.ps.11",
           "YamlDotNet": "18.1.0"
         }
       },
@@ -45,6 +45,12 @@
           "System.Security.Permissions": "8.0.0",
           "System.Text.Encoding.CodePages": "8.0.0"
         }
+      },
+      "YamlDotNet": {
+        "type": "Direct",
+        "requested": "[18.1.0, 18.1.0]",
+        "resolved": "18.1.0",
+        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
       },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
@@ -189,10 +195,21 @@
         "resolved": "8.0.0",
         "contentHash": "Obg3a90MkOw9mYKxrardLpY2u0axDMrSmy4JCdq2cYbelM2cUwmUir5Bomvd1yxmPL9h5LVHU1tuKBZpUjfASg=="
       },
-      "YamlDotNet": {
-        "type": "Transitive",
-        "resolved": "18.1.0",
-        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
+      "libtmux.powershell": {
+        "type": "Project",
+        "dependencies": {
+          "LibTmux": "[0.0.0-alpha.15.ps.11, 0.0.0-alpha.15.ps.11]",
+          "LibTmux.Query.Json": "[0.0.0-alpha.15.ps.11, 0.0.0-alpha.15.ps.11]"
+        }
+      },
+      "LibTmux.Query.Json": {
+        "type": "CentralTransitive",
+        "requested": "[0.0.0-alpha.15.ps.11, 0.0.0-alpha.15.ps.11]",
+        "resolved": "0.0.0-alpha.15.ps.11",
+        "contentHash": "MudcEc9qhvVWRhUgvJHC0ySeHGgV1Ov3r1A8mQNcMWTrd78o4HXtt6275A4Lxn9CfLmLuh7vNlyGBPvqym/pEQ==",
+        "dependencies": {
+          "LibTmux": "0.0.0-alpha.15.ps.11"
+        }
       }
     }
   }

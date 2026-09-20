@@ -47,6 +47,86 @@ function Get-GuideField($Context, [string] $Target, [string] $Format) {
 }
 
 $assertions = @{
+    'query.01-capture' = @{ Group = 'Query'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Captured -is [LibTmux.Server] -and $o.Captured.Panes.Count -eq 2 -and
+                $o.Captured.Windows.Count -eq 1 -and $o.Captured.Sessions.Count -eq 1 -and
+                $o.Captured.Sessions[0].Name -ceq 'development' -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'explicit query capture'
+            $o.Context.Captured = $o.Captured
+        } }
+    'query.02-native' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Pane] -and $o.Result[0].Width -eq 59 -and
+                $o.Result[0].Height -eq 30 -and
+                [object]::ReferenceEquals($o.Result[0], $o.Captured.Panes[0])) 'native local size selection'
+        } }
+    'query.03-criteria' = @{ Group = 'Query'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Query -is [LibTmux.Query.QueryDocument] -and
+                $o.Query.Target -eq [LibTmux.Query.QueryTarget]::Pane -and $o.Query.Version -eq 2) 'reusable native criteria'
+            $o.Context.Query = $o.Query
+        } }
+    'query.04-select' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Panes[0]) -and
+                $o.Result[0].Width -eq 59 -and $o.Result[0].Window.Panes.Count -eq 2 -and
+                $o.Result[0].Window.Panes[1].Width -eq 40) 'structured match preserves the excluded child in its graph'
+        } }
+    'query.05-fields' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.Query.QueryFieldDescriptor] -and
+                $o.Result[0].ScalarPropertyPath -ceq 'Width' -and
+                $o.Result[0].Operators -ccontains 'greaterThanOrEqual') 'native discovery operator vocabulary'
+        } }
+    'query.06-related' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Windows[0]) -and
+                $o.Result[0].Panes.Count -eq 2 -and
+                @($o.Result[0].Panes | Where-Object { $_.Width -ge 50 -and $_.Height -gt 0 }).Count -eq 1) 'correlated captured relation criteria'
+        } }
+    'query.07-boolean' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Windows[0]) -and
+                $o.Result[0].Name -ceq 'api-editor') 'Boolean prefix and exclusion criteria'
+        } }
+    'query.08-regex' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Windows[0]) -and
+                $o.Result[0].Name.StartsWith('api-', [StringComparison]::Ordinal)) 'explicit case-insensitive regex criteria'
+        } }
+    'query.09-json' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            $restored = $o.Result[0]
+            $restoredPanes = @($o.Captured.Panes | Select-TmuxPane -Query $restored)
+            Assert-Guide ($restored -is [LibTmux.Query.QueryDocument] -and
+                ($restored | ConvertTo-TmuxQueryJson) -ceq ($o.Query | ConvertTo-TmuxQueryJson) -and
+                $restoredPanes.Count -eq 1 -and [object]::ReferenceEquals($restoredPanes[0], $o.Captured.Panes[0])) 'query JSON round-trip preserves native matching'
+        } }
+    'query.10-plan' = @{ Group = 'Query'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.QueryPlan -is [LibTmux.Query.QueryPlan[LibTmux.Pane]] -and
+                $o.QueryPlan.DaemonVersion -eq $o.Captured.DaemonVersion -and
+                $o.QueryPlan.Pushdown -eq [LibTmux.Query.QueryPushdown]::Auto -and
+                $o.QueryPlan.RequiredSnapshotDepth -eq [LibTmux.SnapshotDepth]::Panes -and
+                $o.QueryPlan.RequiredFields.Count -eq 2 -and $null -ne $o.QueryPlan.ResidualPredicate) 'pure observed-version query plan'
+            $o.Context.QueryPlan = $o.QueryPlan
+        } }
+    'query.11-execute' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            $result = $o.Result[0]
+            Assert-Guide ($result -is [LibTmux.Query.QueryResult[LibTmux.Pane]] -and
+                $result.Count -eq 1 -and $result.Snapshot.Panes.Count -eq 2 -and
+                $result[0].Width -eq 59 -and $result.Snapshot.Panes[1].Width -eq 40 -and
+                [object]::ReferenceEquals($result[0], $result.Snapshot.Panes[0]) -and
+                ![object]::ReferenceEquals($result[0], $o.Captured.Panes[0]) -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'explicit query result keeps its complete fresh observation'
+        } }
+    'query.12-one' = @{ Group = 'Query'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Sessions[0]) -and
+                $o.Result[0].Name -ceq 'development') 'exact native session selection'
+        } }
     'read.endpoint' = @{ Group = 'Pure'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
@@ -370,7 +450,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -507,6 +587,13 @@ exec /bin/cat
     $Context.Session = $Context.AnchorSession
     $Context.Pane = $Context.AnchorSession | Get-TmuxPane
     $Context.Anchor = Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}'
+    if ($Group -eq 'Query') {
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('resize-window', '-t', 'fixture:0', '-x', '100', '-y', '30')
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('split-window', '-h', '-d', '-l', '40', '-t', 'fixture:0.0', 'exec /bin/cat')
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('set-window-option', '-t', 'fixture:0', 'automatic-rename', 'off')
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('rename-window', '-t', 'fixture:0', 'api-editor')
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('rename-session', '-t', 'fixture', 'development')
+    }
 }
 
 function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
@@ -521,14 +608,18 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     $job = $Context['Job']
     $currentPane = $newPane = $null
     $captured = $Context['Captured']
+    $query, $queryPlan = $Context['Query'], $Context['QueryPlan']
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
     $result = @(. $sources[$Id].Code)
     $Context.Executed.Add($Id)
     if ($entry.Group -eq 'Create') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
-        Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
+        Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Query = $query; QueryPlan = $queryPlan; Context = $Context; BeforeDispatch = $before }
     & $entry.Assert $observation
+    if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
+        Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
+    }
     if ($entry.Group -eq 'Remove') {
         Assert-Guide ((Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $Context.Anchor) 'unrelated removal anchor'
     }
@@ -567,7 +658,7 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query')) {
     $context = @{ Executed = $completed }
     $run = {
         $control = $null

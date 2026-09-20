@@ -9,8 +9,11 @@
     FormatsToProcess = @('LibTmux.Format.ps1xml')
     FunctionsToExport = @()
     CmdletsToExport = @(
-        'New-TmuxServer', 'Connect-TmuxServer', 'Get-TmuxSnapshot',
+        'New-TmuxServer', 'Connect-TmuxServer', 'Get-TmuxServer', 'Get-TmuxSnapshot',
         'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane',
+        'New-TmuxQuery', 'ConvertTo-TmuxQueryJson', 'Get-TmuxQueryField',
+        'Get-TmuxQueryPlan', 'Invoke-TmuxQuery',
+        'Select-TmuxSession', 'Select-TmuxWindow', 'Select-TmuxPane',
         'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
         'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane',
         'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane',

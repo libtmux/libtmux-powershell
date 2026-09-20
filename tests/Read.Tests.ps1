@@ -9,7 +9,7 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
 
-foreach ($name in @('Connect-TmuxServer', 'Get-TmuxSnapshot', 'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane')) {
+foreach ($name in @('Connect-TmuxServer', 'Get-TmuxServer', 'Get-TmuxSnapshot', 'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane')) {
     Assert-True ($null -ne (Get-Command "LibTmux\$name" -ErrorAction SilentlyContinue)) "Installed module does not export $name."
 }
 
@@ -22,6 +22,14 @@ Invoke-WithOwnedTmux {
     $connected = $server | LibTmux\Connect-TmuxServer
     Assert-True ($connected -is [LibTmux.Server] -and $connected.IsMaterialized) 'Connect did not return a native live server.'
     Assert-True (-not $server.IsMaterialized) 'Connect mutated the original endpoint handle.'
+
+    $inspected = $server | LibTmux\Get-TmuxServer
+    $daemonVersion = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
+    Assert-True ($inspected -is [LibTmux.Server] -and $inspected.IsMaterialized -and
+        $inspected.DaemonVersion.Raw -ceq $daemonVersion -and !$inspected.Sessions.IsCaptured -and
+        !$server.IsMaterialized) 'Inspection lost daemon identity or invented captured relationships.'
+    $inspectedSnapshot = $inspected | LibTmux\Get-TmuxSnapshot
+    Assert-True ($inspectedSnapshot.DaemonVersion -eq $inspected.DaemonVersion) 'Snapshot lost its inspected daemon version.'
 
     $sessions = @($server | LibTmux\Get-TmuxSession)
     Assert-True ($sessions.Count -eq 1 -and $sessions[0] -is [LibTmux.Session]) 'Single-session output was not a native session.'
@@ -82,6 +90,8 @@ Invoke-WithOwnedTmux {
     Assert-True $bindingFailed 'An arbitrary object bound through its Server property.'
 
     $missing = LibTmux\New-TmuxServer -SocketPath (Join-Path $fixture.DirectoryPath 'absent')
+    Assert-True (@($missing | LibTmux\Get-TmuxServer).Count -eq 0 -and
+        !(Test-Path -LiteralPath $missing.ConnectionOptions.SocketPath)) 'Inspection started an absent daemon or emitted a null result.'
     $failure = $null
     $output = [System.Collections.Generic.List[object]]::new()
     try { $missing | LibTmux\Get-TmuxSession | ForEach-Object { $output.Add($_) } } catch { $failure = $_ }

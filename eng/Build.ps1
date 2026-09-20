@@ -20,6 +20,7 @@ if ($PackageCache) { $cache = [IO.Path]::GetFullPath($PackageCache) }
 $modules = Join-Path $root 'build/Modules'
 [xml] $versions = Get-Content "$root/Directory.Packages.props" -Raw
 $version = $versions.SelectSingleNode('//PackageVersion[@Include="LibTmux"]/@Version').Value.Trim('[', ']')
+$sharedPackages = @('LibTmux', 'LibTmux.Query.Json', 'LibTmux.Workspace')
 $commands = [Collections.Generic.List[object]]::new()
 
 function Invoke-BuildCommand([string[]] $Arguments) {
@@ -34,14 +35,16 @@ Push-Location $root
 try {
     if ($CorePackageDirectory) {
         if ($PackCore) { throw '-CorePackageDirectory consumes inspected archives and cannot be combined with -PackCore.' }
-        $workspaceVersion = $versions.SelectSingleNode('//PackageVersion[@Include="LibTmux.Workspace"]/@Version').Value.Trim('[', ']')
-        if ($workspaceVersion -cne $version) { throw 'An inspected review requires matching core and workspace dependency pins.' }
+        foreach ($name in $sharedPackages) {
+            $dependencyVersion = $versions.SelectSingleNode("//PackageVersion[@Include='$name']/@Version").Value.Trim('[', ']')
+            if ($dependencyVersion -cne $version) { throw "An inspected review requires matching shared dependency pins: $name differs." }
+        }
         $provenance = Get-Content -LiteralPath (Join-Path $feed 'provenance.json') -Raw | ConvertFrom-Json
         if ($provenance.version -cne $version -or $provenance.inspection -cne 'passed' -or
             $provenance.revision -cnotmatch '^[0-9a-f]{40}$') {
             throw 'Review package provenance does not match the pinned dependency version and inspected source.'
         }
-        foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+        foreach ($name in $sharedPackages) {
             $file = "$name.$version.nupkg"
             $record = @($provenance.packages | Where-Object file -CEQ $file)
             if ($record.Count -ne 1 -or
@@ -56,7 +59,7 @@ try {
     if ($PackCore) {
         if (!$CoreSource) { throw '-PackCore requires -CoreSource.' }
         $CoreSource = (Resolve-Path $CoreSource).Path
-        foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+        foreach ($name in $sharedPackages) {
             if (Test-Path "$feed/$name.$version.nupkg") {
                 throw "Local $name $version already exists. Reuse it without -PackCore or choose a new dependency version."
             }
@@ -80,7 +83,7 @@ try {
             })
             @{ revision = $revision; branch = $branch; files = $sourceFiles } |
                 ConvertTo-Json -Depth 5 | Set-Content "$candidate/source-$version.json"
-            foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+            foreach ($name in $sharedPackages) {
                 $buildArguments = @('pack', "src/$name/$name.csproj", '-c', 'Release',
                     "-p:Version=$version", '-p:RestoreLockedMode=true', '-o', $candidate,
                     "-p:RepositoryCommit=$revision", "-p:RepositoryBranch=$branch", '--warnaserror')
@@ -113,9 +116,10 @@ try {
         Copy-Item "$binary/$name.PowerShell.dll" $destination
         Copy-Item "$binary/$name.PowerShell.xml" $destination
         $libraries = if ($name -eq 'LibTmux') {
-            @('LibTmux', 'Microsoft.Extensions.Logging.Abstractions', 'Microsoft.Extensions.DependencyInjection.Abstractions')
+            @('LibTmux', 'LibTmux.Query.Json', 'Microsoft.Extensions.Logging.Abstractions', 'Microsoft.Extensions.DependencyInjection.Abstractions')
         } else { @('LibTmux.Workspace', 'YamlDotNet') }
         foreach ($library in $libraries) { Copy-Item "$binary/$library.dll" "$destination/lib" }
+        if ($name -eq 'LibTmux') { Copy-Item "$binary/libtmux-query-v2.schema.json" $destination }
         Copy-Item "$root/THIRD-PARTY-NOTICES.md" $destination
         $null = New-Item "$destination/licenses" -ItemType Directory -Force
         $licenses = if ($name -eq 'LibTmux') { @('LibTmux', 'dotnet') } else { @('LibTmux', 'YamlDotNet') }

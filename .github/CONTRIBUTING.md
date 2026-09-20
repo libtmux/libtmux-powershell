@@ -63,8 +63,8 @@ update its exact reference and run with `-Restore -UpdateLock`.
 
 ## Review package builds
 
-The current dependency pins use unpublished `0.0.0-alpha.15.ps.9` archives
-built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/fcc5362db91c16338b08481faaf6ee4aa530b7b2).
+The current dependency pins use unpublished `0.0.0-alpha.15.ps.11` archives
+built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/bbf2e30988bed95990b98e52947e6c098fbf7309).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -78,30 +78,30 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
 
 Choose a fresh cache directory for the first consumer proof.
 `-CorePackageDirectory` requires `-Restore`: it checks the inspected
-core/workspace hashes before restore and does not repack the archives.
+core/query/workspace hashes before restore and does not repack the archives.
 Keep lock checking enabled when consuming the existing archives.
 
 To rebuild the reviewed source, use a new, unused prerelease identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
 promise to reproduce the locked package bytes. Do not overwrite or recreate
-`0.0.0-alpha.15.ps.9` to satisfy its existing locks.
+`0.0.0-alpha.15.ps.11` to satisfy its existing locks.
 
 Set `CORE_SOURCE` to a clean checkout of the linked revision, `REVIEW_VERSION`
 to the new identifier, and `CORE_PACKAGES` to a new output directory. Use
 absolute directory paths. The checkout uses its own SDK pin; do not build into
 one another task is compiling concurrently. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/fcc5362db91c16338b08481faaf6ee4aa530b7b2/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/bbf2e30988bed95990b98e52947e6c098fbf7309/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision fcc5362db91c16338b08481faaf6ee4aa530b7b2 \
+    --revision bbf2e30988bed95990b98e52947e6c098fbf7309 \
     --output "$CORE_PACKAGES"
 ```
 
-Deliberately update both exact dependency pins in `Directory.Packages.props`
+Deliberately update the three exact LibTmux dependency pins in `Directory.Packages.props`
 to `REVIEW_VERSION`, then regenerate the locks against these new archives:
 
 ```console
