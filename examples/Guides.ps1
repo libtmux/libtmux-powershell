@@ -13,14 +13,14 @@ param()
     'read.endpoint' = @{ Requires = @(); Code = { $server = LibTmux\New-TmuxServer -SocketName development } }
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
-    $session = $server | New-TmuxSession -Name 'demo' -WindowName 'editor' -Command 'exec /bin/cat' -Width 100 -Height 30 -ErrorAction Stop
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession -Name demo -Command 'exec /bin/cat' -Width 100 -Height 30
     try {
-        $pane = $session | Get-TmuxPane -ErrorAction Stop
-        $null = $pane | Split-TmuxPane -Horizontal -Size 40 -Command 'exec /bin/cat' -ErrorAction Stop
-        $snapshot = $server | Get-TmuxSnapshot -ErrorAction Stop
-        $snapshot.Sessions | Where-Object Name -CEQ 'demo'
+        $pane = $session | Get-TmuxPane
+        $null = $pane | Split-TmuxPane -Horizontal -Size 40 -Command 'exec /bin/cat'
+        ($server | Get-TmuxSnapshot).Sessions | Where-Object Name -CEQ demo
     } finally {
-        $session | Remove-TmuxSession -Confirm:$false -ErrorAction Stop
+        $session | Remove-TmuxSession -Confirm:$false
     }
 }
     } }

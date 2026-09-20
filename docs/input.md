@@ -46,3 +46,40 @@ work but cannot undo input already delivered. A failed key sequence can leave
 earlier keys applied. If literal text was sent but the following Enter fails,
 the core reports unknown partial dispatch. Retrying can repeat effects;
 the commands never retry automatically.
+
+## Send a command and wait for its output
+
+With an endpoint in `$server`, send literal text to a shell and use `-Enter`
+to submit it. See [endpoint selection](read.md) for setup. The shell signals
+a unique channel after printing, so capture waits for completed output. The
+signal uses the endpoint's tmux executable, with its path quoted for the
+shell. A successful send alone means tmux accepted the input; it does not
+establish that the receiving program finished.
+
+<!-- example: readme.input -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
+    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application).Source
+    $signal = "'{0}' wait-for -S '{1}'" -f $tmux.Replace("'", "'\''"), $ready
+    $session = $server | New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
+    try {
+        $pane = $session | Get-TmuxPane
+        $pane | Send-TmuxText -Text ('printf "\nhello from PowerShell\n"; ' + $signal) -Enter
+        $null = $server | Wait-TmuxChannel -Channel $ready -Timeout 10
+        $pane | Get-TmuxPaneContent
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The captured screen includes `hello from PowerShell`. `Wait-TmuxChannel`
+accepts a signal that arrived before the wait, reports a timeout if no signal
+arrives, and withdraws its waiter on timeout or Ctrl+C. Use one waiter per
+unique channel: tmux withdrawal also wakes other waiters on that channel.
+The example removes its `input-demo` session in `finally`.
+`Send-TmuxKey` sends key tokens such as `C-c` or `Enter`; `Send-TmuxText`
+sends those characters literally. Mutation commands also support `-WhatIf`
+and `-Confirm`. See [capturing output](capture.md).

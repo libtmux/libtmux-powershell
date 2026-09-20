@@ -1,5 +1,9 @@
 # Read tmux objects
 
+The cmdlets return native objects from
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet). Inspect them with
+`Get-Member`, select their properties and pass them directly to other cmdlets.
+
 Create an endpoint with `New-TmuxServer -SocketPath` or `-SocketName`, then
 pipe it to a read command. Constructing the endpoint performs no I/O.
 `Connect-TmuxServer` discovers an unmaterialized endpoint and returns its
