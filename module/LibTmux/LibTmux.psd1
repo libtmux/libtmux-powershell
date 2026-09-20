@@ -21,7 +21,7 @@
         'Set-TmuxLayout', 'Set-TmuxWindowSize', 'Set-TmuxPaneSize',
         'Get-TmuxClient', 'Update-TmuxClient', 'Get-TmuxClientAttachment',
         'New-TmuxCommand', 'Invoke-TmuxChain', 'Connect-TmuxControl',
-        'Invoke-TmuxControlCommand', 'Disconnect-TmuxControl'
+        'Invoke-TmuxControlCommand', 'Disconnect-TmuxControl', 'Watch-TmuxEvent'
     )
     VariablesToExport = @()
     AliasesToExport = @()

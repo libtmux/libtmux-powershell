@@ -6,6 +6,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'newPane', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'captured', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'job', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 param()
 
 @{
@@ -40,6 +41,43 @@ $captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
         $pane | Get-TmuxPaneContent
     } finally {
         $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
+    'watch.job-create' = @{ Requires = @('server'); Code = {
+$job = & {
+    $socketPath = $server.ConnectionOptions.SocketPath
+    $tmuxBinaryPath = $server.ConnectionOptions.TmuxBinaryPath
+    Start-ThreadJob -ScriptBlock {
+        Import-Module LibTmux
+        New-TmuxServer -SocketPath $using:socketPath -TmuxBinaryPath $using:tmuxBinaryPath |
+            Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1048576
+    }
+}
+    } }
+    'watch.job-receive' = @{ Requires = @('job'); Code = {
+& {
+    try {
+        $job | Receive-Job -Wait -ErrorAction Stop
+    } finally {
+        $job | Stop-Job
+        $job | Remove-Job
+    }
+}
+    } }
+    'watch.parallel' = @{ Requires = @('server'); Code = {
+& {
+    $socketPath = $server.ConnectionOptions.SocketPath
+    $tmuxBinaryPath = $server.ConnectionOptions.TmuxBinaryPath
+    'first', 'second' | ForEach-Object -ThrottleLimit 2 -Parallel {
+        Import-Module LibTmux
+        $endpoint = New-TmuxServer -SocketPath $using:socketPath -TmuxBinaryPath $using:tmuxBinaryPath
+        $control = $endpoint | Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+        try {
+            $control | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', $_)) -ErrorAction Stop
+        } finally {
+            $control | Disconnect-TmuxControl -Confirm:$false
+        }
     }
 }
     } }

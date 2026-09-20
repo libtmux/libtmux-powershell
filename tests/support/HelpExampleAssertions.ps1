@@ -285,6 +285,17 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
             } }
+        'LibTmux\Watch-TmuxEvent#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+            }; Assert = {
+                param($Result, $Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                if ($Result[0] -isnot [LibTmux.TmuxNotificationEvent] -or @($server | LibTmux\Get-TmuxClient).Count -ne 0 -or
+                    @($server | LibTmux\Get-TmuxSession -Name fixture).Count -ne 1) {
+                    throw 'Watch example lost its notification, leaked a client or removed the borrowed session.'
+                }
+            } }
         'LibTmux\Wait-TmuxChannel#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath

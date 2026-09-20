@@ -20,7 +20,7 @@ function Import-TmuxAssembly {
             } finally { $reader.Dispose(); $stream.Dispose() }
             if ($actual.FullName -cne $expected.FullName -or
                 $actual.ManifestModule.ModuleVersionId -ne $moduleId -or !$actual.Location -or
-                (Get-FileHash -LiteralPath $actual.Location).Hash -cne (Get-FileHash -LiteralPath $Path).Hash) {
+                (Microsoft.PowerShell.Utility\Get-FileHash -LiteralPath $actual.Location).Hash -cne (Microsoft.PowerShell.Utility\Get-FileHash -LiteralPath $Path).Hash) {
                 throw "Incompatible $($expected.Name) build is already loaded. Import compatible modules in a fresh PowerShell process."
             }
         } elseif ($actualName.Version -lt $expected.Version -or

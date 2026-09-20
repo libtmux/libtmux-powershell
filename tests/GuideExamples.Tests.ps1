@@ -73,6 +73,22 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'watch.job-create' = @{ Group = 'Watch'; Count = 0; Assert = {
+            param($o)
+            $o.Context.Job = $o.Job
+            Assert-Guide ($o.Job -is [Management.Automation.Job]) 'thread job handle'
+        } }
+    'watch.job-receive' = @{ Group = 'Watch'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxEvent] -and @($o.Server | Get-TmuxClient).Count -eq 0 -and
+                $null -eq (Get-Job -Id $o.Job.Id -ErrorAction SilentlyContinue)) 'thread job native result and owned cleanup'
+        } }
+    'watch.parallel' = @{ Group = 'Watch'; Count = 2; Assert = {
+            param($o)
+            Assert-Guide (($o.Result | Sort-Object) -join '|' -ceq 'first|second' -and
+                @($o.Result | Where-Object { $_ -isnot [string] }).Count -eq 0 -and
+                @($o.Server | Get-TmuxClient).Count -eq 0) 'parallel native replies and client cleanup'
+        } }
     'commands.chain' = @{ Group = 'Commands'; Count = 1; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -is [LibTmux.TmuxCommandResult] -and $o.Result[0].ExitCode -eq 0 -and
@@ -354,7 +370,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -502,6 +518,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     }
     $server, $session, $pane, $window = $Context['Server'], $Context['Session'], $Context['Pane'], $Context['Window']
     $client = $Context['Client']
+    $job = $Context['Job']
     $currentPane = $newPane = $null
     $captured = $Context['Captured']
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
@@ -510,7 +527,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Create') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
-        Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
+        Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Context = $Context; BeforeDispatch = $before }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Remove') {
         Assert-Guide ((Get-GuideField $Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $Context.Anchor) 'unrelated removal anchor'
@@ -550,7 +567,7 @@ Assert-GuideRejection {
 Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
 'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands')) {
+foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch')) {
     $context = @{ Executed = $completed }
     $run = {
         $control = $null
@@ -588,6 +605,10 @@ done
                 } finally { [IO.File]::WriteAllText($wrapper, $originalWrapper) }
             }
         } finally {
+            if ($context.ContainsKey('Job') -and $context.Job -and (Get-Job -Id $context.Job.Id -ErrorAction SilentlyContinue)) {
+                $context.Job | Stop-Job
+                $context.Job | Remove-Job
+            }
             if ($control) { $null = $control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
         }
     }

@@ -8806,4 +8806,298 @@ $server | LibTmux\Wait-TmuxChannel -Channel 'build-finished' -Timeout 10
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Watch-TmuxEvent</command:name>
+      <maml:description>
+        <maml:para>Stream native tmux events with bounded delivery and explicit ownership.</maml:para>
+      </maml:description>
+      <command:verb>Watch</command:verb>
+      <command:noun>TmuxEvent</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Emit native TmuxEvent values in stream order. A supplied Connection is borrowed
+and remains usable after cancellation or early pipeline exit. With Server and
+Target, the command owns a new control client and closes it before returning.
+Both forms borrow the daemon and its sessions. Output count and byte budgets
+reset for each input connection or server; piping N owners can emit N times
+MaxEvents.
+
+There is one acknowledged handoff slot. The reader does not fetch the next
+event until downstream processing returns. PowerShell output runs only on the
+active pipeline callback; native command replies continue independently, so
+downstream code may send through the same connection.
+
+Only one Watch-TmuxEvent consumer may read a connection at a time. Direct
+native Events readers remain the caller's responsibility: the stream is not
+broadcast. Event output is decoded text fragments, not rendered pane contents,
+lines, byte-exact output or a durable log. Loss and exit events are forwarded.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Watch-TmuxEvent</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Connection</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IControlModeSession</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.IControlModeSession</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxEventBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxEvents</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int64</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int64</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxOutputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int64</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int64</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Watch-TmuxEvent</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Target</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxEventBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxEvents</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int64</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int64</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxOutputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int64</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int64</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask before attaching or consuming the event stream.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Connection</maml:name>
+        <maml:description>
+          <maml:para>The borrowed native client. No other consumer may read its Events stream while this watch is active.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxEventBytes</maml:name>
+        <maml:description>
+          <maml:para>Positive maximum UTF-8 text bytes in the one-event handoff. Default: 1048576. An oversized event fails before output.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxEvents</maml:name>
+        <maml:description>
+          <maml:para>Positive maximum emitted event count. Default: Int64.MaxValue. Reaching the limit ends the watch normally.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int64</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int64</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxOutputBytes</maml:name>
+        <maml:description>
+          <maml:para>Positive maximum cumulative emitted UTF-8 text bytes. Default: Int64.MaxValue. Reaching it exactly ends normally; an event too large for the remaining budget emits an error before that event.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int64</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int64</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The borrowed endpoint on which this command creates and owns one control client.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Target</maml:name>
+        <maml:description>
+          <maml:para>The explicit raw tmux target to attach to. It has no captured session identity guard.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Show the operation without attaching a client or consuming events.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A borrowed native control client.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>An endpoint on which to create an owned control client.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.TmuxEvent</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native output, notification, loss, pane-gone or exit events.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.WatchFailed preserves the native exception and supplied owner. Buffered
+events precede a terminal stream error. A byte-budget failure preserves earlier
+output and reports that the consumed oversized event was not emitted.
+
+Byte accounting includes decoded UTF-8 text in pane IDs, output data,
+notification names and arguments, and exit reasons. Numeric loss counts add
+no text bytes. This bounds text payload, not object overhead or serialized
+PowerShell Job data. Set BOTH MaxEvents and MaxOutputBytes for unattended jobs.
+The bundled alpha.15 core has a count-bounded upstream notification queue; this
+handoff limit does not add an aggregate byte limit to that upstream queue.
+
+Ctrl+C, pipeline early exit and module removal stop the reader and await its
+disposal. Module removal cancels active watches only in the importing runspace;
+it does not dispose supplied clients. Cancellation may consume an event that
+has not reached the pipeline. Resnapshot after loss when current state matters.
+The foreground pipeline remains occupied while watching; use a bounded
+ThreadJob to make the prompt available.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Observe the first notification on fixture using a previously selected $server.
+The command closes its new control client when the count limit is reached.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$server | LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1048576
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Watch-TmuxEvent.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Watch events and use runspaces</maml:linkText>
+        <maml:uri>../../watch.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Commands and control clients</maml:linkText>
+        <maml:uri>../../commands.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
 </helpItems>

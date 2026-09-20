@@ -139,6 +139,8 @@ drives tmux, use the separately packaged
 
 - [Arrange panes and resize windows](docs/layout.md): layouts, dimensions and
   zoom toggling.
+- [Watch events and use runspaces](docs/watch.md): bounded event delivery,
+  thread jobs and independent concurrent clients.
 - [Compose commands and reuse control clients](docs/commands.md): ordered
   chains, native replies and explicit connection cleanup.
 - [Inspect attached clients](docs/clients.md): captured state and current
