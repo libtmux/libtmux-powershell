@@ -14,6 +14,14 @@ function Assert-WorkspaceEquivalent($Expected, $Actual) {
     Assert-WorkspaceText ($before -ceq $after) 'native declaration properties did not round trip'
 }
 
+function Get-PhysicalDirectory([string] $Path) {
+    $before = [IO.Directory]::GetCurrentDirectory()
+    try {
+        [IO.Directory]::SetCurrentDirectory($Path)
+        [IO.Directory]::GetCurrentDirectory()
+    } finally { [IO.Directory]::SetCurrentDirectory($before) }
+}
+
 $declaration = @'
 session_name: ''
 start_directory: '${ROOT}/work $$ #{}'
@@ -80,8 +88,14 @@ try {
 . "$PSScriptRoot/support/OwnedTmux.ps1"
 Invoke-WithOwnedTmux {
     param($fixture)
-    $path = Join-Path $fixture.DirectoryPath '$cash ${literal} #{session_name} space'
+    $physicalParent = Join-Path $fixture.DirectoryPath 'physical'
+    $aliasParent = Join-Path $fixture.DirectoryPath 'alias'
+    $null = [IO.Directory]::CreateDirectory($physicalParent)
+    $null = [IO.Directory]::CreateSymbolicLink($aliasParent, $physicalParent)
+    $path = Join-Path $aliasParent '$cash ${literal} #{session_name} space'
     $null = [IO.Directory]::CreateDirectory($path)
+    $physicalPath = Get-PhysicalDirectory $path
+    Assert-WorkspaceText ($physicalPath -cne $path) 'fixture did not create a path alias'
     $null = Invoke-OwnedTmux $fixture -Arguments @('respawn-pane', '-k', '-t', '%0', '-c', $path.Replace('#', '#{a:35}'), 'exec /bin/cat')
     $null = Invoke-OwnedTmux $fixture -Arguments @('rename-window', '-t', '@0', 'editor')
     $null = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-h', '-t', '%0', '-c', $fixture.DirectoryPath, 'exec /bin/cat')
@@ -104,7 +118,8 @@ exec $quotedTmux "`$@"
     $snapshot = $server | LibTmux\Get-TmuxSnapshot -Depth Panes
     $shallow = $server | LibTmux\Get-TmuxSnapshot -Depth Sessions
     $captured = $snapshot.Sessions[0]
-    Assert-WorkspaceText ($captured.Windows.Count -eq 2 -and $captured.Windows[0].Panes[0].CurrentPath -ceq $path) 'freeze fixture did not capture its native linked graph and literal path'
+    Assert-WorkspaceText ($captured.Windows.Count -eq 2) 'freeze fixture did not capture its native linked graph'
+    Assert-WorkspaceText ($captured.Windows[0].Panes[0].CurrentPath -ceq $physicalPath) 'freeze fixture did not capture the physical literal path'
     [IO.File]::WriteAllText($blocked, '')
     $before = [IO.File]::ReadAllText($trace)
     $exited = $fixture.ServerProcess.WaitForExitAsync()
@@ -123,14 +138,14 @@ exec $quotedTmux "`$@"
         !$frozen.Windows[1].Panes[0].Focus -and $frozen.Windows[1].Panes[1].Focus -and
         $frozen.Windows[0].Layout -ceq $captured.Windows[0].Layout -and
         $frozen.Windows[1].Layout -ceq $captured.Windows[1].Layout) 'freeze lost contextual order, focus, layout or unresolved provenance'
-    Assert-WorkspaceText ($frozen.Windows[0].Panes[0].StartDirectory -ceq $path.Replace('$', '$$') -and
+    Assert-WorkspaceText ($frozen.Windows[0].Panes[0].StartDirectory -ceq $physicalPath.Replace('$', '$$') -and
         @($frozen.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -eq 0) 'freeze rewrote literal paths or invented startup commands'
     foreach ($format in @('Yaml', 'Json')) {
         $text = $frozen | & "LibTmux.Workspace\ConvertTo-TmuxWorkspace$format"
         $restored = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $text |
             LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath
-        Assert-WorkspaceText ($restored.Windows[0].Panes[0].StartDirectory -ceq $path -and
-            $restored.Windows[1].Panes[0].StartDirectory -ceq $path) 'freeze/text/import/resolve changed a literal captured directory'
+        Assert-WorkspaceText ($restored.Windows[0].Panes[0].StartDirectory -ceq $physicalPath -and
+            $restored.Windows[1].Panes[0].StartDirectory -ceq $physicalPath) 'freeze/text/import/resolve changed a literal captured directory'
     }
     $errors = @()
     $continued = @(@($shallow.Sessions[0], $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -ErrorAction Continue -ErrorVariable errors -WarningAction SilentlyContinue 2>$null)
