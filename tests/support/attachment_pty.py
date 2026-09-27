@@ -77,6 +77,14 @@ def stop_group_preserving_error(process, failure):
         failure.add_note(f"Owned process cleanup also failed: {cleanup_failure!r}")
 
 
+def record_timeout_before_cleanup(failure, on_timeout):
+    if isinstance(failure, subprocess.TimeoutExpired) and on_timeout is not None:
+        try:
+            on_timeout()
+        except BaseException as diagnostic_failure:
+            failure.add_note(f"Attachment timeout diagnostic failed: {diagnostic_failure!r}")
+
+
 def wait_unreaped_darwin(process, timeout):
     status = exit_status_unreaped(process)
     if status is not None:
@@ -108,13 +116,14 @@ def wait_unreaped_darwin(process, timeout):
         return status
 
 
-def wait_unreaped(process, timeout):
+def wait_unreaped(process, timeout, on_timeout=None):
     if sys.platform == "darwin":
         # A blocking waitid observer can remain asleep after another thread
         # reaps the child during timeout cleanup; kqueue has a bounded wait.
         try:
             return wait_unreaped_darwin(process, timeout)
         except BaseException as failure:
+            record_timeout_before_cleanup(failure, on_timeout)
             stop_group_preserving_error(process, failure)
             raise
     completed = threading.Event()
@@ -138,12 +147,65 @@ def wait_unreaped(process, timeout):
             raise result
         return result.si_status if result.si_code == os.CLD_EXITED else -result.si_status
     except BaseException as failure:
+        record_timeout_before_cleanup(failure, on_timeout)
         stop_group_preserving_error(process, failure)
         raise
     finally:
         observer.join(timeout=1)
         if observer.is_alive():
             raise AssertionError("Owned exit observer did not finish after process cleanup")
+
+
+def attachment_timeout_diagnostics(process, result_path, prefix, environment):
+    details = {}
+    try:
+        status = exit_status_unreaped(process)
+        details["childExitStatus"] = status
+        details["childExited"] = status is not None
+    except BaseException as failure:
+        details["childStatusError"] = repr(failure)
+
+    try:
+        if result_path.exists():
+            with result_path.open("rb") as result_file:
+                data = result_file.read(8193)
+            truncated = len(data) > 8192
+            content = data[:8192].decode("utf-8", errors="replace")
+            if not truncated:
+                try:
+                    content = json.loads(content)
+                except json.JSONDecodeError:
+                    pass
+            details["resultFile"] = {"present": True, "truncated": truncated, "content": content}
+        else:
+            details["resultFile"] = {"present": False}
+    except BaseException as failure:
+        details["resultFileError"] = repr(failure)
+
+    try:
+        result = subprocess.run(prefix + ["list-clients", "-F",
+            "#{client_pid}|#{client_tty}|#{session_id}|#{client_readonly}"],
+            env=environment, capture_output=True, timeout=0.4, check=False)
+        details["clients"] = {"exitCode": result.returncode,
+                              "rows": result.stdout.decode("utf-8", errors="replace").splitlines()[:16],
+                              "stderr": result.stderr.decode("utf-8", errors="replace")[:256]}
+    except BaseException as failure:
+        details["clientsError"] = repr(failure)
+
+    try:
+        result = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "pgid=", "-o", "stat="],
+                                capture_output=True, text=True, timeout=0.4, check=False)
+        members = []
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                pid, group, state = line.split()
+                if int(group) == process.pid:
+                    members.append({"pid": int(pid), "state": state})
+        details["processGroup"] = {"exitCode": result.returncode, "members": members,
+                                   "stderr": result.stderr[:256]}
+    except BaseException as failure:
+        details["processGroupError"] = repr(failure)
+    return details
 
 
 def run(args):
@@ -238,7 +300,13 @@ def run(args):
                         else:
                             command("detach-client", "-t", selected[0][1])
                 # Keep the exited leader as a zombie until group cleanup below.
-                child_exit = wait_unreaped(child, timeout=remaining(5))
+                def on_child_timeout():
+                    report["timeoutDiagnostics"] = {"mode": mode,
+                        "preparationSeconds": preparation_seconds,
+                        "attachmentSeconds": attachment_seconds,
+                        **attachment_timeout_diagnostics(child, result_path, prefix, environment)}
+
+                child_exit = wait_unreaped(child, timeout=remaining(5), on_timeout=on_child_timeout)
                 if mode == "ReadOnly":
                     assert marker not in command("capture-pane", "-p", "-t", args.session + ":").stdout
                 result = json.loads(result_path.read_text())

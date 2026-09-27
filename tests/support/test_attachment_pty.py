@@ -26,6 +26,27 @@ def wait_unreaped(pid):
 
 
 class ProcessGroupCleanupTests(unittest.TestCase):
+    def test_timeout_diagnostics_precede_cleanup_and_keep_wait_error(self):
+        process = SimpleNamespace(args=["owned-child"])
+        timeout = subprocess.TimeoutExpired(process.args, 0.02)
+        events = []
+
+        def diagnose():
+            events.append("diagnose")
+            raise RuntimeError("diagnostic unavailable")
+
+        def cleanup(_process, _failure):
+            events.append("cleanup")
+
+        with mock.patch.object(attachment_pty.sys, "platform", "darwin"), \
+             mock.patch.object(attachment_pty, "wait_unreaped_darwin", side_effect=timeout), \
+             mock.patch.object(attachment_pty, "stop_group_preserving_error", side_effect=cleanup):
+            with self.assertRaises(subprocess.TimeoutExpired) as raised:
+                attachment_pty.wait_unreaped(process, timeout=0.02, on_timeout=diagnose)
+        self.assertIs(raised.exception, timeout)
+        self.assertEqual(events, ["diagnose", "cleanup"])
+        self.assertIn("diagnostic unavailable", " ".join(timeout.__notes__))
+
     def test_darwin_cleanup_failure_keeps_original_wait_error(self):
         process = SimpleNamespace(args=["owned-child"])
         timeout = subprocess.TimeoutExpired(process.args, 0.02)
