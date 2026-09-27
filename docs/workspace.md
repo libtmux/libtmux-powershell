@@ -88,14 +88,23 @@ Use `RequireExisting` when planning must find one already running.
 $workspacePlan = $workspace | Get-TmuxWorkspacePlan -Server $server -ExistingSession Error -ServerStartup CreateOrJoin -ErrorAction Stop
 ```
 
-Inspect the ordered native actions. Their targets are plan symbols bound to
-created identities during application; reading them performs no I/O.
-Actions with arguments expose a typed `Request` property.
+Inspect the ordered actions before applying them. The default view shows each
+action's symbolic target and source, plus a safe summary of its arguments:
+layout, dimensions when set, option name, readiness timeout and host limits.
+It marks scripts, pane text, option values, paths and environment without
+printing their contents. Reading the plan performs no I/O.
 
 <!-- example: workspace.04-review -->
 ```powershell
 $workspacePlan.Actions
 ```
+
+To inspect exact arguments in a trusted terminal, read an action's typed
+`Request` property. It contains the script, command, option value and other
+values that the default view hides. If planning used `-CompensateOnFailure`,
+inspect `$workspacePlan.CompensationActions` separately; those actions run only
+after a failed application. Targets are plan symbols bound to created tmux
+identities during application.
 
 The plan includes the transient bootstrap window used to install session
 options before starting the described panes. It also includes the final

@@ -7,6 +7,7 @@
     PowerShellVersion = '7.4'
     CompatiblePSEditions = @('Core')
     RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '0.1.0' })
+    FormatsToProcess = @('LibTmux.Workspace.Format.ps1xml')
     FunctionsToExport = @()
     CmdletsToExport = @(
         'Import-TmuxWorkspace', 'Resolve-TmuxWorkspace', 'Test-TmuxWorkspace',

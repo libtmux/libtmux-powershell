@@ -43,9 +43,12 @@ exec $quotedTmux "`$@"
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper
     $source = Join-Path $fixture.DirectoryPath 'workspace.yaml'
     $hostMarker = Join-Path $fixture.DirectoryPath 'host-effect'
-    @'
+    $sensitive = 'review-' + [Guid]::NewGuid().ToString('N')
+    @"
 session_name: reviewed
-before_script: printf reviewed > host-effect
+before_script: printf '$sensitive' > host-effect
+environment:
+  REVIEW_TOKEN: '$sensitive'
 options:
   default-command: exec /bin/cat
   base-index: '4'
@@ -55,9 +58,10 @@ windows:
     layout: even-horizontal
     panes:
       - options:
-          '@role': editor
+          '@role': '$sensitive'
+        shell_command: echo '$sensitive'
       - focus: true
-'@ | Set-Content -LiteralPath $source
+"@ | Set-Content -LiteralPath $source
     $workspace = (LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath $source).Resolve($fixture.DirectoryPath, $null)
     [IO.File]::WriteAllText($trace, '')
     foreach ($arguments in @(
@@ -79,6 +83,33 @@ windows:
     $hostAction = @($plan.Actions | Where-Object Kind -eq RunHostScript)
     Assert-WorkspaceApply ($hostAction.Count -eq 1 -and $hostAction[0].Request.Timeout -eq [TimeSpan]::FromSeconds(2) -and
         $hostAction[0].Request.MaxOutputBytes -eq 256 -and $hostAction[0].Request.WorkingDirectory -ceq $fixture.DirectoryPath) 'host action lost reviewed bounds or origin'
+    $paneText = @($plan.Actions | Where-Object Kind -eq SendText)
+    $paneOption = @($plan.Actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -eq '@role' })
+    Assert-WorkspaceApply ($hostAction[0].Request.Script.Contains($sensitive) -and
+        $hostAction[0].Request.Environment['REVIEW_TOKEN'] -ceq $sensitive -and
+        $paneText.Count -eq 1 -and $paneText[0].Request.Contains($sensitive) -and
+        $paneOption.Count -eq 1 -and $paneOption[0].Request.Value -ceq $sensitive) 'exact requests lost plan values'
+    $review = $plan.Actions | Out-String -Width 240
+    Assert-WorkspaceApply (!$review.Contains($sensitive) -and
+        $review.Contains('RunHostScript') -and $review.Contains('window:0/pane:0') -and
+        $review.Contains('layout=even-horizontal') -and $review.Contains('timeout=2s') -and
+        $review.Contains('output=256B') -and $review.Contains('env=1') -and
+        $review.Contains('path=[redacted]') -and $review.Contains('@role') -and
+        $review.Contains('script=[redacted]') -and $review.Contains('text=[redacted]') -and
+        $review.Contains('value=[redacted]')) 'default plan review leaked values or omitted safe context'
+    $narrowReview = $plan.Actions | Out-String -Width 80
+    Assert-WorkspaceApply (!$narrowReview.Contains($sensitive) -and
+        $narrowReview.Contains('script=[redacted]') -and
+        $narrowReview.Contains('layout=even-horizontal') -and
+        $narrowReview.Contains('value=[redacted]')) 'narrow plan review hid safe action details'
+    $compensationReview = $plan.CompensationActions | Out-String -Width 240
+    Assert-WorkspaceApply (!$compensationReview.Contains($sensitive) -and
+        $compensationReview.Contains('UnlinkWindow')) 'compensation review leaked values or omitted cleanup'
+    $cooperative = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -AllowHostScripts -Readiness Cooperative -ReadinessTimeout 0.5
+    $readinessReview = $cooperative.Actions | Out-String -Width 80
+    Assert-WorkspaceApply (!$readinessReview.Contains($sensitive) -and
+        $readinessReview.Contains('WaitForReadiness') -and
+        $readinessReview.Contains('timeout=0.5s')) 'cooperative readiness was not visible in plan review'
     Remove-Item -LiteralPath $source
     $beforePreview = [IO.File]::ReadAllText($trace)
     $transcript = Join-Path $fixture.DirectoryPath 'preview.txt'
@@ -87,6 +118,7 @@ windows:
         Assert-WorkspaceApply (@($plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf).Count -eq 0) 'preview emitted a fake result'
     } finally { $null = Stop-Transcript }
     $preview = [IO.File]::ReadAllText($transcript)
+    Assert-WorkspaceApply (!$preview.Contains($sensitive)) 'WhatIf leaked a sensitive request value'
     foreach ($value in @($wrapper, $fixture.SocketPath, 'reviewed') + @($plan.Actions.Kind) + @($plan.CompensationActions.Kind)) {
         Assert-WorkspaceApply ($preview.Contains($value.ToString(), [StringComparison]::Ordinal)) "preview omitted $value"
     }
@@ -96,7 +128,7 @@ windows:
     Register-OwnedTmuxPane $fixture
     Assert-WorkspaceApply ($result -is [LibTmux.Workspace.WorkspaceResult] -and $result.Session.Name -ceq 'reviewed' -and
         $result.Windows.Count -eq 1 -and $result.Windows[0].Index -eq 4 -and
-        [IO.File]::ReadAllText($hostMarker) -ceq 'reviewed') 'exact reviewed application lost native result, layout order or host action'
+        [IO.File]::ReadAllText($hostMarker) -ceq $sensitive) 'exact reviewed application lost native result, layout order or host action'
     Assert-WorkspaceApply ($result.Journal.Count -eq $plan.Actions.Count) 'successful action journal is incomplete'
     for ($index = 0; $index -lt $plan.Actions.Count; $index++) {
         Assert-WorkspaceApply ([object]::ReferenceEquals($result.Journal[$index].Action, $plan.Actions[$index]) -and
@@ -105,7 +137,7 @@ windows:
     $panes = @($result.Windows[0] | LibTmux\Get-TmuxPane)
     Assert-WorkspaceApply ($panes.Count -eq 2 -and [Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and
         $panes[0].Height -eq $panes[1].Height -and
-        ($panes[0] | LibTmux\Get-TmuxOption -Name '@role').Value.Raw -ceq 'editor' -and
+        ($panes[0] | LibTmux\Get-TmuxOption -Name '@role').Value.Raw -ceq $sensitive -and
         (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $panes[1].Id.ToString(), '#{pane_active}')).StdOut.Trim() -ceq '1') 'native pane options, final layout or focus were not applied'
     $staleFailure = $null
     try { $plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false } catch { $staleFailure = $_ }
