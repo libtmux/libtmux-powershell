@@ -1,9 +1,9 @@
 # Compatibility
 
-This source checkout builds `LibTmux` and `LibTmux.Workspace` for PowerShell
-7.4 or later and .NET 8 or later. The modules are not yet published to
-PowerShell Gallery. They use the same pinned
-[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) dependency; build
+This source checkout targets PowerShell 7.4 and .NET 8. The Linux workflow
+tests the specific PowerShell and tmux versions below; other combinations
+remain unverified. The modules are not yet published to PowerShell Gallery.
+Both pin [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet); build
 them together from the [install guide](../README.md#install-from-source).
 
 | Environment | Contract |

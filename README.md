@@ -105,8 +105,9 @@ independent .NET tool and does not require PowerShell.
 
 ## Install from source
 
-Use PowerShell 7.4 or later with tmux on Linux x64. macOS is under test.
-Install the pinned development tools from the repository root:
+PowerShell 7.4 is the minimum build target. See [compatibility](docs/compatibility.md)
+for tested Linux x64 combinations; macOS is under test. Install the pinned
+development tools from the repository root:
 
 ```console
 $ mise install
