@@ -1,0 +1,54 @@
+{
+  "session_name": "corpus",
+  "start_directory": "${PROJECT_ROOT}",
+  "options": {
+    "@corpus-session": "json-must-not-replace-session-option"
+  },
+  "environment": {
+    "CORPUS_SESSION": "json-root",
+    "CORPUS_LAYER": "session"
+  },
+  "shell_command_before": ["echo session >> order.txt"],
+  "windows": [
+    {
+      "window_name": "json-console",
+      "start_directory": "window",
+      "layout": "even-vertical",
+      "focus": true,
+      "options": {
+        "@corpus-window": "json"
+      },
+      "environment": {
+        "CORPUS_WINDOW": "json-window",
+        "CORPUS_LAYER": "window"
+      },
+      "shell_command_before": ["echo window >> order.txt"],
+      "panes": [
+        {
+          "shell_command": [
+            "echo command >> order.txt",
+            "echo \"$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER\" > environment.txt",
+            "tmux wait-for -S corpus-json-first"
+          ]
+        },
+        {
+          "start_directory": "pane",
+          "focus": true,
+          "options": {
+            "@corpus-pane": "json"
+          },
+          "environment": {
+            "CORPUS_PANE": "json-pane",
+            "CORPUS_LAYER": "pane"
+          },
+          "shell_command_before": ["echo pane >> order.txt"],
+          "shell_command": [
+            "echo command >> order.txt",
+            "echo \"$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER\" > environment.txt",
+            "tmux wait-for -S corpus-json-second"
+          ]
+        }
+      ]
+    }
+  ]
+}
