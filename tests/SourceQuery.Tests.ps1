@@ -45,9 +45,11 @@ esac
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    $otherPath = Join-Path $fixture.DirectoryPath 'other-workspace'
+    $null = New-Item -ItemType Directory -Path $otherPath
     $null = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-t', '%0', 'exec /bin/cat')
     $null = Invoke-OwnedTmux $fixture -Arguments @('link-window', '-d', '-s', '$0:0', '-t', '$0:5')
-    $null = Invoke-OwnedTmux $fixture -Arguments @('new-session', '-d', '-s', 'other', 'exec /bin/cat')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('new-session', '-d', '-s', 'other', '-c', $otherPath, 'exec /bin/cat')
     $null = Invoke-OwnedTmux $fixture -Arguments @('link-window', '-d', '-s', '$0:0', '-t', 'other:5')
     $null = Invoke-OwnedTmux $fixture -Arguments @('select-window', '-t', '$0:5')
     Register-OwnedTmuxPane $fixture
@@ -108,6 +110,44 @@ exec $quotedTmux "`$@"
     $expected = @($result.Snapshot.Panes | Select-TmuxPane -Query $graph)
     Assert-SourceQuery ($result.Count -eq 2 -and (Get-SourceIdentity $result) -ceq (Get-SourceIdentity $expected) -and
         $result.Snapshot.Panes.Count -eq 7) 'graph residual disagreed with local evaluation or pruned relations'
+
+    $path = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'other:0', '#{pane_current_path}')).StdOut.Trim()
+    $expectedPath = @($captured.Panes | Where-Object { $_.CurrentPath -ceq $path })
+    Assert-SourceQuery ($expectedPath.Count -eq 1 -and $expectedPath[0].Session.Name -ceq 'other') 'distinct working directory fixture is ambiguous'
+    $pathQuery = New-TmuxQuery -Target Pane -Criteria @{ CurrentPath = $path }
+    $pathQuery = New-TmuxQuery -Json ($pathQuery | ConvertTo-TmuxQueryJson)
+    $selectedPath = @($captured.Panes | Select-TmuxPane -Query $pathQuery)
+    Assert-SourceQuery ($pathQuery.Version -eq 2 -and
+        (Get-SourceIdentity $selectedPath) -ceq (Get-SourceIdentity $expectedPath)) 'schema-v2 CurrentPath local selection disagreed with the native pane path'
+    foreach ($mode in @('Never', 'Auto')) {
+        $pathResult = $server | Invoke-TmuxQuery -Query $pathQuery -Pushdown $mode -AsResult
+        $freshExpected = @($pathResult.Snapshot.Panes | Where-Object { $_.CurrentPath -ceq $path })
+        Assert-SourceQuery ($pathResult.Count -eq 1 -and $pathResult.Snapshot.Panes.Count -eq 7 -and
+            (Get-SourceIdentity $pathResult) -ceq (Get-SourceIdentity $expectedPath) -and
+            (Get-SourceIdentity $pathResult) -ceq (Get-SourceIdentity $freshExpected) -and
+            [object]::ReferenceEquals($pathResult[0], $freshExpected[0])) "schema-v2 CurrentPath $mode source result lost its native graph"
+    }
+
+    $linkedAtFive = @($captured.Windows | Where-Object { $_.Index -eq 5 -and $_.Id.ToString() -ceq '@0' })
+    $expectedActive = @($captured.Windows | Where-Object { $_.Index -eq 5 -and $_.IsActive })
+    Assert-SourceQuery ($linkedAtFive.Count -eq 2 -and $expectedActive.Count -eq 1 -and
+        $expectedActive[0].Session.Name -ceq 'fixture') 'linked-window active placement fixture is ambiguous'
+    $placementQuery = New-TmuxQuery -Target Window -Criteria ([ordered] @{ IsActive = $true; Index = 5 })
+    $placementQuery = New-TmuxQuery -Json ($placementQuery | ConvertTo-TmuxQueryJson)
+    $placementPlan = $placementQuery | Get-TmuxQueryPlan -DaemonVersion $version
+    $selectedActive = @($captured.Windows | Select-TmuxWindow -Query $placementQuery)
+    Assert-SourceQuery ($placementQuery.Version -eq 2 -and
+        $null -ne $placementPlan.PushedPredicate -and $null -ne $placementPlan.ResidualPredicate -and
+        (Get-SourceIdentity $selectedActive) -ceq (Get-SourceIdentity $expectedActive)) 'schema-v2 placement criteria lost active/index context'
+    foreach ($mode in @('Never', 'Auto')) {
+        $placementResult = $server | Invoke-TmuxQuery -Query $placementQuery -Pushdown $mode -AsResult
+        $freshExpected = @($placementResult.Snapshot.Windows | Where-Object { $_.Index -eq 5 -and $_.IsActive })
+        Assert-SourceQuery ($placementResult.Count -eq 1 -and $placementResult.Snapshot.Windows.Count -eq 4 -and
+            (Get-SourceIdentity $placementResult) -ceq (Get-SourceIdentity $expectedActive) -and
+            (Get-SourceIdentity $placementResult) -ceq (Get-SourceIdentity $freshExpected) -and
+            [object]::ReferenceEquals($placementResult[0], $freshExpected[0]) -and
+            $placementResult[0].LinkedSessions.Count -eq 2) "schema-v2 placement $mode source result lost its linked graph"
+    }
     foreach ($criteria in @(@{ Or = @(@{ Id = '%0' }, @{ Width = @{ Ge = 1 } }) }, @{ Not = @{ Width = @{ Ge = 1 } } })) {
         $residual = New-TmuxQuery -Target Pane -Criteria $criteria | Get-TmuxQueryPlan -DaemonVersion $version
         Assert-SourceQuery ($null -eq $residual.PushedPredicate -and $null -ne $residual.ResidualPredicate) 'unsafe OR or negation acquired a partial source predicate'
