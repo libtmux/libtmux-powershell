@@ -179,15 +179,19 @@ function Remove-OwnedTmuxFixture {
     if ($Fixture.Closed) { return }
     try {
         if ($Fixture.ServerStarted -and -not $Fixture.ServerProcess.HasExited) {
+            $killResult = $null
             try {
                 Register-OwnedTmuxPane $Fixture
-                $null = Invoke-OwnedTmux $Fixture -Arguments @('kill-server') -AllowFailure `
+                $killResult = Invoke-OwnedTmux $Fixture -Arguments @('kill-server') -AllowFailure `
                     -CancellationToken ([System.Threading.CancellationToken]::None)
             } finally {
                 if (-not $Fixture.ServerProcess.WaitForExit(1000)) {
+                    $clientExit = if ($killResult) { $killResult.ExitCode } else { 'not sent' }
+                    $socketExists = Test-Path -LiteralPath $Fixture.SocketPath
+                    $state = ([string] (& /bin/ps -o stat= -p $Fixture.ServerPid 2>$null)).Trim()
                     $Fixture.ServerProcess.Kill($true)
-                    $null = $Fixture.ServerProcess.WaitForExit(1000)
-                    throw 'Owned tmux daemon did not exit after kill-server.'
+                    $forcedExit = $Fixture.ServerProcess.WaitForExit(1000)
+                    throw "Owned tmux daemon did not exit after kill-server (client exit: $clientExit; process state: $state; socket exists: $socketExists; forced exit: $forcedExit)."
                 }
             }
         }
