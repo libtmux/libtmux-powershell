@@ -1,4 +1,9 @@
-# Pane enumeration benchmark
+# Benchmarks
+
+Both runners use an installed local package and an owned tmux socket. They
+write raw JSON distributions and never claim a speedup from one host.
+
+## Pane enumeration
 
 This benchmark measures three ways to get pane IDs from one owned tmux server:
 the native `tmux list-panes` command, the installed `Get-TmuxPane` cmdlet, and
@@ -43,7 +48,40 @@ observations rather than a cross-lane cold-start comparison. The report's p95
 uses nearest rank and appears only with at least twenty samples. Keep raw
 samples when comparing runs; do not infer a speedup from a single noisy host.
 
-Standalone C# process startup, control-mode transport, concurrent/async
-acquisition, streaming notifications, mutation throughput, and larger server
-shapes are outside this workload. They require separate benchmarks with their
-own correctness checks and raw distributions.
+Control-mode transport and command dispatch have a separate workload below.
+Standalone C# process startup, concurrent/async acquisition, streaming
+notifications, mutation throughput, and larger server shapes remain unmeasured.
+They require their own correctness checks and raw distributions.
+
+## Command transport
+
+This workload runs `display-message -p '#{session_name}'` against one owned
+session through native tmux, the process-backed `Invoke-TmuxCommand` cmdlet,
+and `Invoke-TmuxControlCommand` on one reused control client. Every reply must
+be exactly `fixture`; the runner checks that disconnect leaves the borrowed
+session and daemon alive and removes the control client.
+
+```console
+$ pwsh -NoLogo -NoProfile -File benchmarks/CommandTransport.ps1 \
+    -PackageRoot artifacts/local-build \
+    -OutputPath benchmarks/results/command-transport.json
+```
+
+The report records package, tmux, benchmark source, and host provenance. It
+separates module import, control connection, first-use calls, warmups, timed
+samples, and control disconnection. The default is three warmup rounds and
+twenty sample rounds in rotating lane order. Connection setup is excluded
+from the control command samples, so use the separate connection time when
+assessing short-lived clients. First-use calls run in fixed order and are not
+a cross-lane cold-start comparison.
+
+Run the unequal-reply control and a small owned-tmux smoke before interpreting
+a report:
+
+```console
+$ pwsh -NoLogo -NoProfile -File benchmarks/CommandTransport.Tests.ps1 \
+    -PackageRoot artifacts/local-build
+```
+
+The workload measures serial read-only commands. Concurrent commands, async
+client use, streaming notifications, mutation throughput, and scale are open.
