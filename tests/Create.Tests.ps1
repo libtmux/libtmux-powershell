@@ -10,6 +10,19 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
 
+function Resolve-PhysicalDirectory([string] $Path) {
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($fullPath)
+    $resolved = $root
+    foreach ($segment in [IO.Path]::GetRelativePath($root, $fullPath).Split(
+        [IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
+        $candidate = [IO.Path]::Combine($resolved, $segment)
+        $target = [IO.DirectoryInfo]::new($candidate).ResolveLinkTarget($true)
+        $resolved = if ($target) { Resolve-PhysicalDirectory $target.FullName } else { $candidate }
+    }
+    $resolved
+}
+
 foreach ($name in @('New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane')) {
     Assert-True ($null -ne (Get-Command "LibTmux\$name" -ErrorAction SilentlyContinue)) "Installed module does not export $name."
 }
@@ -38,19 +51,26 @@ exec $quotedTmux "`$@"
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper -ConfigurationFile '/dev/null'
     $empty = @(@() | LibTmux\New-TmuxSession -WhatIf)
     Assert-True ($empty.Count -eq 0 -and -not (Test-Path $trace)) 'An empty owner pipeline acquired tmux or emitted a result.'
-    $directory = Join-Path $fixture.DirectoryPath 'working directory'
+    $directoryParent = Join-Path $fixture.DirectoryPath 'physical parent'
+    $directory = Join-Path $directoryParent 'working directory'
     $null = New-Item -ItemType Directory -Path $directory
+    $directoryAliasParent = Join-Path $fixture.DirectoryPath 'alias parent'
+    $null = New-Item -ItemType SymbolicLink -Path $directoryAliasParent -Target $directoryParent
+    $directoryAlias = Join-Path $directoryAliasParent 'working directory'
     $literal = 'spaces; literal $value "quotes"'
     $creationEnvironment = @{ CREATE_VALUE = $literal; CREATE_EMPTY = '' }
     $session = & { $creationEnvironment.CREATE_VALUE = 'changed after binding'; $server } |
         LibTmux\New-TmuxSession -Name 'created session' -WindowName $literal -Width 100 -Height 30 `
-            -StartDirectory $directory -Command 'exec /bin/sh' -Environment $creationEnvironment -Confirm:$false
+            -StartDirectory $directoryAlias -Command 'exec /bin/sh' -Environment $creationEnvironment -Confirm:$false
     Register-OwnedTmuxPane $fixture
     Assert-True ($session -is [LibTmux.Session] -and $session.Name -ceq 'created session') 'Session creation did not emit its native captured session.'
     $window = $session | LibTmux\Get-TmuxWindow | Select-Object -First 1
     $pane = $window | LibTmux\Get-TmuxPane | Select-Object -First 1
-    Assert-True ($window.Name -ceq $literal -and $pane.Width -eq 100 -and $pane.Height -eq 30 -and
-        $pane.CurrentPath -ceq $directory) 'Session creation lost its name, requested dimensions or working directory.'
+    Assert-True ($window.Name -ceq $literal) "Session window name changed: '$($window.Name)'."
+    Assert-True ($pane.Width -eq 100 -and $pane.Height -eq 30) "Session pane dimensions changed: $($pane.Width)x$($pane.Height)."
+    Assert-True ($null -ne $pane.CurrentPath -and
+        (Resolve-PhysicalDirectory $pane.CurrentPath) -ceq (Resolve-PhysicalDirectory $directoryAlias)) `
+        "Session working directory changed: '$($pane.CurrentPath)'."
     $environment = Invoke-OwnedTmux $fixture -Arguments @('show-environment', '-t', $session.Id.ToString(), 'CREATE_VALUE')
     # tmux 3.4 escapes dollars when displaying values; the pane check below verifies actual bytes.
     $shownValue = if ($version -ceq '3.4') { $literal.Replace('$', '\$') } else { $literal }
@@ -78,7 +98,9 @@ exec /bin/cat
     $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'window-ready')
     Assert-True ($newWindow -is [LibTmux.Window] -and $newWindow.Index -eq 5 -and $newWindow.Name -ceq $literal) 'Window creation lost its native result, index or literal name.'
     $target = $newWindow | LibTmux\Get-TmuxPane | Select-Object -First 1
-    Assert-True ($target.CurrentPath -ceq $directory) 'Window creation did not forward the start directory.'
+    Assert-True ($null -ne $target.CurrentPath -and
+        (Resolve-PhysicalDirectory $target.CurrentPath) -ceq (Resolve-PhysicalDirectory $directory)) `
+        "Window creation did not forward the start directory: '$($target.CurrentPath)'."
     $output = Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-t', $target.Id.ToString())
     Assert-True ($output.StdOut.Split("`n") -ccontains $literal) 'Window creation changed shell-command quoting or its process environment.'
     $active = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $session.Id.ToString(), '#{window_id}')
@@ -88,8 +110,11 @@ exec /bin/cat
         -Command "/bin/sh '$script' split-ready" -Environment @{ CREATE_VALUE = $literal } -Activate -Confirm:$false
     Register-OwnedTmuxPane $fixture
     $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'split-ready')
-    Assert-True ($split -is [LibTmux.Pane] -and $split.Width -eq 20 -and $split.Height -eq $target.Height -and
-        $split.CurrentPath -ceq $directory -and $split.AtLeft) 'Pane split lost direction, cell size, working directory or native output.'
+    Assert-True ($split -is [LibTmux.Pane] -and $split.Width -eq 20 -and
+        $split.Height -eq $target.Height -and $split.AtLeft) 'Pane split lost direction, cell size or native output.'
+    Assert-True ($null -ne $split.CurrentPath -and
+        (Resolve-PhysicalDirectory $split.CurrentPath) -ceq (Resolve-PhysicalDirectory $directory)) `
+        "Pane split did not forward the start directory: '$($split.CurrentPath)'."
     $output = Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-J', '-t', $split.Id.ToString())
     # Older tmux versions retain terminal-cell padding with capture-pane -J.
     Assert-True ($output.StdOut.Split("`n").TrimEnd([char] ' ') -ccontains $literal) 'Pane creation changed shell-command quoting or its process environment.'
