@@ -126,7 +126,10 @@ and both observers' scheduling are part of the measured paths.
 The [complete payload benchmark](StreamPayload.md) writes one multiline block
 to the pane and requires the accumulated event output and rendered capture to
 match the full canonical text. It records raw byte counts, fragment and poll
-counts, and both completion times; it does not claim raw byte parity.
+counts, and both completion times. An optional 12/256/768-line sweep records
+twenty exact samples per size and effective canonical bytes per second from the
+same start clock; this includes producer, tmux, scheduling, and 10 ms capture
+polling. It does not claim raw byte parity or transport throughput.
 
 ## Capture sizes
 

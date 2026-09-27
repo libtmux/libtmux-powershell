@@ -22,6 +22,37 @@ function Get-StreamPayloadHash {
     [Convert]::ToHexString($sha).ToLowerInvariant()
 }
 
+function Assert-StreamPayloadSizePlan {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] [AllowEmptyString()] [string] $Counts)
+
+    if ($Counts -cnotmatch '^\s*\d+\s*(,\s*\d+\s*){0,2}$') {
+        throw 'BodyLineCounts must contain one to three increasing comma-separated integers.'
+    }
+    $previous = 0
+    foreach ($part in $Counts.Split(',')) {
+        $count = 0
+        if (![int]::TryParse($part.Trim(), [ref] $count) -or
+            $count -le $previous -or $count -gt 768) {
+            throw 'BodyLineCounts must be distinct, increasing values from 1 through 768.'
+        }
+        $previous = $count
+        $count
+    }
+}
+
+function Get-StreamPayloadEffectiveBytesPerSecond {
+    [CmdletBinding()]
+    param([long] $PayloadBytes, [long] $CompletionNanoseconds)
+
+    if ($PayloadBytes -le 0 -or $CompletionNanoseconds -le 0) {
+        throw 'An effective observation rate needs positive canonical bytes and completion time.'
+    }
+    $rate = [double] $PayloadBytes * 1000000000.0 / $CompletionNanoseconds
+    if (![double]::IsFinite($rate)) { throw 'The effective observation rate is not finite.' }
+    $rate
+}
+
 function Assert-StreamPayloadRound {
     [CmdletBinding()]
     param(
@@ -78,4 +109,5 @@ function Assert-StreamPayloadRound {
     }
 }
 
-Export-ModuleMember -Function Assert-StreamPayloadRound
+Export-ModuleMember -Function Assert-StreamPayloadRound,
+    Assert-StreamPayloadSizePlan, Get-StreamPayloadEffectiveBytesPerSecond

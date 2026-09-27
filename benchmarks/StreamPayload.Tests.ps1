@@ -2,7 +2,9 @@
 param(
     [string] $PackageRoot,
     [string] $ReviewRoot,
-    [string] $TmuxBinaryPath
+    [string] $TmuxBinaryPath,
+    [string] $BodyLineCounts = '12',
+    [ValidateRange(100, 3000)] [int] $ObservationTimeoutMilliseconds = 1000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +25,28 @@ $valid = @{
 }
 $checked = Assert-StreamPayloadRound -Observation $valid -Lane 'positive'
 if (!$checked -or !$checked.payloadSha256) { throw 'Valid payload produced no checked result.' }
+
+$defaultSizes = @(Assert-StreamPayloadSizePlan '12')
+$scaleSizes = @(Assert-StreamPayloadSizePlan '12,256,768')
+if ($defaultSizes.Count -ne 1 -or $defaultSizes[0] -ne 12 -or
+    ($scaleSizes -join ',') -cne '12,256,768') {
+    throw 'The size plan changed the default or reordered the requested payloads.'
+}
+foreach ($invalidSizes in @('', '12,12', '256,12', '0', '769', '12,256,768,769', '12,nan')) {
+    $rejected = $false
+    try { $null = Assert-StreamPayloadSizePlan $invalidSizes } catch { $rejected = $true }
+    if (!$rejected) { throw "The size plan accepted '$invalidSizes'." }
+}
+$rate = Get-StreamPayloadEffectiveBytesPerSecond -PayloadBytes 1024 -CompletionNanoseconds 1000000000
+if ($rate -ne 1024) { throw 'The effective observation rate used the wrong units.' }
+foreach ($invalidRate in @(@{ bytes = 0; nanoseconds = 1 }, @{ bytes = 1; nanoseconds = 0 })) {
+    $rejected = $false
+    try {
+        $null = Get-StreamPayloadEffectiveBytesPerSecond -PayloadBytes $invalidRate.bytes `
+            -CompletionNanoseconds $invalidRate.nanoseconds
+    } catch { $rejected = $true }
+    if (!$rejected) { throw 'The effective observation rate accepted an invalid denominator or byte count.' }
+}
 
 foreach ($case in @(
     @{ name = 'truncated event'; key = 'eventRaw'; value = "$begin`r`nline-01-abcdef`r`n$end" },
@@ -52,12 +76,14 @@ if ($PackageRoot) {
         [Guid]::NewGuid().ToString('N') + '.json')
     try {
         $arguments = @{ PackageRoot = $PackageRoot; OutputPath = $output;
-            WarmupRounds = 0; SampleRounds = 2 }
+            WarmupRounds = 0; SampleRounds = 2; BodyLineCounts = $BodyLineCounts;
+            ObservationTimeoutMilliseconds = $ObservationTimeoutMilliseconds }
         if ($TmuxBinaryPath) { $arguments.TmuxBinaryPath = $TmuxBinaryPath }
         if ($ReviewRoot) { $arguments.ReviewRoot = $ReviewRoot }
         & "$PSScriptRoot/StreamPayload.ps1" @arguments
         $report = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
-        if ($report.status -cne 'PASS' -or @($report.samples).Count -ne 2 -or
+        $expectedSizes = @(Assert-StreamPayloadSizePlan $BodyLineCounts)
+        if ($report.status -cne 'PASS' -or @($report.samples).Count -ne (2 * $expectedSizes.Count) -or
             !$report.cleanup.controlDisconnected -or !$report.cleanup.fixtureRemoved -or
             !$report.provenance.corePackageVersion -or !$report.provenance.packageSha256 -or
             $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' })) {
@@ -66,8 +92,15 @@ if ($PackageRoot) {
         foreach ($record in $report.samples) {
             if ($record.payloadSha256 -cne $record.eventPayloadSha256 -or
                 $record.payloadSha256 -cne $record.capturePayloadSha256 -or
-                $record.eventFragments -lt 1 -or $record.captureAttempts -lt 1) {
+                $record.eventFragments -lt 1 -or $record.captureAttempts -lt 1 -or
+                $record.bodyLines -notin $expectedSizes -or $record.eventEffectiveBytesPerSecond -le 0 -or
+                $record.captureEffectiveBytesPerSecond -le 0) {
                 throw 'The installed stream payload smoke omitted exact payload proof.'
+            }
+        }
+        foreach ($size in $expectedSizes) {
+            if (@($report.samples | Where-Object bodyLines -EQ $size).Count -ne 2) {
+                throw "The installed stream payload smoke omitted a $size-line sample."
             }
         }
     } finally {

@@ -5,7 +5,9 @@ param(
     [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [ValidateRange(0, 20)] [int] $WarmupRounds = 3,
-    [ValidateRange(1, 100)] [int] $SampleRounds = 20
+    [ValidateRange(1, 100)] [int] $SampleRounds = 20,
+    [string] $BodyLineCounts = '12',
+    [ValidateRange(100, 3000)] [int] $ObservationTimeoutMilliseconds = 1000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,6 +62,13 @@ try {
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $moduleRoot)
     $extractWatch.Stop()
     Import-Module "$PSScriptRoot/StreamPayload.Checks.psm1" -Force
+    $lineCountPlan = [int[]] @(Assert-StreamPayloadSizePlan $BodyLineCounts)
+    if ($lineCountPlan.Count -gt 1 -and $SampleRounds -gt 20) {
+        throw 'Multi-size runs support at most twenty timed rounds per size.'
+    }
+    $maxCaptureAttempts = [int] [Math]::Ceiling($ObservationTimeoutMilliseconds / 10.0)
+    $maxEventBytes = if ($lineCountPlan[-1] -gt 12) { 65536 } else { 8192 }
+    $maxTotalOutputBytes = if ($lineCountPlan.Count -gt 1) { 16777216 } else { 4194304 }
     Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force
     $identity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $moduleRoot -ReviewRoot $ReviewRoot
     $dependencies = Get-Content -LiteralPath (Join-Path $moduleRoot 'dependencies.json') -Raw | ConvertFrom-Json
@@ -107,8 +116,8 @@ try {
     $watchPipeline = [PowerShell]::Create()
     $watchPipeline.Runspace = $watchRunspace
     $watchScript = @'
-param($control, $paneId, $marker, $state, $ready, $matched)
-$control | LibTmux\Watch-TmuxEvent -MaxEvents 4096 -MaxEventBytes 8192 -MaxOutputBytes 4194304 -ErrorAction Stop |
+param($control, $paneId, $marker, $state, $ready, $matched, $maxEventBytes, $maxTotalOutputBytes)
+$control | LibTmux\Watch-TmuxEvent -MaxEvents 4096 -MaxEventBytes $maxEventBytes -MaxOutputBytes $maxTotalOutputBytes -ErrorAction Stop |
     ForEach-Object {
         if ($_ -is [LibTmux.TmuxEventsDroppedEvent]) {
             $state.Dropped = $true
@@ -143,7 +152,8 @@ $control | LibTmux\Watch-TmuxEvent -MaxEvents 4096 -MaxEventBytes 8192 -MaxOutpu
     }
 '@
     $null = $watchPipeline.AddScript($watchScript).AddArgument($control).AddArgument($paneId).
-        AddArgument($marker).AddArgument($watchState).AddArgument($watchReady).AddArgument($watchMatched)
+        AddArgument($marker).AddArgument($watchState).AddArgument($watchReady).AddArgument($watchMatched).
+        AddArgument($maxEventBytes).AddArgument($maxTotalOutputBytes)
     $watchInvocation = $watchPipeline.BeginInvoke()
     $markerWatch = [Diagnostics.Stopwatch]::StartNew()
     $null = Invoke-OwnedTmux $fixture -Arguments @('rename-window', '-t', 'fixture:0', $marker)
@@ -156,48 +166,50 @@ $control | LibTmux\Watch-TmuxEvent -MaxEvents 4096 -MaxEventBytes 8192 -MaxOutpu
     $warmups = [Collections.Generic.List[object]]::new()
     $samples = [Collections.Generic.List[object]]::new()
     $previousEndMarker = ''
-    foreach ($phase in @('firstCall', 'warmup', 'sample')) {
-        $rounds = switch ($phase) {
-            firstCall { 1 }
-            warmup { $WarmupRounds }
-            sample { $SampleRounds }
-        }
-        for ($round = 0; $round -lt $rounds; $round++) {
-            $id = [Guid]::NewGuid().ToString('N')
-            $beginMarker = 'LTSP_BEGIN_' + $id
-            $endMarker = 'LTSP_END_' + $id
-            $lines = @(0..11 | ForEach-Object { 'line-{0:D2}-{1}-abcdefghij' -f $_, $id })
-            $payload = (@($beginMarker) + $lines + @($endMarker)) -join "`n"
-            $bytes = [Text.Encoding]::ASCII.GetBytes($payload + "`n")
-            $clear = [Text.Encoding]::ASCII.GetBytes("`e[2J`e[H")
-            $writer.Write($clear, 0, $clear.Length)
-            $writer.Flush()
-            $null = Invoke-OwnedTmux $fixture -Arguments @('clear-history', '-t', $paneId)
-            $watchState.Accumulator = ''
-            $watchState.Fragments = 0
-            $watchState.ObservedTicks = 0L
-            $watchState.EventPaneId = ''
-            $watchMatched.Reset()
-            $watchState.EndMarker = $endMarker
-            $pollState = [hashtable]::Synchronized(@{
-                ReadyTicks = 0L; ObservedTicks = 0L; Attempts = 0;
-                InitialAbsent = $false; CaptureText = ''; BaselineBytes = 0
-            })
-            $pollReady = [Threading.ManualResetEventSlim]::new($false)
-            $pollMatched = [Threading.ManualResetEventSlim]::new($false)
-            $pollRunspace = $null
-            $pollPipeline = $null
-            $pollInvocation = $null
-            try {
-                $pollInitial = [Management.Automation.Runspaces.InitialSessionState]::CreateDefault2()
-                $pollInitial.ImportPSModule(@($modulePath))
-                $pollRunspace = [RunspaceFactory]::CreateRunspace($pollInitial)
-                $pollRunspace.Open()
-                $pollPipeline = [PowerShell]::Create()
-                $pollPipeline.Runspace = $pollRunspace
-                $pollScript = @'
-param($pane, $beginMarker, $endMarker, $previousEndMarker, $state, $ready, $matched)
-for ($attempt = 0; $attempt -lt 100; $attempt++) {
+    foreach ($bodyLines in $lineCountPlan) {
+        foreach ($phase in @('firstCall', 'warmup', 'sample')) {
+            $rounds = switch ($phase) {
+                firstCall { 1 }
+                warmup { $WarmupRounds }
+                sample { $SampleRounds }
+            }
+            for ($round = 0; $round -lt $rounds; $round++) {
+                $id = [Guid]::NewGuid().ToString('N')
+                $beginMarker = 'LTSP_BEGIN_' + $id
+                $endMarker = 'LTSP_END_' + $id
+                $lines = @(0..($bodyLines - 1) | ForEach-Object { 'line-{0:D2}-{1}-abcdefghij' -f $_, $id })
+                $payload = (@($beginMarker) + $lines + @($endMarker)) -join "`n"
+                $bytes = [Text.Encoding]::ASCII.GetBytes($payload + "`n")
+                $clear = [Text.Encoding]::ASCII.GetBytes("`e[2J`e[H")
+                $writer.Write($clear, 0, $clear.Length)
+                $writer.Flush()
+                $null = Invoke-OwnedTmux $fixture -Arguments @('clear-history', '-t', $paneId)
+                $watchState.Accumulator = ''
+                $watchState.Fragments = 0
+                $watchState.ObservedTicks = 0L
+                $watchState.EventPaneId = ''
+                $watchMatched.Reset()
+                $watchState.EndMarker = $endMarker
+                $pollState = [hashtable]::Synchronized(@{
+                    ReadyTicks = 0L; ObservedTicks = 0L; Attempts = 0;
+                    InitialAbsent = $false; CaptureText = ''; BaselineBytes = 0
+                })
+                $pollReady = [Threading.ManualResetEventSlim]::new($false)
+                $pollMatched = [Threading.ManualResetEventSlim]::new($false)
+                $pollRunspace = $null
+                $pollPipeline = $null
+                $pollInvocation = $null
+                try {
+                    $pollInitial = [Management.Automation.Runspaces.InitialSessionState]::CreateDefault2()
+                    $pollInitial.ImportPSModule(@($modulePath))
+                    $pollRunspace = [RunspaceFactory]::CreateRunspace($pollInitial)
+                    $pollRunspace.Open()
+                    $pollPipeline = [PowerShell]::Create()
+                    $pollPipeline.Runspace = $pollRunspace
+                    $pollScript = @'
+param($pane, $beginMarker, $endMarker, $previousEndMarker, $state, $ready, $matched,
+    $maxCaptureAttempts)
+for ($attempt = 0; $attempt -lt $maxCaptureAttempts; $attempt++) {
     $first = [string] ($pane | LibTmux\Get-TmuxPaneContent -History -Raw -ErrorAction Stop)
     $firstBytes = [Text.Encoding]::UTF8.GetByteCount($first)
     if ($firstBytes -gt 8192) { throw 'Baseline capture exceeded the byte bound.' }
@@ -212,7 +224,7 @@ for ($attempt = 0; $attempt -lt 100; $attempt++) {
     [Threading.Tasks.Task]::Delay(10).GetAwaiter().GetResult()
 }
 if (!$state.InitialAbsent) { throw 'Previous payload remained in rendered capture.' }
-for ($attempt = 0; $attempt -lt 100; $attempt++) {
+for ($attempt = 0; $attempt -lt $maxCaptureAttempts; $attempt++) {
     $content = [string] ($pane | LibTmux\Get-TmuxPaneContent -History -Raw -ErrorAction Stop)
     $state.Attempts++
     if ([Text.Encoding]::UTF8.GetByteCount($content) -gt 65536) {
@@ -227,75 +239,84 @@ for ($attempt = 0; $attempt -lt 100; $attempt++) {
     [Threading.Tasks.Task]::Delay(10).GetAwaiter().GetResult()
 }
 '@
-                $null = $pollPipeline.AddScript($pollScript).AddArgument($pane).AddArgument($beginMarker).
-                    AddArgument($endMarker).AddArgument($previousEndMarker).AddArgument($pollState).
-                    AddArgument($pollReady).AddArgument($pollMatched)
-                $pollInvocation = $pollPipeline.BeginInvoke()
-                if (!$pollReady.Wait(1000) -or !$pollState.InitialAbsent) {
-                    throw "$phase/$round capture poller was not armed before production."
-                }
-                $startTicks = [Diagnostics.Stopwatch]::GetTimestamp()
-                $deadlineTicks = $startTicks + [Diagnostics.Stopwatch]::Frequency
-                $writer.Write($bytes, 0, $bytes.Length)
-                $writer.Flush()
-                $producerDoneTicks = [Diagnostics.Stopwatch]::GetTimestamp()
-                $remaining = [int] [Math]::Max(0, [Math]::Ceiling(
-                    ($deadlineTicks - [Diagnostics.Stopwatch]::GetTimestamp()) *
-                    1000.0 / [Diagnostics.Stopwatch]::Frequency))
-                if (![Threading.WaitHandle]::WaitAll([Threading.WaitHandle[]] @(
-                            $watchMatched.WaitHandle, $pollMatched.WaitHandle), $remaining)) {
-                    throw "$phase/$round did not reach both observers within one second."
-                }
-                if ($watchInvocation.IsCompleted -or $watchPipeline.Streams.Error.Count -ne 0 -or
-                    $pollPipeline.Streams.Error.Count -ne 0) {
-                    throw "$phase/$round observer ended or emitted an error."
-                }
-                if (!$pollInvocation.AsyncWaitHandle.WaitOne(1000)) {
-                    throw "$phase/$round capture poller did not finish after the payload."
-                }
-                $null = $pollPipeline.EndInvoke($pollInvocation)
-                $observation = @{
-                    beginMarker = $beginMarker; endMarker = $endMarker; payload = $payload
-                    expectedPaneId = $paneId; eventPaneId = $watchState.EventPaneId
-                    eventRaw = [string] $watchState.Accumulator; captureText = [string] $pollState.CaptureText
-                    markerTicks = [long] $watchState.MarkerTicks; pollerReadyTicks = [long] $pollState.ReadyTicks
-                    startTicks = [long] $startTicks; producerDoneTicks = [long] $producerDoneTicks
-                    eventTicks = [long] $watchState.ObservedTicks
-                    captureTicks = [long] $pollState.ObservedTicks; deadlineTicks = [long] $deadlineTicks
-                    eventFragments = [int] $watchState.Fragments
-                    captureAttempts = [int] $pollState.Attempts; dropped = [bool] $watchState.Dropped
-                    initialAbsent = [bool] $pollState.InitialAbsent
-                }
-                if ($watchState.WrongPane) { throw "$phase/$round observed output from another pane." }
-                $checked = Assert-StreamPayloadRound -Observation $observation -Lane "$phase/$round"
-                $frequency = [Diagnostics.Stopwatch]::Frequency
-                $record = @{ round = $round; phase = $phase; beginMarker = $beginMarker;
-                    endMarker = $endMarker; paneId = $paneId;
-                    payloadBytes = $checked.payloadBytes; producedBytes = $bytes.Length;
-                    baselineCaptureBytes = $pollState.BaselineBytes;
-                    eventRawBytes = $checked.eventRawBytes; captureRawBytes = $checked.captureRawBytes;
-                    payloadSha256 = $checked.payloadSha256;
-                    eventPayloadSha256 = $checked.eventPayloadSha256;
-                    capturePayloadSha256 = $checked.capturePayloadSha256;
-                    eventFragments = $observation.eventFragments; captureAttempts = $observation.captureAttempts;
-                    producerNanoseconds = [long] [Math]::Round(
-                        ($producerDoneTicks - $startTicks) * 1000000000.0 / $frequency);
-                    eventCompletionNanoseconds = [long] [Math]::Round(
-                        ($observation.eventTicks - $startTicks) * 1000000000.0 / $frequency);
-                    captureCompletionNanoseconds = [long] [Math]::Round(
-                        ($observation.captureTicks - $startTicks) * 1000000000.0 / $frequency) }
-                $previousEndMarker = $endMarker
-                switch ($phase) {
-                    firstCall { $firstCalls.Add($record) }
-                    warmup { $warmups.Add($record) }
-                    sample { $samples.Add($record) }
-                }
-            } finally {
-                try { Stop-StreamPayloadPipeline $pollPipeline $pollInvocation 'Capture poller' }
-                finally {
-                    if ($pollRunspace) { $pollRunspace.Dispose() }
-                    $pollReady.Dispose()
-                    $pollMatched.Dispose()
+                    $null = $pollPipeline.AddScript($pollScript).AddArgument($pane).AddArgument($beginMarker).
+                        AddArgument($endMarker).AddArgument($previousEndMarker).AddArgument($pollState).
+                        AddArgument($pollReady).AddArgument($pollMatched).AddArgument($maxCaptureAttempts)
+                    $pollInvocation = $pollPipeline.BeginInvoke()
+                    if (!$pollReady.Wait(1000) -or !$pollState.InitialAbsent) {
+                        throw "$phase/$round capture poller was not armed before production."
+                    }
+                    $startTicks = [Diagnostics.Stopwatch]::GetTimestamp()
+                    $deadlineTicks = $startTicks + [long] [Math]::Ceiling(
+                        [Diagnostics.Stopwatch]::Frequency * $ObservationTimeoutMilliseconds / 1000.0)
+                    $writer.Write($bytes, 0, $bytes.Length)
+                    $writer.Flush()
+                    $producerDoneTicks = [Diagnostics.Stopwatch]::GetTimestamp()
+                    $remaining = [int] [Math]::Max(0, [Math]::Ceiling(
+                        ($deadlineTicks - [Diagnostics.Stopwatch]::GetTimestamp()) *
+                        1000.0 / [Diagnostics.Stopwatch]::Frequency))
+                    if (![Threading.WaitHandle]::WaitAll([Threading.WaitHandle[]] @(
+                                $watchMatched.WaitHandle, $pollMatched.WaitHandle), $remaining)) {
+                        throw "$bodyLines lines/$phase/$round did not reach both observers within $ObservationTimeoutMilliseconds ms."
+                    }
+                    if ($watchInvocation.IsCompleted -or $watchPipeline.Streams.Error.Count -ne 0 -or
+                        $pollPipeline.Streams.Error.Count -ne 0) {
+                        throw "$phase/$round observer ended or emitted an error."
+                    }
+                    if (!$pollInvocation.AsyncWaitHandle.WaitOne(1000)) {
+                        throw "$phase/$round capture poller did not finish after the payload."
+                    }
+                    $null = $pollPipeline.EndInvoke($pollInvocation)
+                    $observation = @{
+                        beginMarker = $beginMarker; endMarker = $endMarker; payload = $payload
+                        expectedPaneId = $paneId; eventPaneId = $watchState.EventPaneId
+                        eventRaw = [string] $watchState.Accumulator; captureText = [string] $pollState.CaptureText
+                        markerTicks = [long] $watchState.MarkerTicks; pollerReadyTicks = [long] $pollState.ReadyTicks
+                        startTicks = [long] $startTicks; producerDoneTicks = [long] $producerDoneTicks
+                        eventTicks = [long] $watchState.ObservedTicks
+                        captureTicks = [long] $pollState.ObservedTicks; deadlineTicks = [long] $deadlineTicks
+                        eventFragments = [int] $watchState.Fragments
+                        captureAttempts = [int] $pollState.Attempts; dropped = [bool] $watchState.Dropped
+                        initialAbsent = [bool] $pollState.InitialAbsent
+                    }
+                    if ($watchState.WrongPane) { throw "$phase/$round observed output from another pane." }
+                    $checked = Assert-StreamPayloadRound -Observation $observation -Lane "$phase/$round"
+                    $frequency = [Diagnostics.Stopwatch]::Frequency
+                    $eventNanoseconds = [long] [Math]::Round(
+                        ($observation.eventTicks - $startTicks) * 1000000000.0 / $frequency)
+                    $captureNanoseconds = [long] [Math]::Round(
+                        ($observation.captureTicks - $startTicks) * 1000000000.0 / $frequency)
+                    $record = @{ round = $round; phase = $phase; bodyLines = $bodyLines;
+                        beginMarker = $beginMarker;
+                        endMarker = $endMarker; paneId = $paneId;
+                        payloadBytes = $checked.payloadBytes; producedBytes = $bytes.Length;
+                        baselineCaptureBytes = $pollState.BaselineBytes;
+                        eventRawBytes = $checked.eventRawBytes; captureRawBytes = $checked.captureRawBytes;
+                        payloadSha256 = $checked.payloadSha256;
+                        eventPayloadSha256 = $checked.eventPayloadSha256;
+                        capturePayloadSha256 = $checked.capturePayloadSha256;
+                        eventFragments = $observation.eventFragments; captureAttempts = $observation.captureAttempts;
+                        producerNanoseconds = [long] [Math]::Round(
+                            ($producerDoneTicks - $startTicks) * 1000000000.0 / $frequency);
+                        eventCompletionNanoseconds = $eventNanoseconds;
+                        captureCompletionNanoseconds = $captureNanoseconds;
+                        eventEffectiveBytesPerSecond = Get-StreamPayloadEffectiveBytesPerSecond `
+                            -PayloadBytes $checked.payloadBytes -CompletionNanoseconds $eventNanoseconds;
+                        captureEffectiveBytesPerSecond = Get-StreamPayloadEffectiveBytesPerSecond `
+                            -PayloadBytes $checked.payloadBytes -CompletionNanoseconds $captureNanoseconds }
+                    $previousEndMarker = $endMarker
+                    switch ($phase) {
+                        firstCall { $firstCalls.Add($record) }
+                        warmup { $warmups.Add($record) }
+                        sample { $samples.Add($record) }
+                    }
+                } finally {
+                    try { Stop-StreamPayloadPipeline $pollPipeline $pollInvocation 'Capture poller' }
+                    finally {
+                        if ($pollRunspace) { $pollRunspace.Dispose() }
+                        $pollReady.Dispose()
+                        $pollMatched.Dispose()
+                    }
                 }
             }
         }
@@ -303,30 +324,44 @@ for ($attempt = 0; $attempt -lt 100; $attempt++) {
     if ($watchInvocation.IsCompleted -or $watchState.Dropped -or $watchState.WrongPane) {
         throw 'The borrowed output watcher ended or lost output.'
     }
-    $summary = foreach ($lane in @('event', 'capture')) {
-        $property = if ($lane -eq 'event') { 'eventCompletionNanoseconds' } else { 'captureCompletionNanoseconds' }
-        @{ lane = $lane; timing = (Get-StreamPayloadSummary ([long[]] @($samples |
-                    ForEach-Object { $_[$property] }))) }
+    $summary = foreach ($bodyLines in $lineCountPlan) {
+        $samplesAtSize = @($samples | Where-Object { $_.bodyLines -eq $bodyLines })
+        foreach ($lane in @('event', 'capture')) {
+            $property = if ($lane -eq 'event') { 'eventCompletionNanoseconds' } else { 'captureCompletionNanoseconds' }
+            @{ bodyLines = $bodyLines; lane = $lane;
+                payloadBytes = $samplesAtSize[0].payloadBytes;
+                timing = (Get-StreamPayloadSummary ([long[]] @($samplesAtSize |
+                            ForEach-Object { $_[$property] }))) }
+        }
     }
     $sourceCommit = (git -C (Split-Path $PSScriptRoot) rev-parse HEAD).Trim()
     $sourceDirty = @((git -C (Split-Path $PSScriptRoot) status --porcelain --untracked-files=all)).Count -gt 0
+    $workload = if ($lineCountPlan.Count -eq 1 -and $lineCountPlan[0] -eq 12) {
+        'one display-safe ASCII block with twelve body lines written once to the owned pane terminal'
+    } else {
+        'one display-safe ASCII block per round, with the requested body-line count, written once to the owned pane terminal'
+    }
     $report = [ordered]@{
-        schema = 1
+        schema = 2
         status = 'PASS'
         recordedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
         kind = 'complete multiline pane payload observation'
-        workload = 'one display-safe ASCII block with twelve body lines written once to the owned pane terminal'
+        workload = $workload
         shape = @{ sessions = 1; windows = 1; panes = 1; linkedWindows = 0 }
         parameters = @{ warmupRounds = $WarmupRounds; sampleRounds = $SampleRounds;
-            capturePollIntervalMilliseconds = 10; observationTimeoutMilliseconds = 1000;
-            maxCaptureAttempts = 100; maxEventCount = 4096; maxEventBytes = 8192;
-            maxTotalOutputBytes = 4194304; maxRoundObservationBytes = 65536;
+            bodyLineCounts = @($lineCountPlan);
+            capturePollIntervalMilliseconds = 10;
+            observationTimeoutMilliseconds = $ObservationTimeoutMilliseconds;
+            maxCaptureAttempts = $maxCaptureAttempts; maxEventCount = 4096;
+            maxEventBytes = $maxEventBytes;
+            maxTotalOutputBytes = $maxTotalOutputBytes; maxRoundObservationBytes = 65536;
             sampling = 'serial rounds; one persistent watcher and a freshly armed capture poller per round' }
         semantics = @{ start = 'monotonic timestamp before one write of the payload plus LF to the owned pane PTY';
             event = 'first callback completing the end marker; the accumulated exact canonical block must match';
             capture = 'first complete-history rendered capture containing the end marker; the exact block must match';
             transform = 'event CRLF to LF only; no trimming or case folding within the compared block';
             scope = 'same multiline block and start clock, with observer scheduling and 10 ms capture polling included';
+            effectiveRate = 'exact canonical payload bytes divided by start-to-complete time for each observer; includes producer, tmux, scheduling and capture polling; not raw transport throughput';
             noRawByteParityClaim = $true }
         provenance = @{ sourceCommit = $sourceCommit; sourceDirty = $sourceDirty;
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant();
@@ -396,4 +431,4 @@ $report.cleanup = @{ controlDisconnected = $controlDisconnected; fixtureRemoved 
 $parent = Split-Path -Parent $destination
 if (!(Test-Path -LiteralPath $parent)) { $null = New-Item -ItemType Directory -Path $parent -Force }
 $report | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $destination -NoNewline
-"PASS stream payload: $SampleRounds exact multiline samples; report: $destination"
+"PASS stream payload: $($samples.Count) exact multiline samples across $($lineCountPlan.Count) size(s); report: $destination"
