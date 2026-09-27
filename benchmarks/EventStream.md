@@ -45,6 +45,8 @@ and `sourceDirty` identify the run. A PASS report is written only after the
 borrowed control client disconnects and the owned fixture and extracted
 package are removed.
 
-The 8- and 16-command cells are pressure points on the same queue. Their
+The 8- and 16-command cells are pressure points on the same queue. Positive
+drops and the configured capacity of one imply a high-water mark of one; the
+runner does not sample queue occupancy or the time it became full. Their
 timings cover serial command production and a bounded watcher drain; they
 do not measure sustained stream throughput or justify a speed ratio.

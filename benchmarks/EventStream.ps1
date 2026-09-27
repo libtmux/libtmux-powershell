@@ -217,7 +217,8 @@ try {
         semantics = @{ comparison = 'pressure outcomes only; no polling or capture lane';
             producer = 'one reused control client sends rename-window -t fixture:0 <name> serially';
             consumer = 'Watch-TmuxEvent on the borrowed client emits one loss record and the retained final notification';
-            equality = 'produced = delivered + dropped; latest event and native final window name agree' }
+            equality = 'produced = delivered + dropped; latest event and native final window name agree';
+            queueHighWater = 'inferred exactly one: positive drops prove the capacity-one queue was full; occupancy was not sampled' }
         provenance = @{ sourceCommit = $sourceCommit; sourceDirty = $sourceDirty;
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant();
             checksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/EventStream.Checks.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
