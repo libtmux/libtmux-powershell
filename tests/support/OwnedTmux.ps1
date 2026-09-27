@@ -108,12 +108,36 @@ function Get-OwnedTmuxReadinessDiagnostic {
         "watcherErrors=$($Signal.ErrorEvents); clientProbe=$clientProbe"
 }
 
+function Test-OwnedTmuxSocketReady {
+    param($Fixture)
+
+    if ($Fixture.ServerProcess.HasExited -or -not (Test-Path -LiteralPath $Fixture.SocketPath)) {
+        return $false
+    }
+    try {
+        # -N prevents a probe of this socket from starting another server.
+        $result = Invoke-OwnedTmux $Fixture -Arguments @('-N', 'display-message', '-p', '#{pid}') `
+            -AllowFailure -WaitTimeout ([TimeSpan]::FromMilliseconds(250)) `
+            -KillWaitMilliseconds 100 -KillProcessOnly
+    } catch [TimeoutException] {
+        return $false
+    }
+    if ($result.ExitCode -ne 0) { return $false }
+    $daemonPid = 0
+    if (-not [int]::TryParse($result.StdOut.Trim(), [ref] $daemonPid) -or
+        $daemonPid -ne $Fixture.ServerPid) {
+        throw 'The socket did not identify the owned foreground tmux process.'
+    }
+    return $true
+}
+
 function New-OwnedTmuxFixture {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only explicitly owned test resources; confirmation would prevent deterministic setup.')]
     [CmdletBinding()]
     param(
         [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
-        [string] $TmuxPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+        [string] $TmuxPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
+        [System.Threading.Tasks.Task] $SocketReadyTask
     )
 
     if ($CancellationToken.IsCancellationRequested) {
@@ -152,14 +176,25 @@ function New-OwnedTmuxFixture {
         $fixture.ServerOutput = $fixture.ServerProcess.StandardOutput.ReadToEndAsync()
         $fixture.ServerError = $fixture.ServerProcess.StandardError.ReadToEndAsync()
         # Subscribe before startup so a fast socket creation cannot lose its signal.
+        $socketSignal = if ($SocketReadyTask) { $SocketReadyTask } else { $signal.Ready }
         $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
-            $signal.Ready, $fixture.ServerProcess.WaitForExitAsync()))
+            $socketSignal, $fixture.ServerProcess.WaitForExitAsync()))
         $setupStage = 'socket readiness'
-        $null = $ready.WaitAsync([TimeSpan]::FromSeconds(1), $CancellationToken).GetAwaiter().GetResult()
+        try {
+            $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(100), $CancellationToken).GetAwaiter().GetResult()
+        } catch [TimeoutException] {
+            if (-not (Test-OwnedTmuxSocketReady $fixture)) {
+                try {
+                    $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(900), $CancellationToken).GetAwaiter().GetResult()
+                } catch [TimeoutException] {
+                    if (-not (Test-OwnedTmuxSocketReady $fixture)) { throw }
+                }
+            }
+        }
         if ($fixture.ServerProcess.HasExited) {
             throw "Owned tmux server exited before socket readiness ($($fixture.ServerProcess.ExitCode))."
         }
-        $null = $signal.Ready.GetAwaiter().GetResult()
+        if ($socketSignal.IsCompleted) { $null = $socketSignal.GetAwaiter().GetResult() }
         if ($CancellationToken.IsCancellationRequested) {
             throw [System.OperationCanceledException]::new($CancellationToken)
         }

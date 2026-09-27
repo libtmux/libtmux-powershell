@@ -153,6 +153,19 @@ foreach ($badExecutable in @('/bin/false', '/nonexistent-libtmux-powershell')) {
     Assert-CleanedUp $bootstrapState
 }
 
+# Integration: a real owned socket must become usable even when its watcher
+# never reports creation, as observed on macOS.
+$missedSignal = [System.Threading.Tasks.TaskCompletionSource[bool]]::new()
+$missedFixture = New-OwnedTmuxFixture -SocketReadyTask $missedSignal.Task
+try {
+    $identity = Invoke-OwnedTmux $missedFixture -Arguments @('-N', 'display-message', '-p', '#{pid}')
+    Assert-True ([int] $identity.StdOut.Trim() -eq $missedFixture.ServerPid) `
+        'A silent socket watcher did not retain the owned daemon identity.'
+} finally {
+    Remove-OwnedTmuxFixture $missedFixture
+}
+Assert-CleanedUp $missedFixture
+
 # Integration: a live owned daemon without a socket must retain timeout diagnostics.
 $fakeDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $fakeDirectory
