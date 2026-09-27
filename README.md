@@ -11,8 +11,10 @@ author. The cmdlets return its native objects and add PowerShell parameter
 binding, help, formatting and `-WhatIf` / `-Confirm`.
 
 [Install](#install-from-source) · [Object graph](#create-and-read-an-object-graph) ·
+[Run to completion](#run-a-command-to-completion) ·
 [Send and capture](#send-a-command-and-capture-its-output) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
+[MCP](docs/mcp.md#discover-before-calling) ·
 [Compatibility](docs/compatibility.md) ·
 [Troubleshooting](docs/troubleshooting.md) ·
 [Cmdlet reference](docs/reference/README.md) · [License](#license)
@@ -54,7 +56,7 @@ $ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
 ```
 
 The bootstrap clones this committed revision and the
-[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/cac57dc779483d00024565426f08ce285a65caa3),
+[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/c0d3171305985f1d8b0d88e596e87f9da7d0db57),
 builds a unique local package version, inspects its archives, and checks the
 disposable lockfiles.
 It leaves this checkout's pins and lockfiles unchanged and publishes nothing.
@@ -186,6 +188,32 @@ This query also performs no I/O. [The query guide](docs/query.md) shows native
 predicates, Boolean and relationship criteria, and explicit fresh source
 queries.
 
+## Run a command to completion
+
+When the shell's exit status matters, run the command in a pane and inspect its
+native result. This example uses the private `$server` above and removes only
+the session it creates:
+
+<!-- example: input.run -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession `
+        -Name ('pane-run-' + [Guid]::NewGuid().ToString('N')) -Command 'exec /bin/sh'
+    try {
+        $pane = $session | Get-TmuxPane
+        $pane | Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The result has `ExitStatus = 7` and `TimedOut = False`. A nonzero shell exit is
+a result, not a tmux error. On timeout, the command may still be running, so
+the result has no exit status. See [command completion](docs/input.md#run-a-command-to-completion)
+for concurrency and output behavior.
+
 ## Send a command and capture its output
 
 Sending text means tmux accepted the keys; it does not mean the shell finished.
@@ -228,6 +256,7 @@ required.
 | Task | Use | Example |
 | --- | --- | --- |
 | Read or change tmux state | Typed cmdlets and pipelines | [Create sessions and panes](docs/create.md) |
+| Run a shell command and check its exit status | `Invoke-TmuxPaneCommand` | [Run to completion](docs/input.md#run-a-command-to-completion) |
 | Enter a session interactively | `Enter-TmuxSession` | [Attach your foreground terminal](docs/reference/LibTmux/Enter-TmuxSession.md) |
 | Run an ordered batch | `New-TmuxCommand` → `Invoke-TmuxChain` | [Compose commands](docs/commands.md) |
 | Reuse a connected client | `Connect-TmuxControl` → `Invoke-TmuxControlCommand` | [Control commands and cleanup](docs/commands.md) |
@@ -336,8 +365,9 @@ $workspaceResult.Windows |
 This returns `editor` with two panes. The
 [workspace guide](docs/workspace.md#apply-the-reviewed-plan) covers failure
 recovery, attaching and exporting a declaration. For an MCP client, start with
-[`list_sessions` and `capture_pane`](docs/mcp.md#discover-before-calling) after
-reading its advertised capabilities.
+the [client configuration](docs/mcp.md#install-and-select-a-server), then read
+`tools/list` and `tmux://capabilities` before calling
+[`list_sessions` or `capture_pane`](docs/mcp.md#discover-before-calling).
 
 Install both PowerShell modules at the same version. The MCP server is an
 independent .NET tool and does not require PowerShell.

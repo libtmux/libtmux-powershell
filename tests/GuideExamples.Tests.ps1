@@ -191,6 +191,16 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'input.run' = @{ Group = 'Commands'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.PaneCommandResult] -and
+                $o.Result[0].ExitStatus -eq 7 -and !$o.Result[0].TimedOut -and
+                $o.Result[0].EffectiveTimeout -eq [TimeSpan]::FromSeconds(5) -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'pane command completion result'
+            $sessions = @((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim().Split("`n"))
+            Assert-Guide ($sessions.Count -eq 1 -and $sessions[0] -ceq 'fixture' -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'pane command cleanup and unrelated session'
+        } }
     'readme.control' = @{ Group = 'Readme'; Count = 1; Assert = {
             param($o)
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")

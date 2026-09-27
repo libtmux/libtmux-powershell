@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.16.ps.2, 0.0.0-alpha.16.ps.2]",
-        "resolved": "0.0.0-alpha.16.ps.2",
-        "contentHash": "qHsYPlguoBue4GT20iidJOfStWuniT5HgJEq3nzw5VroGqupk2iDux9dasd9hRI8VeexkQICrdI61iBPDzJ1fw==",
+        "requested": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
+        "resolved": "0.0.0-alpha.16.ps.3",
+        "contentHash": "lMT2PpGtejXuRlfAGxTTsjaQOcI3w4RWEKCciPDQjYTIYDtT1CxmjQTk9A0sjQOIswaxKxxdfLCJUzOgaVC2+w==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Workspace": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.16.ps.2, 0.0.0-alpha.16.ps.2]",
-        "resolved": "0.0.0-alpha.16.ps.2",
-        "contentHash": "ztAzBlvocY/sd0vraAl2nHEZW/xPi4DCFXuiFeezU/jb1PgCANrwgfVNXbrbOqchSxdDP8xrgRhZONA8zUs8OA==",
+        "requested": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
+        "resolved": "0.0.0-alpha.16.ps.3",
+        "contentHash": "4WjhZ9cIVbvN6Ujgtbma73krxSi9QFmfOnrWdrLfBRR3JTi8GhJoXYIw8rIvR2sJiNgr5OZdJ3wZHI+QzkuzMg==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.16.ps.2",
+          "LibTmux": "0.0.0-alpha.16.ps.3",
           "YamlDotNet": "18.1.0"
         }
       },
@@ -198,17 +198,17 @@
       "libtmux.powershell": {
         "type": "Project",
         "dependencies": {
-          "LibTmux": "[0.0.0-alpha.16.ps.2, 0.0.0-alpha.16.ps.2]",
-          "LibTmux.Query.Json": "[0.0.0-alpha.16.ps.2, 0.0.0-alpha.16.ps.2]"
+          "LibTmux": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
+          "LibTmux.Query.Json": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]"
         }
       },
       "LibTmux.Query.Json": {
         "type": "CentralTransitive",
-        "requested": "[0.0.0-alpha.16.ps.2, 0.0.0-alpha.16.ps.2]",
-        "resolved": "0.0.0-alpha.16.ps.2",
-        "contentHash": "zUXKILhGrgIhEHi1jEyCNTVguO6IivQ+WXpytwTbemv1hQSfqr5QfpznmrOT18IZoIafPQYQ830/pwj9eFnJ3A==",
+        "requested": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
+        "resolved": "0.0.0-alpha.16.ps.3",
+        "contentHash": "CiR6Zx/5EQtUQEnT1xbpzvtyQxTzAQmAINQ3cJvrgvi89nppcZCIQjtMAZTnXkNOxOF07I5jQpfyBMPWBFoP0g==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.16.ps.2"
+          "LibTmux": "0.0.0-alpha.16.ps.3"
         }
       }
     }

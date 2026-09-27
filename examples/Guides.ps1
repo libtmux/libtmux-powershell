@@ -112,6 +112,19 @@ $captured.Windows |
     }
 }
     } }
+    'input.run' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession `
+        -Name ('pane-run-' + [Guid]::NewGuid().ToString('N')) -Command 'exec /bin/sh'
+    try {
+        $pane = $session | Get-TmuxPane
+        $pane | Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'readme.control' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'

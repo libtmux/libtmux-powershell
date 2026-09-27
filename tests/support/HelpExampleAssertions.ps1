@@ -269,6 +269,27 @@ function Get-HelpExampleAssertion {
                     throw 'Raw command example did not return a successful version.'
                 }
             } }
+        'LibTmux\Invoke-TmuxPaneCommand#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $session = $server | LibTmux\New-TmuxSession -Name 'help-pane-run' -Command 'exec /bin/sh' -Confirm:$false
+                $pane = $session | LibTmux\Get-TmuxPane
+                $Context.Session = $session
+                $Context.Pane = $pane
+            }; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.PaneCommandResult] -or
+                    $Result[0].PaneId -ne $Context.Pane.Id -or $Result[0].ExitStatus -ne 7 -or
+                    $Result[0].TimedOut -or $Result[0].EffectiveTimeout -ne [TimeSpan]::FromSeconds(5)) {
+                    throw 'Pane command example lost the native nonzero completion result.'
+                }
+                $anchor = (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0',
+                        '#{session_id}|#{session_name}|#{window_id}|#{window_name}|#{pane_id}|#{pane_pid}')).StdOut.Trim()
+                if ($anchor -cne $Context.Anchor) { throw 'Pane command example changed the borrowed fixture pane.' }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.Session) { $Context.Session | LibTmux\Remove-TmuxSession -Confirm:$false }
+            } }
         'LibTmux\New-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $true; Expected = 'help-session|work'; Assert = {
                 param($Result, $Context, $Expected)
                 $actual = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Result[0].Id.ToString(), '#{session_name}|#{window_name}')

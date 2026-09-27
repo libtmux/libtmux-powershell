@@ -91,7 +91,7 @@ $windows = @($session.Windows | ForEach-Object {
 
 $blocks = @{}
 foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
-    'readme.related', 'readme.input', 'readme.control',
+    'readme.related', 'input.run', 'readme.input', 'readme.control',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
     'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
     $blocks[$id] = Get-ReadmeBlock $id
@@ -128,6 +128,10 @@ try {
     $related = @(. $blocks['readme.related'])
     Assert-Readme ($related.Count -eq 1 -and
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
+    $paneRun = @(. $blocks['input.run'])
+    Assert-Readme ($paneRun.Count -eq 1 -and
+        $paneRun[0] -is [LibTmux.PaneCommandResult] -and
+        $paneRun[0].ExitStatus -eq 7 -and !$paneRun[0].TimedOut) 'the shell exit status was not reported'
     $lines = @(. $blocks['readme.input'])
     Assert-Readme ($lines -ccontains 'hello from PowerShell') 'the signalled output was not captured'
     $controlReply = @(. $blocks['readme.control'])

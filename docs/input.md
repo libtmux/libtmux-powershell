@@ -30,7 +30,9 @@ acquisition or input operation. Confirmation identifies the endpoint and
 pane without displaying the supplied content. Successful commands emit no
 objects; an empty owner pipeline performs no work.
 
-Sending input confirms acceptance by tmux. Use an explicit signal from the
+Sending input confirms acceptance by tmux. Use
+[Invoke-TmuxPaneCommand](reference/LibTmux/Invoke-TmuxPaneCommand.md) when a
+shell command needs a verified exit status, or an explicit signal from the
 receiving application before asserting completion or
 [capturing its output](capture.md). Use
 [Wait-TmuxChannel](reference/LibTmux/Wait-TmuxChannel.md) for a cooperative
@@ -46,6 +48,39 @@ work but cannot undo input already delivered. A failed key sequence can leave
 earlier keys applied. If literal text was sent but the following Enter fails,
 the core reports unknown partial dispatch. Retrying can repeat effects;
 the commands never retry automatically.
+
+## Run a command to completion
+
+`Invoke-TmuxPaneCommand` runs a shell command in a writable POSIX shell pane.
+It returns a native `LibTmux.PaneCommandResult` with an authenticated exit
+status. A nonzero status remains a result; a timeout returns `TimedOut = True`
+and a null status because the command may still be running. The command runs
+in a subshell, so `cd` and `export` do not change the pane's parent shell.
+
+With an endpoint in `$server`, create a shell pane and check the status rather
+than guessing from a prompt or screen capture. The example removes only its
+session:
+
+<!-- example: input.run -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession `
+        -Name ('pane-run-' + [Guid]::NewGuid().ToString('N')) -Command 'exec /bin/sh'
+    try {
+        $pane = $session | Get-TmuxPane
+        $pane | Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The result's `ExitStatus` is 7 and `TimedOut` is False. The command does
+not capture stdout or stderr; `Get-TmuxPaneContent` reads rendered screen
+text separately. On timeout or cancellation after dispatch, inspect the pane
+before retrying. The [cmdlet reference](reference/LibTmux/Invoke-TmuxPaneCommand.md)
+describes history suppression, validation and confirmation.
 
 ## Send a command and wait for its output
 
