@@ -43,11 +43,11 @@ public sealed class GetTmuxWorkspaceCommand : TmuxCmdlet
     [ValidateNotNullOrEmpty]
     public string? Search { get; set; }
 
-    /// <summary>Gets or sets searched fields; any declaration field explicitly opts into bounded parsing.</summary>
+    /// <summary>Gets or sets searched fields; declaration fields opt into bounded parsing.</summary>
     [Parameter(ParameterSetName = "Search")]
     [ValidateNotNullOrEmpty]
-    [ValidateCount(1, 5)]
-    [ValidateSet("FileName", "Session", "Window", "Command", "Directory")]
+    [ValidateCount(1, 6)]
+    [ValidateSet("FileName", "Path", "Session", "Window", "Command", "Directory")]
     public string[] SearchIn { get; set; } = ["FileName"];
 
     /// <summary>Gets or sets ordinal case-sensitive substring search instead of ordinal-ignore-case search.</summary>

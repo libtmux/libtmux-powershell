@@ -55,8 +55,9 @@ For discovery, `Get-TmuxWorkspace` lists nearby `.tmuxp.yaml`, `.tmuxp.yml`
 and `.tmuxp.json` files before the first configured global directory.
 `-Name development` selects a global basename, while `-LiteralPath` chooses
 one exact file. Use `-AllLocations` to include shadowed global locations.
-`-Search editor` searches filenames; add `-SearchIn Window` to parse and
-search declared window names. Search never executes declaration commands.
+`-Search editor` searches filenames; `-SearchIn Path` also searches parent
+directories, while `-SearchIn Window` parses declared window names. Search
+never executes declaration commands.
 See the [discovery reference](reference/LibTmux.Workspace/Get-TmuxWorkspace.md)
 for precedence, ambiguity and traversal limits.
 

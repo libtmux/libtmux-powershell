@@ -86,7 +86,8 @@ follows the filesystem, independently of search case behavior.
 
 Search uses literal ordinal-ignore-case substring matching on filenames by
 default. CaseSensitive selects ordinal matching. SearchIn selects FileName,
-Session, Window, Command or Directory fields. Any content field
+Path, Session, Window, Command or Directory fields. Path searches the full
+selected path without reading file content. Any content field
 parses every candidate with the shared strict UTF-8 reader, accepting a UTF-8
 BOM and at most 1048576 characters. Command includes before_script and all
 pane commands and shell_command_before entries; none are executed. Directory
@@ -281,7 +282,7 @@ ParameterSets:
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
 DontShow: false
-AcceptedValues: [FileName, Session, Window, Command, Directory]
+AcceptedValues: [FileName, Path, Session, Window, Command, Directory]
 HelpMessage: ''
 ```
 

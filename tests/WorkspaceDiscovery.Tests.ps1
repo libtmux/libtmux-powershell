@@ -135,6 +135,9 @@ try {
     Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'ALPHA') @($configuredFile) 'default filename search ignores case'
     Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'ALPHA' -CaseSensitive) @() 'explicit ordinal filename search'
     Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'a.*') @() 'search does not interpret regular expressions'
+    Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'configured' -SearchIn FileName) @() 'filename search does not include parent path'
+    Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'configured' -SearchIn Path) @($configuredFile) 'path search includes parent directory'
+    Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'CONFIGURED' -SearchIn Path -CaseSensitive) @() 'path search honors case sensitivity'
     $hostMarker = Join-Path $fixture.FullName 'host-search-must-not-run'
     $declaration = @{
         session_name = 'Deploy-App'
@@ -169,6 +172,7 @@ try {
     $malformed = Join-Path $configured.FullName 'malformed.yaml'
     [IO.File]::WriteAllText($malformed, 'windows: [')
     Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'malformed') @($malformed) 'filename search did not parse'
+    Assert-DiscoveryOrder (LibTmux.Workspace\Get-TmuxWorkspace -Search 'configured' -SearchIn Path) @($configuredFile, $malformed) 'path search parsed malformed content'
     $errors = @()
     $rows = @(LibTmux.Workspace\Get-TmuxWorkspace -Search 'Deploy' -SearchIn Session -ErrorAction Continue -ErrorVariable errors 2>$null)
     Assert-Discovery ($rows.Count -eq 0 -and $errors.Count -eq 1 -and

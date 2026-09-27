@@ -109,12 +109,15 @@ internal sealed class WorkspaceDiscovery(CancellationToken cancellationToken)
         if (search is null) { return files.ToArray(); }
         StringComparison comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         bool filename = searchIn.Contains("FileName", StringComparer.OrdinalIgnoreCase);
-        bool content = searchIn.Any(field => !field.Equals("FileName", StringComparison.OrdinalIgnoreCase));
+        bool path = searchIn.Contains("Path", StringComparer.OrdinalIgnoreCase);
+        bool content = searchIn.Any(field => !field.Equals("FileName", StringComparison.OrdinalIgnoreCase)
+            && !field.Equals("Path", StringComparison.OrdinalIgnoreCase));
         List<FileInfo> selected = [];
         foreach (FileInfo file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            bool matched = filename && file.Name.Contains(search, comparison);
+            bool matched = (filename && file.Name.Contains(search, comparison))
+                || (path && file.FullName.Contains(search, comparison));
             if (content)
             {
                 WorkspaceFile document;
