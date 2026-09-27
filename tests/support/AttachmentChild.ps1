@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory)] [string] $SessionId,
     [Parameter(Mandatory)] [ValidateSet('Detach', 'ReadOnly', 'Cancel', 'Nested', 'WhatIf', 'Redirected')] [string] $Mode,
     [string] $CancelChannel,
+    [long] $ReadyHandle = -1,
     [Parameter(Mandatory)] [string] $ResultPath
 )
 
@@ -17,6 +18,19 @@ $session = $server.GetSessionAsync([LibTmux.SessionId]::Parse($SessionId)).GetAw
 $report = @{ mode = $Mode; outcome = 'NotStarted'; powershell = $PSVersionTable.PSVersion.ToString() }
 $runspace = $null
 $pipeline = $null
+function Send-AttachmentPrepared {
+    param([long] $Descriptor)
+    if ($Descriptor -lt 0) { return }
+    $handle = [Microsoft.Win32.SafeHandles.SafeFileHandle]::new([IntPtr] $Descriptor, $true)
+    $stream = $null
+    try {
+        $stream = [IO.FileStream]::new($handle, [IO.FileAccess]::Write)
+        $stream.WriteByte(1)
+        $stream.Flush()
+    } finally {
+        if ($stream) { $stream.Dispose() } else { $handle.Dispose() }
+    }
+}
 try {
     if ($Mode -ceq 'Cancel') {
         # This test host can stop the second pipeline after the observed attach event.
@@ -27,6 +41,7 @@ try {
         $pipeline = [PowerShell]::Create()
         $pipeline.Runspace = $runspace
         $null = $pipeline.AddCommand('LibTmux\Enter-TmuxSession').AddParameter('Session', $session)
+        Send-AttachmentPrepared $ReadyHandle
         $invocation = $pipeline.BeginInvoke()
         $wait = $server.OpenWaitChannel($CancelChannel)
         try {
@@ -75,11 +90,14 @@ try {
             if ($help.PSTypeNames -notcontains 'MamlCommandHelpInfo') { throw 'Attachment example has no installed native help.' }
             $code = Get-HelpExampleCode @($help.examples.example)[1] 'Enter-TmuxSession'
             $assertion = (Get-HelpExampleAssertion)[$id]
-            $result = @(& ([scriptblock]::Create($code)))
+            $script = [scriptblock]::Create($code)
+            Send-AttachmentPrepared $ReadyHandle
+            $result = @(& $script)
             & $assertion.Assert $result @{ Session = $session }
             $report.example = $id
             $report.codeSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($code)))
         } else {
+            Send-AttachmentPrepared $ReadyHandle
             $result = @($session | LibTmux\Enter-TmuxSession)
         }
         if ($result.Count -ne 1 -or $result[0] -isnot [LibTmux.Session] -or
