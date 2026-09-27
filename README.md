@@ -235,6 +235,32 @@ required.
 | Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
+Connect once to send a command through tmux control mode. This example uses
+the private endpoint from above, reads a session name, then disconnects and
+removes the session it created:
+
+<!-- example: readme.control -->
+```powershell
+& {
+    $session = $server | New-TmuxSession -Name control-demo -Command 'exec /bin/cat'
+    try {
+        $client = $server | Connect-TmuxControl -Target 'control-demo' -ErrorAction Stop
+        try {
+            $command = New-TmuxCommand -Name display-message -Arguments @('-p', '#{session_name}')
+            $client | Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
+        } finally {
+            $client | Disconnect-TmuxControl -Confirm:$false
+        }
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The reply is `control-demo`. The client stays connected across commands inside
+the inner `try` block; use the [control guide](docs/commands.md#reuse-a-control-client)
+for multiple commands and cancellation behavior.
+
 Foreground cmdlets and `ForEach-Object -Parallel` occupy their calling pipeline.
 Thread jobs return the prompt while they run; control mode keeps one client
 connected for repeated commands. Watchers accept event-count and text-byte

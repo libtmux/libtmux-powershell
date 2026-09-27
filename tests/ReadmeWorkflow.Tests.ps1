@@ -91,7 +91,7 @@ $windows = @($session.Windows | ForEach-Object {
 
 $blocks = @{}
 foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
-    'readme.related', 'readme.input',
+    'readme.related', 'readme.input', 'readme.control',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
     'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
     $blocks[$id] = Get-ReadmeBlock $id
@@ -130,6 +130,8 @@ try {
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
     $lines = @(. $blocks['readme.input'])
     Assert-Readme ($lines -ccontains 'hello from PowerShell') 'the signalled output was not captured'
+    $controlReply = @(. $blocks['readme.control'])
+    Assert-Readme ($controlReply.Count -eq 1 -and $controlReply[0] -ceq 'control-demo') 'the control client returned a different session'
     . $blocks['readme.workspace.01-import']
     Assert-Readme ($workspace -is [LibTmux.Workspace.WorkspaceFile] -and
         $workspace.Windows.Count -eq 1 -and $workspace.Windows[0].Panes.Count -eq 2) 'workspace import did not preserve the two panes'

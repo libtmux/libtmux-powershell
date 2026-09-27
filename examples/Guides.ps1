@@ -112,6 +112,22 @@ $captured.Windows |
     }
 }
     } }
+    'readme.control' = @{ Requires = @('server'); Code = {
+& {
+    $session = $server | New-TmuxSession -Name control-demo -Command 'exec /bin/cat'
+    try {
+        $client = $server | Connect-TmuxControl -Target 'control-demo' -ErrorAction Stop
+        try {
+            $command = New-TmuxCommand -Name display-message -Arguments @('-p', '#{session_name}')
+            $client | Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
+        } finally {
+            $client | Disconnect-TmuxControl -Confirm:$false
+        }
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'watch.job-create' = @{ Requires = @('server'); Code = {
 $job = & {
     $socketPath = $server.ConnectionOptions.SocketPath

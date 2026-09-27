@@ -191,6 +191,13 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'readme.control' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($o.Result[0] -is [string] -and $o.Result[0] -ceq 'control-demo' -and
+                $sessions -cnotcontains 'control-demo' -and $sessions -ccontains 'fixture' -and
+                @($o.Server | Get-TmuxClient).Count -eq 0) 'README control reply and owned cleanup'
+        } }
     'watch.job-create' = @{ Group = 'Watch'; Count = 0; Assert = {
             param($o)
             $o.Context.Job = $o.Job
