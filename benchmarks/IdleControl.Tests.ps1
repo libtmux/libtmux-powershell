@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $PackageRoot,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 )
 
@@ -68,13 +69,21 @@ foreach ($case in $cases) {
 if ($PackageRoot) {
     $output = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-idle-control-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & "$PSScriptRoot/IdleControl.ps1" -PackageRoot $PackageRoot -TmuxBinaryPath $TmuxBinaryPath `
+        & "$PSScriptRoot/IdleControl.ps1" -PackageRoot $PackageRoot -ReviewRoot $ReviewRoot `
+            -TmuxBinaryPath $TmuxBinaryPath `
             -OutputPath $output -SamplesPerPhase 2 -IntervalMilliseconds 100
         $report = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
         if ($report.status -cne 'PASS' -or $report.parameters.samplesPerPhase -ne 2 -or
             $report.parameters.intervalMilliseconds -ne 100 -or
             $report.provenance.runnerSha256 -cne (Get-FileHash "$PSScriptRoot/IdleControl.ps1").Hash.ToLowerInvariant() -or
-            $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/IdleControl.Checks.psm1").Hash.ToLowerInvariant()) {
+            $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/IdleControl.Checks.psm1").Hash.ToLowerInvariant() -or
+            $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/PackageIdentity.psm1").Hash.ToLowerInvariant() -or
+            $report.provenance.packageSha256 -cne (Get-FileHash (Join-Path $PackageRoot 'LibTmux.0.1.0.nupkg')).Hash.ToLowerInvariant() -or
+            !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
+            !$report.provenance.cmdletAssemblySha256 -or
+            $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' }) -or
+            ($ReviewRoot -and (!$report.provenance.reviewCoreRevision -or !$report.provenance.reviewPortRevision)) -or
+            (!$ReviewRoot -and ($report.provenance.reviewCoreRevision -or $report.provenance.reviewPortRevision))) {
             throw 'Installed idle report omitted samples, parameters, or provenance.'
         }
         $null = Assert-IdleControlReport -Report $report -ExpectedIdentity $report.topologyIdentity -SamplesPerPhase 2

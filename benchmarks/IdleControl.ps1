@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
     [Parameter(Mandatory)] [string] $OutputPath,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [ValidateRange(0, 5)] [int] $WarmupIntervals = 2,
     [ValidateRange(1, 100)] [int] $SamplesPerPhase = 20,
@@ -143,11 +144,8 @@ try {
     $module = Join-Path $temporary 'LibTmux/0.1.0'
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $module)
     $modulePath = Join-Path $module 'LibTmux.psd1'
-    $coreVersion = (Get-Content -LiteralPath (Join-Path $module 'dependencies.json') -Raw |
-        ConvertFrom-Json).corePackageVersion
-    if ($coreVersion -cne '0.0.0-alpha.16.ps.2') {
-        throw "Idle control benchmark requires reviewed core 0.0.0-alpha.16.ps.2; found $coreVersion."
-    }
+    Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force
+    $packageIdentity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $module -ReviewRoot $ReviewRoot
     $importWatch = [Diagnostics.Stopwatch]::StartNew()
     Import-Module $modulePath -ErrorAction Stop
     $importWatch.Stop()
@@ -231,8 +229,15 @@ try {
         provenance = @{ sourceCommit = $sourceCommit; sourceDirty = $sourceDirty;
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath).Hash.ToLowerInvariant();
             checksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/IdleControl.Checks.psm1").Hash.ToLowerInvariant();
-            packageVersion = (Get-Module LibTmux).Version.ToString(); corePackageVersion = $coreVersion;
-            packageSha256 = (Get-FileHash -LiteralPath $package).Hash.ToLowerInvariant();
+            packageVersion = (Get-Module LibTmux).Version.ToString();
+            corePackageVersion = $packageIdentity.corePackageVersion;
+            packageSha256 = $packageIdentity.packageSha256;
+            coreAssemblySha256 = $packageIdentity.coreAssemblySha256;
+            cmdletAssemblySha256 = $packageIdentity.cmdletAssemblySha256;
+            sourceProvenance = $packageIdentity.sourceProvenance;
+            reviewCoreRevision = $packageIdentity.reviewCoreRevision;
+            reviewPortRevision = $packageIdentity.reviewPortRevision;
+            packageIdentitySha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/PackageIdentity.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             tmuxVersion = $tmuxVersion; tmuxSha256 = (Get-FileHash -LiteralPath $binary).Hash.ToLowerInvariant();
             powerShellVersion = $PSVersionTable.PSVersion.ToString();
             dotnetRuntimeVersion = [Environment]::Version.ToString();

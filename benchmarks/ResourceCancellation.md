@@ -27,10 +27,15 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/ResourceCancellation.ps1 \
     -OutputPath artifacts/benchmarks/resource-cancellation.json
 ```
 
-The runner extracts and imports the exact `LibTmux.0.1.0.nupkg`, requires core
-`0.0.0-alpha.16.ps.2`, and records source, runner, package, tmux, runtime, and
-assembly identities. The JSON keeps first calls, warmups, every raw sample,
-and a 20-sample median/p95 for time from each lane's trigger to completion.
+The runner extracts and imports the exact `LibTmux.0.1.0.nupkg`, validates its
+embedded core version and assembly hashes, and records source, runner, package,
+tmux, runtime, and assembly identities. Package-only runs report
+`sourceProvenance: unverified`. Pass `-ReviewRoot` from a clean-source bootstrap
+to verify the inspected .NET feed and staged PowerShell build; that reports
+`sourceProvenance: verified` with both source revisions. The report also hashes
+the package identity helper. The JSON keeps first calls, warmups, every raw
+sample, and a 20-sample median/p95 for time from each lane's trigger to
+completion.
 The timeout trigger is `BeginInvoke`; the stop trigger is `BeginStop`.
 Package import and fixture setup are timed separately. Each sample records
 registration and result checks, native `list-clients` counts, owned-process

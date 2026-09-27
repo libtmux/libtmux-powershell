@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $PackageRoot,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 )
 
@@ -65,7 +66,8 @@ if (!(Assert-ResourceCancellationRecord -Record $stopped -ExpectedIdentity '$1|@
 if ($PackageRoot) {
     $output = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-resource-cancellation-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & "$PSScriptRoot/ResourceCancellation.ps1" -PackageRoot $PackageRoot -TmuxBinaryPath $TmuxBinaryPath `
+        & "$PSScriptRoot/ResourceCancellation.ps1" -PackageRoot $PackageRoot -ReviewRoot $ReviewRoot `
+            -TmuxBinaryPath $TmuxBinaryPath `
             -OutputPath $output -WarmupRounds 0 -SampleRounds 2 -TimeoutSeconds 0.25
         $report = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
         if ($report.status -cne 'PASS' -or @($report.firstCalls).Count -ne 2 -or
@@ -74,7 +76,14 @@ if ($PackageRoot) {
             throw 'The resource cancellation report omitted samples or cleanup checks.'
         }
         if ($report.provenance.runnerSha256 -cne (Get-FileHash "$PSScriptRoot/ResourceCancellation.ps1").Hash.ToLowerInvariant() -or
-            $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/ResourceCancellation.Checks.psm1").Hash.ToLowerInvariant()) {
+            $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/ResourceCancellation.Checks.psm1").Hash.ToLowerInvariant() -or
+            $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/PackageIdentity.psm1").Hash.ToLowerInvariant() -or
+            $report.provenance.packageSha256 -cne (Get-FileHash (Join-Path $PackageRoot 'LibTmux.0.1.0.nupkg')).Hash.ToLowerInvariant() -or
+            !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
+            !$report.provenance.cmdletAssemblySha256 -or
+            $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' }) -or
+            ($ReviewRoot -and (!$report.provenance.reviewCoreRevision -or !$report.provenance.reviewPortRevision)) -or
+            (!$ReviewRoot -and ($report.provenance.reviewCoreRevision -or $report.provenance.reviewPortRevision))) {
             throw 'The resource cancellation report did not identify its runner and checks.'
         }
     } finally {
