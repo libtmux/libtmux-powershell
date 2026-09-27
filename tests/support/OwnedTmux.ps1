@@ -179,9 +179,24 @@ function Remove-OwnedTmuxFixture {
     if ($Fixture.Closed) { return }
     try {
         if ($Fixture.ServerStarted -and -not $Fixture.ServerProcess.HasExited) {
-            $killResult = $null
             try {
                 Register-OwnedTmuxPane $Fixture
+            } catch {
+                $registrationFailure = $_
+                try {
+                    if (-not $Fixture.ServerProcess.HasExited) {
+                        $Fixture.ServerProcess.Kill($true)
+                        if (-not $Fixture.ServerProcess.WaitForExit(1000)) {
+                            throw 'Owned tmux daemon did not exit after forced cleanup.'
+                        }
+                    }
+                } catch {
+                    $registrationFailure.Exception.Data['OwnedTmuxCleanupFailure'] = $_.Exception
+                }
+                $PSCmdlet.ThrowTerminatingError($registrationFailure)
+            }
+            $killResult = $null
+            try {
                 $killResult = Invoke-OwnedTmux $Fixture -Arguments @('kill-server') -AllowFailure `
                     -CancellationToken ([System.Threading.CancellationToken]::None)
             } finally {

@@ -65,6 +65,25 @@ Assert-CleanedUp $fixture
 Assert-True ($fixture.OwnedProcessIds.Contains($createdPanePid)) 'Teardown did not track the later-created pane process.'
 Remove-OwnedTmuxFixture $fixture
 
+$registrationFixture = New-OwnedTmuxFixture
+$originalRegister = (Get-Command Register-OwnedTmuxPane).ScriptBlock
+$registrationFailure = $null
+try {
+    Set-Item Function:\Register-OwnedTmuxPane -Value { throw 'injected pane registration failure' }
+    try {
+        Remove-OwnedTmuxFixture $registrationFixture
+    } catch {
+        $registrationFailure = $_
+    }
+} finally {
+    Set-Item Function:\Register-OwnedTmuxPane -Value $originalRegister
+    if (-not $registrationFixture.Closed) { Remove-OwnedTmuxFixture $registrationFixture }
+}
+Assert-True ($null -ne $registrationFailure) 'Teardown accepted pane registration failure.'
+Assert-True ($registrationFailure.Exception.Message -eq 'injected pane registration failure') `
+    'Teardown masked the pane registration failure.'
+Assert-CleanedUp $registrationFixture
+
 $borrowed = New-OwnedTmuxFixture
 try {
     $failed = $false
