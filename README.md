@@ -242,6 +242,7 @@ removes the session it created:
 <!-- example: readme.control -->
 ```powershell
 & {
+    $ErrorActionPreference = 'Stop'
     $session = $server | New-TmuxSession -Name control-demo -Command 'exec /bin/cat'
     try {
         $client = $server | Connect-TmuxControl -Target 'control-demo' -ErrorAction Stop
