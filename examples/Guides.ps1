@@ -139,6 +139,13 @@ $server | Invoke-TmuxChain -Command @((New-TmuxCommand -Name 'display-message' -
     'layout.select' = @{ Requires = @('window'); Code = { $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru } }
     'layout.window-size' = @{ Requires = @('window'); Code = { $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru } }
     'layout.zoom' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Zoom } }
+    'placement.01-link' = @{ Requires = @('window', 'session'); Code = { $window | New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false } }
+    'placement.02-select' = @{ Requires = @('window', 'session'); Code = {
+$window = $session | Get-TmuxWindow |
+    Where-Object { $_.Id -eq $window.Id -and $_.Index -eq 5 }
+    } }
+    'placement.03-move' = @{ Requires = @('window'); Code = { $window = $window | Move-TmuxWindow -Index 6 -PassThru -Confirm:$false } }
+    'placement.04-remove' = @{ Requires = @('window'); Code = { $window | Remove-TmuxWindowLink -Confirm:$false } }
     'clients.read' = @{ Requires = @('server'); Code = { $server | Get-TmuxClient } }
     'clients.refresh' = @{ Requires = @('client'); Code = { $client | Update-TmuxClient } }
     'clients.attachment' = @{ Requires = @('client'); Code = { $client | Get-TmuxClientAttachment } }

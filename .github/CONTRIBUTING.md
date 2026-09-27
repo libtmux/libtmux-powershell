@@ -168,10 +168,10 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
 ```
 
 The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`,
-`Hooks`, `Environment`, `Layout`, `Clients`, `Formatting`, `Runtime`, `Help`
-and `Examples` suites use the same artifact argument. Run `Product` and
-`Documentation` separately for the complete implemented checks within the
-outer-loop budget. `All` combines those selections; none of them establishes
+`Hooks`, `Environment`, `Layout`, `Placement`, `Clients`, `Formatting`,
+`Runtime`, `Help` and `Examples` suites use the same artifact argument. Run
+`Product` and `Documentation` separately for the complete implemented checks
+within the outer-loop budget. `All` combines those selections; none establishes
 the full architecture or compatibility matrix.
 The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
 processes. `Create` verifies native creation plus first-daemon cleanup on

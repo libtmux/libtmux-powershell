@@ -532,6 +532,37 @@ exec /bin/sh
                 [Environment]::GetEnvironmentVariable('APP_MODE') -ceq $o.Context.HostMode -and
                 [Environment]::GetEnvironmentVariable('OPTIONAL') -ceq $o.Context.HostOptional) 'assigned child environment and unchanged host'
         } }
+    'placement.01-link' = @{ Group = 'Placement'; Count = 0; Prepare = {
+            param($c)
+            $c.SourceSession = $c.Server | New-TmuxSession -Name 'guide-placement-source' -Command 'exec /bin/sh'
+            $c.Window = $c.SourceSession | Get-TmuxWindow
+        }; Assert = {
+            param($o)
+            $linked = @($o.Session | Get-TmuxWindow | Where-Object { $_.Id -eq $o.Window.Id -and $_.Index -eq 5 })
+            Assert-Guide ($linked.Count -eq 1 -and $linked[0].EntityKey.SessionId -eq $o.Session.Id -and
+                @($o.Context.SourceSession | Get-TmuxWindow | Where-Object Id -EQ $o.Window.Id).Count -eq 1) 'linked one captured window into destination session'
+            $o.Context.SourceWindow = $o.Window
+        } }
+    'placement.02-select' = @{ Group = 'Placement'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Window -is [LibTmux.Window] -and
+                $o.Window.Id -eq $o.Context.SourceWindow.Id -and $o.Window.Index -eq 5 -and
+                $o.Window.EntityKey.SessionId -eq $o.Session.Id -and
+                $o.Context.SourceWindow.EntityKey.SessionId -eq $o.Context.SourceSession.Id) 'read selected the destination link, not the source placement'
+            $o.Context.Window = $o.Window
+        } }
+    'placement.03-move' = @{ Group = 'Placement'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Window -is [LibTmux.Window] -and $o.Window.Index -eq 6 -and
+                $o.Window.EntityKey.SessionId -eq $o.Session.Id -and $o.Context.Window.Index -eq 5 -and
+                @($o.Session | Get-TmuxWindow | Where-Object { $_.Id -eq $o.Window.Id -and $_.Index -eq 6 }).Count -eq 1) 'move returned replacement placement'
+            $o.Context.Window = $o.Window
+        } }
+    'placement.04-remove' = @{ Group = 'Placement'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide (@($o.Session | Get-TmuxWindow | Where-Object Id -EQ $o.Window.Id).Count -eq 0 -and
+                @($o.Context.SourceSession | Get-TmuxWindow | Where-Object Id -EQ $o.Window.Id).Count -eq 1) 'unlink removed only the destination placement'
+        } }
     'remove.preview' = @{ Group = 'Remove'; Count = 0; Prepare = {
             param($c)
             $c.Session = $c.Server | New-TmuxSession -Name 'guide-preview' -Command 'exec /bin/sh'
@@ -584,7 +615,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
         if (!$Assertions.ContainsKey($id)) { throw "Guide assertion missing: $id" }
         $entry = $Assertions[$id]
         if ($entry.Assert -isnot [scriptblock] -or $entry.Count -isnot [int] -or $entry.Count -lt -1 -or
-            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query', 'Workspace') -or
+            $entry.Group -cnotin @('Pure', 'Capture', 'Create', 'Remove', 'Placement', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query', 'Workspace') -or
             ($entry.ContainsKey('Prepare') -and $entry.Prepare -isnot [scriptblock])) { throw "Guide assertion invalid: $id" }
         $parseErrors = $null
         $null = [Management.Automation.Language.Parser]::ParseInput($Documents[$id], [ref] $null, [ref] $parseErrors)
@@ -669,7 +700,7 @@ Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions }
 Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
 $executionGroups = @{
     Lifecycle = @('Pure', 'Capture', 'Create', 'Remove', 'Readme')
-    Operations = @('Settings', 'Clients', 'Commands', 'Watch')
+    Operations = @('Settings', 'Clients', 'Commands', 'Watch', 'Placement')
     Planning = @('Query', 'Workspace')
 }
 Assert-GuideExecutionGroup $executionGroups $assertions

@@ -283,6 +283,57 @@ function Get-HelpExampleAssertion {
                     throw 'Window creation example did not create its named window at the requested index.'
                 }
             } }
+        'LibTmux\New-TmuxWindowLink#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $guest = $server | LibTmux\New-TmuxSession -Name 'help-link-guest' -Command 'exec /bin/sh' -Confirm:$false
+                $source = $server | LibTmux\Get-TmuxSession -Name fixture
+                $window = $source | LibTmux\New-TmuxWindow -Name 'help-link-source' -Index 4 -Command 'exec /bin/sh' -Confirm:$false
+                $Context.Guest = $guest
+                $Context.Source = $source
+                $Context.WindowId = $window.Id
+            }; Assert = {
+                param($Result, $Context)
+                $linked = @($Context.Guest | LibTmux\Get-TmuxWindow | Where-Object { $_.Id -eq $Context.WindowId -and $_.Index -eq 5 })
+                $source = @($Context.Source | LibTmux\Get-TmuxWindow | Where-Object { $_.Id -eq $Context.WindowId -and $_.Index -eq 4 })
+                if ($Result.Count -ne 0 -or $linked.Count -ne 1 -or $source.Count -ne 1) {
+                    throw 'Window-link help did not retain source and create destination placement.'
+                }
+            } }
+        'LibTmux\Move-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $source = $server | LibTmux\Get-TmuxSession -Name fixture
+                $window = $source | LibTmux\New-TmuxWindow -Name 'help-move-source' -Index 4 -Command 'exec /bin/sh' -Confirm:$false
+                $Context.Source = $source
+                $Context.Original = $window
+            }; Assert = {
+                param($Result, $Context)
+                $moved = @($Context.Source | LibTmux\Get-TmuxWindow | Where-Object { $_.Id -eq $Context.Original.Id -and $_.Index -eq 5 })
+                if ($Result.Count -ne 1 -or $Result[0] -isnot [LibTmux.Window] -or
+                    $Result[0].Index -ne 5 -or $Context.Original.Index -ne 4 -or $moved.Count -ne 1) {
+                    throw 'Window-move help did not return a replacement at the destination index.'
+                }
+            } }
+        'LibTmux\Remove-TmuxWindowLink#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $source = $server | LibTmux\New-TmuxSession -Name 'help-unlink-source' -Command 'exec /bin/sh' -Confirm:$false
+                $guest = $server | LibTmux\Get-TmuxSession -Name fixture
+                $sourceWindow = $source | LibTmux\Get-TmuxWindow
+                $sourceWindow | LibTmux\New-TmuxWindowLink -Session $guest -Index 5 -NoSelect -Confirm:$false
+                $window = $guest | LibTmux\Get-TmuxWindow | Where-Object { $_.Id -eq $sourceWindow.Id -and $_.Index -eq 5 }
+                $Context.Source = $source
+                $Context.Guest = $guest
+                $Context.WindowId = $sourceWindow.Id
+            }; Assert = {
+                param($Result, $Context)
+                $guest = @($Context.Guest | LibTmux\Get-TmuxWindow | Where-Object Id -EQ $Context.WindowId)
+                $source = @($Context.Source | LibTmux\Get-TmuxWindow | Where-Object Id -EQ $Context.WindowId)
+                if ($Result.Count -ne 0 -or $guest.Count -ne 0 -or $source.Count -ne 1) {
+                    throw 'Window-unlink help removed more than the selected placement.'
+                }
+            } }
         'LibTmux\Split-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $true; Assert = {
                 param($Result, $Context)
                 $target = $Result[0].Id.ToString()

@@ -31,7 +31,7 @@ None.
 
 Remove the supplied native LibTmux.Window from every session that links it,
 including repeated links in the same session. This destroys its panes. To
-remove only one session placement, use the separate core unlink operation;
+remove only one session placement, use Remove-TmuxWindowLink;
 this command always kills the physical window.
 
 The endpoint and daemon generation come from the native handle. This

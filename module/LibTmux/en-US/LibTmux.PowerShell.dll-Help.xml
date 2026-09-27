@@ -4247,6 +4247,253 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxQuery -Query
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Move-TmuxWindow</command:name>
+      <maml:description>
+        <maml:para>Move one session placement of a window.</maml:para>
+      </maml:description>
+      <command:verb>Move</command:verb>
+      <command:noun>TmuxWindow</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Move only the placement captured in the source Window handle. Other links to
+the same physical window remain in their sessions. Omit DestinationSession to
+move within the source session. Omit Index to let tmux use the next free
+index in the destination. A supplied destination Session must belong to the
+same endpoint and daemon generation as the Window.
+
+With PassThru, return a new Window handle containing the observed destination
+placement. The original handle remains unchanged and is stale after a move.
+Without PassThru, emit no success object. Confirmation is requested by
+default because ReplaceExisting can remove a destination window. WhatIf
+performs no tmux I/O.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Move-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>DestinationSession</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Index</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Nullable`1[System.Int32]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Direction</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WindowDirection</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Nullable`1[LibTmux.WindowDirection]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>NoSelect</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ReplaceExisting</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>PassThru</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>DestinationSession</maml:name>
+        <maml:description>
+          <maml:para>Move into this native session. Omit it to use the source Window's captured
+session. A different endpoint or daemon generation is rejected before tmux
+dispatch.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Direction</maml:name>
+        <maml:description>
+          <maml:para>Insert Before or After the destination. Without Index, tmux places the
+window relative to the destination session's current window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Nullable`1[LibTmux.WindowDirection]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Nullable`1[LibTmux.WindowDirection]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Index</maml:name>
+        <maml:description>
+          <maml:para>The destination session's window index, at least 0. Omit it to use the next
+free index.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Nullable`1[System.Int32]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Nullable`1[System.Int32]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>NoSelect</maml:name>
+        <maml:description>
+          <maml:para>Leave the moved window unselected in the destination session.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>PassThru</maml:name>
+        <maml:description>
+          <maml:para>Emit a new Window handle with the destination placement read back after tmux
+accepts the move. A failed readback does not mean the move was rolled back.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ReplaceExisting</maml:name>
+        <maml:description>
+          <maml:para>Replace a link already at the requested destination index. This may destroy
+the displaced window if it had no other links.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native source placement, supplied directly or through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native source placement per pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One replacement Window per successful input when PassThru is present;
+otherwise no success output.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>The core checks captured source placement and server generation before the
+move. A stale placement, tmux rejection or failed readback writes a per-input
+Tmux.WindowMoveFailed error. Readback failure after dispatch has unknown final
+state; inspect topology before deciding whether to retry. ErrorAction
+Continue permits later inputs; ErrorAction Stop stops at the first failure.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Move the previously selected $window to index 5 in its own session and emit
+the replacement handle. Assign the output for subsequent operations.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$window | LibTmux\Move-TmuxWindow -Index 5 -PassThru -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Move-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Link a window into another session</maml:linkText>
+        <maml:uri>New-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove one window link</maml:linkText>
+        <maml:uri>Remove-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>New-TmuxCommand</command:name>
       <maml:description>
         <maml:para>Construct a native tmux command without running it.</maml:para>
@@ -5180,6 +5427,238 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../create.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>New-TmuxWindowLink</command:name>
+      <maml:description>
+        <maml:para>Link a window into another session.</maml:para>
+      </maml:description>
+      <command:verb>New</command:verb>
+      <command:noun>TmuxWindowLink</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Link a captured window placement into a native destination Session. The
+source handle must name a current session-relative link. The destination
+must belong to the same endpoint and daemon generation. An existing link at
+the requested index is an error unless ReplaceExisting is present.
+
+This command does not emit a new placement. Read the destination session's
+windows to work with its new link. The original Window handle stays a capture
+of the source placement. Confirmation is requested by default because
+ReplaceExisting can remove a destination window. WhatIf performs no tmux I/O.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>New-TmuxWindowLink</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Index</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Nullable`1[System.Int32]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Direction</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WindowDirection</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Nullable`1[LibTmux.WindowDirection]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ReplaceExisting</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>NoSelect</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Direction</maml:name>
+        <maml:description>
+          <maml:para>Insert Before or After the destination. Without Index, tmux places the link
+relative to the destination session's current window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Nullable`1[LibTmux.WindowDirection]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Nullable`1[LibTmux.WindowDirection]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Index</maml:name>
+        <maml:description>
+          <maml:para>An index in the destination session, at least 0. Omit it to let tmux choose
+the placement.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Nullable`1[System.Int32]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Nullable`1[System.Int32]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>NoSelect</maml:name>
+        <maml:description>
+          <maml:para>Leave the new link unselected in its destination session.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ReplaceExisting</maml:name>
+        <maml:description>
+          <maml:para>Replace a link already at the requested index. This may destroy the displaced
+window if it had no other links.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native destination session. Its endpoint and generation must match the
+source Window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native source placement, supplied directly or through the pipeline. A
+physical window linked into multiple sessions has a distinct Window handle
+for each placement.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native source placement per pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>A stale source placement or missing destination writes a per-input
+Tmux.WindowLinkFailed error. ErrorAction Continue processes later windows;
+ErrorAction Stop stops on the first failure. The core checks source placement
+and server generation in tmux's native queue before mutating. Do not retry an
+already dispatched mutation without observing current topology.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Link the previously selected $window into $guest at index 5 without selecting
+it. Both handles must come from the same tmux server generation.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$window | LibTmux\New-TmuxWindowLink -Session $guest -Index 5 -NoSelect -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/New-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Move a window placement</maml:linkText>
+        <maml:uri>Move-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove one window link</maml:linkText>
+        <maml:uri>Remove-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove a physical window</maml:linkText>
+        <maml:uri>Remove-TmuxWindow.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -6510,7 +6989,7 @@ $session | LibTmux\Remove-TmuxSession -Confirm:$false
     <maml:description>
       <maml:para>Remove the supplied native LibTmux.Window from every session that links it,
 including repeated links in the same session. This destroys its panes. To
-remove only one session placement, use the separate core unlink operation;
+remove only one session placement, use Remove-TmuxWindowLink;
 this command always kills the physical window.
 
 The endpoint and daemon generation come from the native handle. This
@@ -6632,6 +7111,156 @@ $window | LibTmux\Remove-TmuxWindow -Confirm:$false
       <maml:navigationLink>
         <maml:linkText>Choose endpoints and owners</maml:linkText>
         <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Remove-TmuxWindowLink</command:name>
+      <maml:description>
+        <maml:para>Remove one session placement of a window.</maml:para>
+      </maml:description>
+      <command:verb>Remove</command:verb>
+      <command:noun>TmuxWindowLink</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Remove only the session-relative link captured by the native Window handle.
+Other links to the same physical window remain. Without KillIfLast, tmux
+refuses to remove the final link. With it, removing the final link also
+destroys the window and its panes. Confirmation is requested by default.
+WhatIf performs no tmux I/O.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Remove-TmuxWindowLink</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>KillIfLast</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>KillIfLast</maml:name>
+        <maml:description>
+          <maml:para>Allow tmux to destroy the physical window and its panes when this was its
+last link. Without this switch, the last-link operation fails.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native placement to remove. It must identify the session and index that
+still contain the captured window.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One native window placement per pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>This command differs from Remove-TmuxWindow, which kills the physical window
+and all its links. The core verifies source placement and server generation in
+tmux's native queue before unlinking. Stale or missing placements write a
+per-input Tmux.WindowUnlinkFailed error. ErrorAction Continue permits later
+inputs; ErrorAction Stop stops at the first failure.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Remove the selected $window placement from its session while retaining the
+physical window through another link.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$window | LibTmux\Remove-TmuxWindowLink -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Remove-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove a physical window</maml:linkText>
+        <maml:uri>Remove-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Link a window into another session</maml:linkText>
+        <maml:uri>New-TmuxWindowLink.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

@@ -40,6 +40,9 @@ are removed together:
 $window | Remove-TmuxWindow -Confirm:$false
 ```
 
+To remove one session placement while preserving other links, use
+[Remove-TmuxWindowLink](placement.md).
+
 Removing a session destroys windows that are no longer linked elsewhere. A
 window still linked to another session survives with its panes.
 
