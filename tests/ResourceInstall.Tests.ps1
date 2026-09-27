@@ -110,6 +110,7 @@ try {
     'PASS native dependency resolution: LibTmux.Workspace 0.1.0 -> LibTmux 0.1.0'
     Invoke-ResourceChild "$PSScriptRoot/Package.Tests.ps1" @('-ModuleRoot', $modules,
         '-Order', 'WorkspaceFirst') $modules
+    Invoke-ResourceChild "$PSScriptRoot/ResourceWorkspace.Tests.ps1" @('-ModuleRoot', $modules) $modules
     $passed = $true
 } finally {
     try {
