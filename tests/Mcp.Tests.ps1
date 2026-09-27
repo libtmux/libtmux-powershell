@@ -41,6 +41,11 @@ try {
             if ($process.ExitCode -ne 0) { throw "MCP discovery probe failed with exit $($process.ExitCode)." }
             $result = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
             if ($result.server.version -cne $state.Version) { throw 'MCP receipt version differs.' }
+            if (!$result.PSObject.Properties['listedSession'] -or
+                $result.listedSession.name -cne 'fixture' -or
+                $result.listedSession.sessionId -cne $before.Split('|')[2]) {
+                throw 'MCP discovery probe did not return the owned session from list_sessions.'
+            }
             $after = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:', '#{pid}|#{start_time}|#{session_id}|#{pane_id}|#{pane_pid}')).StdOut
             if ($before -cne $after -or
                 (Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture' -or

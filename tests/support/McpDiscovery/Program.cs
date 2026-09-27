@@ -80,6 +80,19 @@ try
             JsonObject row = rows.Single(row => row["name"]!.GetValue<string>() == tool.Name);
             Require(JsonNode.DeepEquals(row, tool.ProtocolTool.Meta?["com.git-pull.libtmux-mcp/capability"]), "Tool capability metadata differs: " + tool.Name);
         }
+        CallToolResult listed = await client.CallToolAsync("list_sessions", new Dictionary<string, object?>(), cancellationToken: token)
+            .ConfigureAwait(false);
+        if (listed.IsError is true || listed.StructuredContent is not JsonElement structured ||
+            structured.ValueKind != JsonValueKind.Object || !structured.TryGetProperty("result", out JsonElement sessions) ||
+            sessions.ValueKind != JsonValueKind.Array || sessions.GetArrayLength() != 1)
+        {
+            throw new InvalidDataException("list_sessions did not return one structured session.");
+        }
+        JsonElement session = sessions[0];
+        string? sessionName = session.GetProperty("name").GetString();
+        string? sessionId = session.GetProperty("sessionId").GetString();
+        Require(sessionName == "fixture" && sessionId is { Length: > 1 } && sessionId[0] == '$',
+            "list_sessions did not identify the owned fixture session.");
         receipt = new
         {
             protocol = client.NegotiatedProtocolVersion,
@@ -87,6 +100,7 @@ try
             sdk = typeof(McpClient).Assembly.GetName().Version!.ToString(),
             effectiveTools = names,
             capabilities,
+            listedSession = new { name = sessionName, sessionId },
             launcherSha256 = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(args[0], token).ConfigureAwait(false))),
         };
     }
@@ -113,7 +127,7 @@ finally
     }
 }
 await File.WriteAllTextAsync(args[4], JsonSerializer.Serialize(receipt), token).ConfigureAwait(false);
-Console.WriteLine("PASS MCP initialization, inspect discovery, capability agreement and stdio shutdown");
+Console.WriteLine("PASS MCP discovery, list_sessions and stdio shutdown");
 
 static void Require(bool condition, string message)
 {

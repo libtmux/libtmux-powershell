@@ -101,9 +101,10 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -McpVersion "$MCP_VERSION"
 ```
 
-This separate suite uses the official MCP SDK to initialize the tool, compare
-tool discovery with capabilities, and check inspect-only selection and
-shutdown. It borrows an owned test daemon, verifies its session and pane
-survive MCP shutdown, then removes the fixture. It neither imports the
-PowerShell modules nor builds, installs or downloads anything during the test.
-It is a discovery check, not the .NET server's full tool or protocol suite.
+The [official SDK client source](../tests/support/McpDiscovery/Program.cs)
+initializes the installed tool, compares discovery with capabilities, calls
+`list_sessions`, and verifies that the result identifies its private `fixture`
+session. The suite checks that the session and pane survive MCP shutdown, then
+removes the owned fixture. It neither imports the PowerShell modules nor builds,
+installs or downloads anything during the test. This is a discovery and
+one-tool smoke, not the .NET server's full tool or protocol suite.
