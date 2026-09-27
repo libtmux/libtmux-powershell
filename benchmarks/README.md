@@ -49,10 +49,18 @@ uses nearest rank and appears only with at least twenty samples. Keep raw
 samples when comparing runs; do not infer a speedup from a single noisy host.
 
 Control-mode transport, command dispatch, query selection, and event pressure
-have separate workloads below. Standalone C# process startup, concurrent
-acquisition, mutation throughput, and scaling across multiple server sizes
-remain unmeasured. They require their own correctness checks and raw
-distributions.
+have separate workloads below. The [standalone C# baseline](StandaloneCore/README.md)
+separates fresh-process startup from capture in a reused .NET process.
+Mutation throughput and scaling across multiple server sizes remain
+unmeasured.
+
+## Fresh PowerShell startup
+
+The [cold PowerShell benchmark](ColdPowerShell/README.md) starts a new `pwsh`
+process for every observation. It separates launch-to-exit time from module
+import, server construction and the first sixteen-pane snapshot, checking the
+same native pane IDs in every child. Its first run and warmups are recorded
+apart from the timed distribution.
 
 ## Command transport
 
@@ -119,3 +127,18 @@ pipeline-stop withdrawal on one owned server. It verifies native client exit,
 the next channel signal, process counts, and topology preservation, while
 recording PowerShell, daemon, and client resident memory. The two lanes have
 different triggers and error contracts; the report does not give a speed ratio.
+
+## Two endpoints
+
+The [endpoint-pair benchmark](EndpointPair.md) reads one identity from each of
+two owned tmux sockets. It compares native serial, installed cmdlet serial,
+and two installed cmdlets in flight. Each result must match its socket's
+identity before timing is accepted; completion order is recorded separately
+from submission order.
+
+## Idle control resources
+
+The [idle-control benchmark](IdleControl.md) observes equal-length intervals
+before, during and after one control connection. It records CPU time, resident
+memory, process-wide managed allocation and exact owned client/process counts.
+Its fixed phase order does not establish a causal idle cost.
