@@ -36,7 +36,7 @@ try {
     Copy-Item -LiteralPath $candidate -Destination $script
     Invoke-Git @('-C', $checkout, 'add', '--', 'eng/BootstrapReview.ps1')
     Invoke-Git @('-C', $checkout, '-c', 'user.name=Bootstrap Test', '-c', 'user.email=bootstrap@example.invalid',
-        'commit', '--quiet', '-m', 'Add bootstrap test candidate')
+        'commit', '--quiet', '--allow-empty', '-m', 'Add bootstrap test candidate')
 
     $existing = Join-Path $temporary 'existing'
     $null = New-Item -ItemType Directory -Path $existing
