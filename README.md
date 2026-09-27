@@ -84,7 +84,7 @@ uses a unique tmux channel to capture output after the shell signals completion.
 | --- | --- |
 | [LibTmux](docs/reference/LibTmux) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
 | [LibTmux.Workspace](docs/workspace.md) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
-| [LibTmux.Mcp](https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp) | Giving an assistant tmux tools through the separately installed .NET MCP server |
+| [LibTmux.Mcp](docs/mcp.md) | Giving an assistant tmux tools through the separately installed .NET MCP server |
 
 The workspace module parses YAML into a native
 `LibTmux.Workspace.WorkspaceFile` without running its commands:
@@ -144,6 +144,7 @@ checks. Run the examples in that PowerShell session.
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
   [event streams, jobs and parallel workers](docs/watch.md).
+- **Assistants:** [install and configure the MCP server](docs/mcp.md).
 - **Workspaces:** [load, review and apply](docs/workspace.md),
   [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
   [edit a declaration](docs/workspace.md#edit-the-declaration).
@@ -152,3 +153,7 @@ Examples are shared with the [executable guides](examples/Guides.ps1) and run
 against real tmux through the installed modules. See
 [contributing](.github/CONTRIBUTING.md) for the example runner and development
 checks.
+
+The [pane enumeration benchmark](benchmarks/README.md) compares native tmux,
+the installed cmdlet and the .NET core called from PowerShell on an owned
+server. It records raw samples and package provenance.
