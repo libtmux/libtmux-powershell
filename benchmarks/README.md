@@ -1,7 +1,8 @@
 # Benchmarks
 
-Both runners use an installed local package and an owned tmux socket. They
-write raw JSON distributions and never claim a speedup from one host.
+Both runners extract the supplied PowerShell package into a temporary directory
+and use an owned tmux socket. They write raw JSON distributions and make no
+speedup claim from one host.
 
 ## Pane enumeration
 
@@ -12,9 +13,8 @@ third lane is a **hosted core** baseline, not a standalone C# process.
 
 Build and package the modules as described in the
 [contributor guide](../.github/CONTRIBUTING.md#setup). Then run a serial
-sample. The runner extracts the given package into a temporary directory,
-creates its own tmux socket, and removes both after the run. It refuses to
-overwrite an existing report.
+sample. The runner removes its temporary package and socket after the run. It
+refuses to overwrite an existing report.
 
 ```console
 $ pwsh -NoLogo -NoProfile -File benchmarks/PaneEnumeration.ps1 \
@@ -26,8 +26,8 @@ Use `-TmuxBinaryPath` to select a specific tmux executable. The report records
 the actual tmux version, its executable hash, the package hash, PowerShell and
 .NET runtime versions, assembly identities, source commit, benchmark source
 hashes, exact lane commands, and whether the checkout had tracked or untracked
-changes before writing the report. It includes the module import
-time, one first-use call per lane, warmups, and every timed sample. The default
+changes before writing the report. It includes module import time, one
+first-use call per lane, warmups, and every timed sample. The default
 is three warmup rounds and twenty sample rounds. Each round rotates lane order.
 The sample distribution excludes package extraction, import, and fixture setup.
 
