@@ -14,6 +14,11 @@ It writes output only under a new preparation directory. This proves an
 embedded exact-library baseline; it does not test clean NuGet dependency
 resolution or use a .NET source project reference.
 
+Both commands read the embedded core version from the package and verify its
+assembly closure. Pass the same clean-bootstrap `-ReviewRoot` to both commands
+to verify package bytes against the inspected .NET feed and reviewed PowerShell
+build. Without that receipt, reports mark source provenance `unverified`.
+
 Create the module archive as described in the
 [contributor guide](../../.github/CONTRIBUTING.md#setup), then prepare the
 standalone executable:

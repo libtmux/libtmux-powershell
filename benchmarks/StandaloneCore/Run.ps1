@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory)] [string] $PackageRoot,
     [Parameter(Mandatory)] [string] $PreparedRoot,
     [Parameter(Mandatory)] [string] $OutputPath,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [ValidateRange(0, 20)] [int] $WarmupRounds = 3,
     [ValidateRange(1, 100)] [int] $SampleRounds = 20
@@ -109,14 +110,23 @@ $binary = (Resolve-Path -LiteralPath $TmuxBinaryPath).Path
 $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $destination) { throw 'OutputPath already exists; choose a new report path.' }
-if ($manifest.status -cne 'PASS' -or $manifest.corePackageVersion -cne '0.0.0-alpha.16.ps.2' -or
-    $manifest.packageSha256 -cne (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant() -or
+$identityModule = Join-Path $PSScriptRoot '../PackageIdentity.psm1'
+Import-Module $identityModule -Force
+$identity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot (Join-Path $prepared 'package') -ReviewRoot $ReviewRoot
+if ($manifest.status -cne 'PASS' -or
+    $manifest.corePackageVersion -cne $identity.corePackageVersion -or
+    $manifest.packageSha256 -cne $identity.packageSha256 -or
+    $manifest.sourceProvenance -cne $identity.sourceProvenance -or
+    $manifest.reviewCoreRevision -cne $identity.reviewCoreRevision -or
+    $manifest.reviewPortRevision -cne $identity.reviewPortRevision -or
+    $manifest.dependenciesSha256 -cne (Get-FileHash -LiteralPath (Join-Path $prepared 'package/dependencies.json') -Algorithm SHA256).Hash.ToLowerInvariant() -or
     $manifest.benchmarkSha256 -cne (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash.ToLowerInvariant()) {
     throw 'Prepared standalone benchmark does not match the supplied package and binary.'
 }
 foreach ($source in @(
     @{ path = $project; hash = $manifest.sourceSha256.project },
     @{ path = (Join-Path $PSScriptRoot 'Program.cs'); hash = $manifest.sourceSha256.program },
+    @{ path = $identityModule; hash = $manifest.sourceSha256.packageIdentity },
     @{ path = (Join-Path $PSScriptRoot 'Prepare.ps1'); hash = $manifest.sourceSha256.prepare }
 )) {
     if ((Get-FileHash -LiteralPath $source.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $source.hash) {
@@ -222,6 +232,9 @@ try {
             paneChecksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/../PaneEnumeration.Checks.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             fixtureSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/../../tests/support/OwnedTmux.ps1" -Algorithm SHA256).Hash.ToLowerInvariant();
             packageSha256 = $manifest.packageSha256; corePackageVersion = $manifest.corePackageVersion;
+            sourceProvenance = $manifest.sourceProvenance;
+            reviewCoreRevision = $manifest.reviewCoreRevision;
+            reviewPortRevision = $manifest.reviewPortRevision;
             assemblies = @($manifest.assemblies); benchmarkSha256 = $manifest.benchmarkSha256;
             benchmarkAssemblyMvid = $preflight.completion.benchmarkAssemblyMvid;
             coreAssemblyMvid = $preflight.completion.coreAssemblyMvid;

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
-    [Parameter(Mandatory)] [string] $OutputRoot
+    [Parameter(Mandatory)] [string] $OutputRoot,
+    [string] $ReviewRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,11 +20,11 @@ $null = New-Item -ItemType Directory -Path $destination
 try {
     $extracted = Join-Path $destination 'package'
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $extracted)
+    $identityModule = Join-Path $PSScriptRoot '../PackageIdentity.psm1'
+    Import-Module $identityModule -Force
+    $packageIdentity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $extracted -ReviewRoot $ReviewRoot
     $dependenciesPath = Join-Path $extracted 'dependencies.json'
     $dependencies = Get-Content -LiteralPath $dependenciesPath -Raw | ConvertFrom-Json
-    if ($dependencies.corePackageVersion -cne '0.0.0-alpha.16.ps.2') {
-        throw 'The module archive does not contain the inspected ps.2 core version.'
-    }
     $expectedNames = @('LibTmux', 'LibTmux.Query.Json',
         'Microsoft.Extensions.Logging.Abstractions', 'Microsoft.Extensions.DependencyInjection.Abstractions')
     $assemblies = @($dependencies.assemblies)
@@ -78,14 +79,18 @@ try {
         schema = 1
         status = 'PASS'
         packageArchive = 'LibTmux.0.1.0.nupkg'
-        packageSha256 = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+        packageSha256 = $packageIdentity.packageSha256
         dependenciesSha256 = (Get-FileHash -LiteralPath $dependenciesPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        corePackageVersion = $dependencies.corePackageVersion
+        corePackageVersion = $packageIdentity.corePackageVersion
+        sourceProvenance = $packageIdentity.sourceProvenance
+        reviewCoreRevision = $packageIdentity.reviewCoreRevision
+        reviewPortRevision = $packageIdentity.reviewPortRevision
         assemblies = @($verified)
         benchmarkSha256 = (Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash.ToLowerInvariant()
         sourceSha256 = @{
             project = (Get-FileHash -LiteralPath $project -Algorithm SHA256).Hash.ToLowerInvariant();
             program = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Program.cs') -Algorithm SHA256).Hash.ToLowerInvariant();
+            packageIdentity = (Get-FileHash -LiteralPath $identityModule -Algorithm SHA256).Hash.ToLowerInvariant();
             prepare = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant() }
         sdkVersion = $sdkVersion
         restore = 'explicit local empty feed; no PackageReference'
