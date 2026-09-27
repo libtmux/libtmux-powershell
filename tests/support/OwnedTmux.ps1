@@ -200,6 +200,8 @@ function New-OwnedTmuxFixture {
         }
         $setupStage = 'detached fixture session creation'
         $null = Invoke-OwnedTmux $fixture -Arguments @('new-session', '-d', '-s', 'fixture', '-x', '80', '-y', '24', 'exec /bin/sh')
+        $setupStage = 'stable fixture window setup'
+        $null = Invoke-OwnedTmux $fixture -Arguments @('set-window-option', '-t', 'fixture:0', 'automatic-rename', 'off')
         $setupStage = 'fixture process identity read'
         $identity = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid} #{pane_pid}')
         $ids = $identity.StdOut.Trim().Split(' ')

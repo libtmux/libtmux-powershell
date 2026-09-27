@@ -36,7 +36,7 @@ function Invoke-CreationForRemoval([string] $Kind, $Server, $Session, $Pane) {
     }
 }
 
-function Invoke-OwnedServerReplacement($Fixture) {
+function Invoke-OwnedServerReplacement($Fixture, [Threading.Tasks.Task] $SocketReadyTask) {
     $previous = $Fixture.ServerProcess
     $signal = $null
     try {
@@ -52,11 +52,22 @@ function Invoke-OwnedServerReplacement($Fixture) {
         $null = $Fixture.OwnedProcessIds.Add($Fixture.ServerPid)
         $Fixture.ServerOutput = $Fixture.ServerProcess.StandardOutput.ReadToEndAsync()
         $Fixture.ServerError = $Fixture.ServerProcess.StandardError.ReadToEndAsync()
+        $socketSignal = if ($SocketReadyTask) { $SocketReadyTask } else { $signal.Ready }
         $ready = [Threading.Tasks.Task]::WhenAny([Threading.Tasks.Task[]] @(
-            $signal.Ready, $Fixture.ServerProcess.WaitForExitAsync()))
-        $null = $ready.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+            $socketSignal, $Fixture.ServerProcess.WaitForExitAsync()))
+        try {
+            $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(100)).GetAwaiter().GetResult()
+        } catch [TimeoutException] {
+            if (-not (Test-OwnedTmuxSocketReady $Fixture)) {
+                try {
+                    $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(900)).GetAwaiter().GetResult()
+                } catch [TimeoutException] {
+                    if (-not (Test-OwnedTmuxSocketReady $Fixture)) { throw }
+                }
+            }
+        }
         Assert-True (-not $Fixture.ServerProcess.HasExited) 'The replacement daemon exited before socket readiness.'
-        $null = $signal.Ready.GetAwaiter().GetResult()
+        if ($socketSignal.IsCompleted) { $null = $socketSignal.GetAwaiter().GetResult() }
         $null = Invoke-OwnedTmux $Fixture -Arguments @('new-session', '-d', '-s', 'fixture', 'exec /bin/sh')
         Register-OwnedTmuxPane $Fixture
     } finally {
@@ -184,7 +195,8 @@ Invoke-WithOwnedTmux {
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -ConfigurationFile '/dev/null'
     $snapshot = $server | LibTmux\Get-TmuxSnapshot
     $old = @{ Session = $snapshot.Sessions[0]; Window = $snapshot.Windows[0]; Pane = $snapshot.Panes[0] }
-    Invoke-OwnedServerReplacement $fixture
+    $missedSignal = [Threading.Tasks.TaskCompletionSource[bool]]::new()
+    Invoke-OwnedServerReplacement $fixture $missedSignal.Task
     foreach ($kind in @('Session', 'Window', 'Pane')) {
         $target = $old[$kind]
         $failure = $null

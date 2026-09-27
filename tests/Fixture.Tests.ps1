@@ -49,6 +49,8 @@ try {
     Assert-True (Test-Path -LiteralPath $fixture.SocketPath) 'Fixture did not start an owned tmux server.'
     $sessions = Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')
     Assert-True ($sessions.StdOut.Trim() -eq 'fixture') 'Fixture session was not created.'
+    $automaticRename = Invoke-OwnedTmux $fixture -Arguments @('show-window-options', '-v', '-t', 'fixture:0', 'automatic-rename')
+    Assert-True ($automaticRename.StdOut.Trim() -ceq 'off') 'Owned fixture permits an asynchronous anchor window rename.'
     Assert-True ($fixture.ServerPid -eq $fixture.ServerProcess.Id) 'Fixture did not retain the actual daemon process.'
     $createdPane = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-P', '-F', '#{pane_pid}', 'exec /bin/sh')
     $createdPanePid = [int] $createdPane.StdOut.Trim()

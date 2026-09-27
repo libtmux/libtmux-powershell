@@ -619,7 +619,17 @@ function Assert-HelpRemovalOutcome($Context, [string[]] $ListArguments) {
     }
     $anchor = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0',
         '#{session_id}|#{session_name}|#{window_id}|#{window_name}|#{pane_id}|#{pane_pid}')
-    if ($anchor.StdOut.Trim() -cne $Context.Anchor) { throw 'Removal example changed the unrelated fixture anchor.' }
+    if ($anchor.StdOut.Trim() -cne $Context.Anchor) {
+        $names = @('session_id', 'session_name', 'window_id', 'window_name', 'pane_id', 'pane_pid')
+        $expected = $Context.Anchor.Split('|')
+        $actual = $anchor.StdOut.Trim().Split('|')
+        $changes = for ($i = 0; $i -lt $names.Count; $i++) {
+            if ($expected[$i] -cne $actual[$i]) {
+                "$($names[$i]): '$($expected[$i])' -> '$($actual[$i])'"
+            }
+        }
+        throw "Removal example changed the unrelated fixture anchor: $($changes -join '; ')."
+    }
 }
 
 function Initialize-HelpClient($Context) {
