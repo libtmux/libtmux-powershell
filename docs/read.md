@@ -24,6 +24,12 @@ and distinguish case. They do not expand wildcards. Combining selectors
 requires both to match. An unmatched selector emits no objects; it is not an
 error. Wrap a pipeline in `@(...)` when its count matters.
 
+For `-Name` and `-Id`, Tab offers values from an explicitly supplied captured
+server, session or window. Capture first with `Get-TmuxSnapshot`. Completion
+does not contact tmux, refresh a handle or guess an endpoint. An uncaptured
+owner offers no tmux values. The suggestion comes from the earlier observation;
+the read command still checks current tmux state when you run it.
+
 Owners bind by their native type. An arbitrary object's `Server`, `Session`,
 or `Window` property does not bind automatically. Use `Where-Object` after
 acquisition for further local filtering. For reusable criteria, use
@@ -99,3 +105,5 @@ repeated placements, parent navigation after teardown and contradictory reads.
 The [formatting integration test](../tests/Formatting.Tests.ps1) checks
 captured objects and identity-only handles after daemon shutdown, including
 that formatting and member discovery start no tmux processes.
+The [completion integration test](../tests/Completion.Tests.ps1) checks Tab
+suggestions after teardown and verifies that completion starts no tmux client.

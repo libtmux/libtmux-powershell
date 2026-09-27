@@ -26,6 +26,7 @@ public sealed class GetTmuxPaneCommand : TmuxCmdlet
 
     /// <summary>Gets or sets an ordinal, literal pane identifier selector.</summary>
     [Parameter]
+    [ArgumentCompleter(typeof(PaneSelectorCompleter))]
     [ValidateNotNullOrEmpty]
     public string? Id { get; set; }
 

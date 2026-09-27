@@ -21,11 +21,13 @@ public sealed class GetTmuxWindowCommand : TmuxCmdlet
 
     /// <summary>Gets or sets an ordinal, literal window identifier selector.</summary>
     [Parameter]
+    [ArgumentCompleter(typeof(WindowSelectorCompleter))]
     [ValidateNotNullOrEmpty]
     public string? Id { get; set; }
 
     /// <summary>Gets or sets an ordinal, literal window name selector.</summary>
     [Parameter]
+    [ArgumentCompleter(typeof(WindowSelectorCompleter))]
     [ValidateNotNullOrEmpty]
     public string? Name { get; set; }
 

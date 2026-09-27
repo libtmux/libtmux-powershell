@@ -16,11 +16,13 @@ public sealed class GetTmuxSessionCommand : TmuxCmdlet
 
     /// <summary>Gets or sets an ordinal, literal session identifier selector.</summary>
     [Parameter]
+    [ArgumentCompleter(typeof(SessionSelectorCompleter))]
     [ValidateNotNullOrEmpty]
     public string? Id { get; set; }
 
     /// <summary>Gets or sets an ordinal, literal session name selector.</summary>
     [Parameter]
+    [ArgumentCompleter(typeof(SessionSelectorCompleter))]
     [ValidateNotNullOrEmpty]
     public string? Name { get; set; }
 
