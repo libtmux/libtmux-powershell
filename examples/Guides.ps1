@@ -57,7 +57,8 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
     } }
     'readme.quickstart' = @{ Requires = @(); Code = {
-./examples/QuickStart.ps1
+(./examples/QuickStart.ps1).Windows |
+    Select-Object Name, @{ Name = 'PaneIds'; Expression = { $_.Panes.Id -join ', ' } }
     } }
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {

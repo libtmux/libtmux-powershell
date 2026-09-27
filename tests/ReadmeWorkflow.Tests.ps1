@@ -45,8 +45,27 @@ function Invoke-QuickStart([string] $InstalledModules) {
     $start.Environment['PSModulePath'] = $InstalledModules
     $null = $start.Environment.Remove('TMUX')
     $null = $start.Environment.Remove('TMUX_PANE')
-    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command',
-        '& ./examples/QuickStart.ps1 | ConvertTo-Json -Compress')) { $start.ArgumentList.Add($argument) }
+    $command = @'
+$session = & ./examples/QuickStart.ps1
+if ($session -isnot [LibTmux.Session]) { throw 'QuickStart did not return a native Session.' }
+$windows = @($session.Windows | ForEach-Object {
+    if ($_ -isnot [LibTmux.Window]) { throw 'QuickStart returned a non-native Window.' }
+    [pscustomobject]@{
+        Name = $_.Name
+        PaneIds = @($_.Panes | ForEach-Object {
+            if ($_ -isnot [LibTmux.Pane]) { throw 'QuickStart returned a non-native Pane.' }
+            [string] $_.Id
+        })
+    }
+})
+[pscustomobject]@{
+    Name = $session.Name
+    SocketName = $session.Server.ConnectionOptions.SocketName
+    Windows = $windows
+    PaneIds = @($session.Panes | ForEach-Object { [string] $_.Id })
+} | ConvertTo-Json -Compress -Depth 5
+'@
+    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command', $command)) { $start.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($start)
     try {
         $output = $process.StandardOutput.ReadToEndAsync()
@@ -66,7 +85,7 @@ Assert-Readme (@($commands | Where-Object Name -CEQ 'New-TmuxSession').Count -eq
     $help.Examples.Example.Count -gt 0) 'installed cmdlets or help examples are not discoverable'
 
 $blocks = @{}
-foreach ($id in @('read.endpoint', 'readme.create', 'readme.filter', 'readme.related', 'readme.input',
+foreach ($id in @('readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter', 'readme.related', 'readme.input',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview')) {
     $blocks[$id] = Get-ReadmeBlock $id
 }
@@ -106,10 +125,24 @@ try {
     $quickStartPath = Join-Path $root 'examples/QuickStart.ps1'
     Assert-Readme (Test-Path -LiteralPath $quickStartPath) 'the runnable quick start is missing'
     $quickStart = @(Invoke-QuickStart $moduleRootPath)
-    Assert-Readme ($quickStart.Count -eq 1 -and $quickStart[0].Session -ceq 'demo' -and
-        $quickStart[0].Windows -eq 2 -and $quickStart[0].Panes -eq 3 -and
-        $quickStart[0].SplitWindow -ceq 'editor') 'the runnable quick start returned a different graph'
+    Assert-Readme ($quickStart.Count -eq 1 -and $quickStart[0].Name -ceq 'demo' -and
+        $quickStart[0].Windows.Count -eq 2 -and
+        $quickStart[0].Windows[0].Name -ceq 'editor' -and
+        $quickStart[0].Windows[0].PaneIds.Count -eq 2 -and
+        $quickStart[0].Windows[1].Name -ceq 'logs' -and
+        $quickStart[0].Windows[1].PaneIds.Count -eq 1 -and
+        $quickStart[0].PaneIds.Count -eq 3 -and
+        @($quickStart[0].PaneIds | Select-Object -Unique).Count -eq 3 -and
+        @($quickStart[0].PaneIds | Where-Object { $_ -notmatch '^%\d+$' }).Count -eq 0) 'the runnable quick start returned a different native graph'
     Assert-Readme ((Invoke-NamedTmux $tmux $quickStart[0].SocketName 'list-sessions') -ne 0) 'the runnable quick start left its server running'
+    $priorModulePath = $env:PSModulePath
+    try {
+        $env:PSModulePath = $moduleRootPath + [IO.Path]::PathSeparator + $priorModulePath
+        $quickStartView = @(. $blocks['readme.quickstart'])
+    } finally { $env:PSModulePath = $priorModulePath }
+    Assert-Readme ($quickStartView.Count -eq 2 -and
+        $quickStartView[0].Name -ceq 'editor' -and $quickStartView[0].PaneIds -ceq '%0, %1' -and
+        $quickStartView[1].Name -ceq 'logs' -and $quickStartView[1].PaneIds -ceq '%2') 'the README quick start view does not match its output'
 } finally {
     if ($socketName -and (Invoke-NamedTmux $tmux $socketName 'list-sessions') -eq 0) {
         $null = Invoke-NamedTmux $tmux $socketName 'kill-server'

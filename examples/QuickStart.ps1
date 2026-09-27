@@ -15,16 +15,7 @@ try {
 
     $captured = ($server | Get-TmuxSnapshot).Sessions |
         Select-TmuxSession -Criteria @{ Name = 'demo' } -ExactlyOne
-    $splitWindow = $captured.Windows |
-        Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
-
-    [pscustomobject]@{
-        SocketName = $socketName
-        Session = $captured.Name
-        Windows = $captured.Windows.Count
-        Panes = $captured.Panes.Count
-        SplitWindow = $splitWindow.Name
-    }
+    $captured
 } finally {
     if ($session) { $session | Remove-TmuxSession -Confirm:$false }
 }

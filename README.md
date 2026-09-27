@@ -11,7 +11,7 @@ author. The cmdlets return its native objects and add PowerShell parameter
 binding, help, formatting and `-WhatIf` / `-Confirm`.
 
 [Install](#install-from-source) · [Object graph](#create-and-read-an-object-graph) ·
-[Send and capture](#send-a-command-and-capture-its-result) ·
+[Send and capture](#send-a-command-and-capture-its-output) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
 [Compatibility](docs/compatibility.md) ·
 [Troubleshooting](docs/troubleshooting.md) ·
@@ -64,25 +64,28 @@ installed alongside the core module; the MCP server is a separate .NET tool.
 Use `Get-Command -Module LibTmux` to browse cmdlets and
 `Get-Help LibTmux\New-TmuxSession -Examples` for installed examples.
 
-Run the [quick start](examples/QuickStart.ps1) from the checkout root:
+Run the [quick start](examples/QuickStart.ps1) from the checkout root. It
+creates a private server, splits the `editor` window, adds `logs`, and returns
+a captured native `LibTmux.Session`. Show each window's pane IDs:
 
 <!-- example: readme.quickstart -->
 ```powershell
-./examples/QuickStart.ps1
+(./examples/QuickStart.ps1).Windows |
+    Select-Object Name, @{ Name = 'PaneIds'; Expression = { $_.Panes.Id -join ', ' } }
 ```
 
-It creates a session on a private socket, splits its `editor` window, adds a
-`logs` window, and returns one object:
+Output from the private server:
 
-| Property | Result |
-| --- | --- |
-| `Session` | `demo` |
-| `Windows` | `2` |
-| `Panes` | `3` |
-| `SplitWindow` | `editor` |
-| `SocketName` | A unique `libtmux-quickstart-*` name |
+```text
+Name   PaneIds
+----   -------
+editor %0, %1
+logs   %2
+```
 
-The script removes its session after capturing the result.
+Assign `./examples/QuickStart.ps1` to a variable to keep the session object.
+Its `Windows` and `Panes` remain readable after the script removes its session.
+The script uses a unique socket and leaves your default tmux server alone.
 
 ## Create and read an object graph
 
@@ -156,7 +159,7 @@ This query also performs no I/O. [The query guide](docs/query.md) shows native
 predicates, Boolean and relationship criteria, and explicit fresh source
 queries.
 
-## Send a command and capture its result
+## Send a command and capture its output
 
 Sending text means tmux accepted the keys; it does not mean the shell finished.
 This example uses a unique tmux channel. The shell signals it after printing,
@@ -259,8 +262,9 @@ Preview without applying the plan:
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 
-The [workspace guide](docs/workspace.md) shows how to apply the reviewed plan,
-inspect its native result and export a declaration. For an MCP client, start with
+The [workspace guide](docs/workspace.md#apply-the-reviewed-plan) shows how to
+apply the reviewed plan, inspect its native result and export a declaration.
+For an MCP client, start with
 [`list_sessions` and `capture_pane`](docs/mcp.md#discover-before-calling) after
 reading its advertised capabilities.
 
@@ -283,10 +287,11 @@ independent .NET tool and does not require PowerShell.
   [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
   [edit a declaration](docs/workspace.md#edit-the-declaration).
 
-Examples are shared with the [executable guides](examples/Guides.ps1) and run
-against real tmux through the installed modules. See
-[contributing](.github/CONTRIBUTING.md) for the example runner and development
-checks.
+The marked README blocks run together in the
+[installed workflow test](tests/ReadmeWorkflow.Tests.ps1). The
+[executable guides](examples/Guides.ps1) run against real tmux through the
+installed modules. See [contributing](.github/CONTRIBUTING.md) for the runners
+and development checks.
 
 The [benchmark guide](benchmarks/README.md) explains installed-package
 workloads, correctness checks, raw samples and reproduction commands.

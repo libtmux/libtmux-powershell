@@ -141,12 +141,12 @@ $assertions = @{
             Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
                 $o.Server.ConnectionOptions.SocketName -cmatch '^libtmux-readme-[a-f0-9]{32}$') 'endpoint identity'
         } }
-    'readme.quickstart' = @{ Group = 'Readme'; Count = 1; Assert = {
+    'readme.quickstart' = @{ Group = 'Readme'; Count = 2; Assert = {
             param($o)
-            $result = $o.Result[0]
-            Assert-Guide ($result.SocketName -cmatch '^libtmux-quickstart-[a-f0-9]{32}$' -and
-                $result.Session -ceq 'demo' -and $result.Windows -eq 2 -and
-                $result.Panes -eq 3 -and $result.SplitWindow -ceq 'editor') 'README quick start result'
+            Assert-Guide ($o.Result[0].Name -ceq 'editor' -and
+                $o.Result[0].PaneIds -ceq '%0, %1' -and
+                $o.Result[1].Name -ceq 'logs' -and
+                $o.Result[1].PaneIds -ceq '%2') 'README quick start window and pane IDs'
         } }
     'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
             param($o)
