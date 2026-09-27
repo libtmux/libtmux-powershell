@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $PackageRoot,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 )
 
@@ -36,8 +37,10 @@ if ($accepted.produced -ne 8 -or $accepted.dropped -ne 7 -or $accepted.delivered
 if ($PackageRoot) {
     $output = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-event-stream-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & "$PSScriptRoot/EventStream.ps1" -PackageRoot $PackageRoot -TmuxBinaryPath $TmuxBinaryPath `
-            -OutputPath $output -WarmupRounds 1 -SampleRounds 2
+        $arguments = @{ PackageRoot = $PackageRoot; TmuxBinaryPath = $TmuxBinaryPath;
+            OutputPath = $output; WarmupRounds = 1; SampleRounds = 2 }
+        if ($ReviewRoot) { $arguments.ReviewRoot = $ReviewRoot }
+        & "$PSScriptRoot/EventStream.ps1" @arguments
         $report = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
         if ($report.status -cne 'PASS' -or $report.shape.panes -ne 1 -or
             @($report.cells).Count -ne 2 -or @($report.firstCalls).Count -ne 2 -or
@@ -48,7 +51,10 @@ if ($PackageRoot) {
         }
         if ($report.provenance.runnerSha256 -cne (Get-FileHash "$PSScriptRoot/EventStream.ps1").Hash.ToLowerInvariant() -or
             $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/EventStream.Checks.psm1").Hash.ToLowerInvariant() -or
-            $report.provenance.corePackageVersion -cne '0.0.0-alpha.16.ps.2') {
+            $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/PackageIdentity.psm1").Hash.ToLowerInvariant() -or
+            !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
+            $report.provenance.packageSha256 -cne (Get-FileHash -LiteralPath (Join-Path $PackageRoot 'LibTmux.0.1.0.nupkg') -Algorithm SHA256).Hash.ToLowerInvariant() -or
+            $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' })) {
             throw 'The event stream report did not identify exact benchmark source and dependency.'
         }
         foreach ($sample in $report.samples) {

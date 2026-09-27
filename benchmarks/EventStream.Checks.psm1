@@ -17,7 +17,7 @@ function Assert-BenchmarkEventBurst {
     $dropped = $Events[0]
     $latest = $Events[1]
     if ($dropped.count -ne $ExpectedBurst - 1) {
-        throw "$Lane did not account for every produced notification."
+        throw "$Lane did not account for every produced notification (expected $($ExpectedBurst - 1) drops, observed $($dropped.count))."
     }
     if ($dropped.totalDropped -ne $PreviousTotalDropped + $dropped.count) {
         throw "$Lane returned an inconsistent cumulative loss count."

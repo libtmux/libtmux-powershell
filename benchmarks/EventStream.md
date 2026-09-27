@@ -18,9 +18,9 @@ notification from leaving the watcher active indefinitely.
 
 Build and package the PowerShell module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). The supplied
-`LibTmux.0.1.0.nupkg` must contain the reviewed
-`0.0.0-alpha.16.ps.2` core dependency. Run the negative controls and
-two-round installed-package smoke first:
+`LibTmux.0.1.0.nupkg` must contain a complete, internally consistent core
+dependency. Run the negative controls and two-round installed-package smoke
+first:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File benchmarks/EventStream.Tests.ps1 \
@@ -41,12 +41,16 @@ and dropped count, both observed events, the native final name, and raw
 production and drain times. It reports medians and p95 only with at least
 twenty samples per cell. Import, first-use work, control connection, and
 disconnection are separate from sampled times. Versions, hashes, host details,
-and `sourceDirty` identify the run. A PASS report is written only after the
-borrowed control client disconnects and the owned fixture and extracted
-package are removed.
+and `sourceDirty` identify the run. Package-only checks record
+`sourceProvenance: unverified`; pass `-ReviewRoot` from a clean-source bootstrap
+to verify the inspected .NET feed and staged module bytes. A PASS report is
+written only after the borrowed control client disconnects and the owned
+fixture and extracted package are removed.
 
-The 8- and 16-command cells are pressure points on the same queue. Positive
-drops and the configured capacity of one imply a high-water mark of one; the
-runner does not sample queue occupancy or the time it became full. Their
-timings cover serial command production and a bounded watcher drain; they
-do not measure sustained stream throughput or justify a speed ratio.
+The 8- and 16-command cells are pressure points on the same queue. The owned
+fixture disables automatic window renaming before control attachment so shell
+startup cannot add an unrelated rename to a measured burst. Positive drops
+and the configured capacity of one imply a high-water mark of one. The runner
+does not sample queue occupancy or the time it became full. Cell timings cover
+serial command production and a bounded watcher drain; they do not measure
+sustained stream throughput or justify a speed ratio.

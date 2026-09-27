@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
     [Parameter(Mandatory)] [string] $OutputPath,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [ValidateRange(0, 20)] [int] $WarmupRounds = 3,
     [ValidateRange(1, 100)] [int] $SampleRounds = 20
@@ -73,11 +74,8 @@ try {
     $module = Join-Path $temporary 'LibTmux/0.1.0'
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $module)
     $modulePath = Join-Path $module 'LibTmux.psd1'
-    $coreVersion = (Get-Content -LiteralPath (Join-Path $module 'dependencies.json') -Raw |
-        ConvertFrom-Json).corePackageVersion
-    if ($coreVersion -cne '0.0.0-alpha.16.ps.2') {
-        throw "Event stream benchmark requires the reviewed 0.0.0-alpha.16.ps.2 core; found $coreVersion."
-    }
+    Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force
+    $identity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $module -ReviewRoot $ReviewRoot
     $importWatch = [Diagnostics.Stopwatch]::StartNew()
     Import-Module $modulePath -ErrorAction Stop
     $importWatch.Stop()
@@ -85,6 +83,7 @@ try {
     . "$PSScriptRoot/../tests/support/OwnedTmux.ps1"
 
     $fixture = New-OwnedTmuxFixture -TmuxPath $binary
+    $null = Invoke-OwnedTmux $fixture -Arguments @('set-window-option', '-t', 'fixture:0', 'automatic-rename', 'off')
     $options = [LibTmux.ServerConnectionOptions] @{
         SocketPath = $fixture.SocketPath
         TmuxBinaryPath = $binary
@@ -215,6 +214,7 @@ try {
             watchMaxEvents = 2; watchMaxOutputBytes = 1048576;
             watchCompletionTimeoutMilliseconds = 1000 }
         semantics = @{ comparison = 'pressure outcomes only; no polling or capture lane';
+            fixture = 'automatic-rename disabled before control attach';
             producer = 'one reused control client sends rename-window -t fixture:0 <name> serially';
             consumer = 'Watch-TmuxEvent on the borrowed client emits one loss record and the retained final notification';
             equality = 'produced = delivered + dropped; latest event and native final window name agree';
@@ -223,8 +223,14 @@ try {
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant();
             checksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/EventStream.Checks.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             packageVersion = (Get-Module LibTmux).Version.ToString();
-            corePackageVersion = $coreVersion;
-            packageSha256 = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant();
+            corePackageVersion = $identity.corePackageVersion;
+            packageSha256 = $identity.packageSha256;
+            coreAssemblySha256 = $identity.coreAssemblySha256;
+            cmdletAssemblySha256 = $identity.cmdletAssemblySha256;
+            sourceProvenance = $identity.sourceProvenance;
+            reviewCoreRevision = $identity.reviewCoreRevision;
+            reviewPortRevision = $identity.reviewPortRevision;
+            packageIdentitySha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/PackageIdentity.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             tmuxVersion = $tmuxVersion;
             tmuxSha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant();
             powerShellVersion = $PSVersionTable.PSVersion.ToString();
