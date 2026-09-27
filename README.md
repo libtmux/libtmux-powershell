@@ -70,18 +70,20 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
 ```
 
-Create a session, split its window, and take one snapshot. `cat` keeps both
-panes open without shell setup. The `finally` block removes only the session
-this example created; an existing `demo` session causes an error.
+Create a session with an editor window, split it, add a logs window, and take
+one snapshot. `cat` keeps the three panes open without shell setup. The
+`finally` block removes only the session this example created; an existing
+`demo` session causes an error.
 
 <!-- example: readme.create -->
 ```powershell
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession -Name demo -Command 'exec /bin/cat' -Width 100 -Height 30
+    $session = $server | New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
     try {
         $pane = $session | Get-TmuxPane
-        $null = $pane | Split-TmuxPane -Horizontal -Size 40 -Command 'exec /bin/cat'
+        $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+        $null = $session | New-TmuxWindow -Name logs -Command 'exec /bin/cat'
         ($server | Get-TmuxSnapshot).Sessions | Where-Object Name -CEQ demo
     } finally {
         $session | Remove-TmuxSession -Confirm:$false
@@ -96,34 +98,32 @@ objects. The graph is still readable after cleanup:
 | Expression | Captured result |
 | --- | --- |
 | `$captured` | A `Session` named `demo` |
-| `$captured.Windows[0]` | Its single `Window` |
-| `$captured.Windows[0].Panes` | Two `Pane` objects: one wide, one under 50 columns |
+| `$captured.Windows` | Two `Window` objects: `editor` and `logs` |
+| `$captured.Windows[0].Panes` | Two `Pane` objects in `editor`; `logs` has one |
 
 Walk it and filter locally:
 
 <!-- example: readme.filter -->
 ```powershell
-$captured.Windows[0].Panes |
-    Where-Object Width -GE 50 |
-    Select-Object Id, Width, Height
+$captured.Windows |
+    Where-Object { $_.Panes.Count -gt 1 } |
+    Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
 ```
 
-The result is the wide pane; the other does not meet `Width -GE 50`. The
-selected columns show the exact geometry returned by your tmux version.
-`Where-Object`, navigation, formatting, and property access use captured data
-and start no tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A
-linked window can have several session placements; its index belongs to the
-placement.
+The result is `editor` with two panes; `logs` has one. `Where-Object`,
+navigation, formatting, and property access use captured data and start no
+tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A linked window
+can have several session placements; its index belongs to the placement.
 See [snapshots and linked windows](docs/read.md) for IDs, active children and
 captured versus unavailable fields.
 
-When you need a reusable graph predicate, the same captured window can be
-selected because **one related pane** is at least 50 columns wide:
+When you need a reusable graph predicate, select the window containing one
+specific pane by its typed ID:
 
 <!-- example: readme.related -->
 ```powershell
 $captured.Windows |
-    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 } } } }
+    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Id = $captured.Windows[0].Panes[1].Id } } }
 ```
 
 This query also performs no I/O. [The query guide](docs/query.md) shows native
@@ -193,12 +193,10 @@ the [mode guide](docs/commands.md) explains when chains merge failure attributio
 | [LibTmux.Workspace](docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
 | [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
-Describe a two-pane workspace and inspect its plan on the same private
-endpoint. Planning may read tmux state; reviewing actions and `-WhatIf` do
-not apply the declaration. The plan keeps command text out of its default
-view; inspect an action's `Request` only in a trusted terminal.
+Describe a two-pane workspace. Importing it parses YAML without contacting
+tmux or running its commands:
 
-<!-- example: readme.workspace -->
+<!-- example: readme.workspace.01-import -->
 ```powershell
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
@@ -208,9 +206,30 @@ windows:
       - shell_command: exec /bin/sh
       - shell_command: exec /bin/sh
 '@
+```
+
+Plan on the same private endpoint. Planning may read tmux state; it does not
+create the workspace:
+
+<!-- example: readme.workspace.02-plan -->
+```powershell
 $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
     -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
+```
+
+Review the actions. Their default view keeps command text, option values,
+paths and environment values hidden; inspect an action's `Request` only in a
+trusted terminal:
+
+<!-- example: readme.workspace.03-review -->
+```powershell
 $workspacePlan.Actions
+```
+
+Preview without applying the plan:
+
+<!-- example: readme.workspace.04-preview -->
+```powershell
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 

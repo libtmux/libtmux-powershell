@@ -59,10 +59,11 @@ $server = LibTmux\New-TmuxServer `
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession -Name demo -Command 'exec /bin/cat' -Width 100 -Height 30
+    $session = $server | New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
     try {
         $pane = $session | Get-TmuxPane
-        $null = $pane | Split-TmuxPane -Horizontal -Size 40 -Command 'exec /bin/cat'
+        $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+        $null = $session | New-TmuxWindow -Name logs -Command 'exec /bin/cat'
         ($server | Get-TmuxSnapshot).Sessions | Where-Object Name -CEQ demo
     } finally {
         $session | Remove-TmuxSession -Confirm:$false
@@ -70,13 +71,13 @@ $captured = & {
 }
     } }
     'readme.filter' = @{ Requires = @('captured'); Code = {
-$captured.Windows[0].Panes |
-    Where-Object Width -GE 50 |
-    Select-Object Id, Width, Height
+$captured.Windows |
+    Where-Object { $_.Panes.Count -gt 1 } |
+    Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
     } }
     'readme.related' = @{ Requires = @('captured'); Code = {
 $captured.Windows |
-    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 } } } }
+    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Id = $captured.Windows[0].Panes[1].Id } } }
     } }
     'readme.input' = @{ Requires = @('server'); Code = {
 & {
@@ -214,7 +215,7 @@ $workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorA
     }
 }
     } }
-    'readme.workspace' = @{ Requires = @('server'); Code = {
+    'readme.workspace.01-import' = @{ Requires = @(); Code = {
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
 windows:
@@ -223,9 +224,15 @@ windows:
       - shell_command: exec /bin/sh
       - shell_command: exec /bin/sh
 '@
+    } }
+    'readme.workspace.02-plan' = @{ Requires = @('workspace', 'server'); Code = {
 $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
     -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
+    } }
+    'readme.workspace.03-review' = @{ Requires = @('workspacePlan'); Code = {
 $workspacePlan.Actions
+    } }
+    'readme.workspace.04-preview' = @{ Requires = @('workspacePlan'); Code = {
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
     } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }

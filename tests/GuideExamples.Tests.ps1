@@ -144,17 +144,18 @@ $assertions = @{
     'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Captured -is [LibTmux.Session] -and $o.Captured.Name -ceq 'demo' -and
-                $o.Captured.Panes.Count -eq 2 -and $o.Captured.Windows.Count -eq 1 -and
-                @($o.Captured.Panes | Where-Object Width -LT 50).Count -eq 1 -and
-                @($o.Captured.Panes | Where-Object Width -GE 50).Count -eq 1) 'captured split session'
+                $o.Captured.Panes.Count -eq 3 -and $o.Captured.Windows.Count -eq 2 -and
+                $o.Captured.Windows[0].Name -ceq 'editor' -and $o.Captured.Windows[1].Name -ceq 'logs' -and
+                $o.Captured.Windows[0].Panes.Count -eq 2 -and
+                $o.Captured.Windows[1].Panes.Count -eq 1) 'captured split session'
             $o.Context.Captured = $o.Captured
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'demo' -and $sessions -ccontains 'fixture') 'demo cleanup and unrelated session'
         } }
     'readme.filter' = @{ Group = 'Readme'; Count = 1; Assert = {
             param($o)
-            Assert-Guide ($o.Result[0].Width -ge 50 -and $o.Result[0].Height -gt 0 -and
-                $o.Result[0].Id -is [LibTmux.PaneId] -and (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured pane filtering'
+            Assert-Guide ($o.Result[0].Name -ceq 'editor' -and $o.Result[0].PaneCount -eq 2 -and
+                (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured window filtering'
         } }
     'readme.related' = @{ Group = 'Readme'; Count = 1; Assert = {
             param($o)
@@ -456,13 +457,26 @@ $assertions = @{
                 [IO.File]::WriteAllText($editor.Path, $c.EditorProgram)
             }
         } }
-    'readme.workspace' = @{ Group = 'Workspace'; Count = -1; Assert = {
+    'readme.workspace.01-import' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.Workspace -is [LibTmux.Workspace.WorkspaceFile] -and
+                $o.Workspace.Windows.Count -eq 1 -and $o.Workspace.Windows[0].Panes.Count -eq 2) 'README workspace import'
+            $o.Context.Workspace = $o.Workspace
+        } }
+    'readme.workspace.02-plan' = @{ Group = 'Workspace'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.WorkspacePlan -is [LibTmux.Workspace.WorkspacePlan] -and
                 $o.WorkspacePlan.SessionName -ceq 'readme-workspace-preview' -and
-                $o.Result.Count -eq $o.WorkspacePlan.Actions.Count -and
-                @($o.Result | Where-Object Kind -eq 'CreateWindow').Count -eq 1 -and
-                @($o.Result | Where-Object Kind -eq 'SplitPane').Count -eq 1) 'README workspace preview plan'
+                @($o.WorkspacePlan.Actions | Where-Object Kind -eq 'CreateWindow').Count -eq 1 -and
+                @($o.WorkspacePlan.Actions | Where-Object Kind -eq 'SplitPane').Count -eq 1) 'README workspace plan'
+            $o.Context.WorkspacePlan = $o.WorkspacePlan
+        } }
+    'readme.workspace.03-review' = @{ Group = 'Workspace'; Count = -1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result.Count -eq $o.WorkspacePlan.Actions.Count) 'README workspace review actions'
+        } }
+    'readme.workspace.04-preview' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'readme-workspace-preview') 'README workspace preview created a session'
         } }
@@ -868,7 +882,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {

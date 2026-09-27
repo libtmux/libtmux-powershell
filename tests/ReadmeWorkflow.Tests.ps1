@@ -42,7 +42,8 @@ Assert-Readme (@($commands | Where-Object Name -CEQ 'New-TmuxSession').Count -eq
     $help.Examples.Example.Count -gt 0) 'installed cmdlets or help examples are not discoverable'
 
 $blocks = @{}
-foreach ($id in @('read.endpoint', 'readme.create', 'readme.filter', 'readme.related', 'readme.input', 'readme.workspace')) {
+foreach ($id in @('read.endpoint', 'readme.create', 'readme.filter', 'readme.related', 'readme.input',
+    'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview')) {
     $blocks[$id] = Get-ReadmeBlock $id
 }
 $socketName = $null
@@ -54,23 +55,29 @@ try {
     Assert-Readme ($socketName -cmatch '^libtmux-readme-[a-f0-9]{32}$' -and
         !$server.IsMaterialized) 'the first block did not create a private, uncontacted endpoint'
     . $blocks['readme.create']
-    Assert-Readme ($captured -is [LibTmux.Session] -and $captured.Windows.Count -eq 1 -and
-        $captured.Windows[0].Panes.Count -eq 2) 'the captured graph is incomplete after cleanup'
-    $wide = @(. $blocks['readme.filter'])
-    Assert-Readme ($wide.Count -eq 1 -and $wide[0].Width -ge 50 -and
-        $wide[0].Height -gt 0 -and
-        @($captured.Windows[0].Panes | Where-Object Width -LT 50).Count -eq 1) 'the local pane pipeline returned the wrong result'
+    Assert-Readme ($captured -is [LibTmux.Session] -and $captured.Windows.Count -eq 2 -and
+        $captured.Windows[0].Name -ceq 'editor' -and $captured.Windows[1].Name -ceq 'logs' -and
+        $captured.Windows[0].Panes.Count -eq 2 -and
+        $captured.Windows[1].Panes.Count -eq 1) 'the captured graph is incomplete after cleanup'
+    $selected = @(. $blocks['readme.filter'])
+    Assert-Readme ($selected.Count -eq 1 -and $selected[0].PaneCount -eq 2) 'the local pane pipeline returned the wrong result'
     $related = @(. $blocks['readme.related'])
     Assert-Readme ($related.Count -eq 1 -and
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
     $lines = @(. $blocks['readme.input'])
     Assert-Readme ($lines -ccontains 'hello from PowerShell') 'the signalled output was not captured'
-    $actions = @(. $blocks['readme.workspace'])
+    . $blocks['readme.workspace.01-import']
+    Assert-Readme ($workspace -is [LibTmux.Workspace.WorkspaceFile] -and
+        $workspace.Windows.Count -eq 1 -and $workspace.Windows[0].Panes.Count -eq 2) 'workspace import did not preserve the two panes'
+    . $blocks['readme.workspace.02-plan']
+    $actions = @(. $blocks['readme.workspace.03-review'])
+    $preview = @(. $blocks['readme.workspace.04-preview'])
     Assert-Readme ($workspacePlan -is [LibTmux.Workspace.WorkspacePlan] -and
         $workspacePlan.SessionName -ceq 'readme-workspace-preview' -and
         $actions.Count -eq $workspacePlan.Actions.Count -and
         @($actions | Where-Object Kind -eq 'CreateWindow').Count -eq 1 -and
-        @($actions | Where-Object Kind -eq 'SplitPane').Count -eq 1) 'workspace preview did not expose its two-pane plan'
+        @($actions | Where-Object Kind -eq 'SplitPane').Count -eq 1 -and
+        $preview.Count -eq 0) 'workspace preview did not expose its two-pane plan'
     Assert-Readme ((Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0) 'the example left its server running'
 } finally {
     if ($socketName -and (Invoke-NamedTmux $tmux $socketName 'list-sessions') -eq 0) {
