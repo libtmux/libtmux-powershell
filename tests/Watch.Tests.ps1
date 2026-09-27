@@ -93,6 +93,32 @@ try {
 } finally { $pipeline.Dispose(); $runspace.Dispose() }
 'PASS watch: acknowledged callback handoff, event/count/UTF-8 budgets, buffered error, single-reader ownership and stop'
 
+$probe = [LibTmux.Testing.WatchProbe]::new()
+foreach ($index in 1..16) {
+    $probe.Write((Get-WatchOutput ('payload-' + [char] 0x00e9 + '-' + $index.ToString('D2'))))
+}
+$probe.Complete()
+$job = $null
+try {
+    $job = Start-ThreadJob -ScriptBlock {
+        Import-Module LibTmux
+        $using:probe | Watch-TmuxEvent -MaxEvents 100 -MaxOutputBytes 100
+    }
+    # Inspect retained streams only after completion; never Receive-Job.
+    $null = $job | Wait-Job
+    $bytes = 0
+    foreach ($outputEvent in $job.Output) {
+        $bytes += [Text.Encoding]::UTF8.GetByteCount($outputEvent.PaneId.ToString())
+        $bytes += [Text.Encoding]::UTF8.GetByteCount($outputEvent.Data)
+    }
+    Assert-Watch ($job.State -eq 'Completed' -and $job.Output.Count -eq 6 -and $bytes -le 100 -and
+        $job.Error.Count -eq 1 -and $job.Error[0].Exception -is [IO.InvalidDataException] -and
+        $probe.Reads -eq 7 -and $probe.EnumeratorDisposals -eq 1 -and $probe.IsRunning) `
+        'never-received job retained more event text than its byte budget'
+} finally {
+    if ($job) { $job | Stop-Job; $job | Remove-Job }
+}
+
 $foreign = [LibTmux.Testing.WatchProbe]::new()
 $local = [LibTmux.Testing.WatchProbe]::new()
 $local.Write((Get-WatchOutput 'remove-module'))
