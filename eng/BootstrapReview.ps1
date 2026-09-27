@@ -6,6 +6,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# Keep review builds from reusing MSBuild workers across checkouts.
+$env:MSBUILDDISABLENODEREUSE = '1'
 $coreRevision = 'c0d3171305985f1d8b0d88e596e87f9da7d0db57'
 $coreRemote = 'https://github.com/libtmux/libtmux-dotnet.git'
 $portRemote = 'https://github.com/libtmux/libtmux-powershell.git'
