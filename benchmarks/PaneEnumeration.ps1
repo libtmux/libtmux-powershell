@@ -79,7 +79,7 @@ try {
     }
     for ($window = 0; $window -lt 4; $window++) {
         for ($pane = 1; $pane -lt 4; $pane++) {
-            $null = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-v', '-p', '25', '-t', "fixture:$window", 'exec /bin/cat')
+            $null = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-v', '-l', '25%', '-t', "fixture:$window", 'exec /bin/cat')
         }
     }
     Register-OwnedTmuxPane $fixture
