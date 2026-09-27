@@ -3,6 +3,7 @@
 import errno
 import os
 from pathlib import Path
+import pty
 import signal
 import subprocess
 import sys
@@ -26,6 +27,23 @@ def wait_unreaped(pid):
 
 
 class ProcessGroupCleanupTests(unittest.TestCase):
+    def test_terminal_output_is_drained_while_waiting_for_child_exit(self):
+        master, slave = pty.openpty()
+        process = None
+        try:
+            process = subprocess.Popen([sys.executable, "-c",
+                "import os; os.write(1, b'READY'); data = memoryview(b'x' * 262144); "
+                "\nwhile data: data = data[os.write(1, data):]"],
+                stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+            attachment_pty.receive(master, b"READY", seconds=0.5)
+            self.assertEqual(attachment_pty.wait_unreaped_draining_pty(
+                process, master, timeout=0.5), 0)
+        finally:
+            if process is not None and process.returncode is None:
+                attachment_pty.stop_group(process)
+            os.close(master)
+            os.close(slave)
+
     def test_timeout_diagnostics_precede_cleanup_and_keep_wait_error(self):
         process = SimpleNamespace(args=["owned-child"])
         timeout = subprocess.TimeoutExpired(process.args, 0.02)

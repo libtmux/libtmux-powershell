@@ -156,6 +156,61 @@ def wait_unreaped(process, timeout, on_timeout=None):
             raise AssertionError("Owned exit observer did not finish after process cleanup")
 
 
+def wait_unreaped_draining_pty(process, master, timeout, on_timeout=None):
+    stop_read, stop_write = os.pipe()
+    reader_errors = []
+    output_bytes = 0
+
+    def drain():
+        nonlocal output_bytes
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(master, selectors.EVENT_READ)
+                selector.register(stop_read, selectors.EVENT_READ)
+                while True:
+                    for key, _ in selector.select():
+                        if key.fd == stop_read:
+                            return
+                        try:
+                            block = os.read(master, 8192)
+                        except OSError as failure:
+                            if failure.errno == errno.EIO:
+                                return
+                            raise
+                        if not block:
+                            return
+                        output_bytes += len(block)
+        except BaseException as failure:
+            reader_errors.append(failure)
+
+    reader = threading.Thread(target=drain)
+    reader.start()
+    wait_error = None
+    try:
+        status = wait_unreaped(process, timeout, on_timeout=on_timeout)
+    except BaseException as failure:
+        wait_error = failure
+        raise
+    finally:
+        try:
+            os.write(stop_write, b"x")
+            reader.join(timeout=0.5)
+            if reader.is_alive():
+                raise AssertionError("PTY output reader did not stop")
+            if reader_errors:
+                raise reader_errors[0]
+        except BaseException as failure:
+            if wait_error is None:
+                raise
+            wait_error.add_note(f"PTY output reader also failed: {failure!r}")
+        finally:
+            os.close(stop_read)
+            os.close(stop_write)
+    if output_bytes > 1024 * 1024:
+        raise AssertionError("PTY output exceeded 1 MiB after attachment")
+    return status
+
+
 def attachment_timeout_diagnostics(process, result_path, prefix, environment):
     details = {}
     try:
@@ -306,7 +361,8 @@ def run(args):
                         "attachmentSeconds": attachment_seconds,
                         **attachment_timeout_diagnostics(child, result_path, prefix, environment)}
 
-                child_exit = wait_unreaped(child, timeout=remaining(5), on_timeout=on_child_timeout)
+                child_exit = wait_unreaped_draining_pty(child, master, timeout=remaining(5),
+                    on_timeout=on_child_timeout)
                 if mode == "ReadOnly":
                     assert marker not in command("capture-pane", "-p", "-t", args.session + ":").stdout
                 result = json.loads(result_path.read_text())
