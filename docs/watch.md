@@ -34,7 +34,7 @@ server is reachable. The default tmux server is untouched.
 & {
     $ErrorActionPreference = 'Stop'
     Import-Module LibTmux
-    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-watch-' + [Guid]::NewGuid().ToString('N'))
+    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $socketDirectory -ErrorAction Stop
     $ownerOnly = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute
     [IO.File]::SetUnixFileMode($socketDirectory, $ownerOnly)

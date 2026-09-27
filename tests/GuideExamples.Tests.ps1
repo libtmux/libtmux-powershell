@@ -220,14 +220,14 @@ $assertions = @{
         } }
     'watch.owned-rename' = @{ Group = 'Watch'; Count = 1; Prepare = {
             param($c)
-            $c.WatchDirectoriesBefore = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'libtmux-watch-*' |
+            $c.WatchDirectoriesBefore = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter "libtmux-watch-$PID-*" |
                 Select-Object -ExpandProperty FullName)
         }; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -is [LibTmux.TmuxNotificationEvent] -and
                 $o.Result[0].Name -ceq 'window-renamed' -and
                 $o.Result[0].Arguments -ccontains 'after') 'owned watcher observed its rename event'
-            $after = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'libtmux-watch-*' |
+            $after = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter "libtmux-watch-$PID-*" |
                 Select-Object -ExpandProperty FullName)
             Assert-Guide (@(Compare-Object $o.Context.WatchDirectoriesBefore $after).Count -eq 0) 'owned watcher left its socket directory'
         } }
