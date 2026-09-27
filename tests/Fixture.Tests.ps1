@@ -153,6 +153,51 @@ foreach ($badExecutable in @('/bin/false', '/nonexistent-libtmux-powershell')) {
     Assert-CleanedUp $bootstrapState
 }
 
+# Integration: a live owned daemon without a socket must retain timeout diagnostics.
+$fakeDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $fakeDirectory
+$fakeTmux = Join-Path $fakeDirectory 'fake-tmux'
+try {
+    [IO.File]::WriteAllText($fakeTmux, @'
+#!/bin/sh
+for arg in "$@"; do
+    if [ "$arg" = '-D' ]; then exec /bin/sleep 30; fi
+done
+printf 'fake client unavailable\n' >&2
+exit 9
+'@, [Text.UTF8Encoding]::new($false))
+    [IO.File]::SetUnixFileMode($fakeTmux, [IO.UnixFileMode]::UserRead -bor
+        [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    $readinessFailure = $null
+    try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+    catch { $readinessFailure = $_.Exception }
+    Assert-True ($readinessFailure -is [TimeoutException]) 'Missing socket did not preserve the timeout.'
+    Assert-True ($readinessFailure.InnerException -is [TimeoutException]) 'Readiness diagnostics replaced the original timeout.'
+    Assert-True ($readinessFailure.Message -match 'socketExists=False') 'Timeout omitted socket state.'
+    Assert-True ($readinessFailure.Message -match 'daemonExited=False') 'Timeout omitted daemon state.'
+    Assert-True ($readinessFailure.Message -match 'daemonExitCode=pending; daemonStderr=pending') 'Timeout omitted daemon exit and stderr state.'
+    Assert-True ($readinessFailure.Message -match 'watcherCreated=0; watcherErrors=0') 'Timeout omitted watcher counts.'
+    Assert-True ($readinessFailure.Message -match 'clientProbe=skipped \(socket absent\)') 'Timeout did not explain the skipped client probe.'
+    Assert-CleanedUp $readinessFailure.Data['OwnedTmuxFixture']
+
+    $originalDiagnostic = (Get-Command Get-OwnedTmuxReadinessDiagnostic).ScriptBlock
+    try {
+        Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value { throw 'injected diagnostic failure' }
+        $diagnosticFailure = $null
+        try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+        catch { $diagnosticFailure = $_.Exception }
+        Assert-True ($diagnosticFailure -is [TimeoutException] -and
+            $diagnosticFailure.InnerException -is [TimeoutException]) 'A failed diagnostic replaced the readiness timeout.'
+        Assert-True ($diagnosticFailure.Data['OwnedTmuxDiagnosticFailure'].Message -eq
+            'injected diagnostic failure') 'The diagnostic failure was lost.'
+        Assert-CleanedUp $diagnosticFailure.Data['OwnedTmuxFixture']
+    } finally {
+        Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value $originalDiagnostic
+    }
+} finally {
+    Remove-Item -LiteralPath $fakeDirectory -Recurse -Force
+}
+
 $cancellation = [System.Threading.CancellationTokenSource]::new()
 $cancelState = @{ Fixture = $null }
 $cancelled = $false

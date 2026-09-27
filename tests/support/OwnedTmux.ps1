@@ -27,7 +27,10 @@ function Invoke-OwnedTmux {
         [Parameter(Mandatory)] [string[]] $Arguments,
         [switch] $AllowFailure,
         [scriptblock] $OnStarted,
-        [System.Threading.CancellationToken] $CancellationToken = $Fixture.CancellationToken
+        [System.Threading.CancellationToken] $CancellationToken = $Fixture.CancellationToken,
+        [TimeSpan] $WaitTimeout = [TimeSpan]::FromSeconds(1),
+        [int] $KillWaitMilliseconds = 1000,
+        [switch] $KillProcessOnly
     )
 
     if ($CancellationToken.IsCancellationRequested) {
@@ -46,7 +49,7 @@ function Invoke-OwnedTmux {
         if ($OnStarted) { & $OnStarted $process }
         try {
             $null = $process.WaitForExitAsync($CancellationToken).WaitAsync(
-                [TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+                $WaitTimeout).GetAwaiter().GetResult()
         } catch {
             if ($_.Exception.InnerException) { throw $_.Exception.InnerException }
             throw
@@ -62,11 +65,47 @@ function Invoke-OwnedTmux {
         $result
     } finally {
         if ($started -and -not $process.HasExited) {
-            $process.Kill($true)
-            if (-not $process.WaitForExit(1000)) { throw 'Owned tmux client did not exit.' }
+            $process.Kill(-not $KillProcessOnly)
+            if (-not $process.WaitForExit($KillWaitMilliseconds)) { throw 'Owned tmux client did not exit.' }
         }
         if (-not $started) { $process.Dispose() }
     }
+}
+
+function Get-OwnedTmuxReadinessDiagnostic {
+    param($Fixture, [LibTmux.Testing.SocketCreatedSignal] $Signal)
+
+    $socketExists = [bool] (Test-Path -LiteralPath $Fixture.SocketPath)
+    $daemonExited = $Fixture.ServerProcess.HasExited
+    $daemonExitCode = if ($daemonExited) { [string] $Fixture.ServerProcess.ExitCode } else { 'pending' }
+    $daemonStderr = if ($Fixture.ServerError.IsCompletedSuccessfully) {
+        ($Fixture.ServerError.Result -replace '[\r\n]+', ' ').Trim()
+    } else { 'pending' }
+    if ($daemonStderr.Length -gt 160) { $daemonStderr = $daemonStderr.Substring(0, 160) + '...' }
+
+    $clientProbe = if (-not $socketExists) {
+        'skipped (socket absent)'
+    } elseif ($daemonExited) {
+        'skipped (daemon exited)'
+    } else {
+        try {
+            # -N prevents this read-only probe from starting a replacement server.
+            $result = Invoke-OwnedTmux $Fixture -Arguments @('-N', 'list-sessions') -AllowFailure `
+                -CancellationToken ([System.Threading.CancellationToken]::None) `
+                -WaitTimeout ([TimeSpan]::FromMilliseconds(250)) -KillWaitMilliseconds 100 -KillProcessOnly
+            $stderr = ($result.StdErr -replace '[\r\n]+', ' ').Trim()
+            if ($stderr.Length -gt 160) { $stderr = $stderr.Substring(0, 160) + '...' }
+            "exitCode=$($result.ExitCode), stderr=$stderr"
+        } catch {
+            $clientError = ($_.Exception.Message -replace '[\r\n]+', ' ').Trim()
+            if ($clientError.Length -gt 160) { $clientError = $clientError.Substring(0, 160) + '...' }
+            "error=$($_.Exception.GetType().Name): $clientError"
+        }
+    }
+
+    "socketExists=$socketExists; daemonExited=$daemonExited; daemonExitCode=$daemonExitCode; " +
+        "daemonStderr=$daemonStderr; watcherCreated=$($Signal.CreatedEvents); " +
+        "watcherErrors=$($Signal.ErrorEvents); clientProbe=$clientProbe"
 }
 
 function New-OwnedTmuxFixture {
@@ -142,7 +181,19 @@ function New-OwnedTmuxFixture {
             $failure = $failure.InnerException
         }
         if ($failure -is [System.TimeoutException]) {
-            $failure = [System.TimeoutException]::new("Owned tmux fixture timed out during $setupStage.", $failure)
+            $diagnosticFailure = $null
+            $message = "Owned tmux fixture timed out during $setupStage."
+            if ($setupStage -eq 'socket readiness') {
+                try {
+                    $diagnostics = Get-OwnedTmuxReadinessDiagnostic $fixture $signal
+                } catch {
+                    $diagnosticFailure = $_.Exception
+                    $diagnostics = "diagnostics unavailable ($($diagnosticFailure.GetType().Name))"
+                }
+                $message += " $diagnostics"
+            }
+            $failure = [System.TimeoutException]::new($message, $failure)
+            if ($diagnosticFailure) { $failure.Data['OwnedTmuxDiagnosticFailure'] = $diagnosticFailure }
         }
         $failure.Data['OwnedTmuxFixture'] = $fixture
         try {
