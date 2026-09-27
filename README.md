@@ -15,7 +15,7 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
 [Compatibility](docs/compatibility.md) ·
 [Troubleshooting](docs/troubleshooting.md) ·
-[Cmdlet reference](docs/reference/README.md)
+[Cmdlet reference](docs/reference/README.md) · [License](#license)
 
 **Alpha.** APIs may change. Build from this checkout; the modules are not yet
 published to PowerShell Gallery.
@@ -339,3 +339,7 @@ and development checks.
 
 The [benchmark guide](benchmarks/README.md) explains installed-package
 workloads, correctness checks, raw samples and reproduction commands.
+
+## License
+
+[MIT](LICENSE). Bundled dependency notices are in [licenses](licenses/).

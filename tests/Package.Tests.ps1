@@ -10,6 +10,13 @@ $core = Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1'
 $workspace = Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1'
 if (!(Test-Path $core)) { throw 'Core module artifact is missing.' }
 if (!(Test-Path $workspace)) { throw 'Workspace module artifact is missing.' }
+foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+    $license = Join-Path $ModuleRoot "$name/0.1.0/LICENSE"
+    if (!(Test-Path -LiteralPath $license -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $license).Hash -cne (Get-FileHash -LiteralPath "$PSScriptRoot/../LICENSE").Hash) {
+        throw "The $name package does not contain this repository's MIT license."
+    }
+}
 $before = [Environment]::GetEnvironmentVariables()
 $pathBefore = $env:PATH
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-import-' + [Guid]::NewGuid().ToString('N'))
