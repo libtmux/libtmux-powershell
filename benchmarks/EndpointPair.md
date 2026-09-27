@@ -25,16 +25,19 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/EndpointPair.ps1 \
     -OutputPath artifacts/benchmarks/endpoint-pair.json
 ```
 
-The runner extracts the exact `LibTmux.0.1.0.nupkg`, requires core
-`0.0.0-alpha.16.ps.2`, and records the source checkout, runner/check hashes,
-package hash, tmux binary hash, runtime, and assembly identities. Package
-import, creation of both owned daemons, and opening both runspaces have
-separate timings. First calls and warmups are separate from the 20 raw samples
-per lane. Samples retain endpoint-indexed replies, native state before and
-after, submission order, and completion order reaped by `WaitAny`. Already
-completed commands can appear in index order regardless of which finished
-first. Cleanup verifies both servers and sessions remained live before their
-owned fixtures were removed.
+The runner extracts the exact `LibTmux.0.1.0.nupkg`, validates its embedded
+core version and assembly hashes, and records the source checkout,
+runner/check hashes, package and tmux binary hashes, runtime, and assembly
+identities. Package-only runs report `sourceProvenance: unverified`. Pass
+`-ReviewRoot` with a clean-source bootstrap directory to verify the inspected
+.NET feed and staged PowerShell build; that reports `sourceProvenance: verified`
+with both source revisions. Package import, creation of both owned daemons, and
+opening both runspaces have separate timings. First calls and warmups are
+separate from the 20 raw samples per lane. Samples retain endpoint-indexed
+replies, native state before and after, submission order, and completion order
+reaped by `WaitAny`. Already completed commands can appear in index order
+regardless of which finished first. Cleanup verifies both servers and sessions
+remained live before their owned fixtures were removed.
 
 Native samples include the `Invoke-OwnedTmux` PowerShell helper; cmdlet samples
 include their PowerShell invocation overhead. This is a two-endpoint result

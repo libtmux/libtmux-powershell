@@ -17,11 +17,11 @@ That observed order can differ from submission order; simultaneous completions
 may appear in submission order. The chain returns one merged output stream.
 
 Build and package the PowerShell module using the
-[contributor guide](../.github/CONTRIBUTING.md#setup). The supplied
-`LibTmux.0.1.0.nupkg` must contain the reviewed
-`0.0.0-alpha.16.ps.2` core dependency. The runner extracts it into a
-temporary directory, imports that installed artifact, and owns its tmux
-socket. Run the negative equality controls and a two-round live smoke first:
+[contributor guide](../.github/CONTRIBUTING.md#setup). The runner checks the
+supplied `LibTmux.0.1.0.nupkg` against its embedded core version and assembly
+hashes, extracts it into a temporary directory, imports that installed
+artifact, and owns its tmux socket. Run the negative equality controls and a
+two-round live smoke first:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File benchmarks/DisplayDispatch.Tests.ps1 \
@@ -50,7 +50,11 @@ state before and after each lane, raw elapsed nanoseconds, medians, and p95
 only when there are at least twenty samples. Import, first-use calls, control
 connection, and disconnection have separate timings. The package, tmux,
 benchmark source, host, and source checkout are identified by versions and
-hashes; `sourceDirty` marks a checkout with unrelated edits too.
+hashes; `sourceDirty` marks a checkout with unrelated edits too. Package-only
+runs report `sourceProvenance: unverified`. Pass `-ReviewRoot` with a
+clean-source bootstrap directory to verify the inspected .NET feed and staged
+PowerShell build; that reports `sourceProvenance: verified` with both source
+revisions.
 
 The control client is reused during samples. Disconnect must remove that
 client while leaving the borrowed session and daemon alive. The owned tmux

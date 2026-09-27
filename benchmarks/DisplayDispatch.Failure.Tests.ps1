@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop |
         Select-Object -First 1).Source
 )
@@ -140,6 +141,8 @@ $null = New-Item -ItemType Directory -Path $temporary
 try {
     $module = Join-Path $temporary 'LibTmux/0.1.0'
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $module)
+    Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force
+    $null = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $module -ReviewRoot $ReviewRoot
     Import-Module (Join-Path $module 'LibTmux.psd1') -ErrorAction Stop
     . "$PSScriptRoot/../tests/support/OwnedTmux.ps1"
 

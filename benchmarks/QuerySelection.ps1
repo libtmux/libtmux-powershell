@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
     [Parameter(Mandatory)] [string] $OutputPath,
+    [string] $ReviewRoot,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
     [ValidateRange(0, 20)] [int] $WarmupRounds = 3,
     [ValidateRange(1, 100)] [int] $SampleRounds = 20
@@ -74,11 +75,8 @@ try {
     $module = Join-Path $temporary 'LibTmux/0.1.0'
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $module)
     $extractWatch.Stop()
-    $coreVersion = (Get-Content -LiteralPath (Join-Path $module 'dependencies.json') -Raw |
-        ConvertFrom-Json).corePackageVersion
-    if ($coreVersion -cne '0.0.0-alpha.16.ps.2') {
-        throw "Query selection requires the reviewed 0.0.0-alpha.16.ps.2 core; found $coreVersion."
-    }
+    Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force
+    $identity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $module -ReviewRoot $ReviewRoot
     $importWatch = [Diagnostics.Stopwatch]::StartNew()
     Import-Module (Join-Path $module 'LibTmux.psd1') -ErrorAction Stop
     $importWatch.Stop()
@@ -258,8 +256,14 @@ try {
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant();
             checksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/QuerySelection.Checks.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             packageVersion = (Get-Module LibTmux).Version.ToString();
-            corePackageVersion = $coreVersion;
-            packageSha256 = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant();
+            corePackageVersion = $identity.corePackageVersion;
+            packageSha256 = $identity.packageSha256;
+            coreAssemblySha256 = $identity.coreAssemblySha256;
+            cmdletAssemblySha256 = $identity.cmdletAssemblySha256;
+            sourceProvenance = $identity.sourceProvenance;
+            reviewCoreRevision = $identity.reviewCoreRevision;
+            reviewPortRevision = $identity.reviewPortRevision;
+            packageIdentitySha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/PackageIdentity.psm1" -Algorithm SHA256).Hash.ToLowerInvariant();
             tmuxVersion = $tmuxVersion;
             tmuxSha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant();
             powerShellVersion = $PSVersionTable.PSVersion.ToString();

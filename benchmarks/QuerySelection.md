@@ -16,10 +16,10 @@ sample includes acquisition. These are different cost scopes, so the report
 does not calculate a cross-scope speed ratio.
 
 Build and package the module using the
-[contributor guide](../.github/CONTRIBUTING.md#setup). The supplied
-`LibTmux.0.1.0.nupkg` must contain the reviewed
-`0.0.0-alpha.16.ps.2` core dependency. Run the negative placement and graph
-controls with a two-round installed-package smoke:
+[contributor guide](../.github/CONTRIBUTING.md#setup). The runner validates
+the supplied `LibTmux.0.1.0.nupkg` against its embedded core version and
+assembly hashes. Run the negative placement and graph controls with a
+two-round installed-package smoke:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File benchmarks/QuerySelection.Tests.ps1 \
@@ -39,7 +39,10 @@ measure. The report records its hash and version, each plan's pushed and
 residual predicates, and reasons for excluded modes. It also records package
 and source hashes, checkout dirtiness, setup, import, snapshot capture, query
 construction, first-use calls, warmups, and every timed sample. The p95
-appears only with at least twenty samples per cell.
+appears only with at least twenty samples per cell. Package-only runs report
+`sourceProvenance: unverified`. Pass `-ReviewRoot` with a clean-source
+bootstrap directory to verify the inspected .NET feed and staged PowerShell
+build; that reports `sourceProvenance: verified` with both source revisions.
 
 The runner refuses to overwrite a report. It writes PASS or PARTIAL only
 after removing its owned tmux fixture and extracted package. A single host
