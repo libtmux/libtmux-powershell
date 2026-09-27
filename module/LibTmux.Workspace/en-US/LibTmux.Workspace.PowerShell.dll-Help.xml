@@ -1176,7 +1176,10 @@ Journal and CompensationJournal; partial results are never emitted as success.
 Stopping the pipeline cancels owned work. Cleanup follows the plan's frozen
 budget. A stopped pipeline can suppress subsequent error output, so receiving a
 cancellation journal after pipeline shutdown is not guaranteed. Application is
-detached; it does not attach a terminal or transfer ownership of the daemon.</maml:para>
+detached; it does not attach a terminal or transfer ownership of the daemon.
+To enter the applied session, pass the successful WorkspaceResult.Session to
+Enter-TmuxSession in a foreground terminal outside tmux. Attachment has its own
+confirmation and cancellation behavior; it does not repeat application.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -1297,6 +1300,10 @@ $Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false
       <maml:navigationLink>
         <maml:linkText>Get-TmuxWorkspacePlan</maml:linkText>
         <maml:uri>Get-TmuxWorkspacePlan.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Enter-TmuxSession</maml:linkText>
+        <maml:uri>../LibTmux/Enter-TmuxSession.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

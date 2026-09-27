@@ -125,6 +125,20 @@ captured graph. `.Journal` records action outcomes; `.Unsupported` lists
 requested final layouts tmux rejected while leaving their windows usable.
 The observation spans an interval, so concurrent changes can make it fail.
 
+To load the workspace into your foreground terminal, run
+`$workspaceResult.Session | LibTmux\Enter-TmuxSession -ErrorAction Stop`
+after the successful application. Run it outside tmux with terminal stdin;
+detach normally to receive one refreshed native session. The borrowed daemon
+and workspace remain running after you detach. See
+[Enter-TmuxSession](reference/LibTmux/Enter-TmuxSession.md) for its terminal
+and cancellation contract.
+
+`Enter-TmuxSession` accepts the native Session, not WorkspaceResult. It asks
+for its own PowerShell confirmation when requested. `-WhatIf` on
+`Invoke-TmuxWorkspace` emits no result to attach. A failed application with
+`-ErrorAction Stop` emits no result for this step. Entering a session does not
+undo workspace effects if the terminal client is cancelled or fails.
+
 For an existing session, choose `Reuse`, `Append` or `Replace` explicitly
 when planning. Reuse returns the inspected session without declaration
 effects; Append adds windows while retaining existing session options;

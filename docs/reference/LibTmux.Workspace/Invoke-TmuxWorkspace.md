@@ -51,6 +51,9 @@ Stopping the pipeline cancels owned work. Cleanup follows the plan's frozen
 budget. A stopped pipeline can suppress subsequent error output, so receiving a
 cancellation journal after pipeline shutdown is not guaranteed. Application is
 detached; it does not attach a terminal or transfer ownership of the daemon.
+To enter the applied session, pass the successful WorkspaceResult.Session to
+Enter-TmuxSession in a foreground terminal outside tmux. Attachment has its own
+confirmation and cancellation behavior; it does not repeat application.
 
 ## EXAMPLES
 
@@ -164,3 +167,5 @@ workspace mutation or host actions.
 ## RELATED LINKS
 
 [Get-TmuxWorkspacePlan](Get-TmuxWorkspacePlan.md)
+
+[Enter-TmuxSession](../LibTmux/Enter-TmuxSession.md)
