@@ -218,6 +218,19 @@ $assertions = @{
             Assert-Guide ($o.Result[0] -is [LibTmux.TmuxEvent] -and @($o.Server | Get-TmuxClient).Count -eq 0 -and
                 $null -eq (Get-Job -Id $o.Job.Id -ErrorAction SilentlyContinue)) 'thread job native result and owned cleanup'
         } }
+    'watch.owned-rename' = @{ Group = 'Watch'; Count = 1; Prepare = {
+            param($c)
+            $c.WatchDirectoriesBefore = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'libtmux-watch-*' |
+                Select-Object -ExpandProperty FullName)
+        }; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [LibTmux.TmuxNotificationEvent] -and
+                $o.Result[0].Name -ceq 'window-renamed' -and
+                $o.Result[0].Arguments -ccontains 'after') 'owned watcher observed its rename event'
+            $after = @(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'libtmux-watch-*' |
+                Select-Object -ExpandProperty FullName)
+            Assert-Guide (@(Compare-Object $o.Context.WatchDirectoriesBefore $after).Count -eq 0) 'owned watcher left its socket directory'
+        } }
     'watch.parallel' = @{ Group = 'Watch'; Count = 2; Assert = {
             param($o)
             Assert-Guide (($o.Result | Sort-Object) -join '|' -ceq 'first|second' -and

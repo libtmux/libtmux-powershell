@@ -18,6 +18,72 @@ Each event is delivered on the pipeline callback before another is fetched.
 Downstream code may synchronously send a control command on that connection:
 reply processing does not wait for notification delivery.
 
+## Observe one owned change
+
+After [installing libtmux for PowerShell](../README.md#install-from-source),
+paste this script into PowerShell. It creates one session on a socket in a
+private temporary directory. It connects a control client before renaming the
+window, so tmux queues the notification even if the job reads it later. The job
+emits that native event. An event limit, byte budget and five-second deadline
+bound the observation. The finally block removes the job, client, session and
+socket directory. If session removal fails, the directory remains so the
+server is reachable. The default tmux server is untouched.
+
+<!-- example: watch.owned-rename -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    Import-Module LibTmux
+    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-watch-' + [Guid]::NewGuid().ToString('N'))
+    $null = New-Item -ItemType Directory -Path $socketDirectory -ErrorAction Stop
+    $ownerOnly = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute
+    [IO.File]::SetUnixFileMode($socketDirectory, $ownerOnly)
+    $socketPath = Join-Path $socketDirectory 'socket'
+    $server = New-TmuxServer -SocketPath $socketPath -ConfigurationFile /dev/null
+    $session = $control = $job = $null
+    try {
+        $session = $server | New-TmuxSession `
+            -Name watch-demo -WindowName before -Command 'exec /bin/cat'
+        $control = $server | Connect-TmuxControl -Target $session.Name -ErrorAction Stop
+        $job = Start-ThreadJob -ScriptBlock {
+            Import-Module LibTmux
+            $using:control | Watch-TmuxEvent -MaxEvents 16 -MaxOutputBytes 1048576 |
+                Where-Object {
+                    $_ -is [LibTmux.TmuxNotificationEvent] -and
+                    $_.Name -ceq 'window-renamed' -and $_.Arguments -ccontains 'after'
+                } | Select-Object -First 1
+        }
+        $null = $server | Invoke-TmuxCommand -Arguments @(
+            'rename-window', '-t', 'watch-demo:0', 'after'
+        )
+        if (-not ($job | Wait-Job -Timeout 5)) {
+            throw 'The rename notification did not arrive within five seconds.'
+        }
+        $notification = $job | Receive-Job -ErrorAction Stop
+        if ($null -eq $notification) {
+            throw 'The watcher ended without the rename notification.'
+        }
+        $notification
+    } finally {
+        try {
+            if ($job) {
+                $job | Stop-Job
+                $job | Remove-Job
+            }
+        } finally {
+            try {
+                if ($control) { $control | Disconnect-TmuxControl -Confirm:$false }
+            } finally {
+                if ($session) { $session | Remove-TmuxSession -Confirm:$false }
+                if ($session -or -not (Test-Path -LiteralPath $socketPath)) {
+                    Remove-Item -LiteralPath $socketDirectory -Recurse -Force
+                }
+            }
+        }
+    }
+}
+```
+
 ## Bound background output
 
 A foreground watcher occupies its pipeline until it ends or you press Ctrl+C.
