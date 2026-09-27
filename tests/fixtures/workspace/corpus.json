@@ -49,6 +49,10 @@
           ]
         }
       ]
+    },
+    {
+      "window_name": "json-observer",
+      "panes": [null]
     }
   ]
 }

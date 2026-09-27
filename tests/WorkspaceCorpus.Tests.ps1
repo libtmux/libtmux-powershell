@@ -58,22 +58,28 @@ Invoke-WithOwnedTmux {
         $window = $result.Windows[0]
         $panes = @($window | LibTmux\Get-TmuxPane)
         Assert-WorkspaceCorpus ($result -is [LibTmux.Workspace.WorkspaceResult] -and
-            $result.Session.Name -ceq 'corpus' -and $result.Windows.Count -eq 1 -and
+            $result.Session.Name -ceq 'corpus' -and
             $panes.Count -eq 2 -and $panes[0].CurrentPath -ceq $firstDirectory -and
             $panes[1].CurrentPath -ceq $secondDirectory -and
             ($window | LibTmux\Get-TmuxOption -Name '@corpus-window').Value.Raw -ceq $format -and
             ($panes[1] | LibTmux\Get-TmuxOption -Name '@corpus-pane').Value.Raw -ceq $format -and
             (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $panes[1].Id.ToString(), '#{pane_active}')).StdOut.Trim() -ceq '1') "$format native graph, options, focus and directories"
         if ($format -ceq 'yaml') {
-            Assert-WorkspaceCorpus ([Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and
+            Assert-WorkspaceCorpus ($result.Windows.Count -eq 1 -and
+                [Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and
                 $panes[0].Height -eq $panes[1].Height) 'YAML horizontal layout'
             $created = $result
         } else {
             Assert-WorkspaceCorpus ([Math]::Abs($panes[0].Height - $panes[1].Height) -le 1 -and
                 $panes[0].Width -eq $panes[1].Width) 'JSON vertical layout'
             $windows = @($result.Session | LibTmux\Get-TmuxWindow)
+            Assert-WorkspaceCorpus ($result.Windows.Count -eq 2 -and
+                $result.Windows[0].Name -ceq 'json-console' -and
+                $result.Windows[1].Name -ceq 'json-observer' -and
+                $result.Windows[0].Id -ne $result.Windows[1].Id -and
+                $result.Session.ActiveWindow.Value.Id -eq $result.Windows[0].Id) 'JSON append did not create two distinct windows and focus the first after creating the second'
             Assert-WorkspaceCorpus ($result.Session.Id -eq $created.Session.Id -and
-                $windows.Count -eq 2 -and @($windows | Where-Object Id -EQ $created.Windows[0].Id).Count -eq 1 -and
+                $windows.Count -eq 3 -and @($windows | Where-Object Id -EQ $created.Windows[0].Id).Count -eq 1 -and
                 ($result.Session | LibTmux\Get-TmuxOption -Name '@corpus-session').Value.Raw -ceq 'yaml-original' -and
                 (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $result.Session.Id.ToString(), '#{window_id}')).StdOut.Trim() -ceq $window.Id.ToString()) 'JSON append did not preserve existing window/options or select its focused window'
         }
@@ -81,4 +87,4 @@ Invoke-WithOwnedTmux {
     }
     Assert-WorkspaceCorpus ([int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'corpus application replaced the borrowed daemon'
 }
-'PASS workspace corpus: YAML creation, JSON append, inherited commands/environment/paths, options, focus, layouts and detached daemon'
+'PASS workspace corpus: YAML creation, multi-window JSON append, inherited commands/environment/paths, options, focus, layouts and detached daemon'
