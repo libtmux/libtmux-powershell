@@ -63,8 +63,8 @@ update its exact reference and run with `-Restore -UpdateLock`.
 
 ## Review package builds
 
-The current dependency pins use unpublished `0.0.0-alpha.16.ps.1` archives
-built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/c76514caa720087b930523d8adaf98473d18df4a).
+The current dependency pins use unpublished `0.0.0-alpha.16.ps.2` archives
+built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/cac57dc779483d00024565426f08ce285a65caa3).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -84,20 +84,20 @@ Keep lock checking enabled when consuming the existing archives.
 To rebuild the reviewed source, use a new, unused prerelease identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
 promise to reproduce the locked package bytes. Do not overwrite or recreate
-`0.0.0-alpha.16.ps.1` to satisfy its existing locks.
+`0.0.0-alpha.16.ps.2` to satisfy its existing locks.
 
 Set `CORE_SOURCE` to a clean checkout of the linked revision, `REVIEW_VERSION`
 to the new identifier, and `CORE_PACKAGES` to a new output directory. Use
 absolute directory paths. The checkout uses its own SDK pin; do not build into
 one another task is compiling concurrently. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/c76514caa720087b930523d8adaf98473d18df4a/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/cac57dc779483d00024565426f08ce285a65caa3/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision c76514caa720087b930523d8adaf98473d18df4a \
+    --revision cac57dc779483d00024565426f08ce285a65caa3 \
     --output "$CORE_PACKAGES"
 ```
 
@@ -232,6 +232,44 @@ Build and packaging are outer-loop work. Package consumer checks cover
 both import orders, module-qualified calls, native types, reimport, no-tmux
 imports and assembly conflicts. Fixture checks are integration tests.
 The complete platform, example and API suites are not established yet.
+
+## MCP discovery
+
+The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
+Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
+module package. Use the same original inspected review feed described above.
+Set `MCP_VERSION` to that exact review package version and choose a fresh tool
+directory:
+
+```console
+$ dotnet tool install LibTmux.Mcp \
+    --tool-path build/mcp-review \
+    --version "$MCP_VERSION" \
+    --framework net8.0 \
+    --add-source "$CORE_PACKAGES"
+```
+
+The test client pins the official `ModelContextProtocol` SDK in its own
+project and lockfile. Restore it during setup:
+
+```console
+$ dotnet restore tests/support/McpDiscovery/McpDiscovery.csproj \
+    --locked-mode
+```
+
+Build the client before running the suite:
+
+```console
+$ dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
+    --configuration Release \
+    --no-restore
+```
+
+Set `MCP_COMMAND` to the absolute path of `build/mcp-review/libtmux-mcp`. Run the
+[discovery command](../docs/mcp.md#check-discovery-from-this-checkout).
+The runner requires the existing executable and built probe; it does not
+install, restore or build. It starts only its own tmux fixture and stdio
+client. Tool installation and client compilation are setup/outer-loop work.
 
 ## Checks
 
