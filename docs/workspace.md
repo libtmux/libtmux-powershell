@@ -130,6 +130,66 @@ effects; Append adds windows while retaining existing session options;
 Replace removes the inspected session before creating its replacement.
 Review those actions before approving them.
 
+## Export a starting declaration
+
+Capture an existing session at pane depth before converting it. Set
+`$exportPath` to the literal path for the YAML file you want to write. The
+conversion reads the capture only; `Set-Content` writes the file.
+
+<!-- example: workspace.07-export -->
+```powershell
+($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop).Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne -ErrorAction Stop |
+    ConvertTo-TmuxWorkspace -ErrorAction Stop |
+    ConvertTo-TmuxWorkspaceYaml -ErrorAction Stop |
+    Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
+```
+
+Conversion warns because it omits observed options, environment, terminal
+text, entity IDs, indices and shared-link identity. It cannot reconstruct the
+original startup commands or shell intent. Repeated window links become
+separate declarations. Check the exported layout and pane paths, add the
+commands you want on a future load, then import, resolve and review a new plan.
+For JSON, use `ConvertTo-TmuxWorkspaceJson` in place of the YAML converter.
+See [ConvertTo-TmuxWorkspace](reference/LibTmux.Workspace/ConvertTo-TmuxWorkspace.md)
+for the captured-field and literal-path rules.
+
+## Edit the declaration
+
+Choose a file and an installed editor explicitly. `$workspaceFile` is the
+`FileInfo` returned by `Get-TmuxWorkspace`; `$editor` is an `ApplicationInfo`
+returned by `Get-Command -Name nvim -CommandType Application -ErrorAction Stop`
+(or your chosen editor). Set `[string[]] $editorArguments = @()` for no extra
+arguments. A GUI editor that returns immediately needs its own wait option,
+such as `@('--wait')` where the selected editor supports it.
+
+Run this as a foreground command in your terminal, without assigning, piping
+or redirecting its output. The file's absolute path is one argument. Arguments
+are passed separately, including spaces, quotes and empty strings.
+
+<!-- example: workspace.08-edit -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandArgumentPassing = 'Standard'
+    $PSNativeCommandUseErrorActionPreference = $false
+    & $editor @editorArguments $workspaceFile.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Editor exited with code $LASTEXITCODE."
+    }
+}
+```
+
+A nonzero editor exit stops the block with the exit code. Launch errors also
+stop it. Exit the editor normally when finished. Ctrl+C follows the editor's
+and terminal's normal behavior; some editors treat it as an editing command
+and stay open. This recipe has no `-WhatIf`, forced-stop or process-tree
+cleanup contract. It does not undo edits already saved.
+
+Editing runs no workspace command or tmux operation. Import, resolve, validate
+and review a new plan explicitly afterward. An existing plan still contains
+the declaration captured when it was created.
+
 ## Startup, host effects and failures
 
 `-Readiness Immediate` sends configured commands as literal input followed

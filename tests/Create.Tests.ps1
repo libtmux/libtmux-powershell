@@ -19,7 +19,10 @@ Invoke-WithOwnedTmux {
     param($fixture)
 
     # tmux 3.2a otherwise sizes detached windows from the command client.
-    $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
+    $version = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
+    if ($version -ceq '3.2a') {
+        $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
+    }
     $trace = Join-Path $fixture.DirectoryPath 'calls'
     $wrapper = Join-Path $fixture.DirectoryPath 'tmux'
     $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
@@ -49,7 +52,9 @@ exec $quotedTmux "`$@"
     Assert-True ($window.Name -ceq $literal -and $pane.Width -eq 100 -and $pane.Height -eq 30 -and
         $pane.CurrentPath -ceq $directory) 'Session creation lost its name, requested dimensions or working directory.'
     $environment = Invoke-OwnedTmux $fixture -Arguments @('show-environment', '-t', $session.Id.ToString(), 'CREATE_VALUE')
-    Assert-True ($environment.StdOut.TrimEnd("`r", "`n") -ceq "CREATE_VALUE=$literal") 'Creation changed an environment value argument.'
+    # tmux 3.4 escapes dollars when displaying values; the pane check below verifies actual bytes.
+    $shownValue = if ($version -ceq '3.4') { $literal.Replace('$', '\$') } else { $literal }
+    Assert-True ($environment.StdOut.TrimEnd("`r", "`n") -ceq "CREATE_VALUE=$shownValue") 'Creation changed an environment value argument.'
     Assert-True ($creationEnvironment.CREATE_VALUE -ceq 'changed after binding') 'Environment snapshot test did not mutate the original input.'
     $environment = Invoke-OwnedTmux $fixture -Arguments @('show-environment', '-t', $session.Id.ToString(), 'CREATE_EMPTY')
     Assert-True ($environment.StdOut.TrimEnd("`r", "`n") -ceq 'CREATE_EMPTY=') 'Creation lost an empty environment value.'

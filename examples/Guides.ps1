@@ -173,6 +173,24 @@ $workspacePlan | Invoke-TmuxWorkspace -WhatIf
     'workspace.06-apply' = @{ Requires = @('workspacePlan'); Code = {
 $workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
     } }
+    'workspace.07-export' = @{ Requires = @('server', 'exportPath'); Code = {
+($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop).Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne -ErrorAction Stop |
+    ConvertTo-TmuxWorkspace -ErrorAction Stop |
+    ConvertTo-TmuxWorkspaceYaml -ErrorAction Stop |
+    Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
+    } }
+    'workspace.08-edit' = @{ Requires = @('workspaceFile', 'editor', 'editorArguments'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandArgumentPassing = 'Standard'
+    $PSNativeCommandUseErrorActionPreference = $false
+    & $editor @editorArguments $workspaceFile.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Editor exited with code $LASTEXITCODE."
+    }
+}
+    } }
     'workspace.parse' = @{ Requires = @(); Code = { LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development' } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }

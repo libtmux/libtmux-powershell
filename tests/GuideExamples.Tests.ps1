@@ -383,6 +383,63 @@ $assertions = @{
             Assert-Guide ((Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'workspace preserved unrelated anchor'
             $o.Context.WorkspaceResult = $result
         } }
+    'workspace.07-export' = @{ Group = 'Workspace'; Count = 0; Prepare = {
+            param($c)
+            $c.ExportPath = Join-Path $c.Fixture.DirectoryPath 'export [literal] $workspace.yaml'
+        }; Assert = {
+            param($o)
+            $path = $o.ExportPath
+            Assert-Guide (Test-Path -LiteralPath $path -PathType Leaf) 'workspace export file missing'
+            $exported = Get-Item -LiteralPath $path | Import-TmuxWorkspace -ErrorAction Stop
+            Assert-Guide ($exported -is [LibTmux.Workspace.WorkspaceFile] -and
+                $exported.SessionName -ceq 'development' -and $exported.Windows.Count -eq 1 -and
+                $exported.Windows[0].Panes.Count -eq 2 -and
+                @($exported.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -eq 0 -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'exported captured structure without invented commands'
+        } }
+    'workspace.08-edit' = @{ Group = 'Workspace'; Count = 0; Prepare = {
+            param($c)
+            $path = Join-Path $c.Fixture.DirectoryPath 'edited [literal] $workspace.yaml'
+            $c.EditorSibling = Join-Path $c.Fixture.DirectoryPath 'editor-sibling.yaml'
+            $c.EditorTrace = Join-Path $c.Fixture.DirectoryPath 'editor-arguments'
+            [IO.File]::WriteAllText($path, 'session_name: before-edit')
+            [IO.File]::WriteAllText($c.EditorSibling, 'session_name: sibling')
+            $c.WorkspaceFile = Get-TmuxWorkspace -LiteralPath $path -ErrorAction Stop
+            $program = Join-Path $c.Fixture.DirectoryPath 'editor.sh'
+            $quotedTrace = ConvertTo-GuideShellLiteral $c.EditorTrace
+            $c.EditorProgram = "#!/bin/sh`nprintf '%s\0' `"`$@`" > $quotedTrace`nfor selected do :; done`nprintf 'session_name: after-edit\n' > `"`$selected`"`nexit 0`n"
+            [IO.File]::WriteAllText($program, $c.EditorProgram)
+            [IO.File]::SetUnixFileMode($program, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+            $c.Editor = Get-Command -Name $program -CommandType Application -ErrorAction Stop
+            $c.EditorArguments = [string[]] @('space value', 'quote"value', '', '$(printf not-executed); *')
+        }; Assert = {
+            param($o)
+            $c = $o.Context
+            $expected = [string]::Join([char] 0, @($c.EditorArguments) + @($c.WorkspaceFile.FullName)) + [char] 0
+            Assert-Guide ([IO.File]::ReadAllText($c.EditorTrace) -ceq $expected) 'editor exact argv and literal final path'
+            Assert-Guide (($c.WorkspaceFile | Import-TmuxWorkspace -ErrorAction Stop).SessionName -ceq 'after-edit' -and
+                [IO.File]::ReadAllText($c.EditorSibling) -ceq 'session_name: sibling' -and
+                $o.WorkspacePlan.SessionName -ceq 'development') 'editor selected file changes without rewriting the frozen plan'
+            Assert-Guide ($o.EditorPreferences -ceq 'Continue|Legacy|True') 'editor source preferences escaped its child scope'
+            $workspaceFile, $editor, $editorArguments = $c.WorkspaceFile, $c.Editor, $c.EditorArguments
+            try {
+                [IO.File]::WriteAllText($editor.Path, $c.EditorProgram.Replace('exit 0', 'exit 23'))
+                Assert-GuideRejection { & $sources['workspace.08-edit'].Code } 'Editor exited with code 23.'
+                $missingInterpreter = Join-Path $c.Fixture.DirectoryPath 'missing-editor-interpreter'
+                [IO.File]::WriteAllText($editor.Path, "#!$missingInterpreter`n")
+                $LASTEXITCODE = 0
+                $launchFailed = $false
+                try { & $sources['workspace.08-edit'].Code } catch {
+                    if ($_.Exception.Message -like '*Editor exited with code*') { throw }
+                    $launchFailed = $_.FullyQualifiedErrorId -like 'NativeCommandFailed*'
+                }
+                Assert-Guide $launchFailed 'editor launch failure reused a previous zero exit status'
+                Assert-Guide ([IO.File]::ReadAllText($c.EditorTrace) -ceq $expected -and
+                    [IO.File]::ReadAllText($c.EditorSibling) -ceq 'session_name: sibling') 'editor failure changed arguments or sibling file'
+            } finally {
+                [IO.File]::WriteAllText($editor.Path, $c.EditorProgram)
+            }
+        } }
     'workspace.parse' = @{ Group = 'Pure'; Count = 1; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -636,7 +693,11 @@ printf '%s\n' dispatch >> $quotedTrace
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
-    $null = Invoke-OwnedTmux $Fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
+    # Only 3.2a needs manual detached sizing; global manual sizing crashes tmux 3.4 on new-session.
+    $version = (Invoke-OwnedTmux $Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
+    if ($version -ceq '3.2a') {
+        $null = Invoke-OwnedTmux $Fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
+    }
     if ($Group -eq 'Capture') {
         $program = Join-Path $Fixture.DirectoryPath 'capture.sh'
         $quotedSocket = ConvertTo-GuideShellLiteral $Fixture.SocketPath
@@ -683,6 +744,13 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     $query, $queryPlan = $Context['Query'], $Context['QueryPlan']
     $workspacePath, $projectRoot = $Context['WorkspacePath'], $Context['ProjectRoot']
     $workspace, $workspacePlan, $workspaceResult = $Context['Workspace'], $Context['WorkspacePlan'], $Context['WorkspaceResult']
+    $workspaceFile, $editor, $editorArguments = $Context['WorkspaceFile'], $Context['Editor'], $Context['EditorArguments']
+    $exportPath = $Context['ExportPath']
+    if ($Id -ceq 'workspace.08-edit') {
+        $ErrorActionPreference = 'Continue'
+        $PSNativeCommandArgumentPassing = 'Legacy'
+        $PSNativeCommandUseErrorActionPreference = $true
+    }
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
     $result = @(. $sources[$Id].Code)
     $Context.Executed.Add($Id)
@@ -690,12 +758,14 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
         Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Query = $query; QueryPlan = $queryPlan;
-        Workspace = $workspace; WorkspacePlan = $workspacePlan; WorkspaceResult = $workspaceResult; Context = $Context; BeforeDispatch = $before }
+        Workspace = $workspace; WorkspacePlan = $workspacePlan; WorkspaceResult = $workspaceResult; Context = $Context; BeforeDispatch = $before;
+        WorkspaceFile = $workspaceFile; Editor = $editor; EditorArguments = $editorArguments; ExportPath = $exportPath;
+        EditorPreferences = "$ErrorActionPreference|$PSNativeCommandArgumentPassing|$PSNativeCommandUseErrorActionPreference" }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('workspace.03-plan', 'workspace.06-apply')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {

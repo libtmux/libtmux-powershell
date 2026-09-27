@@ -11,6 +11,7 @@
     CmdletsToExport = @(
         'New-TmuxServer', 'Connect-TmuxServer', 'Get-TmuxServer', 'Get-TmuxSnapshot',
         'Get-TmuxSession', 'Get-TmuxWindow', 'Get-TmuxPane',
+        'Enter-TmuxSession',
         'New-TmuxQuery', 'ConvertTo-TmuxQueryJson', 'Get-TmuxQueryField',
         'Get-TmuxQueryPlan', 'Invoke-TmuxQuery',
         'Select-TmuxSession', 'Select-TmuxWindow', 'Select-TmuxPane',

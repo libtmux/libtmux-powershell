@@ -87,9 +87,11 @@ exec $quotedTmux "`$@"
 
     $literal = 'spaces; literal $value "quotes"'
     $result = $server | LibTmux\Invoke-TmuxCommand -Arguments @('set-environment', '-g', 'CAPTURE_LITERAL', $literal) -Confirm:$false
-    Assert-True ($result -is [LibTmux.TmuxCommandResult] -and $result.ExitCode -eq 0) 'Raw command did not emit the native successful result.'
+    Assert-True ($result -is [LibTmux.TmuxCommandResult] -and $result.ExitCode -eq 0 -and
+        $result.Arguments.Count -eq 4 -and $result.Arguments[3] -ceq $literal) 'Raw command changed the literal argument or did not emit the native successful result.'
     $result = $server | LibTmux\Invoke-TmuxCommand -Arguments @('showenv', '-g', 'CAPTURE_LITERAL') -Confirm:$false
-    Assert-True ($result.StandardOutputLines[0] -ceq "CAPTURE_LITERAL=$literal") 'Raw command changed literal argument boundaries.'
+    $nativeDisplay = (Invoke-OwnedTmux $fixture -Arguments @('showenv', '-g', 'CAPTURE_LITERAL')).StdOut.TrimEnd("`r", "`n")
+    Assert-True ($result.StandardOutputLines[0] -ceq $nativeDisplay) 'Raw command changed native showenv output.'
     $null = $server | LibTmux\Invoke-TmuxCommand -Arguments @('set-environment', '-g', 'CAPTURE_EMPTY', '') -Confirm:$false
     $result = $server | LibTmux\Invoke-TmuxCommand -Arguments @('show-environment', '-g', 'CAPTURE_EMPTY') -Confirm:$false
     Assert-True ($result.StandardOutputLines[0] -ceq 'CAPTURE_EMPTY=') 'Raw command rejected or lost an empty argument.'
@@ -119,7 +121,9 @@ exec $quotedTmux "`$@"
         $updated.Id -eq $pane.Id -and $updated.Title -ceq 'refreshed-title' -and $pane.Title -ceq $oldTitle) 'Refresh changed the old pane or failed to emit its captured replacement.'
 
     $script = Join-Path $fixture.DirectoryPath 'output.sh'
+    $literalPath = Join-Path $fixture.DirectoryPath 'literal-environment'
     $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
+    $quotedLiteralPath = "'" + $literalPath.Replace("'", "'\''") + "'"
     $wide = 'w' * 120
     @"
 #!/bin/sh
@@ -127,12 +131,14 @@ i=0
 while [ "`$i" -lt 40 ]; do printf 'history-%02d\n' "`$i"; i=`$((i + 1)); done
 printf '\033[31mred-text\033[0m\nleft\n\nright  \n'
 printf '%s\n' '$wide'
+printf '%s' "`$CAPTURE_LITERAL" > $quotedLiteralPath
 $quotedTmux -S $quotedSocket wait-for -S capture-ready
 exec /bin/cat
 "@ | Set-Content -LiteralPath $script
     $created = Invoke-OwnedTmux $fixture -Arguments @('new-window', '-d', '-P', '-F', '#{pane_id}', '-n', 'capture', "/bin/sh '$script'")
     Register-OwnedTmuxPane $fixture
     $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'capture-ready')
+    Assert-True ([IO.File]::ReadAllText($literalPath) -ceq $literal) 'The pane received a changed literal environment value.'
     $capture = $server | LibTmux\Get-TmuxPane -Id $created.StdOut.Trim()
     $visible = @($capture | LibTmux\Get-TmuxPaneContent)
     $history = @($capture | LibTmux\Get-TmuxPaneContent -History)

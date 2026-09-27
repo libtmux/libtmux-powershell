@@ -75,3 +75,70 @@ try {
     $directory.Delete($true)
 }
 'PASS workspace serialization: native values, defaults, order, nulls and resolved-path semantics'
+
+# Outer integration: freeze uses an owned captured graph after daemon shutdown.
+. "$PSScriptRoot/support/OwnedTmux.ps1"
+Invoke-WithOwnedTmux {
+    param($fixture)
+    $path = Join-Path $fixture.DirectoryPath '$cash ${literal} #{session_name} space'
+    $null = [IO.Directory]::CreateDirectory($path)
+    $null = Invoke-OwnedTmux $fixture -Arguments @('respawn-pane', '-k', '-t', '%0', '-c', $path.Replace('#', '#{a:35}'), 'exec /bin/cat')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('rename-window', '-t', '@0', 'editor')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('split-window', '-d', '-h', '-t', '%0', '-c', $fixture.DirectoryPath, 'exec /bin/cat')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('link-window', '-s', '@0', '-t', 'fixture:7')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('select-pane', '-t', '%1')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('select-window', '-t', 'fixture:7')
+    Register-OwnedTmuxPane $fixture
+    $trace = Join-Path $fixture.DirectoryPath 'freeze-calls'
+    $blocked = Join-Path $fixture.DirectoryPath 'freeze-blocked'
+    $wrapper = Join-Path $fixture.DirectoryPath 'freeze-tmux'
+    $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
+    @"
+#!/bin/sh
+printf '%s\n' call >> '$trace'
+if [ -f '$blocked' ]; then exit 91; fi
+exec $quotedTmux "`$@"
+"@ | Set-Content -LiteralPath $wrapper
+    [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper
+    $snapshot = $server | LibTmux\Get-TmuxSnapshot -Depth Panes
+    $shallow = $server | LibTmux\Get-TmuxSnapshot -Depth Sessions
+    $captured = $snapshot.Sessions[0]
+    Assert-WorkspaceText ($captured.Windows.Count -eq 2 -and $captured.Windows[0].Panes[0].CurrentPath -ceq $path) 'freeze fixture did not capture its native linked graph and literal path'
+    [IO.File]::WriteAllText($blocked, '')
+    $before = [IO.File]::ReadAllText($trace)
+    $exited = $fixture.ServerProcess.WaitForExitAsync()
+    $null = Invoke-OwnedTmux $fixture -Arguments @('kill-server')
+    $null = $exited.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+
+    $warnings = @()
+    $outputs = @(@($captured, $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -WarningAction SilentlyContinue -WarningVariable warnings)
+    Assert-WorkspaceText ($outputs.Count -eq 2 -and $outputs[0] -is [LibTmux.Workspace.WorkspaceFile] -and
+        $outputs[1] -is [LibTmux.Workspace.WorkspaceFile] -and $warnings.Count -eq 2) 'freeze lost native per-record output or explicit loss warnings'
+    $frozen = $outputs[0]
+    Assert-WorkspaceText ($null -eq $frozen.DocumentDirectory -and $frozen.Windows.Count -eq 2 -and
+        !$frozen.Windows[0].Focus -and $frozen.Windows[1].Focus -and
+        $frozen.Windows[0].WindowName -ceq 'editor' -and $frozen.Windows[1].WindowName -ceq 'editor' -and
+        !$frozen.Windows[0].Panes[0].Focus -and $frozen.Windows[0].Panes[1].Focus -and
+        !$frozen.Windows[1].Panes[0].Focus -and $frozen.Windows[1].Panes[1].Focus -and
+        $frozen.Windows[0].Layout -ceq $captured.Windows[0].Layout -and
+        $frozen.Windows[1].Layout -ceq $captured.Windows[1].Layout) 'freeze lost contextual order, focus, layout or unresolved provenance'
+    Assert-WorkspaceText ($frozen.Windows[0].Panes[0].StartDirectory -ceq $path.Replace('$', '$$') -and
+        @($frozen.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -eq 0) 'freeze rewrote literal paths or invented startup commands'
+    foreach ($format in @('Yaml', 'Json')) {
+        $text = $frozen | & "LibTmux.Workspace\ConvertTo-TmuxWorkspace$format"
+        $restored = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $text |
+            LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath
+        Assert-WorkspaceText ($restored.Windows[0].Panes[0].StartDirectory -ceq $path -and
+            $restored.Windows[1].Panes[0].StartDirectory -ceq $path) 'freeze/text/import/resolve changed a literal captured directory'
+    }
+    $errors = @()
+    $continued = @(@($shallow.Sessions[0], $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -ErrorAction Continue -ErrorVariable errors -WarningAction SilentlyContinue 2>$null)
+    Assert-WorkspaceText ($continued.Count -eq 1 -and $errors.Count -eq 1 -and
+        $errors[0].Exception -is [LibTmux.IncompleteSnapshotException] -and
+        $errors[0].CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::InvalidData -and
+        $errors[0].FullyQualifiedErrorId -like 'Tmux.WorkspaceFreezeFailed,*' -and
+        [object]::ReferenceEquals($errors[0].TargetObject, $shallow.Sessions[0])) 'incomplete freeze lost native error identity, target or Continue behavior'
+    Assert-WorkspaceText ([IO.File]::ReadAllText($trace) -ceq $before) 'pure freeze or subsequent text conversion contacted tmux'
+}
+'PASS workspace freeze: native projection, linked focus, offline conversion and strict capture errors'

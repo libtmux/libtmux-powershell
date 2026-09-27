@@ -452,6 +452,184 @@ $control | LibTmux\Disconnect-TmuxControl -Confirm:$false
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Enter-TmuxSession</command:name>
+      <maml:description>
+        <maml:para>Attach your foreground terminal to a selected session.</maml:para>
+      </maml:description>
+      <command:verb>Enter</command:verb>
+      <command:noun>TmuxSession</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Attach a foreground tmux client using the endpoint and daemon generation of
+the supplied native Session. The command waits until you detach, then returns
+one refreshed Session. It does not detach other clients or choose a session
+from ambient tmux variables.
+
+Run it in a foreground terminal outside tmux. Redirected stdin and a nonempty
+TMUX environment variable are rejected. These checks do not establish whether
+an arbitrary PowerShell host or in-process background runspace owns the terminal.
+Background jobs, remoting and custom hosts are not a supported attachment workflow.
+
+ReadOnly prevents the client from sending pane input. Detach normally with your
+tmux detach key binding. Stopping the PowerShell pipeline cancels its owned
+attachment client; the borrowed session, daemon and other clients remain.
+Cancellation does not undo a workspace already applied.
+
+The session's connection CommandTimeout bounds the entire attachment. Its
+initial acknowledgement has a five-second ceiling, shortened by CommandTimeout;
+a null CommandTimeout permits an indefinite interactive lifetime afterward.
+A successful detach can still report a native readback failure if the session
+or daemon disappears before the refreshed handle is captured.
+
+WhatIf emits no success object and performs no attachment, refresh or host
+application notification. Each actual input session is entered sequentially;
+prefer selecting exactly one session before invoking the command.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Enter-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ReadOnly</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompt before attaching the terminal.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ReadOnly</maml:name>
+        <maml:description>
+          <maml:para>Attach without permitting pane input.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native session to enter. Its endpoint and generation are retained.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the attachment without executing it.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native session selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One refreshed native session after successful detach. Empty input emits nothing.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Requires PowerShell 7.4 or later on Linux or macOS with native tmux and a foreground terminal.
+Tmux.SessionAttachFailed retains the native exception and input session. When
+attachment and host restoration both fail, both causes are retained together.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Preview attachment to a previously selected native session. No terminal is
+required for the preview.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$session | LibTmux\Enter-TmuxSession -WhatIf
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 2 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Observe the selected session from your foreground terminal without sending pane
+input. Detach to receive the refreshed Session.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$session | LibTmux\Enter-TmuxSession -ReadOnly
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Enter-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSession</maml:linkText>
+        <maml:uri>Get-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Invoke-TmuxWorkspace</maml:linkText>
+        <maml:uri>../LibTmux.Workspace/Invoke-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Get-TmuxClient</command:name>
       <maml:description>
         <maml:para>Read the clients attached to a tmux server.</maml:para>

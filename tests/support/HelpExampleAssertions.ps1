@@ -23,6 +23,45 @@ function Get-HelpExampleAssertion {
 
     # Each packaged example needs its own outcome assertion, including examples with no output.
     @{
+        'LibTmux\Enter-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $session = $server | LibTmux\Get-TmuxSession -Name 'fixture'
+                $Context.Session = $session
+            }; Assert = {
+                param($Result, $Context)
+                $session = $Context.Session
+                if ($Result.Count -ne 0 -or
+                    $session.Server.GetSessionAsync($session.Id).GetAwaiter().GetResult().Id -ne $session.Id) {
+                    throw 'Attachment preview returned a result or changed the selected session.'
+                }
+            } }
+        'LibTmux\Enter-TmuxSession#2' = @{ ExpectedCount = 1; Isolated = $true; TerminalMode = 'ReadOnly'; Assert = {
+                param($Result, $Context)
+                if ($Result.Count -ne 1 -or $Result[0] -isnot [LibTmux.Session] -or
+                    $Result[0].Id -ne $Context.Session.Id -or
+                    $Result[0].Server.ConnectionOptions.SocketPath -cne $Context.Session.Server.ConnectionOptions.SocketPath -or
+                    [object]::ReferenceEquals($Result[0], $Context.Session)) {
+                    throw 'Attachment example did not return one refreshed session from its explicit endpoint.'
+                }
+            } }
+        'LibTmux.Workspace\ConvertTo-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $capturedSession = ($server | LibTmux\Get-TmuxSnapshot -Depth Panes).Sessions[0]
+                $Context.CapturedSession = $capturedSession
+            }; Assert = {
+                param($Result, $Context)
+                $workspace = $Result[0]
+                $captured = $Context.CapturedSession
+                if ($workspace -isnot [LibTmux.Workspace.WorkspaceFile] -or
+                    $workspace.SessionName -cne $captured.Name -or $null -ne $workspace.DocumentDirectory -or
+                    $workspace.Windows.Count -ne $captured.Windows.Count -or
+                    $workspace.Windows[0].Panes.Count -ne $captured.Windows[0].Panes.Count -or
+                    @($workspace.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -ne 0) {
+                    throw 'Snapshot conversion example lost captured structure or invented startup commands.'
+                }
+            } }
         'LibTmux.Workspace\Get-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $WorkspacePath = Join-Path $Context.Fixture.DirectoryPath '[team].yaml'
@@ -556,8 +595,30 @@ function Assert-HelpExampleRegistration($Examples, [hashtable] $Assertions) {
         if ($entry.ContainsKey('Prepare') -and (!$entry.Isolated -or $entry.Prepare -isnot [scriptblock])) {
             throw "Invalid isolated help example preparation: $($example.Id)"
         }
+        if ($entry.ContainsKey('TerminalMode') -and (!$entry.Isolated -or
+            $entry.TerminalMode -cne 'ReadOnly' -or $example.Id -cne 'LibTmux\Enter-TmuxSession#2')) {
+            throw "Invalid terminal help example owner: $($example.Id)"
+        }
     }
     foreach ($id in $Assertions.Keys) {
         if (!$ids.Contains($id)) { throw "Help example assertion has no packaged example: $id" }
     }
+}
+
+function Get-HelpExampleCode($Example, [string] $Name) {
+    $code = [string] $Example.code
+    if ([string]::IsNullOrWhiteSpace($code)) {
+        # PlatyPS 1.0.3 leaves dev:code empty and retains the fenced introduction.
+        $text = $Example.introduction.Text -join "`n"
+        $blocks = [regex]::Matches($text, '(?ms)^```powershell[ \t]*\r?\n(?<code>.*?)^```[ \t]*\r?$')
+        if ($blocks.Count -ne 1) {
+            throw "$Name must have exactly one executable PowerShell block per example."
+        }
+        $code = $blocks[0].Groups['code'].Value
+    }
+    if ([string]::IsNullOrWhiteSpace($code)) { throw "$Name has an example without executable code." }
+    $parseErrors = $null
+    $null = [Management.Automation.Language.Parser]::ParseInput($code, [ref] $null, [ref] $parseErrors)
+    if ($parseErrors.Count) { throw "$Name has invalid example syntax: $($parseErrors.Message -join '; ')." }
+    $code
 }

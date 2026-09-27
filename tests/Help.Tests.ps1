@@ -88,20 +88,7 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
         $ordinal = 0
         foreach ($example in $help.examples.example) {
             $ordinal++
-            $code = [string] $example.code
-            if ([string]::IsNullOrWhiteSpace($code)) {
-                # PlatyPS 1.0.3 keeps Markdown examples in introduction, leaving dev:code empty.
-                $text = $example.introduction.Text -join "`n"
-                $blocks = [regex]::Matches($text, '(?ms)^```powershell[ \t]*\r?\n(?<code>.*?)^```[ \t]*\r?$')
-                if ($blocks.Count -ne 1) {
-                    throw "$($command.Name) must have exactly one executable PowerShell block per example."
-                }
-                $code = $blocks[0].Groups['code'].Value
-            }
-            if ([string]::IsNullOrWhiteSpace($code)) { throw "$($command.Name) has an example without executable code." }
-            $parseErrors = $null
-            $null = [Management.Automation.Language.Parser]::ParseInput($code, [ref] $null, [ref] $parseErrors)
-            if ($parseErrors.Count) { throw "$($command.Name) has invalid example syntax: $($parseErrors.Message -join '; ')." }
+            $code = Get-HelpExampleCode $example $command.Name
             $examples.Add(@{ Id = "$module\$($command.Name)#$ordinal"; Command = $command; Code = $code })
         }
     }
@@ -201,6 +188,7 @@ exec /bin/cat
             $context = @{ Fixture = $fixture; WindowId = $windowId; PaneId = $paneId; Version = $version; Executed = $false }
             foreach ($example in $examples) {
                 $assertion = $assertions[$example.Id]
+                if ($assertion.ContainsKey('TerminalMode')) { continue }
                 if ($assertion.Isolated) {
                     Invoke-WithOwnedTmux {
                         param($isolatedFixture)
@@ -220,6 +208,18 @@ exec /bin/cat
         }
     } finally {
         Assert-HelpFixtureCleanup $owned
+    }
+    . "$PSScriptRoot/support/AttachmentPty.ps1"
+    foreach ($example in $examples) {
+        $assertion = $assertions[$example.Id]
+        if ($assertion.ContainsKey('TerminalMode')) {
+            $receipt = Invoke-AttachmentPty -ModuleRoot $ModuleRoot -Modes @($assertion.TerminalMode)
+            if ($receipt.cases.Count -ne 1 -or $receipt.cases[0].result.example -cne $example.Id -or
+                $receipt.cases[0].result.codeSha256 -cne [Convert]::ToHexString(
+                    [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($example.Code)))) {
+                throw 'Terminal help execution did not match the packaged example.'
+            }
+        }
     }
     "PASS $($examples.Count) registered native help examples executed against owned tmux"
 }

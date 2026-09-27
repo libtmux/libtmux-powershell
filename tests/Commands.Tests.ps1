@@ -47,9 +47,10 @@ Invoke-WithOwnedTmux {
         New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first value')
         New-TmuxCommand -Name 'display-message' -Arguments @('-p', '$second; value')
     )
+    $nativeSecond = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '$second; value')).StdOut.TrimEnd("`r", "`n")
     $reply = $server | Invoke-TmuxChain -Command $commands
     Assert-Command ($reply -is [LibTmux.TmuxCommandResult] -and $reply.ExitCode -eq 0 -and
-        [string]::Join('|', $reply.StandardOutputLines) -ceq 'first value|$second; value') 'chain lost merged order or literal argv'
+        [string]::Join('|', $reply.StandardOutputLines) -ceq "first value|$nativeSecond") 'chain lost merged order or native output'
     $errors = @()
     $failedChain = @(
         New-TmuxCommand -Name 'set-option' -Arguments @('-t', $session.Id.ToString(), '@chain-prefix', 'kept')
@@ -78,7 +79,7 @@ Invoke-WithOwnedTmux {
     try {
         Assert-Command ($control -is [LibTmux.IControlModeSession] -and $control.IsRunning) 'connect did not return a running native control client'
         $reply = @($control | Invoke-TmuxControlCommand -Command $commands[1])
-        Assert-Command ($reply.Count -eq 1 -and $reply[0] -is [string] -and $reply[0] -ceq '$second; value') 'control reply lost literal argv or native text'
+        Assert-Command ($reply.Count -eq 1 -and $reply[0] -is [string] -and $reply[0] -ceq $nativeSecond) 'control reply lost native text'
         $tasks = @(foreach ($n in 1..8) {
                 $control.SendAsync((New-TmuxCommand -Name 'display-message' -Arguments @('-p', "reply-$n")))
             })

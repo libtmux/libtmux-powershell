@@ -11,7 +11,7 @@
     CmdletsToExport = @(
         'Import-TmuxWorkspace', 'Resolve-TmuxWorkspace', 'Test-TmuxWorkspace',
         'Get-TmuxWorkspace', 'Get-TmuxWorkspacePlan', 'Invoke-TmuxWorkspace',
-        'ConvertTo-TmuxWorkspaceYaml', 'ConvertTo-TmuxWorkspaceJson'
+        'ConvertTo-TmuxWorkspace', 'ConvertTo-TmuxWorkspaceYaml', 'ConvertTo-TmuxWorkspaceJson'
     )
     VariablesToExport = @()
     AliasesToExport = @()

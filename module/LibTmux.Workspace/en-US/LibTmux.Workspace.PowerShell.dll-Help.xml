@@ -2,6 +2,139 @@
 <helpItems xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" schema="maml" xmlns="http://msh">
   <command:command>
     <command:details>
+      <command:name>ConvertTo-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Convert a captured session to a native workspace declaration.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return one native WorkspaceFile for each captured Session received from the
+pipeline. The shared library preserves captured window placements and pane order,
+names, layouts, active window and pane flags, and pane directories. Repeated links
+to the same window become separate declared windows.
+
+Capture with Get-TmuxSnapshot -Depth Panes before selecting a Session. Conversion
+never contacts tmux or fills unavailable relations. The captured graph remains
+convertible after its daemon exits. A missing field or relation is an error;
+a captured null pane directory remains unspecified rather than using the host's
+current directory.
+
+Captured directories become unresolved declaration values with literal dollars
+escaped as `$$`. DocumentDirectory remains null. Use Resolve-TmuxWorkspace with
+an explicit BaseDirectory before planning, or convert the declaration to YAML
+or JSON and resolve it after importing. Do not interpret those escaped values
+as already resolved filesystem paths.
+
+Conversion emits a warning for each successful input because it omits observed
+environment, options, terminal text, entity IDs, indices and shared-link
+identity.
+It cannot reconstruct original commands, arguments or shell intent. Foreground
+command names do not establish the shell command that started a pane. Original
+relative paths, expansion variables, comments, host scripts and pre-commands
+are not reconstructed. Native custom layouts can change which pane occupies a
+position when applied. This declaration
+is a starting configuration, not a checkpoint of running programs.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native session whose window, pane and active-pane relations and required
+fields have already been captured. Binding by an arbitrary object's Session
+property is not supported.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native captured session; serialized copies are not live native objects.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One unresolved declaration per successfully converted input session.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.WorkspaceFreezeFailed retains the original native exception and input
+Session as its target. IncompleteSnapshotException uses the InvalidData error
+category. ErrorAction Continue permits later sessions to be converted without
+emitting a declaration for a failed input; ErrorAction Stop terminates.
+The loss warning uses PowerShell's warning stream and supports WarningAction.
+The command performs no acquisition, execution or file write and has no WhatIf
+or Confirm parameters.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Convert a native Session selected from a pane-depth snapshot. This operation
+uses only the supplied capture and does not own resources requiring cleanup.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$capturedSession | LibTmux.Workspace\ConvertTo-TmuxWorkspace
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/ConvertTo-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>../LibTmux/Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceYaml</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceYaml.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceJson</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceJson.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>ConvertTo-TmuxWorkspaceJson</command:name>
       <maml:description>
         <maml:para>Convert a native workspace declaration to JSON text.</maml:para>

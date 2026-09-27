@@ -63,6 +63,7 @@ See [reading and filtering](docs/read.md) for IDs, arrays and linked windows.
 | Task | Use | Example |
 | --- | --- | --- |
 | Read or change tmux state | Typed cmdlets and pipelines | [Create sessions and panes](docs/create.md) |
+| Enter a session interactively | `Enter-TmuxSession` | [Attach your foreground terminal](docs/reference/LibTmux/Enter-TmuxSession.md) |
 | Run an ordered batch | `New-TmuxCommand` → `Invoke-TmuxChain` | [Compose commands](docs/commands.md) |
 | Reuse a connected client | `Connect-TmuxControl` → `Invoke-TmuxControlCommand` | [Control commands and cleanup](docs/commands.md) |
 | React to output and notifications | `Watch-TmuxEvent` | [Bounded event streams](docs/watch.md) |
@@ -93,6 +94,10 @@ The workspace module parses YAML into a native
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
 ```
 
+To build a usable workspace, follow the
+[declaration and planning guide](docs/workspace.md): define windows and panes,
+inspect the plan, preview it with `-WhatIf`, then apply that exact plan.
+
 Install both PowerShell modules at the same version. The MCP server is an
 independent .NET tool and does not require PowerShell.
 
@@ -105,16 +110,20 @@ pinned development tools from the repository root:
 $ mise install
 ```
 
-This checkout requires an unpublished .NET review build. Follow the
-[review package recipe](.github/CONTRIBUTING.md#review-package-builds) and set
-`CORE_PACKAGES` to its inspected output directory. Build the modules using
-those pinned archives:
+This checkout pins unpublished .NET review packages. If you have the original
+inspected archives and their `provenance.json`, set `CORE_PACKAGES` to that
+directory and build with the existing lockfiles:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -Restore \
     -CorePackageDirectory "$CORE_PACKAGES"
 ```
+
+To build the dependencies yourself, follow the
+[review package recipe](.github/CONTRIBUTING.md#review-package-builds). Use a
+new package version and update the exact pins and lockfiles as described there;
+rebuilding the source does not reproduce the original locked archives.
 
 Open PowerShell with the built modules on its search path:
 
@@ -135,7 +144,9 @@ checks. Run the examples in that PowerShell session.
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
   [event streams, jobs and parallel workers](docs/watch.md).
-- **Workspaces:** [load a declaration, review its plan and apply it](docs/workspace.md).
+- **Workspaces:** [load, review and apply](docs/workspace.md),
+  [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
+  [edit a declaration](docs/workspace.md#edit-the-declaration).
 
 Examples are shared with the [executable guides](examples/Guides.ps1) and run
 against real tmux through the installed modules. See
