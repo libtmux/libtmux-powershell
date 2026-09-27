@@ -214,7 +214,20 @@ $workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorA
     }
 }
     } }
-    'workspace.parse' = @{ Requires = @(); Code = { LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development' } }
+    'readme.workspace' = @{ Requires = @('server'); Code = {
+$workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: readme-workspace-preview
+windows:
+  - window_name: editor
+    panes:
+      - shell_command: exec /bin/sh
+      - shell_command: exec /bin/sh
+'@
+$workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
+    -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
+$workspacePlan.Actions
+$workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
+    } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }
     'capture.range' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4 } }

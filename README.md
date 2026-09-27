@@ -97,7 +97,7 @@ objects. The graph is still readable after cleanup:
 | --- | --- |
 | `$captured` | A `Session` named `demo` |
 | `$captured.Windows[0]` | Its single `Window` |
-| `$captured.Windows[0].Panes` | Two `Pane` objects, 59×30 and 40×30 |
+| `$captured.Windows[0].Panes` | Two `Pane` objects: one wide, one under 50 columns |
 
 Walk it and filter locally:
 
@@ -108,10 +108,12 @@ $captured.Windows[0].Panes |
     Select-Object Id, Width, Height
 ```
 
-The result is the 59-by-30 pane; the other is 40-by-30. `Where-Object`,
-navigation, formatting, and property access use captured data and start no
-tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A linked window
-can have several session placements; its index belongs to the placement.
+The result is the wide pane; the other does not meet `Width -GE 50`. The
+selected columns show the exact geometry returned by your tmux version.
+`Where-Object`, navigation, formatting, and property access use captured data
+and start no tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A
+linked window can have several session placements; its index belongs to the
+placement.
 See [snapshots and linked windows](docs/read.md) for IDs, active children and
 captured versus unavailable fields.
 
@@ -191,17 +193,29 @@ the [mode guide](docs/commands.md) explains when chains merge failure attributio
 | [LibTmux.Workspace](docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
 | [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
-The workspace module parses YAML into a native
-`LibTmux.Workspace.WorkspaceFile` without running its commands:
+Describe a two-pane workspace and inspect its plan on the same private
+endpoint. Planning may read tmux state; reviewing actions and `-WhatIf` do
+not apply the declaration. The plan keeps command text out of its default
+view; inspect an action's `Request` only in a trusted terminal.
 
-<!-- example: workspace.parse -->
+<!-- example: readme.workspace -->
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
+$workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: readme-workspace-preview
+windows:
+  - window_name: editor
+    panes:
+      - shell_command: exec /bin/sh
+      - shell_command: exec /bin/sh
+'@
+$workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
+    -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
+$workspacePlan.Actions
+$workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 
-The [workspace guide](docs/workspace.md) builds a two-pane declaration, shows
-each planned action without printing commands or secrets, previews it with
-`-WhatIf`, then applies that exact plan. For an MCP client, start with
+The [workspace guide](docs/workspace.md) shows how to apply the reviewed plan,
+inspect its native result and export a declaration. For an MCP client, start with
 [`list_sessions` and `capture_pane`](docs/mcp.md#discover-before-calling) after
 reading its advertised capabilities.
 
