@@ -92,6 +92,8 @@ foreach ($version in @('8.0.425', '10.0.302')) {
 }
 
 $null = New-Item -ItemType Directory -Path $output
+# SDK library packs can have a different hash than the locked NuGet archive.
+$env:NUGET_PACKAGES = Join-Path $output 'core-package-cache'
 "ReviewOutput=$output"
 try {
     $port = Join-Path $output 'port'
