@@ -100,11 +100,12 @@ throughput and mutation throughput remain open.
 ## Linked pane query selection
 
 The [query selection benchmark](QuerySelection.md) selects one pane ID across
-three placements of a linked window. It checks the same complete graph and
-placement identities for native `Where-Object`, structured local selection,
-and each admitted `Never`, `Auto`, or `Require` source-query mode. Local
-filtering reuses one snapshot; source-query timing includes fresh acquisition.
-The report keeps those cost scopes separate.
+baseline and expanded linked graphs with 33 and 87 pane placements. It checks
+every native session, window and pane placement identity, then compares
+`Where-Object`, structured local selection, and each admitted `Never`, `Auto`,
+or `Require` source-query mode. Local filtering reuses one snapshot per size;
+source-query timing includes fresh acquisition. The report keeps those cost
+scopes separate.
 
 ## Event stream pressure
 

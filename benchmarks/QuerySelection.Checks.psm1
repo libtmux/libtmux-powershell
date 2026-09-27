@@ -38,4 +38,40 @@ function Assert-BenchmarkQuerySelection {
     }
 }
 
-Export-ModuleMember -Function Assert-BenchmarkQuerySelection
+function Assert-BenchmarkQueryGraph {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string[]] $ExpectedSessionIds,
+        [Parameter(Mandatory)] [string[]] $ObservedSessionIds,
+        [Parameter(Mandatory)] [string[]] $ExpectedWindowPlacements,
+        [Parameter(Mandatory)] [string[]] $ObservedWindowPlacements,
+        [Parameter(Mandatory)] [string[]] $ExpectedPanePlacements,
+        [Parameter(Mandatory)] [string[]] $ObservedPanePlacements,
+        [Parameter(Mandatory)] [string] $Lane
+    )
+
+    $relations = @(
+        @{ kind = 'session'; expected = $ExpectedSessionIds; observed = $ObservedSessionIds }
+        @{ kind = 'window'; expected = $ExpectedWindowPlacements; observed = $ObservedWindowPlacements }
+        @{ kind = 'pane'; expected = $ExpectedPanePlacements; observed = $ObservedPanePlacements }
+    )
+    foreach ($relation in $relations) {
+        $kind = $relation.kind
+        $expected = [string[]] $relation.expected
+        $observed = [string[]] $relation.observed
+        if ($observed.Length -ne $expected.Length) {
+            throw "$Lane returned $($observed.Length) $kind identities; expected $($expected.Length)."
+        }
+        $want = [string[]] $expected.Clone()
+        $actual = [string[]] $observed.Clone()
+        [Array]::Sort($want, [StringComparer]::Ordinal)
+        [Array]::Sort($actual, [StringComparer]::Ordinal)
+        for ($index = 0; $index -lt $want.Length; $index++) {
+            if ($actual[$index] -cne $want[$index]) {
+                throw "$Lane returned different $kind identities."
+            }
+        }
+    }
+}
+
+Export-ModuleMember -Function Assert-BenchmarkQuerySelection, Assert-BenchmarkQueryGraph
