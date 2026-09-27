@@ -141,6 +141,13 @@ $assertions = @{
             Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
                 $o.Server.ConnectionOptions.SocketName -cmatch '^libtmux-readme-[a-f0-9]{32}$') 'endpoint identity'
         } }
+    'readme.quickstart' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            $result = $o.Result[0]
+            Assert-Guide ($result.SocketName -cmatch '^libtmux-quickstart-[a-f0-9]{32}$' -and
+                $result.Session -ceq 'demo' -and $result.Windows -eq 2 -and
+                $result.Panes -eq 3 -and $result.SplitWindow -ceq 'editor') 'README quick start result'
+        } }
     'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Captured -is [LibTmux.Session] -and $o.Captured.Name -ceq 'demo' -and
@@ -161,7 +168,7 @@ $assertions = @{
             param($o)
             Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Windows[0]) -and
                 $o.Result[0].Panes.Count -eq 2 -and
-                (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured relationship filtering'
+                (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured pane-count selection'
         } }
     'readme.input' = @{ Group = 'Readme'; Count = -1; Assert = {
             param($o)
@@ -666,7 +673,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
 }
 
 function Assert-GuideSourceFile([string[]] $Files) {
-    if (Compare-Object @('Guides.ps1') $Files) { throw 'Guide source file registration differs.' }
+    if (Compare-Object @('Guides.ps1', 'QuickStart.ps1') $Files) { throw 'Guide source file registration differs.' }
 }
 
 function Assert-GuideExecutionGroup($Groups, $Assertions) {

@@ -30,6 +30,13 @@ Install the tools pinned by [.tool-versions](.tool-versions):
 $ mise install
 ```
 
+Install tmux with your operating system's package manager and check that it
+is on `PATH`:
+
+```console
+$ tmux -V
+```
+
 The branch pins unpublished .NET review packages. To use its existing
 lockfiles, set `CORE_PACKAGES` to a directory containing the exact inspected
 archives and `provenance.json`, then build both PowerShell modules:
@@ -57,6 +64,26 @@ installed alongside the core module; the MCP server is a separate .NET tool.
 Use `Get-Command -Module LibTmux` to browse cmdlets and
 `Get-Help LibTmux\New-TmuxSession -Examples` for installed examples.
 
+Run the [quick start](examples/QuickStart.ps1) from the checkout root:
+
+<!-- example: readme.quickstart -->
+```powershell
+./examples/QuickStart.ps1
+```
+
+It creates a session on a private socket, splits its `editor` window, adds a
+`logs` window, and returns one object:
+
+| Property | Result |
+| --- | --- |
+| `Session` | `demo` |
+| `Windows` | `2` |
+| `Panes` | `3` |
+| `SplitWindow` | `editor` |
+| `SocketName` | A unique `libtmux-quickstart-*` name |
+
+The script removes its session after capturing the result.
+
 ## Create and read an object graph
 
 Choose a unique socket and a clean tmux configuration. `New-TmuxServer`
@@ -72,8 +99,7 @@ $server = LibTmux\New-TmuxServer `
 
 Create a session with an editor window, split it, add a logs window, and take
 one snapshot. `cat` keeps the three panes open without shell setup. The
-`finally` block removes only the session this example created; an existing
-`demo` session causes an error.
+`finally` block removes only the session this example created.
 
 <!-- example: readme.create -->
 ```powershell
@@ -117,13 +143,13 @@ can have several session placements; its index belongs to the placement.
 See [snapshots and linked windows](docs/read.md) for IDs, active children and
 captured versus unavailable fields.
 
-When you need a reusable graph predicate, select the window containing one
-specific pane by its typed ID:
+The structured equivalent selects the one window with at least two captured
+panes. `-ExactlyOne` reports zero or multiple matches:
 
 <!-- example: readme.related -->
 ```powershell
 $captured.Windows |
-    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Id = $captured.Windows[0].Panes[1].Id } } }
+    Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
 ```
 
 This query also performs no I/O. [The query guide](docs/query.md) shows native

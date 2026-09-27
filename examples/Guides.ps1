@@ -56,6 +56,9 @@ $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null
     } }
+    'readme.quickstart' = @{ Requires = @(); Code = {
+./examples/QuickStart.ps1
+    } }
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
     $ErrorActionPreference = 'Stop'
@@ -77,7 +80,7 @@ $captured.Windows |
     } }
     'readme.related' = @{ Requires = @('captured'); Code = {
 $captured.Windows |
-    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Id = $captured.Windows[0].Panes[1].Id } } }
+    Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
     } }
     'readme.input' = @{ Requires = @('server'); Code = {
 & {

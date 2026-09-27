@@ -36,6 +36,30 @@ function Invoke-NamedTmux([string] $Binary, [string] $SocketName, [string] $Oper
     } finally { $process.Dispose() }
 }
 
+function Invoke-QuickStart([string] $InstalledModules) {
+    $start = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
+    $start.UseShellExecute = $false
+    $start.WorkingDirectory = $root
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.Environment['PSModulePath'] = $InstalledModules
+    $null = $start.Environment.Remove('TMUX')
+    $null = $start.Environment.Remove('TMUX_PANE')
+    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command',
+        '& ./examples/QuickStart.ps1 | ConvertTo-Json -Compress')) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $output = $process.StandardOutput.ReadToEndAsync()
+        $errors = $process.StandardError.ReadToEndAsync()
+        if (!$process.WaitForExit(10000)) {
+            $process.Kill($true)
+            throw 'README workflow: the runnable quick start did not finish.'
+        }
+        if ($process.ExitCode) { throw "README workflow: quick start failed: $($errors.GetAwaiter().GetResult())" }
+        ConvertFrom-Json -InputObject $output.GetAwaiter().GetResult()
+    } finally { $process.Dispose() }
+}
+
 $commands = @(Get-Command -Module LibTmux -CommandType Cmdlet)
 $help = Get-Help LibTmux\New-TmuxSession -Examples
 Assert-Readme (@($commands | Where-Object Name -CEQ 'New-TmuxSession').Count -eq 1 -and
@@ -79,6 +103,13 @@ try {
         @($actions | Where-Object Kind -eq 'SplitPane').Count -eq 1 -and
         $preview.Count -eq 0) 'workspace preview did not expose its two-pane plan'
     Assert-Readme ((Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0) 'the example left its server running'
+    $quickStartPath = Join-Path $root 'examples/QuickStart.ps1'
+    Assert-Readme (Test-Path -LiteralPath $quickStartPath) 'the runnable quick start is missing'
+    $quickStart = @(Invoke-QuickStart $moduleRootPath)
+    Assert-Readme ($quickStart.Count -eq 1 -and $quickStart[0].Session -ceq 'demo' -and
+        $quickStart[0].Windows -eq 2 -and $quickStart[0].Panes -eq 3 -and
+        $quickStart[0].SplitWindow -ceq 'editor') 'the runnable quick start returned a different graph'
+    Assert-Readme ((Invoke-NamedTmux $tmux $quickStart[0].SocketName 'list-sessions') -ne 0) 'the runnable quick start left its server running'
 } finally {
     if ($socketName -and (Invoke-NamedTmux $tmux $socketName 'list-sessions') -eq 0) {
         $null = Invoke-NamedTmux $tmux $socketName 'kill-server'
