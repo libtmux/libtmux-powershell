@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string] $PackageRoot,
+    [string] $ReviewRoot,
     [string] $ExpectedPackageSha256,
     [string] $TmuxBinaryPath = (Get-Command tmux -CommandType Application -ErrorAction Stop |
         Select-Object -First 1).Source
@@ -51,14 +52,21 @@ if ($PackageRoot) {
     $output = Join-Path ([IO.Path]::GetTempPath()) (
         'libtmux-powershell-cold-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & "$PSScriptRoot/Run.ps1" -PackageRoot $PackageRoot -OutputPath $output `
-            -ExpectedPackageSha256 $ExpectedPackageSha256 -TmuxBinaryPath $TmuxBinaryPath `
-            -WarmupRounds 0 -SampleRounds 1
+        $arguments = @{ PackageRoot = $PackageRoot; OutputPath = $output;
+            ExpectedPackageSha256 = $ExpectedPackageSha256; TmuxBinaryPath = $TmuxBinaryPath;
+            WarmupRounds = 0; SampleRounds = 1 }
+        if ($ReviewRoot) { $arguments.ReviewRoot = $ReviewRoot }
+        & "$PSScriptRoot/Run.ps1" @arguments
         $report = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
         if ($report.status -cne 'PASS' -or $report.shape.panes -ne 16 -or
             @($report.firstCalls).Count -ne 1 -or @($report.samples).Count -ne 1 -or
             @($report.expectedPaneIds).Count -ne 16 -or
             $report.provenance.packageSha256 -cne $ExpectedPackageSha256.ToLowerInvariant() -or
+            !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
+            $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/../PackageIdentity.psm1").Hash.ToLowerInvariant() -or
+            $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' }) -or
+            ($ReviewRoot -and (!$report.provenance.reviewCoreRevision -or !$report.provenance.reviewPortRevision)) -or
+            (!$ReviewRoot -and ($report.provenance.reviewCoreRevision -or $report.provenance.reviewPortRevision)) -or
             !$report.cleanup.fixtureRemoved -or !$report.cleanup.extractedPackageRemoved) {
             throw 'The cold PowerShell smoke omitted a sample, identity, or cleanup check.'
         }

@@ -8,10 +8,9 @@ server handle, reads pane IDs with `Get-TmuxPane`, and exits.
 
 Build the candidate package as described in the
 [contributor guide](../../.github/CONTRIBUTING.md#review-package-builds).
-This runner currently requires the reviewed `0.0.0-alpha.16.ps.2` core inside
-that package. From PowerShell in the repository root, run the negative controls
-and an installed-package smoke. The hash is read from the exact archive under
-test; the runner does not import product code from the source tree.
+From PowerShell in the repository root, run the negative controls and an
+installed-package smoke. The hash is read from the exact archive under test;
+the runner does not import product code from the source tree.
 
 ```powershell
 ./benchmarks/ColdPowerShell/Tests.ps1 `
@@ -42,7 +41,10 @@ extraction and fixture setup are recorded separately. Parent launch timing
 includes PowerShell startup, script execution, result serialization, and
 process exit; the child intervals are subsets, not independent costs to add
 to the parent time. The report also records package, assembly, PowerShell,
-tmux, source, and runner identities, plus source-tree dirtiness.
+tmux, source, and runner identities, plus source-tree dirtiness. Package-only
+checks report `sourceProvenance: unverified`. Pass `-ReviewRoot` from a
+clean-source bootstrap to verify the inspected .NET feed and staged PowerShell
+build; that reports `sourceProvenance: verified` with both source revisions.
 
 Every child must return the sixteen native pane IDs from the owned socket.
 The negative control feeds wrong, duplicate, and missing IDs to that check.

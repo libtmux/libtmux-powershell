@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)] [string] $PackageRoot,
     [Parameter(Mandatory)] [string] $OutputPath,
+    [string] $ReviewRoot,
     [Parameter(Mandatory)]
     [ValidatePattern('^[a-fA-F0-9]{64}$')]
     [string] $ExpectedPackageSha256,
@@ -153,11 +154,8 @@ try {
     $extractWatch = [Diagnostics.Stopwatch]::StartNew()
     [IO.Compression.ZipFile]::ExtractToDirectory($package, $module)
     $extractWatch.Stop()
-    $dependencies = Get-Content -LiteralPath (Join-Path $module 'dependencies.json') -Raw |
-        ConvertFrom-Json
-    if ($dependencies.corePackageVersion -cne '0.0.0-alpha.16.ps.2') {
-        throw "Cold PowerShell benchmark requires reviewed core 0.0.0-alpha.16.ps.2; found $($dependencies.corePackageVersion)."
-    }
+    Import-Module "$PSScriptRoot/../PackageIdentity.psm1" -Force
+    $identity = Get-BenchmarkPackageIdentity -PackageRoot $PackageRoot -ModuleRoot $module -ReviewRoot $ReviewRoot
     Import-Module "$PSScriptRoot/Checks.psm1" -Force
     Import-Module "$PSScriptRoot/../PaneEnumeration.Checks.psm1" -Force
     . "$PSScriptRoot/../../tests/support/OwnedTmux.ps1"
@@ -231,11 +229,15 @@ try {
             runnerSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
             childSha256 = (Get-FileHash -LiteralPath $childPath -Algorithm SHA256).Hash.ToLowerInvariant()
             checksSha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/Checks.psm1" -Algorithm SHA256).Hash.ToLowerInvariant()
-            packageSha256 = $packageHash
+            packageSha256 = $identity.packageSha256
             packageVersion = '0.1.0'
-            corePackageVersion = [string] $dependencies.corePackageVersion
-            coreAssemblySha256 = (Get-FileHash -LiteralPath (Join-Path $module 'lib/LibTmux.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
-            cmdletAssemblySha256 = (Get-FileHash -LiteralPath (Join-Path $module 'LibTmux.PowerShell.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
+            corePackageVersion = $identity.corePackageVersion
+            coreAssemblySha256 = $identity.coreAssemblySha256
+            cmdletAssemblySha256 = $identity.cmdletAssemblySha256
+            sourceProvenance = $identity.sourceProvenance
+            reviewCoreRevision = $identity.reviewCoreRevision
+            reviewPortRevision = $identity.reviewPortRevision
+            packageIdentitySha256 = (Get-FileHash -LiteralPath "$PSScriptRoot/../PackageIdentity.psm1" -Algorithm SHA256).Hash.ToLowerInvariant()
             coreAssemblyMvid = $first.coreAssemblyMvid
             cmdletAssemblyMvid = $first.cmdletAssemblyMvid
             powerShellVersion = $PSVersionTable.PSVersion.ToString()
