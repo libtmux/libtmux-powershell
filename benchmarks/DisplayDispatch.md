@@ -28,6 +28,13 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/DisplayDispatch.Tests.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
+The check also sends an invalid pane target at command index three. Serial
+callers stop and skip the tail; bounded concurrent callers retain outcomes by
+submitted index, including commands already in flight. A chain exposes one
+aggregate failure with merged prefix output, so its result alone cannot
+identify every command's status. The check verifies the prefix and tail
+effects in native tmux and leaves the borrowed server running.
+
 Run the default three warmup and twenty sample rounds:
 
 ```console

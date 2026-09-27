@@ -56,6 +56,10 @@ if ($PackageRoot) {
                 throw "The $($sample.lane) sample omitted replies, ordering, or state equality."
             }
         }
+        & (Join-Path $PSHOME 'pwsh') -NoLogo -NoProfile -File `
+            "$PSScriptRoot/DisplayDispatch.Failure.Tests.ps1" -PackageRoot $PackageRoot `
+            -TmuxBinaryPath $TmuxBinaryPath
+        if ($LASTEXITCODE -ne 0) { throw 'The installed-package failure dispatch check failed.' }
     } finally {
         Remove-Item -LiteralPath $output -ErrorAction SilentlyContinue
     }
