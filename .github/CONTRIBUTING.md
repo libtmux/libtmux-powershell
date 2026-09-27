@@ -63,8 +63,8 @@ update its exact reference and run with `-Restore -UpdateLock`.
 
 ## Review package builds
 
-The current dependency pins use unpublished `0.0.0-alpha.15.ps.11` archives
-built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/bbf2e30988bed95990b98e52947e6c098fbf7309).
+The current dependency pins use unpublished `0.0.0-alpha.16.ps.1` archives
+built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/c76514caa720087b930523d8adaf98473d18df4a).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -84,20 +84,20 @@ Keep lock checking enabled when consuming the existing archives.
 To rebuild the reviewed source, use a new, unused prerelease identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
 promise to reproduce the locked package bytes. Do not overwrite or recreate
-`0.0.0-alpha.15.ps.11` to satisfy its existing locks.
+`0.0.0-alpha.16.ps.1` to satisfy its existing locks.
 
 Set `CORE_SOURCE` to a clean checkout of the linked revision, `REVIEW_VERSION`
 to the new identifier, and `CORE_PACKAGES` to a new output directory. Use
 absolute directory paths. The checkout uses its own SDK pin; do not build into
 one another task is compiling concurrently. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/bbf2e30988bed95990b98e52947e6c098fbf7309/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/c76514caa720087b930523d8adaf98473d18df4a/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision bbf2e30988bed95990b98e52947e6c098fbf7309 \
+    --revision c76514caa720087b930523d8adaf98473d18df4a \
     --output "$CORE_PACKAGES"
 ```
 
