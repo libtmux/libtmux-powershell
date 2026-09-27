@@ -204,6 +204,21 @@ $workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorA
     'capture.range' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4 } }
     'capture.refresh' = @{ Requires = @('pane'); Code = { $currentPane = $pane | Update-TmuxPane } }
     'capture.raw-list' = @{ Requires = @('server'); Code = { $server | Invoke-TmuxCommand -Arguments @('list-sessions', '-F', '#{session_name}') } }
+    'capture.buffer' = @{ Requires = @('server'); Code = {
+& {
+    $name = 'libtmux-' + [guid]::NewGuid().ToString('N')
+    $created = $false
+    try {
+        $null = $server | Invoke-TmuxCommand -Arguments @('set-buffer', '-b', $name, 'hello from PowerShell') -Confirm:$false -ErrorAction Stop
+        $created = $true
+        ($server | Invoke-TmuxCommand -Arguments @('show-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop).StandardOutputLines
+    } finally {
+        if ($created) {
+            $server | Invoke-TmuxCommand -Arguments @('delete-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop | Out-Null
+        }
+    }
+}
+    } }
     'capture.raw-preview' = @{ Requires = @('server'); Code = { $server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf } }
     'create.session' = @{ Requires = @('server'); Code = { $session = $server | New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30 } }
     'create.window' = @{ Requires = @('session'); Code = { $window = $session | New-TmuxWindow -Name 'tools' -Index 5 -Activate } }

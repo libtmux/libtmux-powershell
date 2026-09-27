@@ -90,6 +90,34 @@ arguments into a shell command or expand their contents.
 $server | Invoke-TmuxCommand -Arguments @('list-sessions', '-F', '#{session_name}')
 ```
 
+For tmux features without a dedicated cmdlet, use the same literal argument
+boundary. This creates a named paste buffer, reads its text and removes only
+that buffer:
+
+<!-- example: capture.buffer -->
+```powershell
+& {
+    $name = 'libtmux-' + [guid]::NewGuid().ToString('N')
+    $created = $false
+    try {
+        $null = $server | Invoke-TmuxCommand -Arguments @('set-buffer', '-b', $name, 'hello from PowerShell') -Confirm:$false -ErrorAction Stop
+        $created = $true
+        ($server | Invoke-TmuxCommand -Arguments @('show-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop).StandardOutputLines
+    } finally {
+        if ($created) {
+            $server | Invoke-TmuxCommand -Arguments @('delete-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop | Out-Null
+        }
+    }
+}
+```
+
+This returns `hello from PowerShell`. `StandardOutput` retains bytes when
+line projection is unsuitable. For copy mode, use raw `copy-mode` and
+`send-keys -X` commands with an explicit pane ID.
+`Get-TmuxPaneContent -ModeScreen` reads its rendered screen. Copy-mode
+commands change the pane's mode, so leave it explicitly with
+`send-keys -X cancel` when finished.
+
 Empty non-command arguments are preserved. The first argument must name a
 command or alias. An empty, whitespace or leading-option argument terminates
 with `Tmux.InvalidCommand` before confirmation or dispatch. Select the socket

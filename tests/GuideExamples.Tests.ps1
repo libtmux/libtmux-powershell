@@ -481,6 +481,15 @@ $assertions = @{
             Assert-Guide ($o.Result[0] -is [LibTmux.TmuxCommandResult] -and $o.Result[0].ExitCode -eq 0 -and
                 $o.Result[0].StandardOutputLines.Count -eq 1 -and $o.Result[0].StandardOutputLines[0] -ceq 'fixture') 'raw session listing'
         } }
+    'capture.buffer' = @{ Group = 'Capture'; Count = 1; Prepare = {
+            param($c)
+            $c.BeforeBuffers = (Invoke-OwnedTmux $c.Fixture -Arguments @('list-buffers', '-F', '#{buffer_name}') -AllowFailure).StdOut
+        }; Assert = {
+            param($o)
+            $after = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-buffers', '-F', '#{buffer_name}') -AllowFailure).StdOut
+            Assert-Guide ($o.Result[0] -is [string] -and $o.Result[0] -ceq 'hello from PowerShell' -and
+                $after -ceq $o.Context.BeforeBuffers) 'raw named buffer round trip and cleanup'
+        } }
     'capture.raw-preview' = @{ Group = 'Capture'; Count = 0; Assert = {
             param($o)
             Assert-Guide ((Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'raw preview dispatched'
