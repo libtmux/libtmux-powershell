@@ -167,10 +167,12 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Clients`, `Formatting`, `Runtime`, `Help` and
-`Examples` suites use the same artifact argument. `All` runs the implemented
-suites; it does not imply the full architecture or compatibility matrix is
-complete.
+The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`,
+`Hooks`, `Environment`, `Layout`, `Clients`, `Formatting`, `Runtime`, `Help`
+and `Examples` suites use the same artifact argument. Run `Product` and
+`Documentation` separately for the complete implemented checks within the
+outer-loop budget. `All` combines those selections; none of them establishes
+the full architecture or compatibility matrix.
 The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
 processes. `Create` verifies native creation plus first-daemon cleanup on
 success and injected consumer failure in separate disposable processes.
@@ -188,6 +190,21 @@ owned cleanup. The `Guides` suite is also included in `All`:
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -Suite Guides \
+    -PackageRoot artifacts/local-build
+```
+
+For a full installed check, run the product and documentation selections in
+separate processes:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Product \
+    -PackageRoot artifacts/local-build
+```
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Documentation \
     -PackageRoot artifacts/local-build
 ```
 

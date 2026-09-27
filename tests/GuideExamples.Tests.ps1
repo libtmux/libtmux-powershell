@@ -1,4 +1,9 @@
-param([string] $ModuleRoot, [switch] $RunExamples)
+param(
+    [string] $ModuleRoot,
+    [switch] $RunExamples,
+    [ValidateSet('All', 'Lifecycle', 'Operations', 'Planning')]
+    [string] $ExampleGroup = 'All'
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -594,6 +599,24 @@ function Assert-GuideSourceFile([string[]] $Files) {
     if (Compare-Object @('Guides.ps1') $Files) { throw 'Guide source file registration differs.' }
 }
 
+function Assert-GuideExecutionGroup($Groups, $Assertions) {
+    if (Compare-Object @('Lifecycle', 'Operations', 'Planning') @($Groups.Keys)) {
+        throw 'Guide execution child registration differs.'
+    }
+    $registered = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($entry in $Assertions.Values) { $null = $registered.Add($entry.Group) }
+    $assigned = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($groupsInChild in $Groups.Values) {
+        foreach ($group in $groupsInChild) {
+            if (!$registered.Contains($group)) { throw "Guide execution group has no assertions: $group" }
+            if (!$assigned.Add($group)) { throw "Guide execution group repeated: $group" }
+        }
+    }
+    foreach ($group in $registered) {
+        if (!$assigned.Contains($group)) { throw "Guide execution group missing: $group" }
+    }
+}
+
 function Assert-GuideRejection([scriptblock] $Body, [string] $Message) {
     $rejected = $false
     try { & $Body } catch {
@@ -644,6 +667,18 @@ $drifted = $documents.Clone()
 $drifted['capture.history'] += ' -WhatIf'
 Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions } 'Guide source drift: capture.history'
 Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
+$executionGroups = @{
+    Lifecycle = @('Pure', 'Capture', 'Create', 'Remove', 'Readme')
+    Operations = @('Settings', 'Clients', 'Commands', 'Watch')
+    Planning = @('Query', 'Workspace')
+}
+Assert-GuideExecutionGroup $executionGroups $assertions
+$missingGroup = $executionGroups.Clone()
+$missingGroup['Planning'] = @('Query')
+Assert-GuideRejection { Assert-GuideExecutionGroup $missingGroup $assertions } 'Guide execution group missing: Workspace'
+$duplicateGroup = $executionGroups.Clone()
+$duplicateGroup['Planning'] += 'Capture'
+Assert-GuideRejection { Assert-GuideExecutionGroup $duplicateGroup $assertions } 'Guide execution group repeated: Capture'
 "PASS $($sources.Count) guide units: source/document/assertion discovery, drift and negative controls"
 if (!$RunExamples) { return }
 if (!$ModuleRoot) { throw '-ModuleRoot is required with -RunExamples.' }
@@ -774,39 +809,45 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
 }
 
 # Outer integration: exact guide operations run on owned fixtures, with readiness events.
-Assert-GuideRejection {
-    Invoke-GuideFixture -Setup { param($fixture)
-        Register-OwnedTmuxPane $fixture
-        throw 'injected guide setup failure'
-    } -Body { throw 'Guide body ran after failed setup.' }
-} 'injected guide setup failure'
-$cancellation = [Threading.CancellationTokenSource]::new()
-$cancelled = $false
-try {
-    Invoke-GuideFixture -CancellationToken $cancellation.Token -Setup {
-        param($fixture)
-        $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'never-signalled') -OnStarted {
-            param($client)
-            Assert-Guide (!$client.HasExited) 'cancellation must reach a running owned client'
-            $cancellation.Cancel()
-        }
-    } -Body { throw 'Guide body ran after cancellation.' }
-} catch {
-    if ($_.Exception -isnot [OperationCanceledException]) { throw }
-    $cancelled = $true
-} finally { $cancellation.Dispose() }
-Assert-Guide $cancelled 'guide setup cancellation was swallowed'
-$negative = @{ Executed = [Collections.Generic.List[string]]::new() }
-Assert-GuideRejection {
-    Invoke-GuideFixture -Setup { param($fixture)
-        Initialize-GuideContext $fixture $negative 'Capture'
-        $negative.ExpectedHistory = 'intentionally-wrong-history'
-    } -Body { Invoke-GuideUnit 'capture.history' $negative }
-} 'Guide assertion: history and joined wrapped output'
-Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
-'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
+if ($ExampleGroup -in @('All', 'Lifecycle')) {
+    Assert-GuideRejection {
+        Invoke-GuideFixture -Setup { param($fixture)
+            Register-OwnedTmuxPane $fixture
+            throw 'injected guide setup failure'
+        } -Body { throw 'Guide body ran after failed setup.' }
+    } 'injected guide setup failure'
+    $cancellation = [Threading.CancellationTokenSource]::new()
+    $cancelled = $false
+    try {
+        Invoke-GuideFixture -CancellationToken $cancellation.Token -Setup {
+            param($fixture)
+            $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'never-signalled') -OnStarted {
+                param($client)
+                Assert-Guide (!$client.HasExited) 'cancellation must reach a running owned client'
+                $cancellation.Cancel()
+            }
+        } -Body { throw 'Guide body ran after cancellation.' }
+    } catch {
+        if ($_.Exception -isnot [OperationCanceledException]) { throw }
+        $cancelled = $true
+    } finally { $cancellation.Dispose() }
+    Assert-Guide $cancelled 'guide setup cancellation was swallowed'
+    $negative = @{ Executed = [Collections.Generic.List[string]]::new() }
+    Assert-GuideRejection {
+        Invoke-GuideFixture -Setup { param($fixture)
+            Initialize-GuideContext $fixture $negative 'Capture'
+            $negative.ExpectedHistory = 'intentionally-wrong-history'
+        } -Body { Invoke-GuideUnit 'capture.history' $negative }
+    } 'Guide assertion: history and joined wrapped output'
+    Assert-Guide ($negative.Executed -contains 'capture.history') 'wrong-output control did not execute its real operation'
+    'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
+}
 $completed = [Collections.Generic.List[string]]::new()
-foreach ($group in @('Pure', 'Capture', 'Create', 'Remove', 'Readme', 'Settings', 'Clients', 'Commands', 'Watch', 'Query', 'Workspace')) {
+$selectedGroups = if ($ExampleGroup -eq 'All') {
+    @('Lifecycle', 'Operations', 'Planning') | ForEach-Object { $executionGroups[$_] }
+} else { $executionGroups[$ExampleGroup] }
+$expected = @($sources.Keys | Where-Object { $assertions[$_].Group -cin $selectedGroups } | Sort-Object)
+foreach ($group in $selectedGroups) {
     $context = @{ Executed = $completed }
     $run = {
         $control = $null
@@ -855,5 +896,6 @@ done
         Invoke-GuideFixture -Setup { param($fixture) Initialize-GuideContext $fixture $context $group } -Body $run
     }
 }
-Assert-Guide ($completed.Count -eq $sources.Count) 'not every registered guide operation executed'
-"PASS $($sources.Count) exact guide operations, assigned results, native outcomes and owned cleanup"
+Assert-Guide ($completed.Count -eq $expected.Count -and
+    !(Compare-Object $expected @($completed | Sort-Object))) 'selected guide execution differs from its registration'
+"PASS $($completed.Count) $ExampleGroup guide operations, assigned results, native outcomes and owned cleanup"

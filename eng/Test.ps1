@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
+    [string] $McpCommand,
+    [string] $McpVersion,
     [ValidateSet('1.1.1', '1.2.0')]
     [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
 )
@@ -13,6 +15,8 @@ $root = Split-Path $PSScriptRoot
 $pwsh = [Environment]::ProcessPath
 $records = [Collections.Generic.List[object]]::new()
 $passed = $false
+$runProduct = $Suite -in @('Product', 'All')
+$runDocumentation = $Suite -in @('Documentation', 'All')
 
 function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [string] $ModuleRoot) {
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
@@ -48,13 +52,17 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
 }
 
 try {
-    if ($Suite -in @('Install', 'All')) {
+    if ($Suite -eq 'Mcp') {
+        if (!$McpCommand -or !$McpVersion) { throw '-McpCommand and -McpVersion must identify the independently installed tool.' }
+        Invoke-TestScript 'tests/Mcp.Tests.ps1' @('-McpCommand', $McpCommand, '-McpVersion', $McpVersion)
+    }
+    if ($Suite -eq 'Install' -or $runProduct) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
-    if ($Suite -in @('Fixture', 'All')) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'All')) {
+    if ($Suite -eq 'Fixture' -or $runProduct) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
+    if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Capture', 'Create', 'Remove', 'Input', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -64,7 +72,7 @@ try {
                 $destination = Join-Path $installed "$name/0.1.0"
                 [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
             }
-            if ($Suite -in @('Package', 'All')) {
+            if ($Suite -eq 'Package' -or $runProduct) {
                 foreach ($order in @('CoreFirst', 'WorkspaceFirst')) {
                     Invoke-TestScript 'tests/Package.Tests.ps1' @('-ModuleRoot', $installed, '-Order', $order) $installed
                 }
@@ -75,90 +83,96 @@ try {
                     Invoke-TestScript 'tests/DependencyIdentity.Tests.ps1' @('-ModuleRoot', $installed, '-Case', $case) $installed
                 }
             }
-            if ($Suite -in @('Read', 'All')) {
+            if ($Suite -eq 'Read' -or $runProduct) {
                 Invoke-TestScript 'tests/Read.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Snapshot', 'All')) {
+            if ($Suite -eq 'Snapshot' -or $runProduct) {
                 Invoke-TestScript 'tests/Snapshot.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Formatting', 'All')) {
+            if ($Suite -eq 'Formatting' -or $runProduct) {
                 Invoke-TestScript 'tests/Formatting.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Capture', 'All')) {
+            if ($Suite -eq 'Capture' -or $runProduct) {
                 Invoke-TestScript 'tests/Capture.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Create', 'All')) {
+            if ($Suite -eq 'Create' -or $runProduct) {
                 Invoke-TestScript 'tests/Create.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed, '-FailAfterCreation') $installed
             }
-            if ($Suite -in @('Remove', 'All')) {
+            if ($Suite -eq 'Remove' -or $runProduct) {
                 Invoke-TestScript 'tests/Remove.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Layout', 'All')) {
+            if ($Suite -eq 'Layout' -or $runProduct) {
                 Invoke-TestScript 'tests/Layout.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Watch', 'All')) {
+            if ($Suite -eq 'Watch' -or $runProduct) {
                 Invoke-TestScript 'tests/Watch.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Criteria', 'All')) {
+            if ($Suite -eq 'Criteria' -or $runProduct) {
                 Invoke-TestScript 'tests/Criteria.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Selectors', 'All')) {
+            if ($Suite -eq 'Selectors' -or $runProduct) {
                 Invoke-TestScript 'tests/Selectors.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('SourceQuery', 'All')) {
+            if ($Suite -eq 'SourceQuery' -or $runProduct) {
                 Invoke-TestScript 'tests/SourceQuery.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('WorkspaceFiles', 'All')) {
+            if ($Suite -eq 'WorkspaceFiles' -or $runProduct) {
                 Invoke-TestScript 'tests/WorkspaceFiles.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('WorkspaceDiscovery', 'All')) {
+            if ($Suite -eq 'WorkspaceDiscovery' -or $runProduct) {
                 Invoke-TestScript 'tests/WorkspaceDiscovery.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('WorkspaceValidation', 'All')) {
+            if ($Suite -eq 'WorkspaceValidation' -or $runProduct) {
                 Invoke-TestScript 'tests/WorkspaceValidation.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('WorkspaceSerialization', 'All')) {
+            if ($Suite -eq 'WorkspaceSerialization' -or $runProduct) {
                 Invoke-TestScript 'tests/WorkspaceSerialization.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('WorkspaceApply', 'All')) {
+            if ($Suite -eq 'WorkspaceApply' -or $runProduct) {
                 Invoke-TestScript 'tests/WorkspaceApply.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Commands', 'All')) {
+            if ($Suite -eq 'Commands' -or $runProduct) {
                 Invoke-TestScript 'tests/Commands.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Clients', 'All')) {
+            if ($Suite -eq 'Clients' -or $runProduct) {
                 Invoke-TestScript 'tests/Clients.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Attachment', 'All')) {
+            if ($Suite -eq 'Attachment' -or $runProduct) {
                 Invoke-TestScript 'tests/Attachment.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Environment', 'All')) {
+            if ($Suite -eq 'Environment' -or $runProduct) {
                 Invoke-TestScript 'tests/Environment.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Hooks', 'All')) {
+            if ($Suite -eq 'Hooks' -or $runProduct) {
                 Invoke-TestScript 'tests/Hooks.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Options', 'All')) {
+            if ($Suite -eq 'Options' -or $runProduct) {
                 Invoke-TestScript 'tests/Options.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Wait', 'All')) {
+            if ($Suite -eq 'Wait' -or $runProduct) {
                 Invoke-TestScript 'tests/Wait.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Input', 'All')) {
+            if ($Suite -eq 'Input' -or $runProduct) {
                 Invoke-TestScript 'tests/Input.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -eq 'Help') {
+            if ($Suite -eq 'Help' -or $runDocumentation) {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
-            if ($Suite -in @('Examples', 'All')) {
-                Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed, '-RunExamples') $installed
+            if ($Suite -eq 'Examples' -or $runDocumentation) {
+                foreach ($group in @('CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')) {
+                    Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed,
+                        '-RunExamples', '-ExampleGroup', $group) $installed
+                }
             }
-            if ($Suite -in @('Guides', 'All')) {
-                Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed, '-RunExamples') $installed
+            if ($Suite -eq 'Guides' -or $runDocumentation) {
+                foreach ($group in @('Lifecycle', 'Operations', 'Planning')) {
+                    Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed,
+                        '-RunExamples', '-ExampleGroup', $group) $installed
+                }
             }
-            if ($Suite -in @('Runtime', 'All')) {
+            if ($Suite -eq 'Runtime' -or $runProduct) {
                 Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
         } finally {

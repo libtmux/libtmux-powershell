@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory)] [string] $ModuleRoot,
-    [switch] $RunExamples
+    [switch] $RunExamples,
+    [ValidateSet('All', 'CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')]
+    [string] $ExampleGroup = 'All'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -122,48 +124,68 @@ if ($RunExamples) {
     . "$PSScriptRoot/support/OwnedTmux.ps1"
     . "$PSScriptRoot/support/InputReceiver.ps1"
     $owned = [Collections.Generic.List[object]]::new()
-    $negative = @{ Executed = $false; Fixture = $null }
-    $wrong = $assertions[$omittedId].Clone()
-    $wrong.Expected = 'deliberately-wrong-session|work'
-    $example = $examples | Where-Object Id -CEQ $omittedId
-    $rejected = $false
-    try {
+    $coreExamples = @($examples | Where-Object {
+        $_.Id.StartsWith('LibTmux\', [StringComparison]::Ordinal) -and
+        !$assertions[$_.Id].ContainsKey('TerminalMode')
+    })
+    $coreCut = [int] [Math]::Ceiling($coreExamples.Count / 5)
+    $selectedExamples = switch ($ExampleGroup) {
+        'CoreFirst' { $coreExamples | Select-Object -First $coreCut }
+        'CoreSecond' { $coreExamples | Select-Object -Skip $coreCut -First $coreCut }
+        'CoreThird' { $coreExamples | Select-Object -Skip (2 * $coreCut) -First $coreCut }
+        'CoreFourth' { $coreExamples | Select-Object -Skip (3 * $coreCut) -First $coreCut }
+        'CoreFifth' { $coreExamples | Select-Object -Skip (4 * $coreCut) }
+        'Workspace' { $examples | Where-Object {
+            $_.Id.StartsWith('LibTmux.Workspace\', [StringComparison]::Ordinal)
+        } }
+        'Terminal' { $examples | Where-Object { $assertions[$_.Id].ContainsKey('TerminalMode') } }
+        default { $examples }
+    }
+    $selectedExamples = @($selectedExamples)
+    if ($ExampleGroup -in @('All', 'CoreFirst')) {
+        $negative = @{ Executed = $false; Fixture = $null }
+        $wrong = $assertions[$omittedId].Clone()
+        $wrong.Expected = 'deliberately-wrong-session|work'
+        $example = $examples | Where-Object Id -CEQ $omittedId
+        $rejected = $false
+        try {
+            Invoke-WithOwnedTmux {
+                param($fixture)
+                $owned.Add($fixture)
+                $negative.Fixture = $fixture
+                Invoke-HelpExample $example $wrong $negative
+            }
+        } catch {
+            if ($_.Exception.Message -cne 'Session creation example did not create its named session and initial window.') { throw }
+            $rejected = $true
+        } finally {
+            Assert-HelpFixtureCleanup $owned
+        }
+        if (!$rejected -or !$negative.Executed) { throw 'Wrong-output control did not reject a live example outcome.' }
+        'PASS wrong help example outcome rejected after live execution; owned resources removed'
+
         Invoke-WithOwnedTmux {
             param($fixture)
             $owned.Add($fixture)
-            $negative.Fixture = $fixture
-            Invoke-HelpExample $example $wrong $negative
+            $clientExample = $examples | Where-Object Id -CEQ 'LibTmux\Get-TmuxClient#1'
+            $clientAssertion = $assertions[$clientExample.Id].Clone()
+            $clientAssertion.Assert = { throw 'injected client help assertion failure' }
+            $clientContext = @{ Fixture = $fixture; Executed = $false }
+            $failed = $false
+            try { Invoke-HelpExample $clientExample $clientAssertion $clientContext } catch {
+                if ($_.Exception.Message -cne 'injected client help assertion failure') { throw }
+                $failed = $true
+            }
+            if (!$failed -or !$clientContext.Executed -or $clientContext.Control.IsRunning -or
+                $clientContext.Client.Server.GetClientsAsync().GetAwaiter().GetResult().Count -ne 0) {
+                throw 'Failed client help example left its owned control client.'
+            }
+            if ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') {
+                throw 'Client help cleanup removed its borrowed session.'
+            }
         }
-    } catch {
-        if ($_.Exception.Message -cne 'Session creation example did not create its named session and initial window.') { throw }
-        $rejected = $true
-    } finally {
-        Assert-HelpFixtureCleanup $owned
+        'PASS failed client help assertion closes its owned client and preserves the session'
     }
-    if (!$rejected -or !$negative.Executed) { throw 'Wrong-output control did not reject a live example outcome.' }
-    'PASS wrong help example outcome rejected after live execution; owned resources removed'
-
-    Invoke-WithOwnedTmux {
-        param($fixture)
-        $owned.Add($fixture)
-        $clientExample = $examples | Where-Object Id -CEQ 'LibTmux\Get-TmuxClient#1'
-        $clientAssertion = $assertions[$clientExample.Id].Clone()
-        $clientAssertion.Assert = { throw 'injected client help assertion failure' }
-        $clientContext = @{ Fixture = $fixture; Executed = $false }
-        $failed = $false
-        try { Invoke-HelpExample $clientExample $clientAssertion $clientContext } catch {
-            if ($_.Exception.Message -cne 'injected client help assertion failure') { throw }
-            $failed = $true
-        }
-        if (!$failed -or !$clientContext.Executed -or $clientContext.Control.IsRunning -or
-            $clientContext.Client.Server.GetClientsAsync().GetAwaiter().GetResult().Count -ne 0) {
-            throw 'Failed client help example left its owned control client.'
-        }
-        if ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') {
-            throw 'Client help cleanup removed its borrowed session.'
-        }
-    }
-    'PASS failed client help assertion closes its owned client and preserves the session'
 
     try {
         Invoke-WithOwnedTmux {
@@ -186,7 +208,7 @@ exec /bin/cat
             $identity = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0', '#{window_id} #{pane_id} #{version}')
             $windowId, $paneId, $version = $identity.StdOut.Trim().Split(' ')
             $context = @{ Fixture = $fixture; WindowId = $windowId; PaneId = $paneId; Version = $version; Executed = $false }
-            foreach ($example in $examples) {
+            foreach ($example in $selectedExamples) {
                 $assertion = $assertions[$example.Id]
                 if ($assertion.ContainsKey('TerminalMode')) { continue }
                 if ($assertion.Isolated) {
@@ -210,7 +232,7 @@ exec /bin/cat
         Assert-HelpFixtureCleanup $owned
     }
     . "$PSScriptRoot/support/AttachmentPty.ps1"
-    foreach ($example in $examples) {
+    foreach ($example in $selectedExamples) {
         $assertion = $assertions[$example.Id]
         if ($assertion.ContainsKey('TerminalMode')) {
             $receipt = Invoke-AttachmentPty -ModuleRoot $ModuleRoot -Modes @($assertion.TerminalMode)
@@ -221,7 +243,7 @@ exec /bin/cat
             }
         }
     }
-    "PASS $($examples.Count) registered native help examples executed against owned tmux"
+    "PASS $($selectedExamples.Count) $ExampleGroup native help examples executed against owned tmux"
 }
 
 'PASS packaged native help, example content, parameter coverage, and pipeline metadata'
