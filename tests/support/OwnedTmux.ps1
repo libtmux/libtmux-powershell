@@ -136,7 +136,11 @@ function New-OwnedTmuxFixture {
             $failure = $failure.InnerException
         }
         $failure.Data['OwnedTmuxFixture'] = $fixture
-        Remove-OwnedTmuxFixture $fixture
+        try {
+            Remove-OwnedTmuxFixture $fixture
+        } catch {
+            $failure.Data['OwnedTmuxCleanupFailure'] = $_.Exception
+        }
         throw $failure
     } finally {
         if ($signal) { $signal.Dispose() }

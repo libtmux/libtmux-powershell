@@ -84,6 +84,27 @@ Assert-True ($registrationFailure.Exception.Message -eq 'injected pane registrat
     'Teardown masked the pane registration failure.'
 Assert-CleanedUp $registrationFixture
 
+$script:OriginalStartInfo = (Get-Command New-OwnedTmuxStartInfo).ScriptBlock
+$script:OriginalRemoveFixture = (Get-Command Remove-OwnedTmuxFixture).ScriptBlock
+$setupFailure = $null
+try {
+    Set-Item Function:\New-OwnedTmuxStartInfo -Value { throw 'injected fixture setup failure' }
+    Set-Item Function:\Remove-OwnedTmuxFixture -Value {
+        param($Fixture)
+        & $script:OriginalRemoveFixture $Fixture
+        throw 'injected fixture cleanup failure'
+    }
+    try { New-OwnedTmuxFixture | Out-Null } catch { $setupFailure = $_ }
+} finally {
+    Set-Item Function:\New-OwnedTmuxStartInfo -Value $script:OriginalStartInfo
+    Set-Item Function:\Remove-OwnedTmuxFixture -Value $script:OriginalRemoveFixture
+    Remove-Variable OriginalStartInfo, OriginalRemoveFixture -Scope Script
+}
+Assert-True ($null -ne $setupFailure) 'Fixture accepted injected setup failure.'
+Assert-True ($setupFailure.Exception.Message -eq 'injected fixture setup failure') 'Fixture cleanup masked the setup failure.'
+Assert-True ($setupFailure.Exception.Data['OwnedTmuxCleanupFailure'].Message -eq 'injected fixture cleanup failure') 'Fixture did not retain the cleanup failure.'
+Assert-CleanedUp $setupFailure.Exception.Data['OwnedTmuxFixture']
+
 $borrowed = New-OwnedTmuxFixture
 try {
     $failed = $false
