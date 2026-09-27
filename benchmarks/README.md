@@ -122,6 +122,11 @@ independently armed rendered-capture poller first observe it. Every round
 checks the token, pane ID, event loss and cleanup. The 10 ms capture interval
 and both observers' scheduling are part of the measured paths.
 
+The [complete payload benchmark](StreamPayload.md) writes one multiline block
+to the pane and requires the accumulated event output and rendered capture to
+match the full canonical text. It records raw byte counts, fragment and poll
+counts, and both completion times; it does not claim raw byte parity.
+
 ## Capture sizes
 
 The [capture-size benchmark](CaptureSize.md) compares native complete-history
