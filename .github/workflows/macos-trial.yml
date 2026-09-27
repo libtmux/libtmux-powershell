@@ -220,10 +220,11 @@ jobs:
           LIBTMUX_BUILD_JOBS: '3'
         run: |
           test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          brew install autoconf automake bison pkg-config libevent ncurses jq
+          brew install autoconf automake bison pkg-config libevent ncurses utf8proc jemalloc jq
           PATH="$(brew --prefix bison)/bin:${PATH}"
-          PKG_CONFIG_PATH="$(brew --prefix libevent)/lib/pkgconfig:$(brew --prefix ncurses)/lib/pkgconfig"
+          PKG_CONFIG_PATH="$(brew --prefix libevent)/lib/pkgconfig:$(brew --prefix ncurses)/lib/pkgconfig:$(brew --prefix utf8proc)/lib/pkgconfig:$(brew --prefix jemalloc)/lib/pkgconfig"
           export PATH PKG_CONFIG_PATH
+          pkg-config --exists libutf8proc jemalloc
           source="${GITHUB_WORKSPACE}/core/artifacts/tmux/sources/${TMUX_VERSION}"
           mkdir -p "$(dirname "${source}")"
           git clone --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
@@ -237,7 +238,7 @@ jobs:
           test "$(lipo -archs "${binary}")" = "${EXPECTED_ARCH}"
           printf '%s\n' "$(dirname "${binary}")" >> "${GITHUB_PATH}"
           printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
-          brew list --versions autoconf automake bison pkgconf libevent ncurses jq \
+          brew list --versions autoconf automake bison pkgconf libevent ncurses utf8proc jemalloc jq \
             > "${RUNNER_TEMP}/tmux-build-dependencies.txt"
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
