@@ -99,11 +99,14 @@ function New-OwnedTmuxFixture {
         Closed = $false
     }
     $signal = $null
+    $setupStage = 'directory permissions'
     try {
         [System.IO.File]::SetUnixFileMode($directory, [System.IO.UnixFileMode]::UserRead -bor
             [System.IO.UnixFileMode]::UserWrite -bor [System.IO.UnixFileMode]::UserExecute)
+        $setupStage = 'socket watcher registration'
         $signal = [LibTmux.Testing.SocketCreatedSignal]::new($directory)
         $fixture.ServerProcess.StartInfo = New-OwnedTmuxStartInfo $fixture @('-D')
+        $setupStage = 'foreground daemon startup'
         $fixture.ServerStarted = $fixture.ServerProcess.Start()
         $fixture.ServerPid = $fixture.ServerProcess.Id
         $null = $fixture.OwnedProcessIds.Add($fixture.ServerPid)
@@ -112,6 +115,7 @@ function New-OwnedTmuxFixture {
         # Subscribe before startup so a fast socket creation cannot lose its signal.
         $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
             $signal.Ready, $fixture.ServerProcess.WaitForExitAsync()))
+        $setupStage = 'socket readiness'
         $null = $ready.WaitAsync([TimeSpan]::FromSeconds(1), $CancellationToken).GetAwaiter().GetResult()
         if ($fixture.ServerProcess.HasExited) {
             throw "Owned tmux server exited before socket readiness ($($fixture.ServerProcess.ExitCode))."
@@ -120,7 +124,9 @@ function New-OwnedTmuxFixture {
         if ($CancellationToken.IsCancellationRequested) {
             throw [System.OperationCanceledException]::new($CancellationToken)
         }
+        $setupStage = 'detached fixture session creation'
         $null = Invoke-OwnedTmux $fixture -Arguments @('new-session', '-d', '-s', 'fixture', '-x', '80', '-y', '24', 'exec /bin/sh')
+        $setupStage = 'fixture process identity read'
         $identity = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid} #{pane_pid}')
         $ids = $identity.StdOut.Trim().Split(' ')
         if ([int] $ids[0] -ne $fixture.ServerPid) {
@@ -134,6 +140,9 @@ function New-OwnedTmuxFixture {
         $failure = $_.Exception
         if ($failure -is [System.Management.Automation.MethodInvocationException] -and $failure.InnerException) {
             $failure = $failure.InnerException
+        }
+        if ($failure -is [System.TimeoutException]) {
+            $failure = [System.TimeoutException]::new("Owned tmux fixture timed out during $setupStage.", $failure)
         }
         $failure.Data['OwnedTmuxFixture'] = $fixture
         try {
