@@ -13,7 +13,7 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
 [Compatibility](docs/compatibility.md) ·
 [Troubleshooting](docs/troubleshooting.md) ·
-[Cmdlet reference](docs/reference/LibTmux)
+[Cmdlet reference](docs/reference/README.md)
 
 **Alpha.** APIs may change. Build from this checkout; the modules are not yet
 published to PowerShell Gallery.
@@ -84,7 +84,7 @@ uses a unique tmux channel to capture output after the shell signals completion.
 
 | Product | Use it for |
 | --- | --- |
-| [LibTmux](docs/reference/LibTmux) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
+| [LibTmux](docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
 | [LibTmux.Workspace](docs/workspace.md) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
 | [LibTmux.Mcp](docs/mcp.md) | Giving an assistant tmux tools through the separately installed .NET MCP server |
 
