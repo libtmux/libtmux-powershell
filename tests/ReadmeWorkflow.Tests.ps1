@@ -6,8 +6,6 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot
 $readme = [IO.File]::ReadAllText("$root/README.md")
 $moduleRootPath = (Resolve-Path -LiteralPath $ModuleRoot).Path
-Import-Module (Join-Path $moduleRootPath 'LibTmux/0.1.0/LibTmux.psd1') -ErrorAction Stop
-Import-Module (Join-Path $moduleRootPath 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1') -ErrorAction Stop
 
 function Get-ReadmeBlock([string] $Id) {
     $pattern = '(?ms)^<!-- example: ' + [regex]::Escape($Id) + ' -->\r?\n```powershell\r?\n(?<code>.*?)^```[ \t]*$'
@@ -37,17 +35,26 @@ function Invoke-NamedTmux([string] $Binary, [string] $SocketName, [string] $Oper
 }
 
 function Invoke-QuickStart([string] $InstalledModules) {
+    $fakeRoot = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-readme-shadow-' + [Guid]::NewGuid().ToString('N'))
+    $fakeModule = New-Item -ItemType Directory -Path (Join-Path $fakeRoot 'LibTmux/99.0.0') -Force
+    New-ModuleManifest -Path (Join-Path $fakeModule.FullName 'LibTmux.psd1') -ModuleVersion '99.0.0'
     $start = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $root
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
-    $start.Environment['PSModulePath'] = $InstalledModules
+    $start.Environment['PSModulePath'] = $fakeRoot + [IO.Path]::PathSeparator + $InstalledModules
+    $start.Environment['LIBTMUX_README_MODULE_ROOT'] = $InstalledModules
     $null = $start.Environment.Remove('TMUX')
     $null = $start.Environment.Remove('TMUX_PANE')
     $command = @'
+Import-Module "$env:LIBTMUX_README_MODULE_ROOT/LibTmux/0.1.0/LibTmux.psd1" -ErrorAction Stop
 $session = & ./examples/QuickStart.ps1
 if ($session -isnot [LibTmux.Session]) { throw 'QuickStart did not return a native Session.' }
+$loaded = @(Get-Module LibTmux)
+if ($loaded.Count -ne 1 -or $loaded[0].ModuleBase -cne "$env:LIBTMUX_README_MODULE_ROOT/LibTmux/0.1.0") {
+    throw 'QuickStart imported a different LibTmux module.'
+}
 $windows = @($session.Windows | ForEach-Object {
     if ($_ -isnot [LibTmux.Window]) { throw 'QuickStart returned a non-native Window.' }
     [pscustomobject]@{
@@ -76,19 +83,33 @@ $windows = @($session.Windows | ForEach-Object {
         }
         if ($process.ExitCode) { throw "README workflow: quick start failed: $($errors.GetAwaiter().GetResult())" }
         ConvertFrom-Json -InputObject $output.GetAwaiter().GetResult()
-    } finally { $process.Dispose() }
+    } finally {
+        $process.Dispose()
+        Remove-Item -LiteralPath $fakeRoot -Recurse -Force
+    }
 }
 
+$blocks = @{}
+foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
+    'readme.related', 'readme.input',
+    'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
+    'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
+    $blocks[$id] = Get-ReadmeBlock $id
+}
+$priorReviewRoot = $env:LIBTMUX_REVIEW_MODULE_ROOT
+try {
+    $env:LIBTMUX_REVIEW_MODULE_ROOT = $moduleRootPath
+    . $blocks['readme.install.import']
+} finally { $env:LIBTMUX_REVIEW_MODULE_ROOT = $priorReviewRoot }
+foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+    $loaded = @(Get-Module -Name $name)
+    Assert-Readme ($loaded.Count -eq 1 -and
+        $loaded[0].ModuleBase -ceq (Join-Path $moduleRootPath "$name/0.1.0")) "the README imported another $name module"
+}
 $commands = @(Get-Command -Module LibTmux -CommandType Cmdlet)
 $help = Get-Help LibTmux\New-TmuxSession -Examples
 Assert-Readme (@($commands | Where-Object Name -CEQ 'New-TmuxSession').Count -eq 1 -and
     $help.Examples.Example.Count -gt 0) 'installed cmdlets or help examples are not discoverable'
-
-$blocks = @{}
-foreach ($id in @('readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter', 'readme.related', 'readme.input',
-    'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview')) {
-    $blocks[$id] = Get-ReadmeBlock $id
-}
 $socketName = $null
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop |
     Select-Object -First 1).Source
@@ -121,6 +142,19 @@ try {
         @($actions | Where-Object Kind -eq 'CreateWindow').Count -eq 1 -and
         @($actions | Where-Object Kind -eq 'SplitPane').Count -eq 1 -and
         $preview.Count -eq 0) 'workspace preview did not expose its two-pane plan'
+    . $blocks['readme.workspace.05-apply']
+    $workspaceView = @(. $blocks['readme.workspace.06-graph'])
+    Assert-Readme ($workspaceResult -is [LibTmux.Workspace.WorkspaceResult] -and
+        $workspaceResult.Session -is [LibTmux.Session] -and
+        $workspaceResult.Session.Name -ceq 'readme-workspace-preview' -and
+        $workspaceResult.Windows.Count -eq 1 -and
+        $workspaceResult.Windows[0] -is [LibTmux.Window] -and
+        $workspaceResult.Windows[0].Name -ceq 'editor' -and
+        $workspaceResult.Windows[0].Panes.Count -eq 2 -and
+        $workspaceResult.Windows[0].Panes[0] -is [LibTmux.Pane] -and
+        $workspaceView.Count -eq 1 -and
+        $workspaceView[0].Name -ceq 'editor' -and
+        $workspaceView[0].PaneCount -eq 2) 'workspace apply did not return the captured native two-pane graph'
     Assert-Readme ((Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0) 'the example left its server running'
     $quickStartPath = Join-Path $root 'examples/QuickStart.ps1'
     Assert-Readme (Test-Path -LiteralPath $quickStartPath) 'the runnable quick start is missing'

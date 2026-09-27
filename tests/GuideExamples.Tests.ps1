@@ -141,6 +141,20 @@ $assertions = @{
             Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
                 $o.Server.ConnectionOptions.SocketName -cmatch '^libtmux-readme-[a-f0-9]{32}$') 'endpoint identity'
         } }
+    'readme.install.import' = @{ Group = 'Pure'; Count = 0; Prepare = {
+            param($c)
+            $c.PriorReviewModuleRoot = $env:LIBTMUX_REVIEW_MODULE_ROOT
+            $env:LIBTMUX_REVIEW_MODULE_ROOT = $ModuleRoot
+        }; Assert = {
+            param($o)
+            try {
+                foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+                    $loaded = @(Get-Module -Name $name)
+                    Assert-Guide ($loaded.Count -eq 1 -and
+                        $loaded[0].ModuleBase -ceq (Join-Path $ModuleRoot "$name/0.1.0")) 'README exact staged module import'
+                }
+            } finally { $env:LIBTMUX_REVIEW_MODULE_ROOT = $o.Context.PriorReviewModuleRoot }
+        } }
     'readme.quickstart' = @{ Group = 'Readme'; Count = 2; Assert = {
             param($o)
             Assert-Guide ($o.Result[0].Name -ceq 'editor' -and
@@ -486,6 +500,23 @@ $assertions = @{
             param($o)
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'readme-workspace-preview') 'README workspace preview created a session'
+        } }
+    'readme.workspace.05-apply' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide ($o.WorkspaceResult -is [LibTmux.Workspace.WorkspaceResult] -and
+                $o.WorkspaceResult.Session -is [LibTmux.Session] -and
+                $o.WorkspaceResult.Session.Name -ceq 'readme-workspace-preview' -and
+                $o.WorkspaceResult.Windows.Count -eq 1 -and
+                $o.WorkspaceResult.Windows[0].Panes.Count -eq 2 -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'README workspace native result'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'readme-workspace-preview') 'README workspace apply left its session'
+            $o.Context.WorkspaceResult = $o.WorkspaceResult
+        } }
+    'readme.workspace.06-graph' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0].Name -ceq 'editor' -and
+                $o.Result[0].PaneCount -eq 2) 'README workspace captured graph'
         } }
     'capture.lines' = @{ Group = 'Capture'; Count = -1; Assert = {
             param($o)
@@ -889,7 +920,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {

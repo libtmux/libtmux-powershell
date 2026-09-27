@@ -56,6 +56,12 @@ $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null
     } }
+    'readme.install.import' = @{ Requires = @(); Code = {
+Import-Module -Name @(
+    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux/0.1.0/LibTmux.psd1",
+    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
+) -ErrorAction Stop
+    } }
     'readme.quickstart' = @{ Requires = @(); Code = {
 (./examples/QuickStart.ps1).Windows |
     Select-Object Name, @{ Name = 'PaneIds'; Expression = { $_.Panes.Id -join ', ' } }
@@ -238,6 +244,16 @@ $workspacePlan.Actions
     } }
     'readme.workspace.04-preview' = @{ Requires = @('workspacePlan'); Code = {
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
+    } }
+    'readme.workspace.05-apply' = @{ Requires = @('workspacePlan'); Code = {
+$workspaceResult = & {
+    $result = $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    try { $result } finally { $result.Session | Remove-TmuxSession -Confirm:$false }
+}
+    } }
+    'readme.workspace.06-graph' = @{ Requires = @('workspaceResult'); Code = {
+$workspaceResult.Windows |
+    Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
     } }
     'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }

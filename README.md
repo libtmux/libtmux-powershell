@@ -22,12 +22,20 @@ published to PowerShell Gallery.
 
 ## Install from source
 
-This checkout targets PowerShell 7.4 and .NET 8. Run PowerShell and tmux on the
-same Unix host; see [compatibility](docs/compatibility.md) for tested versions.
-Install the tools pinned by [.tool-versions](.tool-versions):
+Run PowerShell and tmux on the same Unix host. The module targets PowerShell
+7.4 and .NET 8; the source build also needs the .NET 10 SDK, Git and Python
+3.9 or newer. See [compatibility](docs/compatibility.md) for tested versions.
+Install PowerShell and .NET 8 from [.tool-versions](.tool-versions) with
+[mise](https://mise.jdx.dev/):
 
 ```console
 $ mise install
+```
+
+Install the SDK pinned by the linked .NET source:
+
+```console
+$ mise install dotnet@10.0.302
 ```
 
 Install tmux with your operating system's package manager and check that it
@@ -37,26 +45,45 @@ is on `PATH`:
 $ tmux -V
 ```
 
-The branch pins unpublished .NET review packages. To use its existing
-lockfiles, set `CORE_PACKAGES` to a directory containing the exact inspected
-archives and `provenance.json`, then build both PowerShell modules:
+From a clean committed checkout, build the unpublished .NET dependency and
+both PowerShell modules in a new sibling directory:
 
 ```console
-$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
-    -Restore \
-    -CorePackageDirectory "$CORE_PACKAGES"
+$ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
+    -OutputDirectory "$PWD/../libtmux-powershell-review"
 ```
 
-If you do not have those archives, follow the
-[review-package source recipe](.github/CONTRIBUTING.md#review-package-builds).
-It builds the linked [.NET core](https://github.com/libtmux/libtmux-dotnet),
-chooses a new package version, and updates the exact pins and lockfiles. The
-review build is local; it does not publish packages.
+The bootstrap clones this committed revision and the
+[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/cac57dc779483d00024565426f08ce285a65caa3),
+builds a unique local package version, inspects its archives, and checks the
+disposable lockfiles.
+It leaves this checkout's pins and lockfiles unchanged and publishes nothing.
+If a run fails, its partial output remains for inspection. Retry with a new
+output directory after resolving the error.
+If you already have the exact inspected archives, the
+[review-package recipe](.github/CONTRIBUTING.md#review-package-builds)
+shows the shorter build path.
 
-Start PowerShell with the staged modules on its search path:
+Start PowerShell with the staged module path. If you chose another output
+directory, use the path printed by the bootstrap as the value of
+`LIBTMUX_REVIEW_MODULE_ROOT`:
 
 ```console
-$ PSModulePath="$PWD/build/Modules" pwsh -NoLogo -NoProfile
+$ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/../libtmux-powershell-review/port/build/Modules" \
+    pwsh \
+    -NoLogo \
+    -NoProfile
+```
+
+Import the exact staged manifests so an older installed module cannot shadow
+the new build:
+
+<!-- example: readme.install.import -->
+```powershell
+Import-Module -Name @(
+    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux/0.1.0/LibTmux.psd1",
+    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
+) -ErrorAction Stop
 ```
 
 The commands below run in that PowerShell session. The workspace module is
@@ -262,9 +289,26 @@ Preview without applying the plan:
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 
-The [workspace guide](docs/workspace.md#apply-the-reviewed-plan) shows how to
-apply the reviewed plan, inspect its native result and export a declaration.
-For an MCP client, start with
+Apply that exact plan, then remove only the session it created. The captured
+result remains readable after cleanup:
+
+<!-- example: readme.workspace.05-apply -->
+```powershell
+$workspaceResult = & {
+    $result = $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    try { $result } finally { $result.Session | Remove-TmuxSession -Confirm:$false }
+}
+```
+
+<!-- example: readme.workspace.06-graph -->
+```powershell
+$workspaceResult.Windows |
+    Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
+```
+
+This returns `editor` with two panes. The
+[workspace guide](docs/workspace.md#apply-the-reviewed-plan) covers failure
+recovery, attaching and exporting a declaration. For an MCP client, start with
 [`list_sessions` and `capture_pane`](docs/mcp.md#discover-before-calling) after
 reading its advertised capabilities.
 

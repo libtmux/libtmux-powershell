@@ -2,7 +2,7 @@
 param()
 
 $ErrorActionPreference = 'Stop'
-Import-Module LibTmux -ErrorAction Stop
+if (!(Get-Module LibTmux)) { Import-Module LibTmux -ErrorAction Stop }
 
 $socketName = 'libtmux-quickstart-' + [Guid]::NewGuid().ToString('N')
 $server = LibTmux\New-TmuxServer -SocketName $socketName -ConfigurationFile /dev/null
