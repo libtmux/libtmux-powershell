@@ -1,0 +1,40 @@
+{
+  "scope": "Single Linux x64 WSL2 guest; complete canonical block observation through installed event and rendered-capture paths. Whole-command wall time includes startup and cleanup. This does not measure raw transport throughput or establish a speed ratio.",
+  "host": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "architecture": "x86_64",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i7-12700H",
+    "logicalCpuCount": 10,
+    "memoryBytes": 39635234816,
+    "hypervisorVendor": "Microsoft"
+  },
+  "source": {
+    "portRevision": "b609ce20c262cbcdae6ad8a027f8b1e2791597f5",
+    "coreRevision": "e80a6c3ac7d1545e203e6027cf68e7269416ed09",
+    "sourceProvenance": "verified",
+    "corePackageVersion": "0.0.0-alpha.17.ps.4.ci.1790537559090.2105543199",
+    "modulePackageSha256": "ee850a0c2b64ce023ad56cf0ce45d0380ef6044ca0f1ab251b4aeb10c8932e06",
+    "runnerSha256": "80c42cd559f7614504371d1e1da97262ebdc1e87442067f39116554db7b1abd0"
+  },
+  "runs": [
+    {
+      "tmuxVersion": "3.2a",
+      "reportFile": "stream-payload-20260927-b609-ps4-3.2a.json",
+      "reportSha256": "1f633f56076527164f95b16ad34323b3901e7a38c33b54601656d0cd81554a2f",
+      "commandWallSeconds": 6.15,
+      "exitCode": 0,
+      "tmuxBinarySha256": "2e53b1a075d6a9ad94e7cad38eac827ced7224c57311f733352ec5ee12f28aca",
+      "timedSamples": 60
+    },
+    {
+      "tmuxVersion": "3.7c",
+      "reportFile": "stream-payload-20260927-b609-ps4-3.7c.json",
+      "reportSha256": "3aca6a7275c595839dc7196bd6661efc84a4c1bc73be1c7040ed7a4b0e5e5b05",
+      "commandWallSeconds": 5.9,
+      "exitCode": 0,
+      "tmuxBinarySha256": "a490d0aa36e16188a9718aec34068cb9af652e4b2ce533a3d0f77089d7d5b264",
+      "timedSamples": 60
+    }
+  ]
+}
