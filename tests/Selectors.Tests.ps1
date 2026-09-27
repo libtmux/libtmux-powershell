@@ -37,6 +37,13 @@ exec $quotedTmux "`$@"
     $session = $captured.Sessions[0]
     $before = [IO.File]::ReadAllLines($trace).Length
 
+    # Stop can be visible to the pipeline before StopProcessing cancels the token.
+    if (-not ('LibTmux.Testing.SelectorStopProbe' -as [type])) {
+        Add-Type -Path "$PSScriptRoot/support/SelectorStopProbe.cs"
+    }
+    Assert-Selection ([LibTmux.Testing.SelectorStopProbe]::RetainedMatchIsSuppressed(
+            [LibTmux.PowerShell.SelectTmuxPaneCommand], $first)) 'stopping selector published a retained match before token cancellation'
+
     $selected = @($captured.Panes | Select-TmuxPane -Criteria @{ Width = @{ Ge = 1 } })
     $expected = @($captured.Panes | Where-Object Width -GE 1)
     Assert-Selection ($selected.Count -eq $expected.Count -and $selected.Count -eq 2) 'ordinary selection lost native matches'
@@ -125,6 +132,7 @@ exec $quotedTmux "`$@"
         $invocation = $pipeline.BeginInvoke()
         Assert-Selection ($reached.Wait(1000)) 'stop fixture never delivered its first matching input'
         $stop = $pipeline.BeginStop($null, $null)
+        Assert-Selection ($pipeline.InvocationStateInfo.State -eq [Management.Automation.PSInvocationState]::Stopping) 'selection stop was not acknowledged before input release'
         $release.Set()
         Assert-Selection ($stop.AsyncWaitHandle.WaitOne(1000)) 'selection stop did not complete'
         $pipeline.EndStop($stop)
@@ -133,7 +141,8 @@ exec $quotedTmux "`$@"
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }
             $stopped = $true
         }
-        Assert-Selection ($stopped -and [IO.File]::ReadAllLines($trace).Length -eq $before) 'stopped input published its retained match'
+        Assert-Selection $stopped 'stopped input completed without PipelineStoppedException'
+        Assert-Selection ([IO.File]::ReadAllLines($trace).Length -eq $before) 'stopped input published its retained match'
     } finally {
         $release.Set()
         $pipeline.Dispose()

@@ -71,6 +71,7 @@ internal sealed class QuerySelection<T>(QueryTarget target) where T : class
         Guard(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (stopping()) { throw new PipelineStoppedException(); }
             if (retained is null) { throw new CardinalityException(multiple: false); }
             T selected = retained;
             retained = null;
