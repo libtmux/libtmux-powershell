@@ -114,6 +114,14 @@ retained final notification, and native final window name in every sample.
 This is a queue-pressure test; it does not compare notification history with
 polling or capture.
 
+## Live output visibility
+
+The [output visibility benchmark](OutputLatency.md) sends each unique token
+once to an owned pane and times when a persistent control watcher and an
+independently armed rendered-capture poller first observe it. Every round
+checks the token, pane ID, event loss and cleanup. The 10 ms capture interval
+and both observers' scheduling are part of the measured paths.
+
 ## Capture sizes
 
 The [capture-size benchmark](CaptureSize.md) compares native complete-history
