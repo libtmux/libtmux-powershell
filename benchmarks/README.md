@@ -1,6 +1,6 @@
 # Benchmarks
 
-Both runners extract the supplied PowerShell package into a temporary directory
+The runners extract the supplied PowerShell package into a temporary directory
 and use an owned tmux socket. They write raw JSON distributions and make no
 speedup claim from one host.
 
@@ -48,10 +48,11 @@ observations rather than a cross-lane cold-start comparison. The report's p95
 uses nearest rank and appears only with at least twenty samples. Keep raw
 samples when comparing runs; do not infer a speedup from a single noisy host.
 
-Control-mode transport and command dispatch have a separate workload below.
-Standalone C# process startup, concurrent/async acquisition, streaming
-notifications, mutation throughput, and larger server shapes remain unmeasured.
-They require their own correctness checks and raw distributions.
+Control-mode transport, command dispatch, query selection, and event pressure
+have separate workloads below. Standalone C# process startup, concurrent
+acquisition, mutation throughput, and scaling across multiple server sizes
+remain unmeasured. They require their own correctness checks and raw
+distributions.
 
 ## Command transport
 
@@ -83,5 +84,24 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/CommandTransport.Tests.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The workload measures serial read-only commands. Concurrent commands, async
-client use, streaming notifications, mutation throughput, and scale are open.
+The workload measures serial read-only commands. The
+[display dispatch benchmark](DisplayDispatch.md) compares serial, bounded
+concurrent, and chained paths using eight distinct replies. Streaming
+throughput and mutation throughput remain open.
+
+## Linked pane query selection
+
+The [query selection benchmark](QuerySelection.md) selects one pane ID across
+three placements of a linked window. It checks the same complete graph and
+placement identities for native `Where-Object`, structured local selection,
+and each admitted `Never`, `Auto`, or `Require` source-query mode. Local
+filtering reuses one snapshot; source-query timing includes fresh acquisition.
+The report keeps those cost scopes separate.
+
+## Event stream pressure
+
+The [event stream benchmark](EventStream.md) sends eight- and sixteen-rename
+bursts into a one-event control queue. It checks the reported loss count,
+retained final notification, and native final window name in every sample.
+This is a queue-pressure test; it does not compare notification history with
+polling or capture.

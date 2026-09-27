@@ -11,6 +11,8 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 
 [Quick start](#quick-start) · [Install](#install-from-source) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
+[Compatibility](docs/compatibility.md) ·
+[Troubleshooting](docs/troubleshooting.md) ·
 [Cmdlet reference](docs/reference/LibTmux)
 
 **Alpha.** APIs may change. Build from this checkout; the modules are not yet
@@ -103,8 +105,8 @@ independent .NET tool and does not require PowerShell.
 
 ## Install from source
 
-Use PowerShell 7.4 or later with tmux installed on a Unix host. Install the
-pinned development tools from the repository root:
+Use PowerShell 7.4 or later with tmux on Linux x64. macOS is under test.
+Install the pinned development tools from the repository root:
 
 ```console
 $ mise install
@@ -139,7 +141,8 @@ checks. Run the examples in that PowerShell session.
 - **Read:** [snapshots and filtering](docs/read.md), [structured queries](docs/query.md),
   [pane contents and scrollback](docs/capture.md), [attached clients](docs/clients.md).
 - **Automate:** [create](docs/create.md), [send text and keys](docs/input.md),
-  [arrange and resize](docs/layout.md), [remove](docs/remove.md).
+  [arrange and resize](docs/layout.md), [link and move windows](docs/placement.md),
+  [remove](docs/remove.md).
 - **Configure:** [options](docs/options.md), [hooks](docs/hooks.md),
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
@@ -154,6 +157,7 @@ against real tmux through the installed modules. See
 [contributing](.github/CONTRIBUTING.md) for the example runner and development
 checks.
 
-The [pane enumeration benchmark](benchmarks/README.md) compares native tmux,
-the installed cmdlet and the .NET core called from PowerShell on an owned
-server. It records raw samples and package provenance.
+The [benchmarks](benchmarks/README.md) compare pane enumeration, command
+dispatch and linked-pane query selection, and measure event loss under queue
+pressure. They use owned servers and record raw samples with package
+provenance.
