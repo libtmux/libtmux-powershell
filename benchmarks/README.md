@@ -105,3 +105,17 @@ bursts into a one-event control queue. It checks the reported loss count,
 retained final notification, and native final window name in every sample.
 This is a queue-pressure test; it does not compare notification history with
 polling or capture.
+
+## Capture sizes
+
+The [capture-size benchmark](CaptureSize.md) compares native complete-history
+capture with `Get-TmuxPaneContent -History -Raw` for three fixed payloads. It
+checks every payload line and exact lane equality before recording raw samples.
+
+## Wait cancellation resources
+
+The [wait-resource benchmark](ResourceCancellation.md) measures timeout and
+pipeline-stop withdrawal on one owned server. It verifies native client exit,
+the next channel signal, process counts, and topology preservation, while
+recording PowerShell, daemon, and client resident memory. The two lanes have
+different triggers and error contracts; the report does not give a speed ratio.

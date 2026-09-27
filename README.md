@@ -158,7 +158,6 @@ against real tmux through the installed modules. See
 [contributing](.github/CONTRIBUTING.md) for the example runner and development
 checks.
 
-The [benchmarks](benchmarks/README.md) compare pane enumeration, command
-dispatch and linked-pane query selection, and measure event loss under queue
-pressure. They use owned servers and record raw samples with package
-provenance.
+The [benchmarks](benchmarks/README.md) cover pane reads, command dispatch,
+linked-pane queries, capture sizes, event loss and wait cancellation. They use
+owned servers and record raw samples with package provenance.
