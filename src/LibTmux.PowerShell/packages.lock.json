@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
-        "resolved": "0.0.0-alpha.16.ps.3",
-        "contentHash": "lMT2PpGtejXuRlfAGxTTsjaQOcI3w4RWEKCciPDQjYTIYDtT1CxmjQTk9A0sjQOIswaxKxxdfLCJUzOgaVC2+w==",
+        "requested": "[0.0.0-alpha.17.ps.4, 0.0.0-alpha.17.ps.4]",
+        "resolved": "0.0.0-alpha.17.ps.4",
+        "contentHash": "VvpVK/icntV4G+e3jv2Ynm6e/Yi2M6FvF+nXoBYaegqwIad5Hh581MRUz/j6WWkH3yCAiv0iuUs/WyNQd03wsg==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Query.Json": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.16.ps.3, 0.0.0-alpha.16.ps.3]",
-        "resolved": "0.0.0-alpha.16.ps.3",
-        "contentHash": "CiR6Zx/5EQtUQEnT1xbpzvtyQxTzAQmAINQ3cJvrgvi89nppcZCIQjtMAZTnXkNOxOF07I5jQpfyBMPWBFoP0g==",
+        "requested": "[0.0.0-alpha.17.ps.4, 0.0.0-alpha.17.ps.4]",
+        "resolved": "0.0.0-alpha.17.ps.4",
+        "contentHash": "eP1LO+CklWCi0GxXVgxxzmbgJCzdo6pYoP5ON7VeT+iLucbCOd9fZPs+ZIeHEpCQh6zxMuqsC4iBmr+m6hNPaA==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.16.ps.3"
+          "LibTmux": "0.0.0-alpha.17.ps.4"
         }
       },
       "System.Management.Automation": {

@@ -107,9 +107,8 @@ Invoke-WithOwnedTmux {
         $initial.ImportPSModule(@($module))
         $runspace = [RunspaceFactory]::CreateRunspace($initial)
         $pipeline = [PowerShell]::Create()
-        $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
-        $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
-        $blocking = New-TmuxCommand -Name 'run-shell' -Arguments @("$quotedTmux -S $quotedSocket wait-for -S command-started; $quotedTmux -S $quotedSocket wait-for command-release")
+        # -F runs the selected tmux command list without a foreground shell.
+        $blocking = New-TmuxCommand -Name 'if-shell' -Arguments @('-F', '1', 'wait-for -S command-started ; wait-for command-release')
         try {
             $runspace.Open()
             $pipeline.Runspace = $runspace
