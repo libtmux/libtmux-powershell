@@ -65,7 +65,44 @@ Assert-CleanedUp $fixture
 Assert-True ($fixture.OwnedProcessIds.Contains($createdPanePid)) 'Teardown did not track the later-created pane process.'
 Remove-OwnedTmuxFixture $fixture
 
+$emptyFixture = New-OwnedTmuxFixture
+try {
+    $null = Invoke-OwnedTmux $emptyFixture -Arguments @('set-option', '-g', 'exit-empty', 'off')
+    $null = Invoke-OwnedTmux $emptyFixture -Arguments @('kill-session', '-t', 'fixture')
+    Assert-True (-not $emptyFixture.ServerProcess.HasExited) 'Empty-server test lost its owned daemon.'
+    $sessions = Invoke-OwnedTmux $emptyFixture -Arguments @('-N', 'list-sessions', '-F', '#{session_id}')
+    Assert-True ($sessions.StdOut.Trim().Length -eq 0) 'Empty-server test retained a session.'
+} finally {
+    Remove-OwnedTmuxFixture $emptyFixture
+}
+Assert-CleanedUp $emptyFixture
+
 $registrationFixture = New-OwnedTmuxFixture
+$script:OriginalInvokeOwnedTmux = (Get-Command Invoke-OwnedTmux).ScriptBlock
+$falseEmptyFailure = $null
+try {
+    Set-Item Function:\Invoke-OwnedTmux -Value {
+        [CmdletBinding()]
+        param($Fixture, [string[]] $Arguments, [switch] $AllowFailure,
+            [Threading.CancellationToken] $CancellationToken)
+
+        if ($Arguments[0] -ceq 'list-panes') {
+            [pscustomobject]@{ ExitCode = 1; StdOut = ''; StdErr = 'no current target' }
+            return
+        }
+        & $script:OriginalInvokeOwnedTmux $Fixture -Arguments $Arguments -AllowFailure:$AllowFailure `
+            -CancellationToken $CancellationToken
+    }
+    try { Register-OwnedTmuxPane $registrationFixture }
+    catch { $falseEmptyFailure = $_ }
+} finally {
+    Set-Item Function:\Invoke-OwnedTmux -Value $script:OriginalInvokeOwnedTmux
+    Remove-Variable OriginalInvokeOwnedTmux -Scope Script
+}
+Assert-True ($null -ne $falseEmptyFailure -and
+    $falseEmptyFailure.Exception.Message -eq 'tmux list-panes failed (1): no current target') `
+    'Pane registration accepted a failed list while the owned session was present.'
+
 $originalRegister = (Get-Command Register-OwnedTmuxPane).ScriptBlock
 $registrationFailure = $null
 try {

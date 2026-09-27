@@ -256,7 +256,19 @@ function Register-OwnedTmuxPane {
         throw 'The socket no longer identifies the owned tmux daemon.'
     }
     $panes = Invoke-OwnedTmux $Fixture -Arguments @('list-panes', '-a', '-F', '#{pane_pid}') `
-        -CancellationToken ([System.Threading.CancellationToken]::None)
+        -AllowFailure -CancellationToken ([System.Threading.CancellationToken]::None)
+    if ($panes.ExitCode -ne 0) {
+        if ($panes.ExitCode -eq 1 -and $panes.StdOut.Trim().Length -eq 0 -and
+            $panes.StdErr.Trim() -ceq 'no current target') {
+            $sessions = Invoke-OwnedTmux $Fixture -Arguments @('-N', 'list-sessions', '-F', '#{session_id}') `
+                -AllowFailure -CancellationToken ([System.Threading.CancellationToken]::None)
+            if ($sessions.ExitCode -eq 0 -and $sessions.StdOut.Trim().Length -eq 0 -and
+                $sessions.StdErr.Trim().Length -eq 0) {
+                return
+            }
+        }
+        throw "tmux list-panes failed ($($panes.ExitCode)): $($panes.StdErr.Trim())"
+    }
     foreach ($line in $panes.StdOut.Split("`n", [System.StringSplitOptions]::RemoveEmptyEntries)) {
         $panePid = [int] $line.Trim()
         if (-not $Fixture.PaneProcessIds.Add($panePid)) { continue }
