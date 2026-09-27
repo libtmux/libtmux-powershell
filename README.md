@@ -1,15 +1,17 @@
 # libtmux for PowerShell
 
-Drive [tmux](https://github.com/tmux/tmux) with native PowerShell cmdlets.
-Create sessions, arrange panes, send input and capture terminal output.
-Read state once, then work with typed objects through ordinary pipelines.
+Drive [tmux](https://github.com/tmux/tmux) from PowerShell. Create sessions,
+arrange panes, send input, and read terminal output through native cmdlets.
+Snapshots return typed objects that you can traverse and filter with ordinary
+PowerShell pipelines.
 
 Built on [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet), in the
 same [libtmux organization](https://github.com/libtmux) and with the same main
 author. The cmdlets return its native objects and add PowerShell parameter
 binding, help, formatting and `-WhatIf` / `-Confirm`.
 
-[Quick start](#quick-start) · [Install](#install-from-source) ·
+[Install](#install-from-source) · [Object graph](#create-and-read-an-object-graph) ·
+[Send and capture](#send-a-command-and-capture-its-result) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
 [Compatibility](docs/compatibility.md) ·
 [Troubleshooting](docs/troubleshooting.md) ·
@@ -18,19 +20,59 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 **Alpha.** APIs may change. Build from this checkout; the modules are not yet
 published to PowerShell Gallery.
 
-## Quick start
+## Install from source
 
-After [building the modules](#install-from-source), choose an explicit socket.
-`New-TmuxServer` creates a handle; it does not start or contact tmux.
+This checkout targets PowerShell 7.4 and .NET 8. Run PowerShell and tmux on the
+same Unix host; see [compatibility](docs/compatibility.md) for tested versions.
+Install the tools pinned by [.tool-versions](.tool-versions):
+
+```console
+$ mise install
+```
+
+The branch pins unpublished .NET review packages. To use its existing
+lockfiles, set `CORE_PACKAGES` to a directory containing the exact inspected
+archives and `provenance.json`, then build both PowerShell modules:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
+    -Restore \
+    -CorePackageDirectory "$CORE_PACKAGES"
+```
+
+If you do not have those archives, follow the
+[review-package source recipe](.github/CONTRIBUTING.md#review-package-builds).
+It builds the linked [.NET core](https://github.com/libtmux/libtmux-dotnet),
+chooses a new package version, and updates the exact pins and lockfiles. The
+review build is local; it does not publish packages.
+
+Start PowerShell with the staged modules on its search path:
+
+```console
+$ PSModulePath="$PWD/build/Modules" pwsh -NoLogo -NoProfile
+```
+
+The commands below run in that PowerShell session. The workspace module is
+installed alongside the core module; the MCP server is a separate .NET tool.
+Use `Get-Command -Module LibTmux` to browse cmdlets and
+`Get-Help LibTmux\New-TmuxSession -Examples` for installed examples.
+
+## Create and read an object graph
+
+Choose a unique socket and a clean tmux configuration. `New-TmuxServer`
+creates a handle without contacting tmux. The example does not touch your
+default server.
 
 <!-- example: read.endpoint -->
 ```powershell
-$server = LibTmux\New-TmuxServer -SocketName development
+$server = LibTmux\New-TmuxServer `
+    -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
+    -ConfigurationFile /dev/null
 ```
 
-Create two panes, capture their state, then remove the session. `cat` keeps
-the panes open without shell configuration. An existing `demo` session causes
-an error.
+Create a session, split its window, and take one snapshot. `cat` keeps both
+panes open without shell setup. The `finally` block removes only the session
+this example created; an existing `demo` session causes an error.
 
 <!-- example: readme.create -->
 ```powershell
@@ -47,18 +89,81 @@ $captured = & {
 }
 ```
 
-`$captured` is a native `LibTmux.Session` with one window and two panes.
-The snapshot remains readable after cleanup; other sessions are left alone.
-Filter its panes with an ordinary PowerShell pipeline:
+`$captured` is a native `LibTmux.Session`. Its `Windows` contain native
+`LibTmux.Window` objects; each window's `Panes` contain native `LibTmux.Pane`
+objects. The graph is still readable after cleanup:
+
+| Expression | Captured result |
+| --- | --- |
+| `$captured` | A `Session` named `demo` |
+| `$captured.Windows[0]` | Its single `Window` |
+| `$captured.Windows[0].Panes` | Two `Pane` objects, 59×30 and 40×30 |
+
+Walk it and filter locally:
 
 <!-- example: readme.filter -->
 ```powershell
-$captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
+$captured.Windows[0].Panes |
+    Where-Object Width -GE 50 |
+    Select-Object Id, Width, Height
 ```
 
-The result is the wider pane: 59 columns by 30 rows. Filtering and property
-access use captured data; `Get-TmuxSnapshot` explicitly reads fresh state.
-See [reading and filtering](docs/read.md) for IDs, arrays and linked windows.
+The result is the 59-by-30 pane; the other is 40-by-30. `Where-Object`,
+navigation, formatting, and property access use captured data and start no
+tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A linked window
+can have several session placements; its index belongs to the placement.
+See [snapshots and linked windows](docs/read.md) for IDs, active children and
+captured versus unavailable fields.
+
+When you need a reusable graph predicate, the same captured window can be
+selected because **one related pane** is at least 50 columns wide:
+
+<!-- example: readme.related -->
+```powershell
+$captured.Windows |
+    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 } } } }
+```
+
+This query also performs no I/O. [The query guide](docs/query.md) shows native
+predicates, Boolean and relationship criteria, and explicit fresh source
+queries.
+
+## Send a command and capture its result
+
+Sending text means tmux accepted the keys; it does not mean the shell finished.
+This example uses a unique tmux channel. The shell signals it after printing,
+so capture starts only when the command has reached that point.
+
+<!-- example: readme.input -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
+    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application |
+        Select-Object -First 1).Source
+    $selector = if ($server.ConnectionOptions.SocketPath) {
+        "-S '{0}'" -f $server.ConnectionOptions.SocketPath.Replace("'", "'\''")
+    } elseif ($server.ConnectionOptions.SocketName) {
+        "-L '{0}'" -f $server.ConnectionOptions.SocketName.Replace("'", "'\''")
+    } else { '' }
+    $signal = "'{0}' {1} wait-for -S '{2}'" -f $tmux.Replace("'", "'\''"), $selector, $ready
+    $session = $server | New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
+    try {
+        $pane = $session | Get-TmuxPane
+        $pane | Send-TmuxText -Text ('printf "\nhello from PowerShell\n"; ' + $signal) -Enter
+        $null = $server | Wait-TmuxChannel -Channel $ready -Timeout 10
+        $pane | Get-TmuxPaneContent
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The captured lines include `hello from PowerShell`. Other sessions remain
+untouched; tmux may exit when this was its last session. See
+[send and wait](docs/input.md) for literal
+text versus keys, cancellation and a shorter recipe when completion is not
+required.
 
 ## Choose how to run
 
@@ -72,21 +177,19 @@ See [reading and filtering](docs/read.md) for IDs, arrays and linked windows.
 | Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
-Foreground cmdlets occupy their pipeline until they finish. Jobs and worker
-runspaces provide concurrency; control mode keeps a client connected for
-repeated commands. Watchers accept event-count and text-byte limits.
-
-Sending text acknowledges input, not completion of the receiving program.
-The [send, wait and capture example](docs/input.md#send-a-command-and-wait-for-its-output)
-uses a unique tmux channel to capture output after the shell signals completion.
+Foreground cmdlets and `ForEach-Object -Parallel` occupy their calling pipeline.
+Thread jobs return the prompt while they run; control mode keeps one client
+connected for repeated commands. Watchers accept event-count and text-byte
+limits. Choose a mode by its ownership and failure behavior, not a timing claim;
+the [mode guide](docs/commands.md) explains when chains merge failure attribution.
 
 ## Modules and MCP
 
 | Product | Use it for |
 | --- | --- |
 | [LibTmux](docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
-| [LibTmux.Workspace](docs/workspace.md) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
-| [LibTmux.Mcp](docs/mcp.md) | Giving an assistant tmux tools through the separately installed .NET MCP server |
+| [LibTmux.Workspace](docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
+| [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
 The workspace module parses YAML into a native
 `LibTmux.Workspace.WorkspaceFile` without running its commands:
@@ -96,46 +199,14 @@ The workspace module parses YAML into a native
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
 ```
 
-To build a usable workspace, follow the
-[declaration and planning guide](docs/workspace.md): define windows and panes,
-inspect the plan, preview it with `-WhatIf`, then apply that exact plan.
+The [workspace guide](docs/workspace.md) builds a two-pane declaration, shows
+each planned action without printing commands or secrets, previews it with
+`-WhatIf`, then applies that exact plan. For an MCP client, start with
+[`list_sessions` and `capture_pane`](docs/mcp.md#discover-before-calling) after
+reading its advertised capabilities.
 
 Install both PowerShell modules at the same version. The MCP server is an
 independent .NET tool and does not require PowerShell.
-
-## Install from source
-
-PowerShell 7.4 is the minimum build target. See [compatibility](docs/compatibility.md)
-for tested Linux x64 combinations; macOS is under test. Install the pinned
-development tools from the repository root:
-
-```console
-$ mise install
-```
-
-This checkout pins unpublished .NET review packages. If you have the original
-inspected archives and their `provenance.json`, set `CORE_PACKAGES` to that
-directory and build with the existing lockfiles:
-
-```console
-$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
-    -Restore \
-    -CorePackageDirectory "$CORE_PACKAGES"
-```
-
-To build the dependencies yourself, follow the
-[review package recipe](.github/CONTRIBUTING.md#review-package-builds). Use a
-new package version and update the exact pins and lockfiles as described there;
-rebuilding the source does not reproduce the original locked archives.
-
-Open PowerShell with the built modules on its search path:
-
-```console
-$ PSModulePath="$PWD/build/Modules" pwsh -NoLogo -NoProfile
-```
-
-See [contributing](.github/CONTRIBUTING.md) for local packages and development
-checks. Run the examples in that PowerShell session.
 
 ## Guides
 
@@ -158,6 +229,5 @@ against real tmux through the installed modules. See
 [contributing](.github/CONTRIBUTING.md) for the example runner and development
 checks.
 
-The [benchmarks](benchmarks/README.md) cover pane reads, command dispatch,
-linked-pane queries, capture sizes, event loss and wait cancellation. They use
-owned servers and record raw samples with package provenance.
+The [benchmark guide](benchmarks/README.md) explains installed-package
+workloads, correctness checks, raw samples and reproduction commands.

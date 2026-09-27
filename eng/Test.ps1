@@ -176,6 +176,7 @@ try {
                 }
             }
             if ($Suite -eq 'Guides' -or $runDocumentation) {
+                Invoke-TestScript 'tests/ReadmeWorkflow.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 foreach ($group in @('Lifecycle', 'Operations', 'Planning')) {
                     Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed,
                         '-RunExamples', '-ExampleGroup', $group) $installed

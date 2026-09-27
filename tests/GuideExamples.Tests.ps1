@@ -32,9 +32,13 @@ function Get-GuideDocumentUnit([IO.FileInfo[]] $Files) {
             $marker = [regex]::Match($before, '<!-- example: (?<id>[a-z][a-z0-9.-]+) -->\s*\z')
             if (!$marker.Success) { throw "Unregistered guide fence: $($file.Name)" }
             $id = $marker.Groups['id'].Value
-            if ($units.ContainsKey($id)) { throw "Duplicate guide example: $id" }
-            $null = $fileIds.Add($id)
-            $units[$id] = $match.Groups['code'].Value.TrimEnd("`n")
+            if (!$fileIds.Add($id)) { throw "Duplicate guide example in $($file.Name): $id" }
+            $code = $match.Groups['code'].Value.TrimEnd("`n")
+            if ($units.ContainsKey($id)) {
+                if ($units[$id] -cne $code) { throw "Guide copy drift: $id" }
+            } else {
+                $units[$id] = $code
+            }
         }
         foreach ($marker in [regex]::Matches($text, '<!-- example: (?<id>[a-z][a-z0-9.-]+) -->')) {
             if (!$fileIds.Contains($marker.Groups['id'].Value)) { throw "Guide marker has no fence: $($marker.Groups['id'].Value)" }
@@ -135,7 +139,7 @@ $assertions = @{
     'read.endpoint' = @{ Group = 'Pure'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
-                $o.Server.ConnectionOptions.SocketName -ceq 'development') 'endpoint identity'
+                $o.Server.ConnectionOptions.SocketName -cmatch '^libtmux-readme-[a-f0-9]{32}$') 'endpoint identity'
         } }
     'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
             param($o)
@@ -150,6 +154,12 @@ $assertions = @{
             param($o)
             Assert-Guide ($o.Result[0].Width -eq 59 -and $o.Result[0].Height -eq 30 -and
                 $o.Result[0].Id -is [LibTmux.PaneId] -and (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured pane filtering'
+        } }
+    'readme.related' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Windows[0]) -and
+                $o.Result[0].Panes.Count -eq 2 -and
+                (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured relationship filtering'
         } }
     'readme.input' = @{ Group = 'Readme'; Count = -1; Assert = {
             param($o)
@@ -683,6 +693,18 @@ try {
     }
     [IO.File]::WriteAllText($path, $original + "`n" + '```powershell' + "`n'not registered'`n" + '````' + "`n")
     Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unparsed guide fence: guide-negative.md'
+    $firstCopy = Join-Path $copied 'guide-copy-a.md'
+    $secondCopy = Join-Path $copied 'guide-copy-b.md'
+    $opening = '<!-- example: readme.input -->' + "`n" + '```powershell' + "`n"
+    [IO.File]::WriteAllText($firstCopy, $opening + "'same'`n" + '```' + "`n")
+    [IO.File]::WriteAllText($secondCopy, $opening + "'same'`n" + '```' + "`n")
+    if ((Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))).Count -ne 1) {
+        throw 'Identical guide copies did not share one executable unit.'
+    }
+    [IO.File]::WriteAllText($secondCopy, $opening + "'different'`n" + '```' + "`n")
+    Assert-GuideRejection {
+        $null = Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))
+    } 'Guide copy drift: readme.input'
 } finally {
     if (Test-Path -LiteralPath $copied) { Remove-Item -LiteralPath $copied -Recurse -Force }
 }

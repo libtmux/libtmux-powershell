@@ -51,7 +51,11 @@ $server | Invoke-TmuxQuery -Plan $queryPlan -AsResult -ErrorAction Stop
     'query.12-one' = @{ Requires = @('captured'); Code = {
 $captured.Sessions | Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
     } }
-    'read.endpoint' = @{ Requires = @(); Code = { $server = LibTmux\New-TmuxServer -SocketName development } }
+    'read.endpoint' = @{ Requires = @(); Code = {
+$server = LibTmux\New-TmuxServer `
+    -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
+    -ConfigurationFile /dev/null
+    } }
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
     $ErrorActionPreference = 'Stop'
@@ -66,14 +70,26 @@ $captured = & {
 }
     } }
     'readme.filter' = @{ Requires = @('captured'); Code = {
-$captured.Panes | Where-Object Width -GE 50 | Select-Object Id, Width, Height
+$captured.Windows[0].Panes |
+    Where-Object Width -GE 50 |
+    Select-Object Id, Width, Height
+    } }
+    'readme.related' = @{ Requires = @('captured'); Code = {
+$captured.Windows |
+    Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 } } } }
     } }
     'readme.input' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
     $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
-    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application).Source
-    $signal = "'{0}' wait-for -S '{1}'" -f $tmux.Replace("'", "'\''"), $ready
+    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application |
+        Select-Object -First 1).Source
+    $selector = if ($server.ConnectionOptions.SocketPath) {
+        "-S '{0}'" -f $server.ConnectionOptions.SocketPath.Replace("'", "'\''")
+    } elseif ($server.ConnectionOptions.SocketName) {
+        "-L '{0}'" -f $server.ConnectionOptions.SocketName.Replace("'", "'\''")
+    } else { '' }
+    $signal = "'{0}' {1} wait-for -S '{2}'" -f $tmux.Replace("'", "'\''"), $selector, $ready
     $session = $server | New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
     try {
         $pane = $session | Get-TmuxPane

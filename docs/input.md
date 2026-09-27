@@ -52,8 +52,8 @@ the commands never retry automatically.
 With an endpoint in `$server`, send literal text to a shell and use `-Enter`
 to submit it. See [endpoint selection](read.md) for setup. The shell signals
 a unique channel after printing, so capture waits for completed output. The
-signal uses the endpoint's tmux executable, with its path quoted for the
-shell. A successful send alone means tmux accepted the input; it does not
+signal uses the endpoint's tmux executable and socket, with paths quoted for
+the shell. A successful send alone means tmux accepted the input; it does not
 establish that the receiving program finished.
 
 <!-- example: readme.input -->
@@ -61,8 +61,14 @@ establish that the receiving program finished.
 & {
     $ErrorActionPreference = 'Stop'
     $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
-    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application).Source
-    $signal = "'{0}' wait-for -S '{1}'" -f $tmux.Replace("'", "'\''"), $ready
+    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application |
+        Select-Object -First 1).Source
+    $selector = if ($server.ConnectionOptions.SocketPath) {
+        "-S '{0}'" -f $server.ConnectionOptions.SocketPath.Replace("'", "'\''")
+    } elseif ($server.ConnectionOptions.SocketName) {
+        "-L '{0}'" -f $server.ConnectionOptions.SocketName.Replace("'", "'\''")
+    } else { '' }
+    $signal = "'{0}' {1} wait-for -S '{2}'" -f $tmux.Replace("'", "'\''"), $selector, $ready
     $session = $server | New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
     try {
         $pane = $session | Get-TmuxPane
