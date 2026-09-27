@@ -11,6 +11,10 @@ function Assert-Attachment([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Attachment: $Message" }
 }
 
+$python = (Get-Command python3 -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+& $python "$PSScriptRoot/support/test_attachment_pty.py"
+Assert-Attachment ($LASTEXITCODE -eq 0) 'PTY owner process-group cleanup checks failed'
+
 $command = Get-Command 'LibTmux\Enter-TmuxSession' -ErrorAction SilentlyContinue
 Assert-Attachment ($null -ne $command) 'installed module has no Enter-TmuxSession'
 Assert-Attachment ($command.OutputType[0].Type -eq [LibTmux.Session]) 'output metadata is not native Session'

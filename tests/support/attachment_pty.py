@@ -1,12 +1,15 @@
 """Installed-module outer gate. PowerShell owns the borrowed daemon and panes."""
 
 import argparse
+from contextlib import closing
+import errno
 import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import pty
+import select
 import selectors
 import signal
 import struct
@@ -44,10 +47,76 @@ def stop_group(process):
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError as failure:
+        # Darwin's killpg excludes zombies and reports EPERM for a group
+        # containing only exited members. Verify that no live member remains.
+        if failure.errno != errno.EPERM or exit_status_unreaped(process) is None:
+            raise
+        rows = subprocess.run(["ps", "-A", "-o", "pid=", "-o", "pgid=", "-o", "stat="],
+                              capture_output=True, text=True, check=True, timeout=1).stdout
+        for line in rows.splitlines():
+            _member_pid, pgid, state = line.split()
+            if int(pgid) == process.pid and not state.startswith("Z"):
+                raise failure
     process.wait(timeout=1)
 
 
+def exit_status_unreaped(process):
+    result = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
+    if result is None:
+        return None
+    if result.si_pid != process.pid:
+        raise AssertionError("Owned child status has the wrong process ID")
+    return result.si_status if result.si_code == os.CLD_EXITED else -result.si_status
+
+
+def stop_group_preserving_error(process, failure):
+    try:
+        stop_group(process)
+    except BaseException as cleanup_failure:
+        failure.add_note(f"Owned process cleanup also failed: {cleanup_failure!r}")
+
+
+def wait_unreaped_darwin(process, timeout):
+    status = exit_status_unreaped(process)
+    if status is not None:
+        return status
+    with closing(select.kqueue()) as events:
+        change = select.kevent(process.pid, filter=select.KQ_FILTER_PROC,
+                               flags=select.KQ_EV_ADD, fflags=select.KQ_NOTE_EXIT)
+        try:
+            events.control([change], 0, 0)
+        except ProcessLookupError:
+            status = exit_status_unreaped(process)
+            if status is None:
+                raise
+            return status
+        status = exit_status_unreaped(process)
+        if status is not None:
+            return status
+        notified = events.control(None, 1, timeout)
+        if not notified:
+            raise subprocess.TimeoutExpired(process.args, timeout)
+        event = notified[0]
+        if event.flags & select.KQ_EV_ERROR:
+            raise OSError(event.data, os.strerror(event.data))
+        if event.ident != process.pid or not event.fflags & select.KQ_NOTE_EXIT:
+            raise AssertionError("Unexpected owned process event")
+        status = exit_status_unreaped(process)
+        if status is None:
+            raise AssertionError("Owned exit event has no child status")
+        return status
+
+
 def wait_unreaped(process, timeout):
+    if sys.platform == "darwin":
+        # A blocking waitid observer can remain asleep after another thread
+        # reaps the child during timeout cleanup; kqueue has a bounded wait.
+        try:
+            return wait_unreaped_darwin(process, timeout)
+        except BaseException as failure:
+            stop_group_preserving_error(process, failure)
+            raise
     completed = threading.Event()
     outcome = []
 
@@ -68,8 +137,8 @@ def wait_unreaped(process, timeout):
         if isinstance(result, BaseException):
             raise result
         return result.si_status if result.si_code == os.CLD_EXITED else -result.si_status
-    except BaseException:
-        stop_group(process)
+    except BaseException as failure:
+        stop_group_preserving_error(process, failure)
         raise
     finally:
         observer.join(timeout=1)
@@ -201,6 +270,8 @@ def run(args):
     except BaseException as failure:
         report["status"] = "FAIL"
         report["failure"] = repr(failure)
+        if getattr(failure, "__notes__", None):
+            report["failureNotes"] = list(failure.__notes__)
     finally:
         # A failed child cleanup must never suppress sentinel cleanup or the receipt.
         if sentinel is not None:
