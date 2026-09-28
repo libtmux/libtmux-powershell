@@ -7,7 +7,11 @@
 </p>
 <!-- /libtmux-logo -->
 
+<div align="center">
+
 # libtmux for PowerShell
 
 PowerShell bindings for [LibTmux](https://github.com/libtmux/libtmux-dotnet)
 are in development. This repository currently contains the project scaffold.
+
+</div>
