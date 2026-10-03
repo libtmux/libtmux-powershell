@@ -22,10 +22,11 @@ for the implementation:
 | Output types | LibTmux's own types, such as `LibTmux.Session` |
 | Default views | `LibTmux.Format.ps1xml` |
 
-The target baseline is PowerShell 7.4 with .NET 8 on Linux and macOS. Keep
-module, folder, and manifest casing consistent. Export cmdlets explicitly and
-do not export aliases that could shadow the `tmux` executable. Pin the bundled
-LibTmux dependency to an exact version when a project is added.
+The target baseline is PowerShell 7.4 with .NET 8 on Linux. The
+[macOS trial](workflows/macos-trial.yml) is advisory and does not establish
+support. Keep module, folder, and manifest casing consistent. Export cmdlets
+explicitly and do not export aliases that could shadow the `tmux` executable.
+Pin the bundled LibTmux dependency to an exact version when a project is added.
 
 Module versions will use plain three-part `0.x` versions without prerelease
 labels, independently of the LibTmux NuGet version. Describe the module as

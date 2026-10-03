@@ -1,7 +1,8 @@
-# Hosted macOS trial: passing cells are required before making a support claim.
+# Hosted macOS trial: report suite failures without blocking the Linux baseline.
+# Passing suites are still required before making a macOS support claim.
 # CI rebuilds a unique .NET review version from a pinned commit and updates the
 # disposable checkout's locks. It does not prove committed unpublished archive bytes.
-name: powershell macOS trial
+name: powershell macOS trial (advisory)
 
 on:
   pull_request:
@@ -306,7 +307,7 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
-      - name: Record and require both suite conclusions
+      - name: Report both suite conclusions
         if: always()
         env:
           PRODUCT_OUTCOME: ${{ steps.product.outcome }}
@@ -320,8 +321,14 @@ jobs:
             "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
             "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
             > build/macos-cell.json
-          test "${PRODUCT_OUTCOME}" = success
-          test "${DOCUMENTATION_OUTCOME}" = success
+          printf '| Runner | PowerShell | tmux | Product | Documentation |\n| --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s |\n' \
+            "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
+            "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
+            >> "${GITHUB_STEP_SUMMARY}"
+          if [[ "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
+            printf '::warning::macOS trial suites failed: Product=%s, Documentation=%s\n' \
+              "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -344,7 +351,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require package build and all eight cells
+      - name: Require package build and trial reporting
         run: |
           test "${{ needs.package.result }}" = success
           test "${{ needs.matrix.result }}" = success
