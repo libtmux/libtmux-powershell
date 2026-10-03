@@ -12,6 +12,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspace', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspacePlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspaceResult', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspaceRecovery', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
 param()
 
 @{
@@ -305,6 +306,33 @@ $workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorA
     & $editor @editorArguments $workspaceFile.FullName
     if ($LASTEXITCODE -ne 0) {
         throw "Editor exited with code $LASTEXITCODE."
+    }
+}
+    } }
+    'workspace.09-recover' = @{ Requires = @('server', 'workspaceResult'); Code = {
+$workspaceRecovery = & {
+    $broken = Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: recovery-demo
+    panes:
+      - options:
+          libtmux-invalid-option: fail
+'@ -ErrorAction Stop
+    $plan = $broken | Get-TmuxWorkspacePlan -Server $server `
+        -ExistingSession Append -ServerStartup RequireExisting `
+        -CompensateOnFailure -ErrorAction Stop
+    try {
+        $null = $plan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+        throw 'The deliberately invalid option was accepted.'
+    } catch {
+        if ($_.Exception -isnot [LibTmux.Workspace.WorkspaceBuildException]) { throw }
+        $failure = $_.Exception
+    }
+    [pscustomobject]@{
+        Plan = $plan
+        Failure = $failure
+        Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
     }
 }
     } }

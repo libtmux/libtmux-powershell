@@ -270,6 +270,49 @@ Application failures write `Tmux.WorkspaceApplyFailed` with a native
 A stopped PowerShell pipeline may suppress error delivery, so do not rely
 on receiving a journal after stopping it.
 
+This example deliberately appends a window to the `development` session built
+above, then asks tmux to set an invalid pane option. It requests compensation
+for the newly created window. The existing session and its `editor` window are
+borrowed and must remain. Run it only against the session this guide created.
+
+<!-- example: workspace.09-recover -->
+```powershell
+$workspaceRecovery = & {
+    $broken = Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: recovery-demo
+    panes:
+      - options:
+          libtmux-invalid-option: fail
+'@ -ErrorAction Stop
+    $plan = $broken | Get-TmuxWorkspacePlan -Server $server `
+        -ExistingSession Append -ServerStartup RequireExisting `
+        -CompensateOnFailure -ErrorAction Stop
+    try {
+        $null = $plan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+        throw 'The deliberately invalid option was accepted.'
+    } catch {
+        if ($_.Exception -isnot [LibTmux.Workspace.WorkspaceBuildException]) { throw }
+        $failure = $_.Exception
+    }
+    [pscustomobject]@{
+        Plan = $plan
+        Failure = $failure
+        Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
+    }
+}
+```
+
+Inspect `$workspaceRecovery.Failure.Journal` for the failed action and its
+dispatch state, then `$workspaceRecovery.Failure.CompensationJournal` for
+attempted cleanup. The fresh `$workspaceRecovery.Current.Sessions` observation
+shows what remains. A completed cleanup entry records a tmux operation; the
+fresh observation proves whether `recovery-demo` is gone and `editor` remains.
+If dispatch is `Unknown` or cleanup failed, the action may have taken effect.
+Inspect the server and reconcile it before making another plan; do not retry
+the same plan blindly.
+
 `-CompensateOnFailure` at planning requests bounded cleanup of creations
 whose ownership is proven by that application. Review
 `$workspacePlan.CompensationActions` too. `-CleanupTimeout` bounds cleanup;

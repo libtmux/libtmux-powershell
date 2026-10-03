@@ -508,6 +508,33 @@ $assertions = @{
                 [IO.File]::WriteAllText($editor.Path, $c.EditorProgram)
             }
         } }
+    'workspace.09-recover' = @{ Group = 'Workspace'; Count = 0; Assert = {
+            param($o)
+            $recovery = $o.WorkspaceRecovery
+            $failure = $recovery.Failure
+            $created = @($failure.Journal | Where-Object {
+                $_.Action.Kind -eq 'CreateWindow' -and $_.State -eq 'Completed'
+            })
+            $failed = @($failure.Journal | Where-Object {
+                $_.Action.Kind -eq 'SetOption' -and $_.State -in 'Failed', 'Unknown'
+            })
+            $cleaned = @($failure.CompensationJournal | Where-Object {
+                $_.Action.Kind -eq 'UnlinkWindow' -and $_.State -eq 'Completed'
+            })
+            Assert-Guide ($failure -is [LibTmux.Workspace.WorkspaceBuildException] -and
+                $failure.PartialResult.Session.Id -eq $o.WorkspaceResult.Session.Id -and
+                $failure.Journal.Count -eq $recovery.Plan.Actions.Count -and
+                $failure.Dispatch -ne [LibTmux.TmuxDispatchState]::NotDispatched -and
+                $created.Count -eq 1 -and $failed.Count -eq 1 -and $cleaned.Count -eq 1 -and
+                $cleaned[0].Action.Target -ceq $created[0].Action.Target) 'recovery journal did not link the failed option to owned window cleanup'
+            $live = @($recovery.Current.Sessions | Where-Object Id -eq $o.WorkspaceResult.Session.Id)
+            Assert-Guide ($recovery.Current -is [LibTmux.Server] -and $live.Count -eq 1 -and
+                $live[0].Name -ceq 'development' -and $live[0].Windows.Count -eq 1 -and
+                $live[0].Windows[0].Id -eq $o.WorkspaceResult.Windows[0].Id -and
+                $live[0].Windows[0].Name -ceq 'editor' -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'fresh snapshot did not preserve borrowed state or prove owned cleanup'
+            Assert-Guide ((Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'recovery guide did not inspect fresh native state'
+        } }
     'readme.workspace.01-import' = @{ Group = 'Workspace'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Workspace -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -933,6 +960,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     $query, $queryPlan = $Context['Query'], $Context['QueryPlan']
     $workspacePath, $projectRoot = $Context['WorkspacePath'], $Context['ProjectRoot']
     $workspace, $workspacePlan, $workspaceResult = $Context['Workspace'], $Context['WorkspacePlan'], $Context['WorkspaceResult']
+    $workspaceRecovery = $null
     $workspaceFile, $editor, $editorArguments = $Context['WorkspaceFile'], $Context['Editor'], $Context['EditorArguments']
     $exportPath = $Context['ExportPath']
     if ($Id -ceq 'workspace.08-edit') {
@@ -947,14 +975,15 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
     $observation = @{ Result = $result; Server = $server; Session = $session; Pane = $pane; Window = $window;
         Job = $job; Client = $client; CurrentPane = $currentPane; NewPane = $newPane; Captured = $captured; Query = $query; QueryPlan = $queryPlan;
-        Workspace = $workspace; WorkspacePlan = $workspacePlan; WorkspaceResult = $workspaceResult; Context = $Context; BeforeDispatch = $before;
+        Workspace = $workspace; WorkspacePlan = $workspacePlan; WorkspaceResult = $workspaceResult; WorkspaceRecovery = $workspaceRecovery;
+        Context = $Context; BeforeDispatch = $before;
         WorkspaceFile = $workspaceFile; Editor = $editor; EditorArguments = $editorArguments; ExportPath = $exportPath;
         EditorPreferences = "$ErrorActionPreference|$PSNativeCommandArgumentPassing|$PSNativeCommandUseErrorActionPreference" }
     & $entry.Assert $observation
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {
