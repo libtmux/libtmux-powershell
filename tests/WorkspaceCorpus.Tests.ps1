@@ -29,10 +29,13 @@ Invoke-WithOwnedTmux {
         $source = Join-Path $caseDirectory "corpus.$format"
         [IO.File]::Copy((Join-Path $corpusFixtures "corpus.$format"), $source)
         $workspace = Get-Item -LiteralPath $source | LibTmux.Workspace\Import-TmuxWorkspace -ErrorAction Stop |
-            LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $caseDirectory -Variables @{ PROJECT_ROOT = 'project' } -ErrorAction Stop
+            LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $caseDirectory -Variables @{ PROJECT_ROOT = 'project'; OPTION_TAG = 'yaml' } -ErrorAction Stop
         Assert-WorkspaceCorpus ($workspace.DocumentDirectory -ceq $caseDirectory -and
             $workspace.Windows[0].Panes[0].StartDirectory -ceq $firstDirectory -and
             $workspace.Windows[0].Panes[1].StartDirectory -ceq $secondDirectory) "$format file-relative expansion and directory inheritance"
+        if ($format -ceq 'yaml') {
+            Assert-WorkspaceCorpus ($workspace.Windows[0].Options['@corpus-window'] -ceq 'yaml') 'YAML window option value was not expanded'
+        }
 
         $policy = if ($format -ceq 'json') { 'Append' } else { 'Error' }
         $plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession $policy -ErrorAction Stop

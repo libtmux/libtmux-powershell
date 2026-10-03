@@ -48,8 +48,11 @@ $workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
 Only the supplied string variables participate in `$NAME` or `${NAME}`
 expansion; the resolver does not copy the process environment. Supply `HOME`
 explicitly when the declaration uses `~`. `$$` preserves a literal dollar
-sign. Resolution applies to directories, not command text, names or options.
-The base directory also records the origin for an allowed `before_script`.
+sign. Resolution expands inherited directories and session, window and pane
+option values. Unknown variables in option values remain literal; unresolved
+directory variables are errors. Option names, commands, the host script,
+session and window names, and environment values remain literal. The base
+directory also records the origin for an allowed `before_script`.
 
 For discovery, `Get-TmuxWorkspace` lists nearby `.tmuxp.yaml`, `.tmuxp.yml`
 and `.tmuxp.json` files before the first configured global directory.

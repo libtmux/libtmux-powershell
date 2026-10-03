@@ -98,14 +98,14 @@ Set `CORE_SOURCE` to a clean checkout of the revision pinned in the bootstrap,
 `REVIEW_VERSION` to the new identifier, and `CORE_PACKAGES` to a new output
 directory. Use absolute directory paths. The checkout uses its own SDK pin;
 avoid running this recipe while another task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/1ed3456f09d9cfc731e5a2f0444ce09a75401f0e/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/2608c181c1a56453a573dd4f749463cddac5850b/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision 1ed3456f09d9cfc731e5a2f0444ce09a75401f0e \
+    --revision 2608c181c1a56453a573dd4f749463cddac5850b \
     --output "$CORE_PACKAGES"
 ```
 

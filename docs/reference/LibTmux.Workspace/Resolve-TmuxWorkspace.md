@@ -41,7 +41,8 @@ None.
 
 ## DESCRIPTION
 
-Return a replacement native declaration with resolved inherited directories.
+Return a replacement native declaration with resolved inherited directories
+and option values.
 A parsed WorkspaceFile requires an explicit BaseDirectory. LiteralPath and
 File read a bounded, seekable UTF-8 YAML/JSON file and use its absolute parent
 as the base. Paths use the FileSystem provider without wildcard expansion.
@@ -49,10 +50,14 @@ Malformed declarations and invalid UTF-8 retain their native exceptions as
 InvalidData errors.
 
 Expansion uses only the supplied case-sensitive string map. Supply HOME for
-home-directory expansion; no process environment is copied implicitly. Dollar
-pairs represent a literal dollar sign in declaration paths. Resolution does
-not expand command text, execute scripts, inspect tmux or require the resulting
-directories to exist. The input declaration remains unchanged.
+home-directory expansion in paths; no process environment is copied implicitly.
+Dollar pairs represent a literal dollar sign in declaration paths and option
+values. Session, window and pane option values expand supplied variables;
+unknown variables in option values remain literal. Unresolved path variables
+are errors. Option names, command text, the host script, session and window
+names, and environment values remain literal. Resolution does not execute
+scripts, inspect tmux or require the resulting directories to exist. The input
+declaration remains unchanged.
 
 ## EXAMPLES
 

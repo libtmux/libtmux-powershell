@@ -14,7 +14,7 @@ windows:
     layout: even-horizontal
     focus: true
     options:
-      '@corpus-window': yaml
+      '@corpus-window': '${OPTION_TAG}'
     environment:
       CORPUS_WINDOW: yaml-window
       CORPUS_LAYER: window
