@@ -121,8 +121,10 @@ The plan includes the transient bootstrap window used to install session
 options before starting the described panes. It also includes the final
 `CaptureResult` observation. tmux hooks can observe that bootstrap lifecycle.
 
-Preview the endpoint, session, policies and effects through PowerShell's
-confirmation mechanism. Preview emits no result and dispatches nothing.
+Preview the endpoint, session, policies and ordered actions through PowerShell's
+confirmation mechanism. Each action and conditional cleanup step shows its kind
+and symbolic target; request values remain hidden. Preview emits no result and
+dispatches nothing.
 
 <!-- example: workspace.05-preview -->
 ```powershell

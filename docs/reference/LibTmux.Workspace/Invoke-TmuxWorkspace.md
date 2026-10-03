@@ -36,10 +36,11 @@ retries mutations automatically.
 
 One PowerShell ShouldProcess decision covers the whole plan. Its target names
 the executable, socket and literal session name. Its action describes conflict,
-startup, readiness and compensation policy, host execution, planned effect
-kinds and conditional cleanup. Inspect the original plan for full request and
-host-command values. WhatIf and declined confirmation perform no application
-I/O or cleanup and emit no WorkspaceResult.
+startup, readiness and compensation policy, then lists every action and
+conditional cleanup step in order by kind and symbolic target. Request values
+are omitted. Inspect the original plan for full request and host-command values.
+WhatIf and declined confirmation perform no application I/O or cleanup and
+emit no WorkspaceResult.
 
 Successful invocation returns one native WorkspaceResult containing the session,
 created windows, unsupported layouts and action journals. WorkspaceBuildException

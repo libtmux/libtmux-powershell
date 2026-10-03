@@ -21,16 +21,23 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
         WorkspacePlan plan = Plan;
         ServerConnectionOptions endpoint = plan.Endpoint.ConnectionOptions;
         string socket = endpoint.SocketPath ?? endpoint.SocketName ?? "default tmux endpoint";
-        string effects = string.Join(", ", plan.Actions.Select(action => action.Kind).Distinct());
-        string cleanup = string.Join(", ", plan.CompensationActions.Select(action => action.Kind).Distinct());
         bool hostScript = plan.Actions.Any(action => action.Kind == WorkspaceActionKind.RunHostScript);
         string action = $"Apply workspace (existing session: {plan.ExistingSessionPolicy}; startup: {plan.ServerStartup}; "
             + $"readiness: {plan.Readiness}; compensation: {plan.CompensateOnFailure}; host script: {hostScript}; "
-            + $"actions: {effects}; conditional cleanup: {cleanup})";
+            + $"request values redacted){Environment.NewLine}"
+            + $"Actions ({plan.Actions.Count}, in order):{Environment.NewLine}{DescribeActions(plan.Actions)}{Environment.NewLine}"
+            + $"Conditional cleanup ({plan.CompensationActions.Count}, only after failure):{Environment.NewLine}"
+            + DescribeActions(plan.CompensationActions);
         if (ShouldProcess($"{endpoint.TmuxBinaryPath} at {socket} session '{plan.SessionName}'", action))
         {
             ReadResult(token => new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token),
                 "Tmux.WorkspaceApplyFailed", plan);
         }
     }
+
+    private static string DescribeActions(IReadOnlyList<WorkspaceAction> actions) => actions.Count == 0
+        ? "  (none)"
+        : string.Join(Environment.NewLine, actions.Select((step, index) =>
+            $"  {index + 1}. {step.Kind} {step.Target}"
+            + (step.SourceTarget is null ? string.Empty : $" <= {step.SourceTarget}")));
 }

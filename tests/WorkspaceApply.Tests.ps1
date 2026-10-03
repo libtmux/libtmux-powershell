@@ -44,7 +44,7 @@ exec $quotedTmux "`$@"
     $source = Join-Path $fixture.DirectoryPath 'workspace.yaml'
     $hostMarker = Join-Path $fixture.DirectoryPath 'host-effect'
     $sensitive = 'review-' + [Guid]::NewGuid().ToString('N')
-    @"
+    $yaml = @"
 session_name: reviewed
 before_script: printf '$sensitive' > host-effect
 environment:
@@ -61,7 +61,8 @@ windows:
           '@role': '$sensitive'
         shell_command: echo '$sensitive'
       - focus: true
-"@ | Set-Content -LiteralPath $source
+"@
+    $yaml | Set-Content -LiteralPath $source
     $workspace = (LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath $source).Resolve($fixture.DirectoryPath, $null)
     [IO.File]::WriteAllText($trace, '')
     foreach ($arguments in @(
@@ -110,17 +111,47 @@ windows:
     Assert-WorkspaceApply (!$readinessReview.Contains($sensitive) -and
         $readinessReview.Contains('WaitForReadiness') -and
         $readinessReview.Contains('timeout=0.5s')) 'cooperative readiness was not visible in plan review'
+    $expandedYaml = "$yaml`n  - window_name: logs`n    panes:`n      - shell_command: echo '$sensitive'`n      - shell_command: echo '$sensitive'"
+    $expandedWorkspace = (LibTmux.Workspace\Import-TmuxWorkspace -Yaml $expandedYaml).Resolve($fixture.DirectoryPath, $null)
+    $expandedPlan = $expandedWorkspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -AllowHostScripts -CompensateOnFailure
+    Assert-WorkspaceApply ($expandedPlan.Actions.Count -gt $plan.Actions.Count -and
+        @($expandedPlan.Actions | Where-Object Kind -eq SplitPane).Count -eq 2 -and
+        @($expandedPlan.Actions | Where-Object Kind -eq SendText).Count -eq 3 -and
+        (@($plan.Actions.Kind | Select-Object -Unique) -join ',') -ceq
+        (@($expandedPlan.Actions.Kind | Select-Object -Unique) -join ',')) 'preview fixtures need different pane and command counts with the same action kinds'
     Remove-Item -LiteralPath $source
     $beforePreview = [IO.File]::ReadAllText($trace)
-    $transcript = Join-Path $fixture.DirectoryPath 'preview.txt'
-    $null = Start-Transcript -Path $transcript
-    try {
-        Assert-WorkspaceApply (@($plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf).Count -eq 0) 'preview emitted a fake result'
-    } finally { $null = Stop-Transcript }
-    $preview = [IO.File]::ReadAllText($transcript)
-    Assert-WorkspaceApply (!$preview.Contains($sensitive)) 'WhatIf leaked a sensitive request value'
-    foreach ($value in @($wrapper, $fixture.SocketPath, 'reviewed') + @($plan.Actions.Kind) + @($plan.CompensationActions.Kind)) {
-        Assert-WorkspaceApply ($preview.Contains($value.ToString(), [StringComparison]::Ordinal)) "preview omitted $value"
+    foreach ($case in @(@{ Name = 'original'; Plan = $plan }, @{ Name = 'expanded'; Plan = $expandedPlan })) {
+        $transcript = Join-Path $fixture.DirectoryPath "preview-$($case.Name).txt"
+        $null = Start-Transcript -Path $transcript
+        try {
+            Assert-WorkspaceApply (@($case.Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf).Count -eq 0) 'preview emitted a fake result'
+        } finally { $null = Stop-Transcript }
+        $preview = [IO.File]::ReadAllText($transcript)
+        Assert-WorkspaceApply (!$preview.Contains($sensitive)) 'WhatIf leaked a sensitive request value'
+        foreach ($value in @($wrapper, $fixture.SocketPath, 'reviewed')) {
+            Assert-WorkspaceApply ($preview.Contains($value, [StringComparison]::Ordinal)) "preview omitted $value"
+        }
+        $lastPosition = -1
+        for ($index = 0; $index -lt $case.Plan.Actions.Count; $index++) {
+            $action = $case.Plan.Actions[$index]
+            $expected = "$(($index + 1)). $($action.Kind) $($action.Target)"
+            if ($action.SourceTarget) { $expected += " <= $($action.SourceTarget)" }
+            $position = $preview.IndexOf($expected, $lastPosition + 1, [StringComparison]::Ordinal)
+            Assert-WorkspaceApply ($position -gt $lastPosition) "WhatIf omitted or reordered action $expected"
+            $lastPosition = $position
+        }
+        Assert-WorkspaceApply ($preview.Contains('request values redacted', [StringComparison]::Ordinal)) 'WhatIf did not identify redacted requests'
+        $lastPosition = $preview.IndexOf('Conditional cleanup (', [StringComparison]::Ordinal)
+        Assert-WorkspaceApply ($lastPosition -ge 0) 'WhatIf omitted conditional cleanup section'
+        for ($index = 0; $index -lt $case.Plan.CompensationActions.Count; $index++) {
+            $action = $case.Plan.CompensationActions[$index]
+            $expected = "$(($index + 1)). $($action.Kind) $($action.Target)"
+            if ($action.SourceTarget) { $expected += " <= $($action.SourceTarget)" }
+            $position = $preview.IndexOf($expected, $lastPosition + 1, [StringComparison]::Ordinal)
+            Assert-WorkspaceApply ($position -gt $lastPosition) "WhatIf omitted or reordered conditional cleanup $expected"
+            $lastPosition = $position
+        }
     }
     Assert-WorkspaceApply ([IO.File]::ReadAllText($trace) -ceq $beforePreview -and !(Test-Path -LiteralPath $hostMarker)) 'preview dispatched tmux, host work or cleanup'
 
