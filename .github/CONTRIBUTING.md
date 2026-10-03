@@ -291,7 +291,7 @@ $ dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
 ```
 
 Set `MCP_COMMAND` to the absolute path of `build/mcp-review/libtmux-mcp`. Run the
-[discovery command](../docs/mcp.md#check-discovery-from-this-checkout).
+[client workflow command](../docs/mcp.md#check-the-client-workflow-from-this-checkout).
 The runner requires the existing executable and built probe; it does not
 install, restore or build. It starts only its own tmux fixture and stdio
 client. Tool installation and client compilation are setup/outer-loop work.

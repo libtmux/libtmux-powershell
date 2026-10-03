@@ -4,16 +4,19 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-if (args.Length != 6)
+if (args.Length != 7)
 {
-    throw new ArgumentException("Expected launcher, tmux executable, socket path, tool version, receipt path and process ID path.");
+    throw new ArgumentException("Expected launcher, tmux executable, socket path, tool version, receipt path, process ID path and guide path.");
 }
 
 using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(10));
 CancellationToken token = deadline.Token;
+string guide = await File.ReadAllTextAsync(args[6], token).ConfigureAwait(false);
+Dictionary<string, JsonElement> examples = ReadExamples(guide);
 Dictionary<string, string?> environment = StdioClientTransportOptions.GetDefaultEnvironmentVariables();
 environment["DOTNET_ROOT"] = Environment.GetEnvironmentVariable("DOTNET_ROOT");
 environment["LIBTMUX_TMUX"] = Path.GetFullPath(args[1]);
@@ -93,6 +96,36 @@ try
         string? sessionId = session.GetProperty("sessionId").GetString();
         Require(sessionName == "fixture" && sessionId is { Length: > 1 } && sessionId[0] == '$',
             "list_sessions did not identify the owned fixture session.");
+        CallToolResult paneList = await client.CallToolAsync("list_panes",
+            ExampleArguments(examples, "list_panes", "session", sessionId!), cancellationToken: token).ConfigureAwait(false);
+        JsonElement panes = ToolPayload(paneList, "list_panes", list: true);
+        Require(panes.ValueKind == JsonValueKind.Array && panes.GetArrayLength() == 1,
+            "list_panes did not return the owned session's single pane.");
+        string paneId = panes[0].GetProperty("paneId").GetString()!;
+        Require(panes[0].GetProperty("sessionId").GetString() == sessionId && paneId.StartsWith('%'),
+            "Pane discovery returned a different owner.");
+
+        CallToolResult capture = await client.CallToolAsync("capture_pane",
+            ExampleArguments(examples, "capture_pane", "paneId", paneId), cancellationToken: token).ConfigureAwait(false);
+        JsonElement captured = ToolPayload(capture, "capture_pane");
+        bool captureContainsReady = captured.GetProperty("content").GetProperty("lines").EnumerateArray()
+            .Any(line => line.GetString() == "Service ready");
+        Require(captured.GetProperty("paneId").GetString() == paneId && captureContainsReady
+            && Complete(captured.GetProperty("content")),
+            "Capture did not read the discovered pane's rendered ready line.");
+
+        CallToolResult wait = await client.CallToolAsync("wait_for_text",
+            ExampleArguments(examples, "wait_for_text", "paneId", paneId), cancellationToken: token).ConfigureAwait(false);
+        JsonElement waited = ToolPayload(wait, "wait_for_text");
+        string outcome = waited.GetProperty("outcome").GetString()!;
+        bool pollingFallback = waited.GetProperty("pollingFallback").GetBoolean();
+        long eventsDropped = waited.GetProperty("eventsDropped").GetInt64();
+        bool tailContainsReady = waited.GetProperty("tail").GetProperty("lines").EnumerateArray()
+            .Any(line => line.GetString() == "Service ready");
+        Require(waited.GetProperty("paneId").GetString() == paneId && outcome == "PresentAtEntry"
+            && waited.GetProperty("matchedPattern").GetString() == "^Service ready$"
+            && !pollingFallback && eventsDropped == 0 && tailContainsReady && Complete(waited.GetProperty("tail")),
+            "Readiness wait did not report the existing match without fallback or loss.");
         receipt = new
         {
             protocol = client.NegotiatedProtocolVersion,
@@ -101,6 +134,8 @@ try
             effectiveTools = names,
             capabilities,
             listedSession = new { name = sessionName, sessionId },
+            paneWorkflow = new { paneId, captureContainsReady, tailContainsReady, outcome, pollingFallback, eventsDropped },
+            guideSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(guide))),
             launcherSha256 = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(args[0], token).ConfigureAwait(false))),
         };
     }
@@ -126,8 +161,66 @@ finally
         }
     }
 }
-await File.WriteAllTextAsync(args[4], JsonSerializer.Serialize(receipt), token).ConfigureAwait(false);
-Console.WriteLine("PASS MCP discovery, list_sessions and stdio shutdown");
+await File.WriteAllTextAsync(args[4], JsonSerializer.Serialize(receipt)).ConfigureAwait(false);
+Console.WriteLine("PASS MCP discovery, pane capture, ready-text wait and stdio shutdown");
+
+static Dictionary<string, JsonElement> ReadExamples(string guide)
+{
+    MatchCollection matches = Regex.Matches(guide,
+        @"<!-- mcp-example: (?<name>[a-z_]+) -->\s*```json\r?\n(?<json>[\s\S]*?)\r?\n```",
+        RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+    Require(matches.Count == 3, "The MCP guide must contain the three registered request examples.");
+    Dictionary<string, JsonElement> examples = new(StringComparer.Ordinal);
+    foreach (Match match in matches)
+    {
+        string name = match.Groups["name"].Value;
+        JsonElement request = JsonSerializer.Deserialize<JsonElement>(match.Groups["json"].Value);
+        Require(request.ValueKind == JsonValueKind.Object && request.GetProperty("name").GetString() == name
+            && request.GetProperty("arguments").ValueKind == JsonValueKind.Object && examples.TryAdd(name, request),
+            "Invalid or duplicate MCP guide request: " + name);
+    }
+
+    Require(examples.ContainsKey("list_panes") && examples.ContainsKey("capture_pane")
+        && examples.ContainsKey("wait_for_text"), "The MCP guide's request registry differs from the client workflow.");
+    return examples;
+}
+
+static Dictionary<string, object?> ExampleArguments(Dictionary<string, JsonElement> examples,
+    string name, string targetField, string targetValue)
+{
+    Dictionary<string, object?> arguments = examples[name].GetProperty("arguments")
+        .Deserialize<Dictionary<string, object?>>()!;
+    string placeholder = targetField == "session" ? "$0" : "%0";
+    Require(arguments.TryGetValue(targetField, out object? value) && value is JsonElement target
+        && target.ValueKind == JsonValueKind.String && target.GetString() == placeholder,
+        "MCP guide request lacks its documented target placeholder: " + name);
+    arguments[targetField] = targetValue;
+    return arguments;
+}
+
+static bool Complete(JsonElement text) => !text.GetProperty("truncated").GetBoolean()
+    && text.GetProperty("droppedLines").GetInt64() == 0 && text.GetProperty("droppedBytes").GetInt64() == 0;
+
+static JsonElement ToolPayload(CallToolResult result, string name, bool list = false)
+{
+    if (result.IsError is true || result.StructuredContent is not JsonElement structured
+        || structured.ValueKind != JsonValueKind.Object)
+    {
+        throw new InvalidDataException(name + " did not return a structured result.");
+    }
+
+    if (!list)
+    {
+        return structured;
+    }
+
+    if (!structured.TryGetProperty("result", out JsonElement payload) || payload.ValueKind != JsonValueKind.Array)
+    {
+        throw new InvalidDataException(name + " did not return a structured list.");
+    }
+
+    return payload;
+}
 
 static void Require(bool condition, string message)
 {

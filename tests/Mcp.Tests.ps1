@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory)] [string] $McpCommand,
     [Parameter(Mandatory)] [string] $McpVersion,
-    [string] $McpProbe = "$PSScriptRoot/support/McpDiscovery/bin/Release/net8.0/McpDiscovery.dll"
+    [string] $McpProbe = "$PSScriptRoot/support/McpDiscovery/bin/Release/net8.0/McpDiscovery.dll",
+    [string] $McpGuide = "$PSScriptRoot/../docs/mcp.md"
 )
 
 # Outer integration: an independently installed tool speaks MCP over owned stdio.
@@ -9,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $McpCommand = (Get-Item -LiteralPath $McpCommand -ErrorAction Stop).FullName
 $McpProbe = (Get-Item -LiteralPath $McpProbe -ErrorAction Stop).FullName
+$McpGuide = (Get-Item -LiteralPath $McpGuide -ErrorAction Stop).FullName
 $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 . "$PSScriptRoot/support/OwnedTmux.ps1"
 $state = @{ Fixture = $null; Version = $McpVersion }
@@ -16,6 +18,15 @@ try {
     Invoke-WithOwnedTmux {
         param($fixture)
         $state.Fixture = $fixture
+        $readyChannel = 'mcp-workflow-' + [Guid]::NewGuid().ToString('N')
+        $program = Join-Path $fixture.DirectoryPath 'mcp-workflow.sh'
+        $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
+        $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
+        $quotedProgram = "'" + $program.Replace("'", "'\''") + "'"
+        [IO.File]::WriteAllText($program, "printf 'Service ready\n'`n$quotedTmux -S $quotedSocket wait-for -S '$readyChannel'`nexec /bin/cat`n")
+        $null = Invoke-OwnedTmux $fixture -Arguments @('respawn-pane', '-k', '-t', 'fixture:0.0', "/bin/sh $quotedProgram")
+        Register-OwnedTmuxPane $fixture
+        $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', $readyChannel)
         $before = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:', '#{pid}|#{start_time}|#{session_id}|#{pane_id}|#{pane_pid}')).StdOut
         $pidFile = Join-Path $fixture.DirectoryPath 'mcp.pid'
         $launcher = Join-Path $fixture.DirectoryPath 'mcp-launcher'
@@ -27,7 +38,7 @@ try {
         $receipt = Join-Path $fixture.DirectoryPath 'discovery.json'
         $start = [Diagnostics.ProcessStartInfo]::new($dotnet)
         $start.UseShellExecute = $false
-        foreach ($argument in @($McpProbe, $launcher, $fixture.TmuxPath, $fixture.SocketPath, $state.Version, $receipt, $pidFile)) {
+        foreach ($argument in @($McpProbe, $launcher, $fixture.TmuxPath, $fixture.SocketPath, $state.Version, $receipt, $pidFile, $McpGuide)) {
             $start.ArgumentList.Add($argument)
         }
         $process = [Diagnostics.Process]::new()
@@ -46,6 +57,15 @@ try {
                 $result.listedSession.sessionId -cne $before.Split('|')[2]) {
                 throw 'MCP discovery probe did not return the owned session from list_sessions.'
             }
+            if (!$result.PSObject.Properties['paneWorkflow'] -or
+                $result.paneWorkflow.paneId -cne $before.Split('|')[3] -or
+                $result.paneWorkflow.captureContainsReady -ne $true -or
+                $result.paneWorkflow.tailContainsReady -ne $true -or
+                $result.paneWorkflow.outcome -cne 'PresentAtEntry' -or
+                $result.paneWorkflow.pollingFallback -ne $false -or
+                $result.paneWorkflow.eventsDropped -ne 0) {
+                throw 'MCP client did not complete the advertised pane-list, capture and ready-text workflow.'
+            }
             $after = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:', '#{pid}|#{start_time}|#{session_id}|#{pane_id}|#{pane_pid}')).StdOut
             if ($before -cne $after -or
                 (Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture' -or
@@ -58,6 +78,8 @@ try {
                 sdk = $result.sdk
                 tmux = (Invoke-OwnedTmux $fixture -Arguments @('-V')).StdOut.Trim()
                 tools = $result.effectiveTools
+                paneWorkflow = $result.paneWorkflow
+                guideSha256 = $result.guideSha256
                 toolSha256 = (Get-FileHash -LiteralPath $McpCommand -Algorithm SHA256).Hash
                 borrowedStatePreserved = $true
             } | ConvertTo-Json -Depth 5

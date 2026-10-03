@@ -80,16 +80,85 @@ running, wait for its output rather than repeatedly capturing the screen.
 Pane text waits require control observation by default in this checkout's
 review tool. Explicitly enabling `LIBTMUX_MCP_ALLOW_POLLING_FALLBACK=true`
 allows repeated captures if control observation fails; capabilities disclose
-the policy and affected results report `pollingFallback`. Keep finite wait
-and output bounds in the request. Inspect `eventsDropped` and truncation
-fields before treating observed output as complete.
+the policy and affected results report `pollingFallback`. Give text waits a
+finite timeout; the server bounds their returned tail. For captures, select
+`maxLines`. Inspect `eventsDropped` and truncation fields before treating
+observed output as complete.
 
 A `capture_since` cursor tracks observation between calls; it is not a
 background job. Progress notifications and optional MCP Tasks are separate
 protocol features, available only where the discovered tool declares them.
 Read the installed server's schemas and capability rows for those contracts.
 
-## Check discovery from this checkout
+## Inspect a pane and wait for readiness
+
+After discovery, select a session from `list_sessions`. These are `tools/call`
+parameter objects: replace `$0` and `%0` with IDs returned by your server.
+The inspect toolset includes all three calls.
+
+List the selected session's panes:
+
+<!-- mcp-example: list_panes -->
+```json
+{
+  "name": "list_panes",
+  "arguments": { "session": "$0" }
+}
+```
+
+The response's `structuredContent.result` contains pane records with
+`paneId`, `windowId`, `sessionId`, dimensions and the current command. Select
+one pane and read its rendered screen:
+
+<!-- mcp-example: capture_pane -->
+```json
+{
+  "name": "capture_pane",
+  "arguments": { "paneId": "%0", "maxLines": 64 }
+}
+```
+
+For this object result, read `structuredContent.content.lines` directly.
+`content.truncated`, `content.droppedLines` and `content.droppedBytes` disclose
+output omitted to fit the budget. A list result has the `result` wrapper;
+object results do not. Check `isError` before interpreting either shape.
+
+If the application prints `Service ready`, wait for that whole line:
+
+<!-- mcp-example: wait_for_text -->
+```json
+{
+  "name": "wait_for_text",
+  "arguments": {
+    "paneId": "%0",
+    "patterns": ["^Service ready$"],
+    "timeoutSeconds": 1,
+    "ignoreCase": false
+  }
+}
+```
+
+An existing line returns `structuredContent.outcome = "PresentAtEntry"`;
+a later line returns `"Matched"`. `matchedPattern` identifies the condition,
+and `tail` contains bounded rendered text. Stop-pattern, timeout and pane-death
+outcomes remain distinct. A ready-line match is an application-specific
+condition; it does not establish shell exit status or continuing health.
+
+The [official SDK client](../tests/support/McpDiscovery/Program.cs) reads these
+three request examples, substitutes discovered IDs and executes them against
+an installed tool. Its owned fixture prints the ready line before the calls,
+then checks capture, `PresentAtEntry`, an untruncated tail, no polling or event
+drops, stdio shutdown and preservation of the borrowed tmux state.
+
+Use a finite server timeout even when your client can cancel. With the pinned
+SDK 2.2.0, cancelling a local token does not reliably send
+`notifications/cancelled`; it can leave the remote wait running until its
+timeout. A client that knows its request ID can explicitly send that
+notification. For negotiated MCP Tasks, cancel the task with `tasks/cancel`
+using its returned task ID. Neither cancellation stops the application in
+the pane. Task records are temporary and disappear on expiry or restart.
+
+## Check the client workflow from this checkout
 
 After [building the discovery probe](../.github/CONTRIBUTING.md#mcp-discovery),
 set `MCP_COMMAND` to the installed executable's absolute path and
@@ -103,9 +172,9 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
 ```
 
 The [official SDK client source](../tests/support/McpDiscovery/Program.cs)
-initializes the installed tool, compares discovery with capabilities, calls
-`list_sessions`, and verifies that the result identifies its private `fixture`
-session. The suite checks that the session and pane survive MCP shutdown, then
-removes the owned fixture. It neither imports the PowerShell modules nor builds,
-installs or downloads anything during the test. This is a discovery and
-one-tool smoke, not the .NET server's full tool or protocol suite.
+initializes the installed tool, compares discovery with capabilities, then
+executes `list_sessions` and the three request examples above. The suite
+checks that the session and pane survive MCP shutdown, then removes the owned
+fixture. It neither imports the PowerShell modules nor builds, installs or
+downloads anything during the test. Broader task, cancellation, loss and
+concurrent-wait acceptance belongs to the .NET protocol suite.
