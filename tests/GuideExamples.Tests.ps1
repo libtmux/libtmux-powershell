@@ -1,7 +1,7 @@
 param(
     [string] $ModuleRoot,
     [switch] $RunExamples,
-    [ValidateSet('All', 'Lifecycle', 'Operations', 'Planning')]
+    [ValidateSet('All', 'Lifecycle', 'Operations', 'OperationsConfiguration', 'OperationsInteraction', 'Planning')]
     [string] $ExampleGroup = 'All'
 )
 
@@ -738,7 +738,7 @@ function Assert-GuideSourceFile([string[]] $Files) {
 }
 
 function Assert-GuideExecutionGroup($Groups, $Assertions) {
-    if (Compare-Object @('Lifecycle', 'Operations', 'Planning') @($Groups.Keys)) {
+    if (Compare-Object @('Lifecycle', 'OperationsConfiguration', 'OperationsInteraction', 'Planning') @($Groups.Keys)) {
         throw 'Guide execution child registration differs.'
     }
     $registered = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -819,10 +819,14 @@ Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions }
 Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
 $executionGroups = @{
     Lifecycle = @('Pure', 'Capture', 'Create', 'Remove', 'Readme')
-    Operations = @('Settings', 'Clients', 'Commands', 'Watch', 'Placement')
+    OperationsConfiguration = @('Settings', 'Clients')
+    OperationsInteraction = @('Commands', 'Watch', 'Placement')
     Planning = @('Query', 'Workspace')
 }
 Assert-GuideExecutionGroup $executionGroups $assertions
+$missingChild = $executionGroups.Clone()
+$missingChild.Remove('OperationsInteraction')
+Assert-GuideRejection { Assert-GuideExecutionGroup $missingChild $assertions } 'Guide execution child registration differs.'
 $missingGroup = $executionGroups.Clone()
 $missingGroup['Planning'] = @('Query')
 Assert-GuideRejection { Assert-GuideExecutionGroup $missingGroup $assertions } 'Guide execution group missing: Workspace'
@@ -994,7 +998,9 @@ if ($ExampleGroup -in @('All', 'Lifecycle')) {
 }
 $completed = [Collections.Generic.List[string]]::new()
 $selectedGroups = if ($ExampleGroup -eq 'All') {
-    @('Lifecycle', 'Operations', 'Planning') | ForEach-Object { $executionGroups[$_] }
+    @('Lifecycle', 'OperationsConfiguration', 'OperationsInteraction', 'Planning') | ForEach-Object { $executionGroups[$_] }
+} elseif ($ExampleGroup -eq 'Operations') {
+    @('OperationsConfiguration', 'OperationsInteraction') | ForEach-Object { $executionGroups[$_] }
 } else { $executionGroups[$ExampleGroup] }
 $expected = @($sources.Keys | Where-Object { $assertions[$_].Group -cin $selectedGroups } | Sort-Object)
 foreach ($group in $selectedGroups) {
