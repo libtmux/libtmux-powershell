@@ -7,7 +7,7 @@ stop a script.
 
 | Symptom | Check and next action |
 | --- | --- |
-| `Import-Module LibTmux` cannot find a dependency | This checkout pins unpublished review archives. Build both modules from the [inspected package recipe](../.github/CONTRIBUTING.md#review-package-builds), or supply the original archive directory and `provenance.json` to [the locked build](../README.md#install-from-source). Importing a mixed or rebuilt same-version core is rejected. |
+| `Import-Module LibTmux` cannot find a dependency | Use the [source bootstrap](../README.md#install-from-source) for the current shared revision. A direct locked build needs the original unpublished archive directory and `provenance.json` described in [review package builds](../.github/CONTRIBUTING.md#review-package-builds). Importing a mixed or rebuilt same-version core is rejected. |
 | A server handle exists, but reads cannot reach tmux | `New-TmuxServer` constructs a local handle. Use [Connect-TmuxServer](read.md) to discover an existing daemon, or [New-TmuxSession](create.md) to create one on that explicit endpoint. Check the selected socket and executable before retrying. |
 | A command targets the wrong session or window | Read the object from the intended server and session. [Window placements](placement.md) carry a session-relative index; a physical window can be linked more than once. Raw tmux targets are strings and do not inherit a captured placement guard. |
 | A move, input or raw mutation failed after dispatch | Read current topology or screen state before deciding whether to retry. A failed readback or cancelled wait can follow a successful tmux mutation. [Placement](placement.md) and [literal input](input.md) describe the uncertain cases. |

@@ -71,13 +71,17 @@ $ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
 The bootstrap clones this committed revision and the
 [reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/1ed3456f09d9cfc731e5a2f0444ce09a75401f0e),
 builds a unique local package version, inspects its archives, and checks the
-disposable lockfiles.
+disposable lockfiles. It also packs both PowerShell modules, verifies their
+archive hashes, and tests extraction, both import orders and package-manager
+dependency resolution from a local feed. The printed `ModulePackages` path
+and `bootstrap.json` identify the review artifacts and check receipts.
+
 It leaves this checkout's pins and lockfiles unchanged and publishes nothing.
 If a run fails, its partial output remains for inspection. Retry with a new
 output directory after resolving the error.
 If you already have the exact inspected archives, the
 [review-package recipe](.github/CONTRIBUTING.md#review-package-builds)
-shows the shorter build path.
+shows how to consume that retained feed.
 
 Start PowerShell with the staged module path. If you chose another output
 directory, use the path printed by the bootstrap as the value of

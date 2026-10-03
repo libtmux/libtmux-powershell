@@ -46,15 +46,11 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-For published dependency pins, restore the NuGet packages, build the cmdlets,
-and stage both PowerShell modules. This checkout currently pins an unpublished
-review build: follow [review package builds](#review-package-builds) and supply
-`-CorePackageDirectory` when restoring.
-
-```console
-$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
-    -Restore
-```
+For a clean review build of the current shared .NET source, use the
+[source bootstrap](../README.md#install-from-source). It builds, packages and
+tests both modules. An ordinary locked restore requires the unpublished
+archives named by this checkout's committed pins; see
+[review package builds](#review-package-builds).
 
 The exact dependency versions are in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
@@ -64,8 +60,15 @@ update its exact reference and run with `-Restore -UpdateLock`.
 
 ## Review package builds
 
-The current dependency pins use unpublished `0.0.0-alpha.17.ps.4` archives
-built from this [reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/e80a6c3ac7d1545e203e6027cf68e7269416ed09).
+The source bootstrap builds the current .NET revision pinned in
+[BootstrapReview.ps1](../eng/BootstrapReview.ps1) under a unique package version.
+It writes inspected .NET archives to `feed/`, PowerShell archives to
+`module-packages/`; `bootstrap.json` records package hashes and the status and
+paths of the `Package` and `Install` check receipts. Use its printed paths for
+further tests.
+
+The committed dependency pins use unpublished `0.0.0-alpha.17.ps.4` archives
+from this [earlier reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/e80a6c3ac7d1545e203e6027cf68e7269416ed09).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -77,33 +80,32 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -PackageCache build/review-package-cache
 ```
 
-The [source bootstrap](../eng/BootstrapReview.ps1) builds the current shared
-.NET branch at the revision pinned in that script. It uses a new review
-identity and disposable locks; it does not replace the committed `ps.4`
-archives.
+The bootstrap uses disposable locks; it does not replace the committed
+`ps.4` archives.
 
 Choose a fresh cache directory for the first consumer proof.
 `-CorePackageDirectory` requires `-Restore`: it checks the inspected
 core/query/workspace hashes before restore and does not repack the archives.
 Keep lock checking enabled when consuming the existing archives.
 
-To rebuild the reviewed source, use a new, unused prerelease identifier.
+To build the current reviewed source manually, use a new, unused prerelease
+identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
 promise to reproduce the locked package bytes. Do not overwrite or recreate
 `0.0.0-alpha.17.ps.4` to satisfy its existing locks.
 
-Set `CORE_SOURCE` to a clean checkout of the linked revision, `REVIEW_VERSION`
-to the new identifier, and `CORE_PACKAGES` to a new output directory. Use
-absolute directory paths. The checkout uses its own SDK pin; do not build into
-one another task is compiling concurrently. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/e80a6c3ac7d1545e203e6027cf68e7269416ed09/eng/package_review.py)
+Set `CORE_SOURCE` to a clean checkout of the revision pinned in the bootstrap,
+`REVIEW_VERSION` to the new identifier, and `CORE_PACKAGES` to a new output
+directory. Use absolute directory paths. The checkout uses its own SDK pin;
+avoid running this recipe while another task builds in that checkout. Its
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/1ed3456f09d9cfc731e5a2f0444ce09a75401f0e/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision e80a6c3ac7d1545e203e6027cf68e7269416ed09 \
+    --revision 1ed3456f09d9cfc731e5a2f0444ce09a75401f0e \
     --output "$CORE_PACKAGES"
 ```
 
@@ -260,9 +262,9 @@ The complete platform, example and API suites are not established yet.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Use the same original inspected review feed described above.
-Set `MCP_VERSION` to that exact review package version and choose a fresh tool
-directory:
+module package. For the current source, set `CORE_PACKAGES` to `packageFeed`
+and `MCP_VERSION` to `version` from the bootstrap's `bootstrap.json`.
+Choose a fresh tool directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \

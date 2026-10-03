@@ -16,8 +16,9 @@ $ dotnet tool install LibTmux.Mcp \
     --version "$MCP_VERSION"
 ```
 
-This checkout's unpublished review packages need the original inspected
-archives instead; see [MCP development setup](../.github/CONTRIBUTING.md#mcp-discovery).
+For the current unpublished review tool, use the .NET `feed/` and unique
+version from the [source bootstrap](../README.md#install-from-source); see
+[MCP development setup](../.github/CONTRIBUTING.md#mcp-discovery).
 A desktop-launched client may need `DOTNET_ROOT` in its server environment
 when .NET comes from a version manager.
 

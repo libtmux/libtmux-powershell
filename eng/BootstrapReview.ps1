@@ -191,10 +191,50 @@ try {
         $env:LIBTMUX_REVIEW_MODULES = $previousReviewModules
     }
 
+    $modulePackages = Join-Path $output 'module-packages'
+    try {
+        $env:PSModulePath = "$modulePath$([IO.Path]::PathSeparator)$previousModulePath"
+        Invoke-Native $pwsh @('-NoLogo', '-NoProfile', '-File', (Join-Path $port 'eng/Package.ps1'),
+            '-DestinationPath', $modulePackages) 'Package PowerShell modules'
+    } finally {
+        $env:PSModulePath = $previousModulePath
+    }
+    $moduleEvidence = Get-Content -LiteralPath (Join-Path $modulePackages 'package-evidence.json') -Raw |
+        ConvertFrom-Json
+    if (@($moduleEvidence.packages).Count -ne 2) {
+        throw 'PowerShell package evidence must identify both modules.'
+    }
+    foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+        $file = "$name.0.1.0.nupkg"
+        $records = @($moduleEvidence.packages | Where-Object file -CEQ $file)
+        if ($records.Count -ne 1 -or
+            (Get-FileHash -LiteralPath (Join-Path $modulePackages $file)).Hash.ToLowerInvariant() -cne $records[0].sha256) {
+            throw "PowerShell package differs from its recorded hash: $file"
+        }
+    }
+
+    $checks = [Collections.Generic.List[object]]::new()
+    foreach ($suite in @('Package', 'Install')) {
+        Invoke-Native $pwsh @('-NoLogo', '-NoProfile', '-File', (Join-Path $port 'eng/Test.ps1'),
+            '-Suite', $suite, '-PackageRoot', $modulePackages) "Verify installed $suite suite"
+        $receipt = Get-Content -LiteralPath (Join-Path $port "build/test-$suite.json") -Raw |
+            ConvertFrom-Json
+        if ($receipt.suite -cne $suite -or $receipt.status -cne 'PASS') {
+            throw "Installed $suite receipt did not pass."
+        }
+        $checks.Add(@{ suite = $suite; status = $receipt.status; seconds = $receipt.seconds;
+            receipt = "port/build/test-$suite.json" })
+    }
+
     @{ status = 'PASS'; version = $version; portRevision = $portRevision;
-        coreRevision = $coreRevision; modulePath = $modulePath; packageFeed = $feed } |
-        ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $output 'bootstrap.json')
+        coreRevision = $coreRevision; modulePath = $modulePath; packageFeed = $feed;
+        modulePackageRoot = $modulePackages; modulePackages = @($moduleEvidence.packages);
+        coreProvenance = 'feed/provenance.json';
+        modulePackageEvidence = 'module-packages/package-evidence.json';
+        checks = @($checks.ToArray()) } |
+        ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'bootstrap.json')
     "PSModulePath=$modulePath"
+    "ModulePackages=$modulePackages"
 } catch {
     throw "Bootstrap failed: $($_.Exception.Message)`nPartial output remains at $output. Inspect it, then choose a new -OutputDirectory or remove it after inspection."
 }
