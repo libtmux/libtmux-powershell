@@ -76,6 +76,11 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -PackageCache build/review-package-cache
 ```
 
+The [source bootstrap](../eng/BootstrapReview.ps1) builds the current shared
+.NET branch at the revision pinned in that script. It uses a new review
+identity and disposable locks; it does not replace the committed `ps.4`
+archives.
+
 Choose a fresh cache directory for the first consumer proof.
 `-CorePackageDirectory` requires `-Restore`: it checks the inspected
 core/query/workspace hashes before restore and does not repack the archives.
