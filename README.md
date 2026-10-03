@@ -1,9 +1,22 @@
+<!-- libtmux-logo -->
+<p align="center">
+  <picture>
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for PowerShell">
+  </picture>
+</p>
+<!-- /libtmux-logo -->
+
+<div align="center">
+
 # libtmux for PowerShell
 
 Drive [tmux](https://github.com/tmux/tmux) from PowerShell. Create sessions,
 arrange panes, send input, and read terminal output through native cmdlets.
 Snapshots return typed objects that you can traverse and filter with ordinary
 PowerShell pipelines.
+
+</div>
 
 Built on [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet), in the
 same [libtmux organization](https://github.com/libtmux) and with the same main
