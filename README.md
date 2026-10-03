@@ -69,7 +69,7 @@ $ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
 ```
 
 The bootstrap clones this committed revision and the
-[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/af4a8c2e58796d5a47d619fabdfe38a357d36257),
+[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/1ed3456f09d9cfc731e5a2f0444ce09a75401f0e),
 builds a unique local package version, inspects its archives, and checks the
 disposable lockfiles.
 It leaves this checkout's pins and lockfiles unchanged and publishes nothing.
