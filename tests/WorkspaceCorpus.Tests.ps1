@@ -27,6 +27,16 @@ Assert-WorkspaceCorpus ($upstreamResolved.SessionName -ceq 'sample_two_windows' 
     $upstreamResolved.Windows[1].WindowName -ceq 'second' -and
     $upstreamResolved.Windows[0].Panes[0].ShellCommands[0] -ceq "echo 'first window'" -and
     $upstreamResolved.Windows[1].Panes[0].ShellCommands[0] -ceq "echo 'second window'") 'tmuxp command objects lost their text or window order'
+foreach ($source in @(
+        @{ File = 'tmuxp-v1.74.0-three_windows.yaml'; Hash = 'e7c9d625d3d976859839174631db35eacf7b797943465ab15e2b8521f1b86e2e' },
+        @{ File = 'tmuxp-v1.74.0-first_pane_start_directory.yaml'; Hash = 'f68399d1cb2a7c55c0a704287d97f02cfb185e4392f0e4702366286fb02cfa2f' },
+        @{ File = 'tmuxp-v1.74.0-environment_vars.yaml'; Hash = 'fd1526dbe34c0b8695818103b25ab950208915ee25775682078fb213d955b4a7' }
+    )) {
+    $path = Join-Path $corpusFixtures $source.File
+    $hash = [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($path))).ToLowerInvariant()
+    Assert-WorkspaceCorpus ($hash -ceq $source.Hash) "$($source.File) changed from the pinned tmuxp fixture"
+}
 $modifierFailure = $null
 try {
     $null = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
@@ -131,6 +141,83 @@ Invoke-WithOwnedTmux {
         }
         Assert-WorkspaceCorpus ((Invoke-OwnedTmux $fixture -Arguments @('list-clients', '-F', '#{client_pid}')).StdOut.Trim().Length -eq 0) "$format application attached a terminal"
     }
+
+    $three = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-three_windows.yaml') -ErrorAction Stop
+    $three = $three.Resolve($fixture.DirectoryPath, $null)
+    $threePlan = $three | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $threeCommands = @($threePlan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request })
+    Assert-WorkspaceCorpus ($threeCommands.Count -eq 3 -and
+        $threeCommands[0] -ceq "echo 'first window'" -and
+        $threeCommands[1] -ceq "echo 'second window'" -and
+        $threeCommands[2] -ceq "echo 'third window'") 'upstream three-window plan lost command text or order'
+    $threeResult = $threePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    Register-OwnedTmuxPane $fixture
+    $threeWindows = @($threeResult.Session | LibTmux\Get-TmuxWindow)
+    Assert-WorkspaceCorpus ($threeResult.Session.Name -ceq 'sample_three_windows' -and
+        $threeWindows.Count -eq 3 -and
+        [string]::Join(',', @($threeWindows | ForEach-Object Name)) -ceq 'first,second,third') 'upstream three-window native graph or order changed'
+    foreach ($index in 0..2) {
+        $panes = @($threeWindows[$index] | LibTmux\Get-TmuxPane)
+        Assert-WorkspaceCorpus ($panes.Count -eq 1) "upstream window $index did not have one native pane"
+    }
+
+    $directories = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-first_pane_start_directory.yaml') -ErrorAction Stop
+    $directories = $directories.Resolve($fixture.DirectoryPath, $null)
+    $directoryPlan = $directories | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $createWindow = @($directoryPlan.Actions | Where-Object Kind -eq CreateWindow)
+    $splitPane = @($directoryPlan.Actions | Where-Object Kind -eq SplitPane)
+    Assert-WorkspaceCorpus ($createWindow.Count -eq 1 -and $splitPane.Count -eq 1 -and
+        $createWindow[0].Request.StartDirectory -ceq '/usr' -and
+        $splitPane[0].Request.StartDirectory -ceq '/etc') 'upstream first-pane directories were not planned for their own panes'
+    $directoryResult = $directoryPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    Register-OwnedTmuxPane $fixture
+    $directoryWindows = @($directoryResult.Session | LibTmux\Get-TmuxWindow)
+    Assert-WorkspaceCorpus ($directoryResult.Session.Name -ceq 'sample workspace' -and
+        $directoryWindows.Count -eq 1) 'upstream first-pane directory fixture did not create one window'
+    $directoryPanes = @($directoryWindows[0] | LibTmux\Get-TmuxPane)
+    Assert-WorkspaceCorpus ($directoryPanes.Count -eq 2 -and
+        $directoryPanes[0].CurrentPath -ceq '/usr' -and
+        $directoryPanes[1].CurrentPath -ceq '/etc') 'upstream first-pane start directory did not reach native panes'
+
+    $environment = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-environment_vars.yaml') -ErrorAction Stop
+    $environment = $environment | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath `
+        -Variables @{ HOME = $fixture.DirectoryPath } -ErrorAction Stop
+    $environmentPlan = $environment | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $createSession = @($environmentPlan.Actions | Where-Object Kind -eq CreateSession)
+    Assert-WorkspaceCorpus ($createSession.Count -eq 1 -and
+        $createSession[0].Request.Environment['FOO'] -ceq 'SESSION' -and
+        $createSession[0].Request.Environment['PATH'] -ceq '/tmp') 'upstream session environment was not planned'
+    $environmentResult = $environmentPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    Register-OwnedTmuxPane $fixture
+    $sessionPath = (Invoke-OwnedTmux $fixture -Arguments @('show-environment', '-t',
+            $environmentResult.Session.Id.ToString(), 'PATH')).StdOut.Trim()
+    Assert-WorkspaceCorpus ($sessionPath -ceq 'PATH=/tmp') 'upstream session PATH did not reach native tmux environment'
+    $environmentWindows = @($environmentResult.Session | LibTmux\Get-TmuxWindow)
+    $expectedEnvironment = @(
+        @{ Name = 'no_overrides'; Values = @('SESSION') },
+        @{ Name = 'window_overrides'; Values = @('WINDOW') },
+        @{ Name = 'pane_overrides'; Values = @('PANE') },
+        @{ Name = 'both_overrides'; Values = @('WINDOW', 'PANE') },
+        @{ Name = 'both_overrides_on_first_pane'; Values = @('PANE') }
+    )
+    Assert-WorkspaceCorpus ($environmentResult.Session.Name -ceq 'test env vars' -and
+        $environmentWindows.Count -eq $expectedEnvironment.Count) 'upstream environment fixture did not create five windows'
+    for ($windowIndex = 0; $windowIndex -lt $expectedEnvironment.Count; $windowIndex++) {
+        $window = $environmentWindows[$windowIndex]
+        $expectedWindow = $expectedEnvironment[$windowIndex]
+        $panes = @($window | LibTmux\Get-TmuxPane)
+        Assert-WorkspaceCorpus ($window.Name -ceq $expectedWindow.Name -and
+            $panes.Count -eq $expectedWindow.Values.Count) "upstream environment window $windowIndex changed its native graph"
+        for ($paneIndex = 0; $paneIndex -lt $panes.Count; $paneIndex++) {
+            $outputPath = Join-Path $fixture.DirectoryPath "environment-$windowIndex-$paneIndex.txt"
+            $quotedOutput = "'" + $outputPath.Replace("'", "'\''") + "'"
+            $command = 'printf "%s" "$FOO" > ' + $quotedOutput
+            $completed = $panes[$paneIndex] | LibTmux\Invoke-TmuxPaneCommand -Command $command -Timeout 1 -Confirm:$false -ErrorAction Stop
+            Assert-WorkspaceCorpus ($completed.ExitStatus -eq 0 -and !$completed.TimedOut) "upstream environment pane $windowIndex/$paneIndex did not finish its probe"
+            $observed = [IO.File]::ReadAllText($outputPath)
+            Assert-WorkspaceCorpus ($observed -ceq $expectedWindow.Values[$paneIndex]) "upstream environment pane $windowIndex/$paneIndex lost its FOO override"
+        }
+    }
     Assert-WorkspaceCorpus ([int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'corpus application replaced the borrowed daemon'
 }
-'PASS workspace corpus: YAML creation, multi-window JSON append, inherited commands/environment/paths, options, focus, layouts and detached daemon'
+'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment, and detached daemon'

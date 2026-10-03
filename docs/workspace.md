@@ -62,6 +62,11 @@ mixed forms on an owned tmux server. Command modifiers such as `enter` are
 unsupported and fail during import with the declaration path and source
 location.
 
+tmux treats `PATH` specially. An unattached client can replace a pane's
+declared `PATH` with the client's value during pane creation, while the
+session environment retains the declared value. Set `PATH` inside the pane
+shell when pane commands depend on it.
+
 For discovery, `Get-TmuxWorkspace` lists nearby `.tmuxp.yaml`, `.tmuxp.yml`
 and `.tmuxp.json` files before the first configured global directory.
 `-Name development` selects a global basename, while `-LiteralPath` chooses
