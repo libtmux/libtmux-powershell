@@ -54,6 +54,14 @@ directory variables are errors. Option names, commands, the host script,
 session and window names, and environment values remain literal. The base
 directory also records the origin for an allowed `before_script`.
 
+Ordered `shell_command` and `shell_command_before` lists accept command strings
+and tmuxp-style entries such as `- cmd: exec /bin/sh`. Commands remain literal
+and run in session-before, window-before, pane-before, then pane-command order.
+The [workspace corpus](../tests/fixtures/workspace/corpus.yaml) checks the
+mixed forms on an owned tmux server. Command modifiers such as `enter` are
+unsupported and fail during import with the declaration path and source
+location.
+
 For discovery, `Get-TmuxWorkspace` lists nearby `.tmuxp.yaml`, `.tmuxp.yml`
 and `.tmuxp.json` files before the first configured global directory.
 `-Name development` selects a global basename, while `-LiteralPath` chooses

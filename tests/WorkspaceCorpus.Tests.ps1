@@ -15,6 +15,34 @@ function Assert-WorkspaceCorpus([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Workspace corpus: $Message" }
 }
 
+$upstreamSource = Join-Path $corpusFixtures 'tmuxp-v1.74.0-two_windows.yaml'
+$upstreamHash = [Convert]::ToHexString(
+    [Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($upstreamSource))).ToLowerInvariant()
+Assert-WorkspaceCorpus ($upstreamHash -ceq 'd96733a6709f2bb3c295f6d4abae73ac3f5697009a6da86123c0dba1992282e9') 'upstream tmuxp fixture changed'
+$upstream = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath $upstreamSource -ErrorAction Stop
+$upstreamResolved = $upstream.Resolve($corpusFixtures, $null)
+Assert-WorkspaceCorpus ($upstreamResolved.SessionName -ceq 'sample_two_windows' -and
+    $upstreamResolved.Windows.Count -eq 2 -and
+    $upstreamResolved.Windows[0].WindowName -ceq 'first' -and
+    $upstreamResolved.Windows[1].WindowName -ceq 'second' -and
+    $upstreamResolved.Windows[0].Panes[0].ShellCommands[0] -ceq "echo 'first window'" -and
+    $upstreamResolved.Windows[1].Panes[0].ShellCommands[0] -ceq "echo 'second window'") 'tmuxp command objects lost their text or window order'
+$modifierFailure = $null
+try {
+    $null = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+windows:
+  - panes:
+      - shell_command:
+          - cmd: echo ready
+            enter: false
+'@ -ErrorAction Stop
+} catch { $modifierFailure = $_ }
+Assert-WorkspaceCorpus ($null -ne $modifierFailure -and
+    $modifierFailure.Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+    $modifierFailure.Exception.Message.Contains('shell_command[0]') -and
+    $modifierFailure.Exception.Message.Contains('enter') -and
+    $modifierFailure.Exception.Message.Contains('At line 5, column')) 'unsupported tmuxp command modifier was accepted or lost its location'
+
 # One YAML creation and one JSON append cover the declaration semantics that
 # must survive parsing, resolution, planning and real pane startup together.
 Invoke-WithOwnedTmux {
@@ -34,11 +62,26 @@ Invoke-WithOwnedTmux {
             $workspace.Windows[0].Panes[0].StartDirectory -ceq $firstDirectory -and
             $workspace.Windows[0].Panes[1].StartDirectory -ceq $secondDirectory) "$format file-relative expansion and directory inheritance"
         if ($format -ceq 'yaml') {
-            Assert-WorkspaceCorpus ($workspace.Windows[0].Options['@corpus-window'] -ceq 'yaml') 'YAML window option value was not expanded'
+            Assert-WorkspaceCorpus ($workspace.Windows[0].Options['@corpus-window'] -ceq 'yaml' -and
+                $workspace.ShellCommandsBefore[0] -ceq 'echo session >> order.txt' -and
+                $workspace.Windows[0].ShellCommandsBefore[0] -ceq 'echo window >> order.txt' -and
+                $workspace.Windows[0].Panes[1].ShellCommandsBefore[0] -ceq 'echo pane >> order.txt' -and
+                $workspace.Windows[0].Panes[0].ShellCommands[0] -ceq 'echo command >> order.txt') 'YAML command objects, inherited commands or option value changed during resolution'
         }
 
         $policy = if ($format -ceq 'json') { 'Append' } else { 'Error' }
         $plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession $policy -ErrorAction Stop
+        if ($format -ceq 'yaml') {
+            $sent = @($plan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request })
+            Assert-WorkspaceCorpus ($sent.Count -eq 11 -and
+                $sent[0] -ceq 'echo session >> order.txt' -and
+                $sent[1] -ceq 'echo window >> order.txt' -and
+                $sent[2] -ceq 'echo command >> order.txt' -and
+                $sent[5] -ceq 'echo session >> order.txt' -and
+                $sent[6] -ceq 'echo window >> order.txt' -and
+                $sent[7] -ceq 'echo pane >> order.txt' -and
+                $sent[8] -ceq 'echo command >> order.txt') 'YAML command objects lost their pane plan order'
+        }
         $waiters = @(@('first', 'second') | ForEach-Object { $server.OpenWaitChannel("corpus-$format-$_") })
         try {
             $result = $plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop

@@ -69,7 +69,7 @@ $ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
 ```
 
 The bootstrap clones this committed revision and the
-[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/2608c181c1a56453a573dd4f749463cddac5850b),
+[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/95f580414be5ae5d77551371ce865573b65cb0f0),
 builds a unique local package version, inspects its archives, and checks the
 disposable lockfiles. It also packs both PowerShell modules, verifies their
 archive hashes, and tests extraction, both import orders and package-manager

@@ -7,7 +7,7 @@ environment:
   CORPUS_SESSION: yaml-root
   CORPUS_LAYER: session
 shell_command_before:
-  - echo session >> order.txt
+  - cmd: echo session >> order.txt
 windows:
   - window_name: yaml-editor
     start_directory: window
@@ -19,10 +19,10 @@ windows:
       CORPUS_WINDOW: yaml-window
       CORPUS_LAYER: window
     shell_command_before:
-      - echo window >> order.txt
+      - cmd: echo window >> order.txt
     panes:
       - shell_command:
-          - echo command >> order.txt
+          - cmd: echo command >> order.txt
           - 'echo "$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER" > environment.txt'
           - tmux wait-for -S corpus-yaml-first
       - start_directory: pane
@@ -33,7 +33,7 @@ windows:
           CORPUS_PANE: yaml-pane
           CORPUS_LAYER: pane
         shell_command_before:
-          - echo pane >> order.txt
+          - cmd: echo pane >> order.txt
         shell_command:
           - echo command >> order.txt
           - 'echo "$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER" > environment.txt'
