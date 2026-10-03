@@ -180,6 +180,7 @@ Invoke-WithOwnedTmux {
     Assert-WorkspaceCorpus ($directoryPanes.Count -eq 2 -and
         $directoryPanes[0].CurrentPath -ceq '/usr' -and
         $directoryPanes[1].CurrentPath -ceq '/etc') 'upstream first-pane start directory did not reach native panes'
+    $directoryResult.Session | LibTmux\Remove-TmuxSession -Confirm:$false -ErrorAction Stop
 
     $environment = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-environment_vars.yaml') -ErrorAction Stop
     $environment = $environment | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath `
