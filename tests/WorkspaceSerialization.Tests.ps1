@@ -31,6 +31,7 @@ environment: { EMPTY: '', 'NULL': 'null', BOOL: 'true' }
 shell_command_before: ['', 'first', 'second']
 windows:
   - window_name: null
+    window_index: 5
     start_directory: null
     layout: even-horizontal
     focus: false
@@ -53,6 +54,8 @@ windows:
     panes: []
 '@
 $original = [LibTmux.Workspace.WorkspaceFile]::Parse($declaration)
+Assert-WorkspaceText ($original.Windows[0].WindowIndex -eq 5 -and
+    $null -eq $original.Windows[1].WindowIndex) 'declared and implicit window indices were not distinguished'
 $empty = [LibTmux.Workspace.WorkspaceFile]::new()
 $directory = [IO.Directory]::CreateTempSubdirectory('libtmux-workspace-text-')
 $oldPath = $env:PATH
@@ -64,6 +67,8 @@ try {
         Assert-WorkspaceText ($outputs.Count -eq 2 -and $outputs[0] -is [string] -and $outputs[1] -is [string]) 'conversion did not emit one string per native declaration'
         $restored = [LibTmux.Workspace.WorkspaceFile]::Parse($outputs[0])
         Assert-WorkspaceEquivalent $original $restored
+        Assert-WorkspaceText ($restored.Windows[0].WindowIndex -eq 5 -and
+            $null -eq $restored.Windows[1].WindowIndex) 'window index did not survive text conversion'
         Assert-WorkspaceEquivalent $empty ([LibTmux.Workspace.WorkspaceFile]::Parse($outputs[1]))
         Assert-WorkspaceText ($outputs[0] -notmatch 'DocumentDirectory|DirectoriesAreResolved|!!') 'output exposed CLR metadata or type tags'
         Assert-WorkspaceText ($restored.StartDirectory -ceq '${ROOT}/work $$ #{}') 'unresolved path expressions were rewritten'
@@ -130,8 +135,11 @@ exec $quotedTmux "`$@"
     $outputs = @(@($captured, $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -WarningAction SilentlyContinue -WarningVariable warnings)
     Assert-WorkspaceText ($outputs.Count -eq 2 -and $outputs[0] -is [LibTmux.Workspace.WorkspaceFile] -and
         $outputs[1] -is [LibTmux.Workspace.WorkspaceFile] -and $warnings.Count -eq 2) 'freeze lost native per-record output or explicit loss warnings'
+    Assert-WorkspaceText ($warnings[0].Message -match 'pane indices' -and
+        $warnings[0].Message -notmatch 'window indices') 'freeze warning misstated which indices are omitted'
     $frozen = $outputs[0]
     Assert-WorkspaceText ($null -eq $frozen.DocumentDirectory -and $frozen.Windows.Count -eq 2 -and
+        $frozen.Windows[0].WindowIndex -eq 0 -and $frozen.Windows[1].WindowIndex -eq 7 -and
         !$frozen.Windows[0].Focus -and $frozen.Windows[1].Focus -and
         $frozen.Windows[0].WindowName -ceq 'editor' -and $frozen.Windows[1].WindowName -ceq 'editor' -and
         !$frozen.Windows[0].Panes[0].Focus -and $frozen.Windows[0].Panes[1].Focus -and
@@ -145,7 +153,8 @@ exec $quotedTmux "`$@"
         $restored = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $text |
             LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath
         Assert-WorkspaceText ($restored.Windows[0].Panes[0].StartDirectory -ceq $physicalPath -and
-            $restored.Windows[1].Panes[0].StartDirectory -ceq $physicalPath) 'freeze/text/import/resolve changed a literal captured directory'
+            $restored.Windows[1].Panes[0].StartDirectory -ceq $physicalPath -and
+            $restored.Windows[0].WindowIndex -eq 0 -and $restored.Windows[1].WindowIndex -eq 7) 'freeze/text/import/resolve changed a literal captured directory or window index'
     }
     $errors = @()
     $continued = @(@($shallow.Sessions[0], $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -ErrorAction Continue -ErrorVariable errors -WarningAction SilentlyContinue 2>$null)

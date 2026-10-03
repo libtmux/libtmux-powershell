@@ -27,9 +27,9 @@ an explicit BaseDirectory before planning, or convert the declaration to YAML
 or JSON and resolve it after importing. Do not interpret those escaped values
 as already resolved filesystem paths.
 
-Conversion emits a warning for each successful input because it omits observed
-environment, options, terminal text, entity IDs, indices and shared-link
-identity.
+Conversion preserves session-relative window indices. It emits a warning for
+each successful input because it omits observed environment, options,
+terminal text, entity IDs, pane indices and shared-link identity.
 It cannot reconstruct original commands, arguments or shell intent. Foreground
 command names do not establish the shell command that started a pane. Original
 relative paths, expansion variables, comments, host scripts and pre-commands
@@ -1021,7 +1021,11 @@ errors.
 
 Parsing does not start tmux, execute host scripts or expand paths and variables.
 Resolve-TmuxWorkspace supplies an explicit document base and allowed variables.
-Test-TmuxWorkspace checks declaration completeness and execution policy.</maml:para>
+Test-TmuxWorkspace checks declaration completeness and execution policy.
+
+A window can set `window_index` to a nonnegative session-relative index. Omit
+it for tmux's next free index. Duplicate requested indexes fail validation;
+an index already occupied in the session fails during application.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -1120,10 +1124,16 @@ ErrorAction Continue. ErrorAction Stop terminates. No form applies a workspace.<
       <command:example>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
-          <maml:para>Inspect a declaration without executing it.</maml:para>
+          <maml:para>Inspect a declaration with a window at index 5 without starting tmux.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+    window_index: 5
+    panes: [null]
+'@
 ```</maml:para>
         </maml:introduction>
         <dev:code />

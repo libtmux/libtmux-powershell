@@ -62,6 +62,13 @@ mixed forms on an owned tmux server. Command modifiers such as `enter` are
 unsupported and fail during import with the declaration path and source
 location.
 
+Set `window_index` on a window to request a nonnegative session-relative
+index. Omit it to let tmux choose the next free index. Duplicate requested
+indices fail validation; an index occupied by an existing window fails when
+the reviewed plan is applied. The
+[pinned tmuxp fixture](../tests/fixtures/workspace/tmuxp-v1.74.0-window_index.yaml)
+checks a sparse `0, 5, 1` session on an owned server.
+
 tmux treats `PATH` specially. An unattached client can replace a pane's
 declared `PATH` with the client's value during pane creation, while the
 session environment retains the declared value. Set `PATH` inside the pane
@@ -187,11 +194,13 @@ conversion reads the capture only; `Set-Content` writes the file.
     Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
 ```
 
-Conversion warns because it omits observed options, environment, terminal
-text, entity IDs, indices and shared-link identity. It cannot reconstruct the
-original startup commands or shell intent. Repeated window links become
-separate declarations. Check the exported layout and pane paths, add the
-commands you want on a future load, then import, resolve and review a new plan.
+Conversion preserves session-relative window indices. It warns because it
+omits observed options, environment, terminal text, entity IDs, pane indices
+and shared-link identity. It cannot reconstruct original startup commands or
+shell intent.
+Repeated window links become separate declarations. Check the exported layout
+and pane paths, add the commands you want on a future load, then import,
+resolve and review a new plan.
 For JSON, use `ConvertTo-TmuxWorkspaceJson` in place of the YAML converter.
 See [ConvertTo-TmuxWorkspace](reference/LibTmux.Workspace/ConvertTo-TmuxWorkspace.md)
 for the captured-field and literal-path rules.

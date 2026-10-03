@@ -31,7 +31,8 @@ foreach ($source in @(
         @{ File = 'tmuxp-v1.74.0-three_windows.yaml'; Hash = 'e7c9d625d3d976859839174631db35eacf7b797943465ab15e2b8521f1b86e2e' },
         @{ File = 'tmuxp-v1.74.0-first_pane_start_directory.yaml'; Hash = 'f68399d1cb2a7c55c0a704287d97f02cfb185e4392f0e4702366286fb02cfa2f' },
         @{ File = 'tmuxp-v1.74.0-environment_vars.yaml'; Hash = 'fd1526dbe34c0b8695818103b25ab950208915ee25775682078fb213d955b4a7' },
-        @{ File = 'tmuxp-v1.74.0-window_options.yaml'; Hash = '09b7ba17cc1436bd3c2b36c7546db1c05de78c2391eee271cb07426c37d12cb4' }
+        @{ File = 'tmuxp-v1.74.0-window_options.yaml'; Hash = '09b7ba17cc1436bd3c2b36c7546db1c05de78c2391eee271cb07426c37d12cb4' },
+        @{ File = 'tmuxp-v1.74.0-window_index.yaml'; Hash = '07504a692b8ae31192772e3fcea01906d85b6949555e62bc6191d116b807bdc2' }
     )) {
     $path = Join-Path $corpusFixtures $source.File
     $hash = [Convert]::ToHexString(
@@ -238,6 +239,22 @@ Invoke-WithOwnedTmux {
     Assert-WorkspaceCorpus ($nativePanes.Count -eq 3 -and
         @($nativePanes | Where-Object CurrentPath -CNE $fixture.DirectoryPath).Count -eq 0 -and
         $mainPaneHeight.Value.Raw -ceq '5' -and !$mainPaneHeight.Inherited) 'upstream window option, pane graph or inherited HOME was not applied'
+    $indexed = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-window_index.yaml') -ErrorAction Stop
+    $indexed = $indexed.Resolve($fixture.DirectoryPath, $null)
+    $indexPlan = $indexed | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $indexCreates = @($indexPlan.Actions | Where-Object Kind -eq CreateWindow)
+    Assert-WorkspaceCorpus ($indexCreates.Count -eq 3 -and
+        $null -eq $indexCreates[0].Request.Index -and
+        $indexCreates[1].Request.Index -ceq '5' -and
+        $null -eq $indexCreates[2].Request.Index) 'upstream explicit window index was not planned in declaration order'
+    $indexResult = $indexPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    Register-OwnedTmuxPane $fixture
+    $declaredOrder = [string]::Join(',', @($indexResult.Windows | ForEach-Object { "$($_.Name):$($_.Index)" }))
+    $nativeIndexWindows = @($indexResult.Session | LibTmux\Get-TmuxWindow)
+    $nativeOrder = [string]::Join(',', @($nativeIndexWindows | ForEach-Object { "$($_.Name):$($_.Index)" }))
+    Assert-WorkspaceCorpus ($indexResult.Session.Name -ceq 'sample workspace' -and
+        $declaredOrder -ceq 'zero:0,five:5,one:1' -and
+        $nativeOrder -ceq 'zero:0,one:1,five:5') 'upstream window indexes did not reach native tmux placements'
     Assert-WorkspaceCorpus ([int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'corpus application replaced the borrowed daemon'
 }
-'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment/options, and detached daemon'
+'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment/options/indices, and detached daemon'

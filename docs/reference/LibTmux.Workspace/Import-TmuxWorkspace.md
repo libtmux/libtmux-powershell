@@ -52,14 +52,24 @@ Parsing does not start tmux, execute host scripts or expand paths and variables.
 Resolve-TmuxWorkspace supplies an explicit document base and allowed variables.
 Test-TmuxWorkspace checks declaration completeness and execution policy.
 
+A window can set `window_index` to a nonnegative session-relative index. Omit
+it for tmux's next free index. Duplicate requested indexes fail validation;
+an index already occupied in the session fails during application.
+
 ## EXAMPLES
 
 ### Example 1
 
-Inspect a declaration without executing it.
+Inspect a declaration with a window at index 5 without starting tmux.
 
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml 'session_name: development'
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+    window_index: 5
+    panes: [null]
+'@
 ```
 
 ## PARAMETERS

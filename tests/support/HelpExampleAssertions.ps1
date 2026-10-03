@@ -260,7 +260,13 @@ function Get-HelpExampleAssertion {
             } }
         'LibTmux.Workspace\Import-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
-                if ($Result[0].SessionName -cne 'development') { throw 'Workspace example parsed the wrong session.' }
+                if ($Result[0].SessionName -cne 'development' -or
+                    $Result[0].Windows.Count -ne 1 -or
+                    $Result[0].Windows[0].WindowName -cne 'editor' -or
+                    $Result[0].Windows[0].WindowIndex -ne 5 -or
+                    $Result[0].Windows[0].Panes.Count -ne 1) {
+                    throw 'Workspace example lost its indexed window declaration.'
+                }
             } }
         'LibTmux\Invoke-TmuxCommand#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)

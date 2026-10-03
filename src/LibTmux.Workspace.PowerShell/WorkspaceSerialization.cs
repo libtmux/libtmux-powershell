@@ -46,17 +46,23 @@ internal static class WorkspaceSerialization
         return result;
     }
 
-    private static Dictionary<string, object?> Project(WorkspaceWindow window, bool resolved) => new(StringComparer.Ordinal)
+    private static Dictionary<string, object?> Project(WorkspaceWindow window, bool resolved)
     {
-        ["window_name"] = window.WindowName,
-        ["start_directory"] = Directory(window.StartDirectory, resolved),
-        ["layout"] = window.Layout,
-        ["focus"] = window.Focus,
-        ["options"] = window.Options,
-        ["environment"] = window.Environment,
-        ["shell_command_before"] = window.ShellCommandsBefore,
-        ["panes"] = window.Panes.Select(pane => Project(pane, resolved)).ToArray(),
-    };
+        Dictionary<string, object?> result = new(StringComparer.Ordinal)
+        {
+            ["window_name"] = window.WindowName,
+        };
+        if (window.WindowIndex is int index)
+            result.Add("window_index", index);
+        result.Add("start_directory", Directory(window.StartDirectory, resolved));
+        result.Add("layout", window.Layout);
+        result.Add("focus", window.Focus);
+        result.Add("options", window.Options);
+        result.Add("environment", window.Environment);
+        result.Add("shell_command_before", window.ShellCommandsBefore);
+        result.Add("panes", window.Panes.Select(pane => Project(pane, resolved)).ToArray());
+        return result;
+    }
 
     private static Dictionary<string, object?> Project(WorkspacePane pane, bool resolved) => new(StringComparer.Ordinal)
     {

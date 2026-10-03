@@ -20,7 +20,7 @@ public sealed class ConvertToTmuxWorkspaceCommand : TmuxCmdlet
         ReadResult(_ =>
         {
             WorkspaceFile workspace = WorkspaceFile.FromSnapshot(Session);
-            WriteWarning("Workspace conversion omits commands and shell state, environment, options, terminal text, entity IDs, indices, and shared-link identity. Custom layouts do not guarantee which pane occupies each position.");
+            WriteWarning("Workspace conversion omits commands and shell state, environment, options, terminal text, entity IDs, pane indices, and shared-link identity. Custom layouts do not guarantee which pane occupies each position.");
             return Task.FromResult(workspace);
         }, "Tmux.WorkspaceFreezeFailed", Session);
 }

@@ -44,9 +44,9 @@ an explicit BaseDirectory before planning, or convert the declaration to YAML
 or JSON and resolve it after importing. Do not interpret those escaped values
 as already resolved filesystem paths.
 
-Conversion emits a warning for each successful input because it omits observed
-environment, options, terminal text, entity IDs, indices and shared-link
-identity.
+Conversion preserves session-relative window indices. It emits a warning for
+each successful input because it omits observed environment, options,
+terminal text, entity IDs, pane indices and shared-link identity.
 It cannot reconstruct original commands, arguments or shell intent. Foreground
 command names do not establish the shell command that started a pane. Original
 relative paths, expansion variables, comments, host scripts and pre-commands
