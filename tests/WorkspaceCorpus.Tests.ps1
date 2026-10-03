@@ -30,7 +30,8 @@ Assert-WorkspaceCorpus ($upstreamResolved.SessionName -ceq 'sample_two_windows' 
 foreach ($source in @(
         @{ File = 'tmuxp-v1.74.0-three_windows.yaml'; Hash = 'e7c9d625d3d976859839174631db35eacf7b797943465ab15e2b8521f1b86e2e' },
         @{ File = 'tmuxp-v1.74.0-first_pane_start_directory.yaml'; Hash = 'f68399d1cb2a7c55c0a704287d97f02cfb185e4392f0e4702366286fb02cfa2f' },
-        @{ File = 'tmuxp-v1.74.0-environment_vars.yaml'; Hash = 'fd1526dbe34c0b8695818103b25ab950208915ee25775682078fb213d955b4a7' }
+        @{ File = 'tmuxp-v1.74.0-environment_vars.yaml'; Hash = 'fd1526dbe34c0b8695818103b25ab950208915ee25775682078fb213d955b4a7' },
+        @{ File = 'tmuxp-v1.74.0-window_options.yaml'; Hash = '09b7ba17cc1436bd3c2b36c7546db1c05de78c2391eee271cb07426c37d12cb4' }
     )) {
     $path = Join-Path $corpusFixtures $source.File
     $hash = [Convert]::ToHexString(
@@ -218,6 +219,25 @@ Invoke-WithOwnedTmux {
             Assert-WorkspaceCorpus ($observed -ceq $expectedWindow.Values[$paneIndex]) "upstream environment pane $windowIndex/$paneIndex lost its FOO override"
         }
     }
+    $windowOptions = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-window_options.yaml') -ErrorAction Stop |
+        LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath `
+            -Variables @{ HOME = $fixture.DirectoryPath } -ErrorAction Stop
+    $windowPlan = $windowOptions | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $layoutAction = @($windowPlan.Actions | Where-Object Kind -eq SelectLayout)
+    $optionAction = @($windowPlan.Actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -eq 'main-pane-height' })
+    Assert-WorkspaceCorpus ($layoutAction.Count -eq 1 -and $optionAction.Count -eq 1 -and
+        $layoutAction[0].Request.Layout -ceq 'main-horizontal' -and
+        $optionAction[0].Request.Value -ceq '5') 'upstream window layout or standard option was not planned'
+    $windowResult = $windowPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    Register-OwnedTmuxPane $fixture
+    $nativeWindows = @($windowResult.Session | LibTmux\Get-TmuxWindow)
+    Assert-WorkspaceCorpus ($windowResult.Session.Name -ceq 'test window options' -and
+        $nativeWindows.Count -eq 1 -and $nativeWindows[0].Name -ceq 'editor') 'upstream option fixture did not create its named window'
+    $nativePanes = @($nativeWindows[0] | LibTmux\Get-TmuxPane)
+    $mainPaneHeight = $nativeWindows[0] | LibTmux\Get-TmuxOption -Name 'main-pane-height' -ErrorAction Stop
+    Assert-WorkspaceCorpus ($nativePanes.Count -eq 3 -and
+        @($nativePanes | Where-Object CurrentPath -CNE $fixture.DirectoryPath).Count -eq 0 -and
+        $mainPaneHeight.Value.Raw -ceq '5' -and !$mainPaneHeight.Inherited) 'upstream window option, pane graph or inherited HOME was not applied'
     Assert-WorkspaceCorpus ([int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'corpus application replaced the borrowed daemon'
 }
-'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment, and detached daemon'
+'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment/options, and detached daemon'
