@@ -510,14 +510,19 @@ $server | Invoke-TmuxCommand -Arguments @(
     'capture.buffer' = @{ Requires = @('server'); Code = {
 & {
     $name = 'libtmux-' + [guid]::NewGuid().ToString('N')
+    $quiet = @{ Confirm = $false; ErrorAction = 'Stop' }
     $created = $false
     try {
-        $null = $server | Invoke-TmuxCommand -Arguments @('set-buffer', '-b', $name, 'hello from PowerShell') -Confirm:$false -ErrorAction Stop
+        $set = @('set-buffer', '-b', $name, 'hello from PowerShell')
+        $null = $server | Invoke-TmuxCommand -Arguments $set @quiet
         $created = $true
-        ($server | Invoke-TmuxCommand -Arguments @('show-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop).StandardOutputLines
+        $show = @('show-buffer', '-b', $name)
+        $shown = $server | Invoke-TmuxCommand -Arguments $show @quiet
+        $shown.StandardOutputLines
     } finally {
         if ($created) {
-            $server | Invoke-TmuxCommand -Arguments @('delete-buffer', '-b', $name) -Confirm:$false -ErrorAction Stop | Out-Null
+            $delete = @('delete-buffer', '-b', $name)
+            $server | Invoke-TmuxCommand -Arguments $delete @quiet | Out-Null
         }
     }
 }
