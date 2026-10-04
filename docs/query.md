@@ -30,7 +30,10 @@ For reuse, construct the same condition as a native `QueryDocument`:
 
 <!-- example: query.03-criteria -->
 ```powershell
-$query = New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } }
+$query = New-TmuxQuery -Target Pane -Criteria @{
+    Width = @{ Ge = 50 }
+    Height = @{ Gt = 0 }
+}
 ```
 
 Apply it to the already captured panes. Input order, duplicates and object
