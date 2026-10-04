@@ -53,14 +53,14 @@ exec $quotedTmux "`$@"
         $null = Invoke-OwnedTmux $fixture -Arguments @('set-environment', '-g', 'RAW_ENDPOINT', 'selected')
         $null = Invoke-OwnedTmux $other -Arguments @('set-environment', '-g', 'RAW_ENDPOINT', 'other')
         foreach ($arguments in @(
-            ,@('-S', $other.SocketPath, 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
-            ,@("-S$($other.SocketPath)", 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
-            ,@('-L', 'unused', '-S', $other.SocketPath, 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
-            ,@('-f', '/dev/null', 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
-            ,@('-c', 'true')
-            ,@('--', 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
-            ,@('-V')
-            ,@('-')
+            , @('-S', $other.SocketPath, 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
+            , @("-S$($other.SocketPath)", 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
+            , @('-L', 'unused', '-S', $other.SocketPath, 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
+            , @('-f', '/dev/null', 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
+            , @('-c', 'true')
+            , @('--', 'set-environment', '-g', 'RAW_ENDPOINT', 'redirected')
+            , @('-V')
+            , @('-')
         )) {
             $before = if (Test-Path -LiteralPath $trace) { [IO.File]::ReadAllLines($trace).Length } else { 0 }
             $invalid = $null

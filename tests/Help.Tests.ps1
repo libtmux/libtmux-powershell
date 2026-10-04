@@ -135,9 +135,11 @@ if ($RunExamples) {
         'CoreThird' { $coreExamples | Select-Object -Skip (2 * $coreCut) -First $coreCut }
         'CoreFourth' { $coreExamples | Select-Object -Skip (3 * $coreCut) -First $coreCut }
         'CoreFifth' { $coreExamples | Select-Object -Skip (4 * $coreCut) }
-        'Workspace' { $examples | Where-Object {
-            $_.Id.StartsWith('LibTmux.Workspace\', [StringComparison]::Ordinal)
-        } }
+        'Workspace' {
+            $examples | Where-Object {
+                $_.Id.StartsWith('LibTmux.Workspace\', [StringComparison]::Ordinal)
+            }
+        }
         'Terminal' { $examples | Where-Object { $assertions[$_.Id].ContainsKey('TerminalMode') } }
         default { $examples }
     }

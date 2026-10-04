@@ -4,6 +4,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
+$settings = "$root/PSScriptAnalyzerSettings.psd1"
 $analyzer = "$root/build/tool-modules/PSScriptAnalyzer/1.25.0/PSScriptAnalyzer.psd1"
 if (!(Test-Path $analyzer)) { throw 'Run eng/Setup.ps1 to install the pinned analyzer before linting.' }
 Import-Module $analyzer
@@ -14,7 +15,7 @@ try {
     $env:PATH = ''
     $env:PSModulePath = @("$root/build/tool-modules", "$root/build/Modules", "$PSHOME/Modules") -join [IO.Path]::PathSeparator
     $diagnostics = @(foreach ($directory in @('eng', 'module', 'tests', 'examples')) {
-        Invoke-ScriptAnalyzer -Path "$root/$directory" -Recurse -Severity Error, Warning
+        Invoke-ScriptAnalyzer -Path "$root/$directory" -Recurse -Settings $settings -Severity Error, Warning
     })
 } finally {
     $env:PATH = $previousPath
