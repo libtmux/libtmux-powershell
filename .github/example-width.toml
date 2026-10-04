@@ -2,7 +2,7 @@ width = 80
 markdown = ["**/*.md"]
 sources = ["examples/**/*.ps1"]
 shared_digest = "d88f61cb1725be8a1b56ae6e1b2346dc868599842758e3484cd3f5979342b915"
-checker_digest = "ac2efe0c07aa3fddefe6d8daff0406ce695c4f199a91cd8f7122fdf37dcab839"
+checker_digest = "4652730c887f93db9881105801d8ed4903a31164eb52cbee0b763cee1a82620f"
 allow_ceiling = 1
 
 [[exclude]]
