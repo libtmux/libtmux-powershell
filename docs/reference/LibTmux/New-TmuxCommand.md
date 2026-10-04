@@ -44,7 +44,9 @@ reconstructing a typed request as raw text would discard its identity guards.
 Construct a command that prints text containing spaces and punctuation.
 
 ```powershell
-LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'hello; tmux')
+LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @(
+    '-p', 'hello; tmux'
+)
 ```
 
 ## PARAMETERS
