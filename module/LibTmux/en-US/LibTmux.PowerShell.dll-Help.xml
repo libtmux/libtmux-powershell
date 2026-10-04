@@ -4808,7 +4808,9 @@ reconstructing a typed request as raw text would discard its identity guards.</m
           <maml:para>Construct a command that prints text containing spaces and punctuation.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'hello; tmux')
+LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @(
+    '-p', 'hello; tmux'
+)
 ```</maml:para>
         </maml:introduction>
         <dev:code />
