@@ -135,7 +135,10 @@ excluding scratch windows:
 
 <!-- example: query.07-boolean -->
 ```powershell
-$captured.Windows | Select-TmuxWindow -Criteria @{ Or = @(@{ Name = @{ StartsWith = 'api-' } }, @{ Name = 'logs' }); Not = @{ Name = @{ Contains = 'scratch' } } }
+$captured.Windows | Select-TmuxWindow -Criteria @{
+    Or = @(@{ Name = @{ StartsWith = 'api-' } }, @{ Name = 'logs' })
+    Not = @{ Name = @{ Contains = 'scratch' } }
+}
 ```
 
 For a regular expression, pass an explicit pattern and semantic option list:
