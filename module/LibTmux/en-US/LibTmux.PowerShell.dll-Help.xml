@@ -3272,7 +3272,10 @@ an uncertain mutation.</maml:para>
           <maml:para>Print two values in order on a previously selected $server.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$server | LibTmux\Invoke-TmuxChain -Command @((LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')), (LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')))
+$commands = 'first', 'second' | ForEach-Object {
+    LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', $_)
+}
+$server | LibTmux\Invoke-TmuxChain -Command $commands
 ```</maml:para>
         </maml:introduction>
         <dev:code />

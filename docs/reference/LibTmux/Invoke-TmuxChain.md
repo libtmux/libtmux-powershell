@@ -45,7 +45,10 @@ transactions. Cancellation cannot undo a command already sent to tmux.
 Print two values in order on a previously selected $server.
 
 ```powershell
-$server | LibTmux\Invoke-TmuxChain -Command @((LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')), (LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')))
+$commands = 'first', 'second' | ForEach-Object {
+    LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', $_)
+}
+$server | LibTmux\Invoke-TmuxChain -Command $commands
 ```
 
 ## PARAMETERS
