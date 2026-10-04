@@ -114,7 +114,13 @@ Use `RequireExisting` when planning must find one already running.
 
 <!-- example: workspace.03-plan -->
 ```powershell
-$workspacePlan = $workspace | Get-TmuxWorkspacePlan -Server $server -ExistingSession Error -ServerStartup CreateOrJoin -ErrorAction Stop
+$planOptions = @{
+    Server = $server
+    ExistingSession = 'Error'
+    ServerStartup = 'CreateOrJoin'
+    ErrorAction = 'Stop'
+}
+$workspacePlan = $workspace | Get-TmuxWorkspacePlan @planOptions
 ```
 
 Inspect the ordered actions before applying them. The default view shows each
