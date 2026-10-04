@@ -99,9 +99,10 @@ the new build:
 
 <!-- example: readme.install.import -->
 ```powershell
+$modules = $env:LIBTMUX_REVIEW_MODULE_ROOT
 Import-Module -Name @(
-    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux/0.1.0/LibTmux.psd1",
-    "$env:LIBTMUX_REVIEW_MODULE_ROOT/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
+    "$modules/LibTmux/0.1.0/LibTmux.psd1",
+    "$modules/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
 ) -ErrorAction Stop
 ```
 
