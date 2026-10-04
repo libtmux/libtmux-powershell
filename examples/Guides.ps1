@@ -298,9 +298,14 @@ $server | Invoke-TmuxChain -Command @($first, $second)
     } }
     'commands.control' = @{ Requires = @('server'); Code = {
 & {
-    $control = $server | Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+    $control = $server |
+        Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
     try {
-        $control | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', '#{session_name}')) -ErrorAction Stop
+        $command = New-TmuxCommand -Name 'display-message' -Arguments @(
+            '-p', '#{session_name}'
+        )
+        $control |
+            Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
     } finally {
         $control | Disconnect-TmuxControl -Confirm:$false
     }
