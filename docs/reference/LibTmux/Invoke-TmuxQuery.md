@@ -73,7 +73,9 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
 Keep the query result and its captured graph, including an empty selection.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxQuery -Query (LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }) -AsResult
+$query = LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Invoke-TmuxQuery -Query $query -AsResult
 ```
 
 ## PARAMETERS
