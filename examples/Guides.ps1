@@ -342,10 +342,15 @@ $session | Set-TmuxHook -Name 'alert-bell[7]' -Command $command -PassThru
     'environment.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru } }
     'environment.unset' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' } }
     'environment.mark-removed' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved } }
-    'workspace.01-load' = @{ Requires = @('workspacePath', 'projectRoot'); Code = {
+    'workspace.01-load' = @{
+        Requires = @('workspacePath', 'projectRoot'); Code = {
+$resolve = @{
+    BaseDirectory = Split-Path -LiteralPath $workspacePath
+    Variables = @{ PROJECT_ROOT = $projectRoot }
+}
 $workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
     Import-TmuxWorkspace -ErrorAction Stop |
-    Resolve-TmuxWorkspace -BaseDirectory (Split-Path -LiteralPath $workspacePath) -Variables @{ PROJECT_ROOT = $projectRoot } -ErrorAction Stop
+    Resolve-TmuxWorkspace @resolve -ErrorAction Stop
     } }
     'workspace.02-validate' = @{ Requires = @('workspace'); Code = {
 $workspace | Test-TmuxWorkspace -ErrorAction Stop
