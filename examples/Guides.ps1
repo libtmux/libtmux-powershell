@@ -53,7 +53,8 @@ $queryPlan = $query | Get-TmuxQueryPlan -DaemonVersion $captured.DaemonVersion
 $server | Invoke-TmuxQuery -Plan $queryPlan -AsResult -ErrorAction Stop
     } }
     'query.12-one' = @{ Requires = @('captured'); Code = {
-$captured.Sessions | Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
+$captured.Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
     } }
     'read.endpoint' = @{ Requires = @(); Code = {
 $server = LibTmux\New-TmuxServer `
