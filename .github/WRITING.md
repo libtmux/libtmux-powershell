@@ -110,7 +110,7 @@ Change it in all of them together.
   one after code in an example, unless the repository's example runner reads
   it there, as with an assertion marker.
 - **Break a long string at a word boundary,** never inside a tmux format
-  (`#{...}`) or an escape sequence.
+  (`#{...}`) or an escape sequence; the joined text stays the same.
 - **Continue a long command in a `console` block the way its shell does:**
   `\` after a `$ ` prompt, a backtick after `PS> `, one flag per continuation
   line.
@@ -120,7 +120,7 @@ Change it in all of them together.
 - **Output a test compares.** Wrapping it changes what the test expects.
 - **A block copied from a source file.** Fix the width in the source and run
   the sync command; never edit the copy.
-- **Marker lines, URLs, and error text** that tests or readers search for.
+- **Marker lines and URLs,** which tools and readers take whole.
 
 <!-- /shared:examples -->
 
