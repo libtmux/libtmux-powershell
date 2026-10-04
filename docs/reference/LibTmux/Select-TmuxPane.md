@@ -55,7 +55,10 @@ before mutation, use -ErrorAction Stop on every upstream acquisition.
 Capture the existing endpoint selected by $SocketPath, then select panes at least 80 columns wide.
 
 ```powershell
-(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Panes | LibTmux\Select-TmuxPane -Criteria @{ Width = @{ Ge = 80 } }
+$snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxSnapshot
+$snapshot.Panes |
+    LibTmux\Select-TmuxPane -Criteria @{ Width = @{ Ge = 80 } }
 ```
 
 ## PARAMETERS
