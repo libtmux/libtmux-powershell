@@ -311,10 +311,18 @@ $server | Invoke-TmuxChain -Command @($first, $second)
     }
 }
     } }
-    'layout.pane-size' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Width '40' -PassThru } }
-    'layout.select' = @{ Requires = @('window'); Code = { $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru } }
-    'layout.window-size' = @{ Requires = @('window'); Code = { $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru } }
-    'layout.zoom' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Zoom } }
+    'layout.pane-size' = @{ Requires = @('pane'); Code = {
+$pane | Set-TmuxPaneSize -Width '40' -PassThru
+    } }
+    'layout.select' = @{ Requires = @('window'); Code = {
+$window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru
+    } }
+    'layout.window-size' = @{ Requires = @('window'); Code = {
+$window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru
+    } }
+    'layout.zoom' = @{ Requires = @('pane'); Code = {
+$pane | Set-TmuxPaneSize -Zoom
+    } }
     'placement.01-link' = @{ Requires = @('window', 'session'); Code = {
 $window |
     New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false
@@ -323,25 +331,55 @@ $window |
 $window = $session | Get-TmuxWindow |
     Where-Object { $_.Id -eq $window.Id -and $_.Index -eq 5 }
     } }
-    'placement.03-move' = @{ Requires = @('window'); Code = { $window = $window | Move-TmuxWindow -Index 6 -PassThru -Confirm:$false } }
-    'placement.04-remove' = @{ Requires = @('window'); Code = { $window | Remove-TmuxWindowLink -Confirm:$false } }
-    'clients.read' = @{ Requires = @('server'); Code = { $server | Get-TmuxClient } }
-    'clients.refresh' = @{ Requires = @('client'); Code = { $client | Update-TmuxClient } }
-    'clients.attachment' = @{ Requires = @('client'); Code = { $client | Get-TmuxClientAttachment } }
-    'options.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxOption -Name 'status-keys' -IncludeInherited } }
-    'options.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxOption -Name '@project' -Value 'api' -PassThru } }
-    'options.remove' = @{ Requires = @('session'); Code = { $session | Remove-TmuxOption -Name '@scratch' } }
-    'hooks.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxHook -Name 'alert-bell' } }
+    'placement.03-move' = @{ Requires = @('window'); Code = {
+$window = $window | Move-TmuxWindow -Index 6 -PassThru -Confirm:$false
+    } }
+    'placement.04-remove' = @{ Requires = @('window'); Code = {
+$window | Remove-TmuxWindowLink -Confirm:$false
+    } }
+    'clients.read' = @{ Requires = @('server'); Code = {
+$server | Get-TmuxClient
+    } }
+    'clients.refresh' = @{ Requires = @('client'); Code = {
+$client | Update-TmuxClient
+    } }
+    'clients.attachment' = @{ Requires = @('client'); Code = {
+$client | Get-TmuxClientAttachment
+    } }
+    'options.read' = @{ Requires = @('session'); Code = {
+$session | Get-TmuxOption -Name 'status-keys' -IncludeInherited
+    } }
+    'options.set' = @{ Requires = @('session'); Code = {
+$session | Set-TmuxOption -Name '@project' -Value 'api' -PassThru
+    } }
+    'options.remove' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxOption -Name '@scratch'
+    } }
+    'hooks.read' = @{ Requires = @('session'); Code = {
+$session | Get-TmuxHook -Name 'alert-bell'
+    } }
     'hooks.set' = @{ Requires = @('session'); Code = {
 $command = 'display-message "build finished"'
 $session | Set-TmuxHook -Name 'alert-bell[7]' -Command $command -PassThru
     } }
-    'hooks.invoke' = @{ Requires = @('session'); Code = { $session | Invoke-TmuxHook -Name 'alert-bell' } }
-    'hooks.remove' = @{ Requires = @('session'); Code = { $session | Remove-TmuxHook -Name 'alert-bell[7]' } }
-    'environment.read' = @{ Requires = @('session'); Code = { $session | Get-TmuxEnvironment -Name 'APP_MODE' } }
-    'environment.set' = @{ Requires = @('session'); Code = { $session | Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru } }
-    'environment.unset' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' } }
-    'environment.mark-removed' = @{ Requires = @('session'); Code = { $session | Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved } }
+    'hooks.invoke' = @{ Requires = @('session'); Code = {
+$session | Invoke-TmuxHook -Name 'alert-bell'
+    } }
+    'hooks.remove' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxHook -Name 'alert-bell[7]'
+    } }
+    'environment.read' = @{ Requires = @('session'); Code = {
+$session | Get-TmuxEnvironment -Name 'APP_MODE'
+    } }
+    'environment.set' = @{ Requires = @('session'); Code = {
+$session | Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
+    } }
+    'environment.unset' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxEnvironment -Name 'APP_MODE'
+    } }
+    'environment.mark-removed' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved
+    } }
     'workspace.01-load' = @{
         Requires = @('workspacePath', 'projectRoot'); Code = {
 $resolve = @{
@@ -383,7 +421,8 @@ $workspaceResult = $workspacePlan |
     ConvertTo-TmuxWorkspaceYaml -ErrorAction Stop |
     Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
     } }
-    'workspace.08-edit' = @{ Requires = @('workspaceFile', 'editor', 'editorArguments'); Code = {
+    'workspace.08-edit' = @{
+        Requires = @('workspaceFile', 'editor', 'editorArguments'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
     $PSNativeCommandArgumentPassing = 'Standard'
@@ -475,7 +514,8 @@ windows:
       - shell_command: exec /bin/sh
 '@
     } }
-    'readme.workspace.02-plan' = @{ Requires = @('workspace', 'server'); Code = {
+    'readme.workspace.02-plan' = @{
+        Requires = @('workspace', 'server'); Code = {
 $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
     -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
     } }
@@ -498,10 +538,18 @@ $workspaceResult = & {
 $workspaceResult.Windows |
     Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
     } }
-    'capture.lines' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent } }
-    'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }
-    'capture.range' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4 } }
-    'capture.refresh' = @{ Requires = @('pane'); Code = { $currentPane = $pane | Update-TmuxPane } }
+    'capture.lines' = @{ Requires = @('pane'); Code = {
+$pane | Get-TmuxPaneContent
+    } }
+    'capture.history' = @{ Requires = @('pane'); Code = {
+$pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw
+    } }
+    'capture.range' = @{ Requires = @('pane'); Code = {
+$pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4
+    } }
+    'capture.refresh' = @{ Requires = @('pane'); Code = {
+$currentPane = $pane | Update-TmuxPane
+    } }
     'capture.raw-list' = @{ Requires = @('server'); Code = {
 $server | Invoke-TmuxCommand -Arguments @(
     'list-sessions', '-F', '#{session_name}'
@@ -527,22 +575,38 @@ $server | Invoke-TmuxCommand -Arguments @(
     }
 }
     } }
-    'capture.raw-preview' = @{ Requires = @('server'); Code = { $server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf } }
+    'capture.raw-preview' = @{ Requires = @('server'); Code = {
+$server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf
+    } }
     'create.session' = @{ Requires = @('server'); Code = {
 $session = $server |
     New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30
     } }
-    'create.window' = @{ Requires = @('session'); Code = { $window = $session | New-TmuxWindow -Name 'tools' -Index 5 -Activate } }
-    'create.split' = @{ Requires = @('pane'); Code = { $newPane = $pane | Split-TmuxPane -Horizontal -Before -Size 20 } }
-    'create.command' = @{ Requires = @('session'); Code = { $window = $session | New-TmuxWindow -Name 'shell' -Command 'exec /bin/sh' } }
+    'create.window' = @{ Requires = @('session'); Code = {
+$window = $session | New-TmuxWindow -Name 'tools' -Index 5 -Activate
+    } }
+    'create.split' = @{ Requires = @('pane'); Code = {
+$newPane = $pane | Split-TmuxPane -Horizontal -Before -Size 20
+    } }
+    'create.command' = @{ Requires = @('session'); Code = {
+$window = $session | New-TmuxWindow -Name 'shell' -Command 'exec /bin/sh'
+    } }
     'create.environment' = @{ Requires = @('session'); Code = {
 $window = $session | New-TmuxWindow -Environment @{
     APP_MODE = 'development'
     OPTIONAL = ''
 }
     } }
-    'remove.preview' = @{ Requires = @('session'); Code = { $session | Remove-TmuxSession -WhatIf } }
-    'remove.session' = @{ Requires = @('session'); Code = { $session | Remove-TmuxSession -Confirm:$false } }
-    'remove.window' = @{ Requires = @('window'); Code = { $window | Remove-TmuxWindow -Confirm:$false } }
-    'remove.pane' = @{ Requires = @('pane'); Code = { $pane | Remove-TmuxPane -Confirm:$false } }
+    'remove.preview' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxSession -WhatIf
+    } }
+    'remove.session' = @{ Requires = @('session'); Code = {
+$session | Remove-TmuxSession -Confirm:$false
+    } }
+    'remove.window' = @{ Requires = @('window'); Code = {
+$window | Remove-TmuxWindow -Confirm:$false
+    } }
+    'remove.pane' = @{ Requires = @('pane'); Code = {
+$pane | Remove-TmuxPane -Confirm:$false
+    } }
 }
