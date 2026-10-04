@@ -163,7 +163,8 @@ or silently construct a replacement plan when its preconditions are stale.
 
 <!-- example: workspace.06-apply -->
 ```powershell
-$workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+$workspaceResult = $workspacePlan |
+    Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
 ```
 
 `$workspaceResult.Session` and `.Windows` are native objects from the final
