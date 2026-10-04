@@ -23,8 +23,8 @@ for the implementation:
 | Default views | `LibTmux.Format.ps1xml` |
 
 The target baseline is PowerShell 7.4 with .NET 8 on Linux. The
-[macOS trial](workflows/macos-trial.yml) is advisory and does not establish
-support. Keep module, folder, and manifest casing consistent. Export cmdlets
+[macOS workflow](workflows/macos.yml) gates pull requests. Keep
+module, folder, and manifest casing consistent. Export cmdlets
 explicitly and do not export aliases that could shadow the `tmux` executable.
 Pin the bundled LibTmux dependency to an exact version when a project is added.
 

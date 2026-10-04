@@ -1,0 +1,108 @@
+# Builds the source-pinned installed packages that the macOS workflows test.
+# It is a reusable workflow so the gating lane and the stress run share one recipe.
+# CI rebuilds a unique .NET review version from a pinned commit and updates the
+# disposable checkout's locks. It does not prove committed unpublished archive bytes.
+name: powershell source-pinned packages
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: Review version of the shared .NET packages.
+        value: ${{ jobs.package.outputs.version }}
+
+permissions:
+  contents: read
+
+env:
+  CORE_REVISION: b4bb04967e319fc9460349e15725bce2cbbf23bf
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  package:
+    name: source-pinned installed packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: libtmux/libtmux-dotnet
+          ref: ${{ env.CORE_REVISION }}
+          path: core
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: core/global.json
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Choose a unique version for the pinned source
+        id: version
+        run: |
+          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
+          review_version="$(python3 eng/ci/review_dependencies.py version \
+            --run-id "${GITHUB_RUN_ID}" --attempt "${GITHUB_RUN_ATTEMPT}")"
+          echo "value=${review_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build and inspect the shared packages
+        env:
+          REVIEW_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          python3 core/eng/package_review.py \
+            --version "${REVIEW_VERSION}" \
+            --revision "${CORE_REVISION}" \
+            --output "${RUNNER_TEMP}/core-review"
+          jq -e --arg revision "${CORE_REVISION}" --arg version "${REVIEW_VERSION}" \
+            '.revision == $revision and .version == $version and .inspection == "passed"' \
+            "${RUNNER_TEMP}/core-review/provenance.json"
+
+      - name: Install official PowerShell 7.4.20 for packaging
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
+            "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
+
+      - name: Resolve and pack the reviewed dependencies
+        env:
+          REVIEW_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          python3 -m unittest discover -s eng/ci -p 'test_*.py'
+          python3 eng/ci/review_dependencies.py prepare \
+            --version "${REVIEW_VERSION}" \
+            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
+            -Restore -UpdateLock \
+            -CorePackageDirectory "${RUNNER_TEMP}/core-review" \
+            -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
+          python3 eng/ci/review_dependencies.py verify \
+            --version "${REVIEW_VERSION}" \
+            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
+          PSModulePath="${GITHUB_WORKSPACE}/build/Modules" \
+            "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Package.ps1 \
+            -DestinationPath "${RUNNER_TEMP}/port-package"
+          cp "${RUNNER_TEMP}/core-review/provenance.json" \
+            "${RUNNER_TEMP}/port-package/core-provenance.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-package
+          path: ${{ runner.temp }}/port-package/
+          if-no-files-found: error
+          retention-days: 7
