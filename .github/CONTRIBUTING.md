@@ -134,7 +134,8 @@ Create local `.nupkg` module artifacts using PSResourceGet 1.1.1, included
 with the baseline PowerShell installation. This does not publish them:
 
 ```console
-$ PSModulePath="$PWD/build/Modules" pwsh -NoLogo -NoProfile -File eng/Package.ps1 \
+$ PSModulePath="$PWD/build/Modules" \
+    pwsh -NoLogo -NoProfile -File eng/Package.ps1 \
     -DestinationPath artifacts/local-build
 ```
 
@@ -248,7 +249,8 @@ $ dotnet format src/LibTmux.PowerShell/LibTmux.PowerShell.csproj \
 ```
 
 ```console
-$ dotnet format src/LibTmux.Workspace.PowerShell/LibTmux.Workspace.PowerShell.csproj \
+$ dotnet format \
+    src/LibTmux.Workspace.PowerShell/LibTmux.Workspace.PowerShell.csproj \
     --verify-no-changes \
     --no-restore
 ```
