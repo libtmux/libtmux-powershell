@@ -202,5 +202,34 @@ class TerminalAttributeTests(unittest.TestCase):
             os.close(slave)
 
 
+class ControlClientDrainTests(unittest.TestCase):
+    def writer(self):
+        return subprocess.Popen([sys.executable, "-c",
+            "import os; data = memoryview(b'x' * 1048576)\nwhile data: data = data[os.write(1, data):]"],
+            stdout=subprocess.PIPE)
+
+    def test_unread_control_output_blocks_the_writer(self):
+        process = self.writer()
+        try:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                process.wait(timeout=0.3)
+        finally:
+            process.kill()
+            process.stdout.close()
+            process.wait()
+
+    def test_drained_control_output_lets_the_writer_finish(self):
+        process = self.writer()
+        try:
+            reader = attachment_pty.drain_until_eof(process.stdout.fileno())
+            self.assertEqual(process.wait(timeout=5), 0)
+            reader.join(timeout=2)
+            self.assertFalse(reader.is_alive())
+        finally:
+            if process.returncode is None:
+                process.kill()
+            process.stdout.close()
+
+
 if __name__ == "__main__":
     unittest.main()

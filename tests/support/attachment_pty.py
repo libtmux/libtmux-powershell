@@ -45,6 +45,21 @@ def terminal_attributes(master):
     return termios.tcgetattr(master)
 
 
+def drain_until_eof(fd):
+    # tmux stops reading a pane while every client attached to it is a control
+    # client with unread output, so a control client must be read continuously.
+    def drain():
+        try:
+            while os.read(fd, 8192):
+                pass
+        except OSError:
+            pass
+
+    reader = threading.Thread(target=drain, daemon=True)
+    reader.start()
+    return reader
+
+
 def stop_group(process):
     # Every long-lived child starts a fresh process group owned by this harness.
     # A reaped leader no longer pins its PID against reuse by another group.
@@ -300,7 +315,7 @@ def run(args):
         except BaseException as failure:
             cleanup_errors.append(f"{label}: {failure!r}")
 
-    sentinel = None
+    sentinel = sentinel_reader = None
     try:
         report["tmuxVersion"] = command("display-message", "-p", "#{version}").stdout.decode().strip()
         generation = command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip()
@@ -310,6 +325,7 @@ def run(args):
                                     stderr=subprocess.PIPE, start_new_session=True)
         owned.append(sentinel)
         receive(sentinel.stdout.fileno(), b"%end ", seconds=remaining(5))
+        sentinel_reader = drain_until_eof(sentinel.stdout.fileno())
 
         for mode in args.modes:
             case_started = time.monotonic()
@@ -426,6 +442,8 @@ def run(args):
         # A failed child cleanup must never suppress sentinel cleanup or the receipt.
         if sentinel is not None:
             cleanup("sentinel process group", lambda: stop_group(sentinel))
+            if sentinel_reader is not None:
+                sentinel_reader.join(timeout=1)
             for name in ("stdin", "stdout", "stderr"):
                 stream = getattr(sentinel, name)
                 if stream is not None:
