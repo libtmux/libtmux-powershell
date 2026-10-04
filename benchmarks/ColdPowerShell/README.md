@@ -13,19 +13,25 @@ installed-package smoke. The hash is read from the exact archive under test;
 the runner does not import product code from the source tree.
 
 ```powershell
-./benchmarks/ColdPowerShell/Tests.ps1 `
-    -PackageRoot artifacts/local-build `
-    -ExpectedPackageSha256 (Get-FileHash artifacts/local-build/LibTmux.0.1.0.nupkg -Algorithm SHA256).Hash
+$nupkg = 'artifacts/local-build/LibTmux.0.1.0.nupkg'
+$test = @{
+    PackageRoot = 'artifacts/local-build'
+    ExpectedPackageSha256 = (Get-FileHash $nupkg -Algorithm SHA256).Hash
+}
+./benchmarks/ColdPowerShell/Tests.ps1 @test
 ```
 
 Collect twenty timed fresh processes after one first observation and two
 untimed warmups. Choose an output path that does not exist yet.
 
 ```powershell
-./benchmarks/ColdPowerShell/Run.ps1 `
-    -PackageRoot artifacts/local-build `
-    -ExpectedPackageSha256 (Get-FileHash artifacts/local-build/LibTmux.0.1.0.nupkg -Algorithm SHA256).Hash `
-    -OutputPath artifacts/benchmarks/cold-powershell.json
+$nupkg = 'artifacts/local-build/LibTmux.0.1.0.nupkg'
+$run = @{
+    PackageRoot = 'artifacts/local-build'
+    ExpectedPackageSha256 = (Get-FileHash $nupkg -Algorithm SHA256).Hash
+    OutputPath = 'artifacts/benchmarks/cold-powershell.json'
+}
+./benchmarks/ColdPowerShell/Run.ps1 @run
 ```
 
 `-TmuxBinaryPath` selects the tmux executable. `-SampleRounds` defaults to
