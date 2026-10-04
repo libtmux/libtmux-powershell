@@ -436,6 +436,8 @@ default tmux server or sweep another port's temporary files.
 Record the actual tmux version when behavior depends on it. A passing subset
 does not establish support for an entire version range.
 
+macOS: see [MACOS_CI.md](MACOS_CI.md).
+
 ## Pull requests
 
 Keep one subject per pull request and one logical change per commit. Review
