@@ -27,19 +27,23 @@ enforces the example rules in WRITING.md. Configuration lives in
     line = "the exact line, as it appears in the file"
     reason = "why breaking it would make the example worse"
 
-It checks fenced code in ``markdown`` files (literal and ``code-block``
-blocks in a ``.rst`` one), every line of ``sources`` files, and the code
-inside doc comments of ``doc_comments`` files: fences, ``>>>`` doctests,
-and reST literal blocks in Python docstrings. Output is not checked:
-fences tagged ``text`` and the lines a ``console`` block prints. An
-untagged Markdown fence is code. A line that is only a URL (after an
+It checks code in ``markdown`` files (fences, indented blocks outside
+lists and ``<pre>`` blocks; literal and ``code-block`` blocks in a
+``.rst`` one), every line of ``sources`` files, and the code inside doc
+comments of ``doc_comments`` files: fences, ``>>>`` doctests, and reST
+literal blocks in Python docstrings. Output is not checked: fences
+tagged ``text`` and the lines a ``console`` block prints. An untagged
+Markdown fence is code, and a ``text`` fence that opens with a ``$ `` or
+``PS> `` prompt is a console session. A line that is only a URL (after an
 optional comment, list or quote marker) and a hidden line (a rustdoc
 ``# `` line, a doctest marked ``# doctest: +HIDE``) are skipped. Wide
 characters count as two columns; a tab advances to the next multiple of
 ``tab_width`` (default 4).
 
-``width`` must be 80, the shared rule. Every glob must match a tracked
-file and every exclusion a checked one; every exclusion and allow entry
+``width`` must be 80, the shared rule. Every key must be known, at the
+top level and inside each ``[[...]]`` entry, so a key written below a
+table header cannot be swallowed by that entry. Every glob must match a
+tracked file and every exclusion a checked one; every exclusion and allow entry
 must give a reason, and every allow entry must match a line. Every
 tracked file under a directory named ``examples`` must be checked or
 excluded, so a new example file cannot go unread.
@@ -94,6 +98,12 @@ KEYS = frozenset(
         "checker_digest",
     }
 )
+# Keys each [[table]] entry may hold.
+TABLE_KEYS = {
+    "exclude": frozenset({"glob", "reason"}),
+    "allow": frozenset({"path", "line", "reason"}),
+    "formatter_copies": frozenset({"copy", "root", "key"}),
+}
 GLOB_KEYS = ("markdown", "sources", "doc_comments")
 CODE_DIRECTIVES = frozenset({"code-block", "code", "code-cell", "sourcecode"})
 # gp-libs hides a doctest line carrying this directive from the rendered page.
@@ -475,8 +485,19 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     >>> mod = {"glob": "examples/go.mod", "reason": "module file"}
     >>> config_problems(dict(config, exclude=[mod]), files)
     []
+    >>> config["exclude"] = [dict(mod, doc_comments=["*.go"])]
+    >>> config_problems(config, files)[0].split(";")[0]
+    'unknown key in an [[exclude]] entry: doc_comments'
     """
     problems = [f"unknown key: {key}" for key in sorted(set(config) - KEYS)]
+    for table, keys in TABLE_KEYS.items():
+        for entry in config.get(table, []):
+            problems.extend(
+                f"unknown key in an [[{table}]] entry: {key}; TOML puts every "
+                "key below a [[...]] header into that entry, so top-level keys "
+                "go above the first one"
+                for key in sorted(set(entry) - keys if isinstance(entry, dict) else ())
+            )
     if config.get("width", 80) != 80:
         problems.append(f"width is {config['width']}; the shared rule is 80")
     globs = [(key, pattern) for key in GLOB_KEYS for pattern in config.get(key, [])]
@@ -625,6 +646,26 @@ def slug(heading: str) -> str:
     return text.replace(" ", "-")
 
 
+def unfenced(text: str) -> str:
+    r"""Return Markdown text without its fenced blocks.
+
+    A ``# comment`` inside a shell fence is not a heading.
+
+    >>> unfenced("## A\n```sh\n# not a heading\n```\ntext\n")
+    '## A\ntext\n'
+    """
+    kept, fence = [], ""
+    for line in text.splitlines(keepends=True):
+        mark = FENCE.match(line.rstrip("\n"))
+        if mark and not fence:
+            fence = mark["mark"]
+        elif mark and mark["mark"].startswith(fence) and not mark["info"].strip():
+            fence = ""
+        elif not fence:
+            kept.append(line)
+    return "".join(kept)
+
+
 def routing_problems(root: pathlib.Path) -> list[str]:
     """Return a problem unless AGENTS.md links the shared section's heading.
 
@@ -635,7 +676,7 @@ def routing_problems(root: pathlib.Path) -> list[str]:
     if writing is None:
         return []
     text = writing.read_text(encoding="utf-8")
-    above = text[: text.index("<!-- shared:examples -->")]
+    above = unfenced(text[: text.index("<!-- shared:examples -->")])
     headings = [m[2] for m in HEADING.finditer(above) if len(m[1]) <= 2]
     if not headings:
         return [f"{writing.name}: no heading above the shared section"]
@@ -658,7 +699,7 @@ def port_block_problems(text: str) -> list[str]:
     >>> port_block_problems("## Examples\n")
     ['no "### In this repository" block']
     """
-    match = PORT_BLOCK.search(text)
+    match = PORT_BLOCK.search(unfenced(text))
     if match is None:
         return ['no "### In this repository" block']
     lines = match["body"].splitlines()
@@ -706,8 +747,9 @@ def digest_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     return [
         f"{names[name]} has digest {actual[name][:12]}, but {name}_digest records "
         f"{config[name + '_digest'][:12]}. Every libtmux port carries the same "
-        f"file: change it in each repository listed in {PORTS}, then run "
-        f"`python3 {script} --digest` in each and record both lines in its config"
+        f"file: change it in each repository listed in {PORTS}, then run the "
+        f"checker with --digest in each (here `python3 {script} --digest`) and "
+        "record both lines in that repository's config"
         for name in ("checker", "shared")
         if name + "_digest" in config and actual[name] != config[name + "_digest"]
     ]
@@ -765,6 +807,20 @@ def self_test() -> int:
         expect(bool(routing_problems(root)), "a missing AGENTS.md link passed")
         (root / "AGENTS.md").write_text("Code examples: WRITING.md#examples\n")
         expect(not routing_problems(root), "a linked section was reported")
+        fenced = "## Examples\n\n```sh\n# a comment\n```\n\n" + shared
+        (root / "WRITING.md").write_text(fenced)
+        expect(not routing_problems(root), "a fenced comment read as a heading")
+        nested = tomllib.loads(
+            'allow_ceiling = 0\n[[exclude]]\nglob = "a"\nreason = "r"\n'
+            'doc_comments = ["a"]\n'
+        )
+        nested["markdown"] = ["a"]
+        expect(
+            any("doc_comments" in p for p in config_problems(nested, ["a"])),
+            "a key nested under [[exclude]] passed",
+        )
+        del nested["exclude"][0]["doc_comments"]
+        expect(not config_problems(nested, ["a"]), "a clean [[exclude]] was reported")
         entry = {"path": "a", "line": "b", "reason": "c"}
         ceiling: dict[str, t.Any] = {"allow": [entry, entry], "allow_ceiling": 1}
         expect(bool(config_problems(ceiling, ["a"])), "a grown allow list passed")
@@ -837,11 +893,17 @@ def main(argv: list[str] | None = None) -> int:
         if findings:
             print(
                 "Fix a wide line by changing the code, not the line breaks: "
-                f"{rules}#reaching-80"
+                f"{rules}#reaching-80. If no change keeps the example clear, "
+                f"add the line to [[allow]] in {CONFIG} with a reason and raise "
+                "allow_ceiling."
             )
         if stale:
             print("Delete each stale allow entry and lower allow_ceiling to match.")
         return 1
+    read = [g for key in GLOB_KEYS for g in config.get(key, [])]
+    skip = [entry["glob"] for entry in config.get("exclude", [])]
+    count = sum(matches(path, read) and not matches(path, skip) for path in files)
+    print(f"{count} files checked; no example is over {config.get('width', 80)}.")
     return 0
 
 
