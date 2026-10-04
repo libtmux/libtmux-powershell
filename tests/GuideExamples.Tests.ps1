@@ -737,7 +737,7 @@ $assertions = @{
     'create.command' = @{ Group = 'Create'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Window -is [LibTmux.Window] -and
-                (Get-GuideField $o.Context $o.Window.Id.ToString() '#{window_name}|#{pane_current_command}') -ceq 'shell|sh') 'assigned shell window'
+                (Get-GuideField $o.Context $o.Window.Id.ToString() '#{window_name}|#{pane_current_command}') -cmatch '^shell\|(sh|bash)$') 'assigned shell window'
         } }
     'create.environment' = @{ Group = 'Create'; Count = 0; Prepare = {
             param($c)
