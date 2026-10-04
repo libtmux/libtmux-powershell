@@ -22,34 +22,31 @@ function New-CaptureSignallingPane {
         Justification = 'Creates only fixture-owned test resources; confirmation would break deterministic setup.')]
     param($Fixture, [string] $Name, [string] $Program)
     $captureSignal = 'pane-text-baseline-' + [Guid]::NewGuid().ToString('N')
-    $wrapper = Join-Path $Fixture.DirectoryPath ('tmux-observer-' + [Guid]::NewGuid().ToString('N'))
-    $captureFile = "$wrapper.capture"
+    $captureScript = Join-Path $Fixture.DirectoryPath ('capture-signal-' + [Guid]::NewGuid().ToString('N') + '.sh')
+    $captureFile = "$captureScript.capture"
     $tmux = "'" + $Fixture.TmuxPath.Replace("'", "'\''") + "'"
     $socket = "'" + $Fixture.SocketPath.Replace("'", "'\''") + "'"
     $capturePath = "'" + $captureFile.Replace("'", "'\''") + "'"
     @"
 #!/bin/sh
-capturing=false
-for argument in "`$@"; do
-    if [ "`$argument" = capture-pane ]; then capturing=true; fi
-done
-$tmux "`$@"
-status=`$?
-if [ "`$capturing" = true ]; then
-    printf 'captured\n' >> $capturePath
+if [ ! -e $capturePath ]; then
+    printf 'captured\n' > $capturePath
     $tmux -S $socket wait-for -S '$captureSignal'
 fi
-exit "`$status"
-"@ | Set-Content -LiteralPath $wrapper
-    [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor
-        [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+"@ | Set-Content -LiteralPath $captureScript
 
     $programFile = Join-Path $Fixture.DirectoryPath ($Name + '.sh')
     [IO.File]::WriteAllText($programFile, $Program)
     $quotedProgram = "'" + $programFile.Replace("'", "'\''") + "'"
     $null = Invoke-OwnedTmux $Fixture -Arguments @('new-session', '-d', '-s', $Name,
         '-x', '80', '-y', '24', "/bin/sh $quotedProgram")
-    $server = LibTmux\New-TmuxServer -SocketPath $Fixture.SocketPath -TmuxBinaryPath $wrapper
+    $quotedCapture = "'" + $captureScript.Replace("'", "'\''") + "'"
+    $captureCommand = "/bin/sh $quotedCapture"
+    $hook = 'run-shell "' + $captureCommand.Replace('\', '\\').Replace('"', '\"') + '"'
+    # The native hook observes capture over either process or control transport.
+    $null = Invoke-OwnedTmux $Fixture -Arguments @('set-hook', '-t', $Name,
+        'after-capture-pane', $hook)
+    $server = LibTmux\New-TmuxServer -SocketPath $Fixture.SocketPath -TmuxBinaryPath $Fixture.TmuxPath
     $pane = $server | LibTmux\Get-TmuxSession -Name $Name | LibTmux\Get-TmuxPane
     Assert-PaneTextWait ($pane -is [LibTmux.Pane]) "could not select native pane for $Name"
     [pscustomobject]@{ Pane = $pane; Signal = $captureSignal; CaptureFile = $captureFile }
@@ -130,9 +127,11 @@ Invoke-WithOwnedTmux {
         'literal matching lost its default case-insensitive behavior'
     $caseSensitive = $present | LibTmux\Wait-TmuxPaneText -Pattern "present-$marker" `
         -SimpleMatch -CaseSensitive -Timeout 0.025 -Confirm:$false -ErrorAction Stop
+    # .NET timers use whole milliseconds; stopwatch measurements retain fractions.
+    $timerResolution = [TimeSpan]::FromMilliseconds(1)
     Assert-PaneTextWait ($caseSensitive.Outcome -eq [LibTmux.PaneWaitOutcome]::TimedOut -and
         $caseSensitive.EffectiveTimeout -eq [TimeSpan]::FromMilliseconds(25) -and
-        $caseSensitive.Elapsed -ge $caseSensitive.EffectiveTimeout) `
+        ($caseSensitive.Elapsed + $timerResolution) -ge $caseSensitive.EffectiveTimeout) `
         'CaseSensitive matched differently cased text or ended before its budget'
     $stoppedAtEntry = $present | LibTmux\Wait-TmuxPaneText -Pattern "^PRESENT-$marker`$" `
         -StopPattern "^PRESENT-$marker`$" -Timeout 1 -Confirm:$false -ErrorAction Stop
@@ -226,7 +225,7 @@ Invoke-WithOwnedTmux {
     Assert-PaneTextWait ($timedOut.Outcome -eq [LibTmux.PaneWaitOutcome]::TimedOut -and
         $timedOut.PaneId -eq $quiet.Id -and
         $timedOut.EffectiveTimeout -eq [TimeSpan]::FromMilliseconds(25) -and
-        $timedOut.Elapsed -ge $timedOut.EffectiveTimeout) 'timeout lost its native budget or ended early'
+        ($timedOut.Elapsed + $timerResolution) -ge $timedOut.EffectiveTimeout) 'timeout lost its native budget or ended early'
     Assert-NoObservationClient $server 'timed-out wait'
 
     $cancelProgram = "IFS= read -r trigger || exit 1`nprintf 'CANCEL-$marker\n'`nexec /bin/cat`n"
