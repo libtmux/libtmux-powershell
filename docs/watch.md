@@ -34,24 +34,32 @@ server is reachable. The default tmux server is untouched.
 & {
     $ErrorActionPreference = 'Stop'
     Import-Module LibTmux
-    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N'))
-    $null = New-Item -ItemType Directory -Path $socketDirectory -ErrorAction Stop
-    $ownerOnly = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute
+    $name = 'libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N')
+    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) $name
+    $null = New-Item $socketDirectory -ItemType Directory -ErrorAction Stop
+    $ownerOnly = [IO.UnixFileMode]::UserRead -bor
+        [IO.UnixFileMode]::UserWrite -bor
+        [IO.UnixFileMode]::UserExecute
     [IO.File]::SetUnixFileMode($socketDirectory, $ownerOnly)
     $socketPath = Join-Path $socketDirectory 'socket'
-    $server = New-TmuxServer -SocketPath $socketPath -ConfigurationFile /dev/null
+    $options = @{ SocketPath = $socketPath; ConfigurationFile = '/dev/null' }
+    $server = New-TmuxServer @options
     $session = $control = $job = $null
     try {
         $session = $server | New-TmuxSession `
             -Name watch-demo -WindowName before -Command 'exec /bin/cat'
-        $control = $server | Connect-TmuxControl -Target $session.Name -ErrorAction Stop
+        $control = $server |
+            Connect-TmuxControl -Target $session.Name -ErrorAction Stop
         $job = Start-ThreadJob -ScriptBlock {
             Import-Module LibTmux
-            $using:control | Watch-TmuxEvent -MaxEvents 16 -MaxOutputBytes 1048576 |
+            $using:control |
+                Watch-TmuxEvent -MaxEvents 16 -MaxOutputBytes 1MB |
                 Where-Object {
                     $_ -is [LibTmux.TmuxNotificationEvent] -and
-                    $_.Name -ceq 'window-renamed' -and $_.Arguments -ccontains 'after'
-                } | Select-Object -First 1
+                    $_.Name -ceq 'window-renamed' -and
+                    $_.Arguments -ccontains 'after'
+                } |
+                Select-Object -First 1
         }
         $null = $server | Invoke-TmuxCommand -Arguments @(
             'rename-window', '-t', 'watch-demo:0', 'after'
@@ -72,7 +80,9 @@ server is reachable. The default tmux server is untouched.
             }
         } finally {
             try {
-                if ($control) { $control | Disconnect-TmuxControl -Confirm:$false }
+                if ($control) {
+                    $control | Disconnect-TmuxControl -Confirm:$false
+                }
             } finally {
                 if ($session) { $session | Remove-TmuxSession -Confirm:$false }
                 if ($session -or -not (Test-Path -LiteralPath $socketPath)) {
