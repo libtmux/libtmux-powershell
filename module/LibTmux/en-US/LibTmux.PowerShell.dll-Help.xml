@@ -7832,7 +7832,10 @@ cardinality on an input stream that never completes.</maml:para>
           <maml:para>Capture the existing endpoint selected by $SocketPath, then select detached sessions.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Sessions | LibTmux\Select-TmuxSession -Criteria @{ Attached = $false }
+$snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxSnapshot
+$snapshot.Sessions |
+    LibTmux\Select-TmuxSession -Criteria @{ Attached = $false }
 ```</maml:para>
         </maml:introduction>
         <dev:code />
