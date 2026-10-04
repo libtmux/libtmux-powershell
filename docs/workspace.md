@@ -283,17 +283,24 @@ windows:
     try {
         $result = $plan | Invoke-TmuxWorkspace -Confirm:$false
         $pane = $result.Windows[0].Panes[0]
-        $pending = $pane | Wait-TmuxPaneText `
-            -Pattern "printf '\nreview %s\n' complete" -SimpleMatch -Timeout 10 -Confirm:$false
+        $typed = "printf '\nreview %s\n' complete"
+        $wait = @{ Timeout = 10; Confirm = $false }
+        $pending = $pane |
+            Wait-TmuxPaneText -Pattern $typed -SimpleMatch @wait
         if ($pending.Outcome -notin 'PresentAtEntry', 'Matched') {
             throw "Pending input wait ended with $($pending.Outcome)."
         }
         $pane | Send-TmuxKey -Key Enter -Confirm:$false
-        $completion = $pane | Wait-TmuxPaneText -Pattern '^review complete$' -Timeout 10 -Confirm:$false
+        $completion = $pane |
+            Wait-TmuxPaneText -Pattern '^review complete$' @wait
         if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
             throw "Pending command wait ended with $($completion.Outcome)."
         }
-        [pscustomobject]@{ Pending = $pending.Tail -join "`n"; Completion = $completion; Plan = $plan }
+        [pscustomobject]@{
+            Pending = $pending.Tail -join "`n"
+            Completion = $completion
+            Plan = $plan
+        }
     } finally {
         if ($result) { $result.Session | Remove-TmuxSession -Confirm:$false }
     }
