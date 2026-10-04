@@ -4144,7 +4144,8 @@ while that command may still be active. A borrowed server is never removed.</mam
 nonzero status without treating it as an operation failure:</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$pane | LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+$pane |
+    LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
 ```</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>The result has `ExitStatus = 7` and `TimedOut = False`.</maml:para>

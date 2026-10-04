@@ -58,7 +58,8 @@ Given a native `$pane` running `/bin/sh` on an endpoint you own, inspect a
 nonzero status without treating it as an operation failure:
 
 ```powershell
-$pane | LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+$pane |
+    LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
 ```
 
 The result has `ExitStatus = 7` and `TimedOut = False`.
