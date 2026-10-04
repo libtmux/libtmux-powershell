@@ -125,7 +125,7 @@ PORT_LABELS = (
     "- **Compared output and copied blocks:**",
 )
 # Where every port lists its copy, so a digest change reaches all of them.
-PORTS = "PORTS in scripts/check_shared_examples.py of libtmux/docs"
+PORTS = "PORTS in libtmux/docs scripts/check_shared_examples.py"
 
 
 def fence_tag(info: str) -> str:
@@ -210,7 +210,15 @@ def open_quote(line: str, quote: str | None) -> str | None:
     return quote
 
 
-def markdown_lines(text: str) -> list[tuple[int, str]]:
+LIST_ITEM = re.compile(r"^\s*([-*+]|\d+[.)])\s")
+
+
+def indent_code(line: str) -> bool:
+    """Return whether a Markdown line is indented far enough to be code."""
+    return line.startswith(("    ", "\t"))
+
+
+def markdown_lines(text: str, indented: bool = True) -> list[tuple[int, str]]:
     r"""Return the code lines of the fences a reader runs or copies.
 
     Output fences are skipped, and so are the lines a ``console`` block
@@ -236,21 +244,58 @@ def markdown_lines(text: str) -> list[tuple[int, str]]:
     >>> quoted = "```console\n$ julia -e '\n    using Pkg'\nok\n```"
     >>> [line for _, line in markdown_lines(quoted)]
     ["$ julia -e '", "    using Pkg'"]
+
+    A ``text`` fence that opens with a prompt is a console session, and an
+    indented code block or a ``<pre>`` block outside a list is code:
+
+    >>> prompted = "```text\n$ ls -l\ntotal 0\n```"
+    >>> [line for _, line in markdown_lines(prompted)]
+    ['$ ls -l']
+    >>> page = "Before:\n\n    new Server()\n\n- item\n\n    more of the item"
+    >>> [line for _, line in markdown_lines(page)]
+    ['    new Server()']
+    >>> [line for _, line in markdown_lines("<pre><code>run()\n</code></pre>")]
+    ['<pre><code>run()', '</code></pre>']
     """
     found: list[tuple[int, str]] = []
     fence: tuple[str, str] | None = None
+    first = False
     continued = False
     quote: str | None = None
+    blank, in_list, in_block, in_pre = True, False, False, False
     for number, line in enumerate(text.splitlines(), 1):
         match = FENCE.match(line)
+        if fence is None and match:
+            fence = (match["mark"], fence_tag(match["info"]))
+            first, continued, in_block = True, False, False
+            continue
         if fence is None:
-            if match:
-                fence = (match["mark"], fence_tag(match["info"]))
-                continued = False
+            if not indented:
+                continue
+            stripped = line.strip()
+            if in_pre or stripped.startswith("<pre"):
+                found.append((number, line))
+                in_pre = "</pre>" not in line
+            elif not stripped:
+                blank = True
+                continue
+            elif LIST_ITEM.match(line):
+                in_list, in_block = True, False
+            elif indent_code(line) and not in_list and (blank or in_block):
+                found.append((number, line))
+                in_block = True
+            else:
+                in_list = in_list and line.startswith((" ", "\t"))
+                in_block = False
+            blank = False
             continue
         if match and match["mark"].startswith(fence[0]) and not match["info"].strip():
             fence = None
             continue
+        if first and line.strip():
+            first = False
+            if fence[1] in OUTPUT_TAGS and line.lstrip().startswith(("$ ", "PS> ")):
+                fence = (fence[0], "console")
         tag = fence[1]
         if tag in OUTPUT_TAGS:
             continue
@@ -325,7 +370,7 @@ def doc_comment_lines(text: str, suffix: str) -> list[tuple[int, str]]:
     ['//\tpane.Run(ctx)']
     """
     if suffix == ".jl":
-        return markdown_lines(text)
+        return markdown_lines(text, indented=False)
     if suffix == ".py":
         doctests = [
             (number, line)
@@ -656,11 +701,13 @@ def digest_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     """
     actual = dict(line.split(" ", 1) for line in digests(root))
     names = {"checker": "this checker", "shared": "WRITING.md's shared section"}
+    here, top = pathlib.Path(__file__).resolve(), root.resolve()
+    script = here.relative_to(top) if here.is_relative_to(top) else here.name
     return [
         f"{names[name]} has digest {actual[name][:12]}, but {name}_digest records "
-        f"{config[name + '_digest'][:12]}. It is the same file in every libtmux "
-        f"port: make the change in each port that {PORTS} names, then record the "
-        "new --digest output in every port's config"
+        f"{config[name + '_digest'][:12]}. Every libtmux port carries the same "
+        f"file: change it in each repository listed in {PORTS}, then run "
+        f"`python3 {script} --digest` in each and record both lines in its config"
         for name in ("checker", "shared")
         if name + "_digest" in config and actual[name] != config[name + "_digest"]
     ]
@@ -785,9 +832,15 @@ def main(argv: list[str] | None = None) -> int:
         rules = writing.relative_to(root).as_posix() if writing else "WRITING.md"
         print(
             f"{len(problems)} config problems, {len(findings)} wide lines, "
-            f"{len(stale)} stale allow entries. Fix a wide line by changing the "
-            f"code, not the line breaks: {rules}#reaching-80"
+            f"{len(stale)} stale allow entries."
         )
+        if findings:
+            print(
+                "Fix a wide line by changing the code, not the line breaks: "
+                f"{rules}#reaching-80"
+            )
+        if stale:
+            print("Delete each stale allow entry and lower allow_ceiling to match.")
         return 1
     return 0
 
