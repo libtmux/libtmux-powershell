@@ -18,7 +18,9 @@ survive chaining.
 
 <!-- example: commands.chain -->
 ```powershell
-$server | Invoke-TmuxChain -Command @((New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')), (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')))
+$first = New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'first')
+$second = New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')
+$server | Invoke-TmuxChain -Command @($first, $second)
 ```
 
 A failure stops later commands, but leaves earlier mutations in place.
