@@ -162,13 +162,34 @@ function Test-OwnedTmuxSocketReady {
     return $true
 }
 
+# The signal completes when the daemon creates its socket; then the socket must
+# accept a connection and name the owned daemon. The bound only stops a hang.
+function Wait-OwnedTmuxSocketReady {
+    param(
+        $Fixture,
+        [System.Threading.Tasks.Task] $Signal,
+        [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
+        [TimeSpan] $HangGuard = [TimeSpan]::FromSeconds(1)
+    )
+
+    $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
+        $Signal, $Fixture.ServerProcess.WaitForExitAsync()))
+    $null = $ready.WaitAsync($HangGuard, $CancellationToken).GetAwaiter().GetResult()
+    if ($Fixture.ServerProcess.HasExited) { return }
+    if (-not [LibTmux.Testing.SocketCreatedSignal]::WaitListening($Fixture.SocketPath, $Fixture.ServerProcess) -or
+        -not (Test-OwnedTmuxSocketReady $Fixture)) {
+        throw [System.TimeoutException]::new('The owned tmux socket did not accept the owned daemon.')
+    }
+}
+
 function New-OwnedTmuxFixture {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only explicitly owned test resources; confirmation would prevent deterministic setup.')]
     [CmdletBinding()]
     param(
         [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
         [string] $TmuxPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
-        [System.Threading.Tasks.Task] $SocketReadyTask
+        [System.Threading.Tasks.Task] $SocketReadyTask,
+        [TimeSpan] $SocketReadyTimeout = [TimeSpan]::FromSeconds(1)
     )
 
     if ($CancellationToken.IsCancellationRequested) {
@@ -209,20 +230,8 @@ function New-OwnedTmuxFixture {
         $fixture.ServerError = $fixture.ServerProcess.StandardError.ReadToEndAsync()
         # Subscribe before startup so a fast socket creation cannot lose its signal.
         $socketSignal = if ($SocketReadyTask) { $SocketReadyTask } else { $signal.Ready }
-        $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
-            $socketSignal, $fixture.ServerProcess.WaitForExitAsync()))
         $setupStage = 'socket readiness'
-        try {
-            $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(100), $CancellationToken).GetAwaiter().GetResult()
-        } catch [TimeoutException] {
-            if (-not (Test-OwnedTmuxSocketReady $fixture)) {
-                try {
-                    $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(900), $CancellationToken).GetAwaiter().GetResult()
-                } catch [TimeoutException] {
-                    if (-not (Test-OwnedTmuxSocketReady $fixture)) { throw }
-                }
-            }
-        }
+        Wait-OwnedTmuxSocketReady $fixture $socketSignal $CancellationToken $SocketReadyTimeout
         if ($fixture.ServerProcess.HasExited) {
             throw "Owned tmux server exited before socket readiness ($($fixture.ServerProcess.ExitCode))."
         }

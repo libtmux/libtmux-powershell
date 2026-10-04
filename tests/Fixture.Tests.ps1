@@ -239,18 +239,21 @@ foreach ($badExecutable in @('/bin/false', '/nonexistent-libtmux-powershell')) {
     Assert-CleanedUp $bootstrapState
 }
 
-# Integration: a real owned socket must become usable even when its watcher
-# never reports creation, as observed on macOS.
-$missedSignal = [System.Threading.Tasks.TaskCompletionSource[bool]]::new()
-$missedFixture = New-OwnedTmuxFixture -SocketReadyTask $missedSignal.Task
+# Integration: the socket watch must report a Unix socket created by bind(),
+# which an FSEvents directory watch never does on macOS.
+$watchDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $watchDirectory
+$watch = [LibTmux.Testing.SocketCreatedSignal]::new($watchDirectory)
+$bound = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix,
+    [Net.Sockets.SocketType]::Stream, [Net.Sockets.ProtocolType]::Unspecified)
 try {
-    $identity = Invoke-OwnedTmux $missedFixture -Arguments @('-N', 'display-message', '-p', '#{pid}')
-    Assert-True ([int] $identity.StdOut.Trim() -eq $missedFixture.ServerPid) `
-        'A silent socket watcher did not retain the owned daemon identity.'
+    $bound.Bind([Net.Sockets.UnixDomainSocketEndPoint]::new((Join-Path $watchDirectory 'socket')))
+    Assert-True ($watch.Ready.Wait(100) -and $watch.CreatedEvents -eq 1) 'The socket watch did not report a bound Unix socket.'
 } finally {
-    Remove-OwnedTmuxFixture $missedFixture
+    $bound.Dispose()
+    $watch.Dispose()
+    Remove-Item -LiteralPath $watchDirectory -Recurse -Force
 }
-Assert-CleanedUp $missedFixture
 
 # Integration: a live owned daemon without a socket must retain timeout diagnostics.
 $fakeDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
@@ -268,7 +271,7 @@ exit 9
     [IO.File]::SetUnixFileMode($fakeTmux, [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     $readinessFailure = $null
-    try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+    try { New-OwnedTmuxFixture -TmuxPath $fakeTmux -SocketReadyTimeout ([TimeSpan]::FromMilliseconds(50)) | Out-Null }
     catch { $readinessFailure = $_.Exception }
     Assert-True ($readinessFailure -is [TimeoutException]) 'Missing socket did not preserve the timeout.'
     Assert-True ($readinessFailure.InnerException -is [TimeoutException]) 'Readiness diagnostics replaced the original timeout.'
@@ -283,7 +286,7 @@ exit 9
     try {
         Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value { throw 'injected diagnostic failure' }
         $diagnosticFailure = $null
-        try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+        try { New-OwnedTmuxFixture -TmuxPath $fakeTmux -SocketReadyTimeout ([TimeSpan]::FromMilliseconds(50)) | Out-Null }
         catch { $diagnosticFailure = $_.Exception }
         Assert-True ($diagnosticFailure -is [TimeoutException] -and
             $diagnosticFailure.InnerException -is [TimeoutException]) 'A failed diagnostic replaced the readiness timeout.'
