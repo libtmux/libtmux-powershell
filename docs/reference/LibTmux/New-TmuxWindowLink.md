@@ -48,7 +48,8 @@ Link the previously selected $window into $guest at index 5 without selecting
 it. Both handles must come from the same tmux server generation.
 
 ```powershell
-$window | LibTmux\New-TmuxWindowLink -Session $guest -Index 5 -NoSelect -Confirm:$false
+$link = @{ Session = $guest; Index = 5; NoSelect = $true; Confirm = $false }
+$window | LibTmux\New-TmuxWindowLink @link
 ```
 
 ## PARAMETERS
