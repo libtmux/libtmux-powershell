@@ -56,7 +56,12 @@ layouts, hooks and configuration can still cause application failures.
 Plan a workspace at an explicit socket without creating its session.
 
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{"session_name":"development","windows":[{"window_name":"editor"}]}' | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server (LibTmux\New-TmuxServer -SocketPath $SocketPath)
+$endpoint = LibTmux\New-TmuxServer -SocketPath $SocketPath
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+'@ | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $endpoint
 ```
 
 ## PARAMETERS
