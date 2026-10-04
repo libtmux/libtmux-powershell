@@ -25,7 +25,7 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 
 [Install](#install-from-source) · [Object graph](#create-and-read-an-object-graph) ·
 [Run to completion](#run-a-command-to-completion) ·
-[Send and capture](#send-a-command-and-capture-its-output) ·
+[Service readiness](#wait-for-service-readiness) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
 [MCP](docs/mcp.md#discover-before-calling) ·
 [Compatibility](docs/compatibility.md) ·
@@ -69,7 +69,7 @@ $ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
 ```
 
 The bootstrap clones this committed revision and the
-[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/55a3f4180f3ff48d54e62cb567cd245878ea2f4a),
+[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/6fc8fc25ad96627a8ebb341741c9440060bca334),
 builds a unique local package version, inspects its archives, and checks the
 disposable lockfiles. It also packs both PowerShell modules, verifies their
 archive hashes, and tests extraction, both import orders and package-manager
@@ -89,6 +89,9 @@ directory, use the path printed by the bootstrap as the value of
 
 ```console
 $ review="$PWD/../libtmux-powershell-review"
+```
+
+```console
 $ LIBTMUX_REVIEW_MODULE_ROOT="$review/port/build/Modules" \
     pwsh \
     -NoLogo \
@@ -237,46 +240,48 @@ a result, not a tmux error. On timeout, the command may still be running, so
 the result has no exit status. See [command completion](docs/input.md#run-a-command-to-completion)
 for concurrency and output behavior.
 
-## Send a command and capture its output
+## Wait for service readiness
 
-Sending text means tmux accepted the keys; it does not mean the shell finished.
-This example uses a unique tmux channel. The shell signals it after printing,
-so capture starts only when the command has reached that point.
+With Python 3 on `PATH`, start an HTTP server on an available loopback port.
+Use the private `$server` above, wait for the application's readiness line,
+then make an HTTP request to check that it responds. The session's cleanup
+also stops the server process:
 
-<!-- example: readme.input -->
+<!-- example: input.http-ready -->
 ```powershell
 & {
     $ErrorActionPreference = 'Stop'
-    $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
-    $binary = $server.ConnectionOptions.TmuxBinaryPath
-    $tmux = (Get-Command $binary -CommandType Application |
-        Select-Object -First 1).Source
-    $selector = if ($server.ConnectionOptions.SocketPath) {
-        "-S '{0}'" -f $server.ConnectionOptions.SocketPath.Replace("'", "'\''")
-    } elseif ($server.ConnectionOptions.SocketName) {
-        "-L '{0}'" -f $server.ConnectionOptions.SocketName.Replace("'", "'\''")
-    } else { '' }
-    $quoted = $tmux.Replace("'", "'\''")
-    $signal = "'{0}' {1} wait-for -S '{2}'" -f $quoted, $selector, $ready
-    $session = $server |
-        New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
+    $session = $server | New-TmuxSession `
+        -Name ('http-' + [Guid]::NewGuid().ToString('N')) `
+        -Command 'exec python3 -u -m http.server 0 --bind 127.0.0.1'
     try {
         $pane = $session | Get-TmuxPane
-        $text = 'printf "\nhello from PowerShell\n"; ' + $signal
-        $pane | Send-TmuxText -Text $text -Enter
-        $null = $server | Wait-TmuxChannel -Channel $ready -Timeout 10
-        $pane | Get-TmuxPaneContent
+        $ready = $pane | Wait-TmuxPaneText `
+            -Pattern '^Serving HTTP on 127\.0\.0\.1 port [0-9]+' `
+            -CaseSensitive -Timeout 10 -TailLines 4 -Confirm:$false
+        if ($ready.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "HTTP readiness ended with $($ready.Outcome)."
+        }
+        $tail = $ready.Tail -join "`n"
+        $port = [regex]::Match($tail, 'port ([0-9]+)').Groups[1].Value
+        $uri = "http://127.0.0.1:$port/"
+        $response = Invoke-WebRequest -Uri $uri -TimeoutSec 5 -NoProxy
+        $ready
+        $response.StatusCode
     } finally {
         $session | Remove-TmuxSession -Confirm:$false
     }
 }
 ```
 
-The captured lines include `hello from PowerShell`. Other sessions remain
-untouched; tmux may exit when this was its last session. See
-[send and wait](docs/input.md) for literal
-text versus keys, cancellation and a shorter recipe when completion is not
-required.
+The native `PaneWaitResult` has outcome `PresentAtEntry` or `Matched`,
+followed by HTTP status 200. The wait closes its temporary control client;
+the example removes only its session. A text match proves the readiness
+condition, and the HTTP request checks service behavior separately.
+See [pane-text waits](docs/input.md#wait-for-an-applications-readiness-line)
+for stop patterns, bounded tails, cancellation and disclosed event loss.
+Use [a cooperative channel](docs/input.md#send-a-command-and-wait-for-its-output)
+when the application can signal completion itself.
 
 ## Choose how to run
 
@@ -284,6 +289,7 @@ required.
 | --- | --- | --- |
 | Read or change tmux state | Typed cmdlets and pipelines | [Create sessions and panes](docs/create.md) |
 | Run a shell command and check its exit status | `Invoke-TmuxPaneCommand` | [Run to completion](docs/input.md#run-a-command-to-completion) |
+| Wait for a running application's readiness line | `Wait-TmuxPaneText` | [Readiness and an HTTP health check](#wait-for-service-readiness) |
 | Enter a session interactively | `Enter-TmuxSession` | [Attach your foreground terminal](docs/reference/LibTmux/Enter-TmuxSession.md) |
 | Run an ordered batch | `New-TmuxCommand` → `Invoke-TmuxChain` | [Compose commands](docs/commands.md) |
 | Reuse a connected client | `Connect-TmuxControl` → `Invoke-TmuxControlCommand` | [Control commands and cleanup](docs/commands.md) |
