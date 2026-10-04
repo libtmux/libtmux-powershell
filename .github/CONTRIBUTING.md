@@ -69,7 +69,7 @@ further tests.
 
 The committed pins use unpublished review archives, version
 `0.0.0-alpha.19.ps.review.1791134823197`, from this
-[reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/6fc8fc25ad96627a8ebb341741c9440060bca334).
+[reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/4c379e2905c4917fc71b75afd11256383774915a).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -98,14 +98,14 @@ Set `CORE_SOURCE` to a clean checkout of the revision pinned in the bootstrap,
 `REVIEW_VERSION` to the new identifier, and `CORE_PACKAGES` to a new output
 directory. Use absolute directory paths. The checkout uses its own SDK pin;
 avoid running this recipe while another task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/6fc8fc25ad96627a8ebb341741c9440060bca334/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/4c379e2905c4917fc71b75afd11256383774915a/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision 6fc8fc25ad96627a8ebb341741c9440060bca334 \
+    --revision 4c379e2905c4917fc71b75afd11256383774915a \
     --output "$CORE_PACKAGES"
 ```
 
