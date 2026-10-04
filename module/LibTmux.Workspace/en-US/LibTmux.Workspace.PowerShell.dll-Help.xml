@@ -990,7 +990,12 @@ Tmux.InvalidWorkspacePolicy.</maml:para>
           <maml:para>Plan a workspace at an explicit socket without creating its session.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{"session_name":"development","windows":[{"window_name":"editor"}]}' | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server (LibTmux\New-TmuxServer -SocketPath $SocketPath)
+$endpoint = LibTmux\New-TmuxServer -SocketPath $SocketPath
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+'@ | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $endpoint
 ```</maml:para>
         </maml:introduction>
         <dev:code />
