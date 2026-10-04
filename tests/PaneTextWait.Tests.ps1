@@ -283,7 +283,7 @@ Invoke-WithOwnedTmux {
     }
     foreach ($name in @('TailLines', 'MaxOutputBytes')) {
         $rejected = $false
-        try { $ready.Pane | LibTmux\Wait-TmuxPaneText -WhatIf -ErrorAction Stop @{$name = 0} | Out-Null } catch {
+        try { $ready.Pane | LibTmux\Wait-TmuxPaneText -WhatIf -ErrorAction Stop @{ $name = 0 } | Out-Null } catch {
             if ($_.Exception -isnot [Management.Automation.ParameterBindingException]) { throw }
             $rejected = $true
         }
