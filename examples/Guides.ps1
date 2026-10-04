@@ -138,8 +138,10 @@ $captured.Windows |
         if ($ready.Outcome -notin 'PresentAtEntry', 'Matched') {
             throw "HTTP readiness ended with $($ready.Outcome)."
         }
-        $port = [regex]::Match(($ready.Tail -join "`n"), 'port ([0-9]+)').Groups[1].Value
-        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -TimeoutSec 5 -NoProxy
+        $tail = $ready.Tail -join "`n"
+        $port = [regex]::Match($tail, 'port ([0-9]+)').Groups[1].Value
+        $uri = "http://127.0.0.1:$port/"
+        $response = Invoke-WebRequest -Uri $uri -TimeoutSec 5 -NoProxy
         $ready
         $response.StatusCode
     } finally {
