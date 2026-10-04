@@ -1,7 +1,8 @@
 # libtmux/docs compares every public port's width checker and shared example
 # rules, but cannot read this private repository. This job reads the docs
-# copies instead. It does not run on pull requests: docs merges after the
-# ports, so a PR check would fail until docs catches up.
+# copies instead. It does not run on pull requests: a change to the shared
+# rules lands here and in docs as separate pull requests, so a PR check
+# would fail until the other one merges.
 name: shared examples
 
 on:
