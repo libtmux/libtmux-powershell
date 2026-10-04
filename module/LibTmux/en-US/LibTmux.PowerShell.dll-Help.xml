@@ -5866,7 +5866,8 @@ already dispatched mutation without observing current topology.</maml:para>
 it. Both handles must come from the same tmux server generation.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$window | LibTmux\New-TmuxWindowLink -Session $guest -Index 5 -NoSelect -Confirm:$false
+$link = @{ Session = $guest; Index = 5; NoSelect = $true; Confirm = $false }
+$window | LibTmux\New-TmuxWindowLink @link
 ```</maml:para>
         </maml:introduction>
         <dev:code />
