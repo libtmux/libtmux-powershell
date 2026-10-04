@@ -49,7 +49,8 @@ placement; filtering panes does not prune their parent's captured relations.
 Capture the hierarchy of the existing server identified by $SocketPath.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot -Depth Panes
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxSnapshot -Depth Panes
 ```
 
 ## PARAMETERS
