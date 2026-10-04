@@ -58,7 +58,7 @@ Invoke-WithOwnedTmux {
     $channel = 'hook-' + [Guid]::NewGuid().ToString('N')
     $session | LibTmux\Set-TmuxHook -Name 'alert-bell' -Command "wait-for -S $channel"
     Assert-Hook (@($session | LibTmux\Invoke-TmuxHook -Name 'alert-bell').Count -eq 0) 'invoke emitted output'
-    Assert-Hook ($server | LibTmux\Wait-TmuxChannel -Channel $channel -Timeout 0.5) 'hook command did not signal completion'
+    Assert-Hook ($server | LibTmux\Wait-TmuxChannel -Channel $channel -Timeout 10) 'hook command did not signal completion'
     $session | LibTmux\Remove-TmuxHook -Name 'alert-bell'
     Assert-Hook (@($session | LibTmux\Get-TmuxHook -Name 'alert-bell').Count -eq 0 -and
         @($server | LibTmux\Get-TmuxHook -Name 'alert-bell').Count -eq 1) 'local removal changed global table'

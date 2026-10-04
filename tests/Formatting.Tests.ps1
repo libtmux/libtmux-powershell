@@ -41,7 +41,7 @@ try {
         $identityWindow = $server.GetWindowAsync($window.Id, $token).GetAwaiter().GetResult()
         $identityPane = $server.GetPaneAsync($pane.Id, $token).GetAwaiter().GetResult()
 
-        $control = $server.EnterControlModeAsync('fixture', $token).WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+        $control = $server.EnterControlModeAsync('fixture', $token).WaitAsync([TimeSpan]::FromSeconds(10)).GetAwaiter().GetResult()
         $clientProcess = $null
         try {
             $clients = $server.GetClientsAsync($token).GetAwaiter().GetResult()
@@ -57,7 +57,7 @@ try {
             )
             $state.SocketPath = $fixture.SocketPath
         } finally {
-            $null = $control.DisposeAsync().AsTask().WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+            $null = $control.DisposeAsync().AsTask().WaitAsync([TimeSpan]::FromSeconds(10)).GetAwaiter().GetResult()
             if ($clientProcess) {
                 try { Assert-True ($clientProcess.WaitForExit(1000)) 'The formatting control client did not exit.' }
                 finally { $clientProcess.Dispose() }

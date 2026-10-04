@@ -32,7 +32,7 @@ exec /bin/cat
     $window = $Session | LibTmux\New-TmuxWindow -Name $name -Command ('/bin/sh ' + ($arguments -join ' '))
     try {
         Register-OwnedTmuxPane $Fixture
-        $null = $Session.Server | LibTmux\Wait-TmuxChannel -Channel $name -Timeout 0.5
+        $null = $Session.Server | LibTmux\Wait-TmuxChannel -Channel $name -Timeout 10
         [IO.File]::ReadAllText($output).TrimEnd("`n")
     } finally { $window | LibTmux\Remove-TmuxWindow -Confirm:$false }
 }

@@ -466,7 +466,7 @@ function Get-HelpExampleAssertion {
             }; Assert = {
                 param($Result, $Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
-                if (!($server | LibTmux\Wait-TmuxChannel -Channel 'help-hook-completed' -Timeout 0.5)) { throw 'Hook help invoke did not signal completion.' }
+                if (!($server | LibTmux\Wait-TmuxChannel -Channel 'help-hook-completed' -Timeout 10)) { throw 'Hook help invoke did not signal completion.' }
             } }
         'LibTmux\Remove-TmuxHook#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)

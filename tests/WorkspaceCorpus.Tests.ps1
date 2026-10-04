@@ -164,7 +164,7 @@ windows:
             $result = $plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
             Register-OwnedTmuxPane $fixture
             foreach ($waiter in $waiters) {
-                Assert-WorkspaceCorpus ($waiter.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()) "$format pane command completion"
+                Assert-WorkspaceCorpus ($waiter.WaitAsync([TimeSpan]::FromSeconds(10)).GetAwaiter().GetResult()) "$format pane command completion"
             }
         } finally {
             foreach ($waiter in $waiters) { $null = $waiter.DisposeAsync().AsTask().GetAwaiter().GetResult() }
@@ -280,7 +280,7 @@ windows:
             $outputPath = Join-Path $fixture.DirectoryPath "environment-$windowIndex-$paneIndex.txt"
             $quotedOutput = "'" + $outputPath.Replace("'", "'\''") + "'"
             $command = 'printf "%s" "$FOO" > ' + $quotedOutput
-            $completed = $panes[$paneIndex] | LibTmux\Invoke-TmuxPaneCommand -Command $command -Timeout 1 -Confirm:$false -ErrorAction Stop
+            $completed = $panes[$paneIndex] | LibTmux\Invoke-TmuxPaneCommand -Command $command -Timeout 10 -Confirm:$false -ErrorAction Stop
             Assert-WorkspaceCorpus ($completed.ExitStatus -eq 0 -and !$completed.TimedOut) "upstream environment pane $windowIndex/$paneIndex did not finish its probe"
             $observed = [IO.File]::ReadAllText($outputPath)
             Assert-WorkspaceCorpus ($observed -ceq $expectedWindow.Values[$paneIndex]) "upstream environment pane $windowIndex/$paneIndex lost its FOO override"

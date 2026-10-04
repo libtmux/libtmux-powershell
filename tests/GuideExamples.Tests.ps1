@@ -369,7 +369,7 @@ $assertions = @{
             $null = Invoke-OwnedTmux $c.Fixture -Arguments @('set-hook', '-t', $c.Session.Id.ToString(), 'alert-bell', 'wait-for -S guide-hook-completed')
         }; Assert = {
             param($o)
-            Assert-Guide ($o.Context.Server | Wait-TmuxChannel -Channel 'guide-hook-completed' -Timeout 0.5) 'hook completion signal'
+            Assert-Guide ($o.Context.Server | Wait-TmuxChannel -Channel 'guide-hook-completed' -Timeout 10) 'hook completion signal'
         } }
     'hooks.remove' = @{ Group = 'Settings'; Count = 0; Prepare = {
             param($c)

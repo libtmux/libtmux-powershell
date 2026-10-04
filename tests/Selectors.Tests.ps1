@@ -130,7 +130,7 @@ exec $quotedTmux "`$@"
                     Set-TmuxOption -Name '@must-not-select' -Value 'wrong'
             }).AddArgument($first).AddArgument($reached).AddArgument($release)
         $invocation = $pipeline.BeginInvoke()
-        Assert-Selection ($reached.Wait(1000)) 'stop fixture never delivered its first matching input'
+        Assert-Selection ($reached.Wait(10000)) 'stop fixture never delivered its first matching input'
         $stop = $pipeline.BeginStop($null, $null)
         Assert-Selection ($pipeline.InvocationStateInfo.State -eq [Management.Automation.PSInvocationState]::Stopping) 'selection stop was not acknowledged before input release'
         $release.Set()

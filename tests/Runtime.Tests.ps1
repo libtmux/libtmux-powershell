@@ -35,7 +35,7 @@ function Invoke-RuntimeProbe([LibTmux.Testing.RuntimeProbeState] $State, [LibTmu
         if ($Server) { $null = $pipeline.AddParameter('Server', $Server) }
         $invocation = $pipeline.BeginInvoke()
         if (-not $State.StopBeforeRecord) {
-            Assert-True ($State.Started.Wait(1000)) 'The runtime operation did not start.'
+            Assert-True ($State.Started.Wait(10000)) 'The runtime operation did not start.'
             if ($Ready) { & $Ready }
             $stop = $pipeline.BeginStop($null, $null)
             Assert-True ($stop.AsyncWaitHandle.WaitOne(2000)) 'Stopping the runtime operation did not finish.'

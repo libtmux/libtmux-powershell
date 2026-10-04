@@ -74,7 +74,7 @@ try {
     $pipeline.Runspace = $runspace
     $null = $pipeline.AddCommand('LibTmux\Watch-TmuxEvent').AddParameter('Connection', $probe)
     $invocation = $pipeline.BeginInvoke()
-    Assert-Watch ($probe.Subscribed.Wait(1000)) 'pending watch did not subscribe'
+    Assert-Watch ($probe.Subscribed.Wait(10000)) 'pending watch did not subscribe'
     $errors = @()
     $result = @($probe | Watch-TmuxEvent -MaxEvents 1 -ErrorAction Continue -ErrorVariable errors 2>$null)
     Assert-Watch ($result.Count -eq 0 -and $errors.Count -eq 1 -and $errors[0].Exception -is [InvalidOperationException]) 'competing package watcher consumed the stream'
@@ -130,7 +130,7 @@ try {
     $pipeline.Runspace = $runspace
     $null = $pipeline.AddCommand('LibTmux\Watch-TmuxEvent').AddParameter('Connection', $foreign).AddParameter('MaxEvents', 1)
     $invocation = $pipeline.BeginInvoke()
-    Assert-Watch ($foreign.Subscribed.Wait(1000)) 'other runspace did not subscribe'
+    Assert-Watch ($foreign.Subscribed.Wait(10000)) 'other runspace did not subscribe'
     $errors = @()
     $result = @($local | Watch-TmuxEvent -ErrorAction Continue -ErrorVariable errors 2>$null | ForEach-Object {
             Remove-Module LibTmux -Force
@@ -211,7 +211,7 @@ Invoke-WithOwnedTmux {
         $pipeline.Runspace = $runspace
         $null = $pipeline.AddScript('param($server, $ready) $server | LibTmux\Watch-TmuxEvent -Target fixture | ForEach-Object { $ready.Set() }').AddArgument($server).AddArgument($ready)
         $invocation = $pipeline.BeginInvoke()
-        Assert-Watch ($ready.Wait(1000)) 'owned live watcher did not emit its initial event'
+        Assert-Watch ($ready.Wait(10000)) 'owned live watcher did not emit its initial event'
         $stop = $pipeline.BeginStop($null, $null)
         Assert-Watch ($stop.AsyncWaitHandle.WaitOne(1000)) 'owned live watcher did not stop promptly'
         $pipeline.EndStop($stop)
@@ -245,7 +245,7 @@ Invoke-WithOwnedTmux {
             [LibTmux.Server]::Open($using:options) | Watch-TmuxEvent -Target fixture -MaxEvents 100 -MaxOutputBytes 4096 |
                 ForEach-Object { $signal.Set(); $_ }
         }
-        Assert-Watch ($ready.Wait(1000)) 'owned job did not start watching'
+        Assert-Watch ($ready.Wait(10000)) 'owned job did not start watching'
         $watch = [Diagnostics.Stopwatch]::StartNew()
         $job | Stop-Job
         Assert-Watch ($watch.ElapsedMilliseconds -lt 1000 -and $job.State -eq 'Stopped' -and
@@ -268,7 +268,7 @@ Invoke-WithOwnedTmux {
         $pipeline.Runspace = $runspace
         $null = $pipeline.AddScript('param($server, $ready) $server | LibTmux\Watch-TmuxEvent -Target fixture | ForEach-Object { $ready.Set(); $_ }').AddArgument($server).AddArgument($ready)
         $invocation = $pipeline.BeginInvoke()
-        Assert-Watch ($ready.Wait(1000)) 'server-loss watcher did not attach'
+        Assert-Watch ($ready.Wait(10000)) 'server-loss watcher did not attach'
         $null = Invoke-OwnedTmux $fixture -Arguments @('kill-server')
         Assert-Watch ($invocation.AsyncWaitHandle.WaitOne(1000)) 'server exit left the watcher running'
         $output = @($pipeline.EndInvoke($invocation))

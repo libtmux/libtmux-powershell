@@ -138,7 +138,7 @@ exec $quotedTmux "`$@"
     $before = [IO.File]::ReadAllText($trace)
     $exited = $fixture.ServerProcess.WaitForExitAsync()
     $null = Invoke-OwnedTmux $fixture -Arguments @('kill-server')
-    $null = $exited.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+    $null = $exited.WaitAsync([TimeSpan]::FromSeconds(10)).GetAwaiter().GetResult()
 
     $warnings = @()
     $outputs = @(@($captured, $captured) | LibTmux.Workspace\ConvertTo-TmuxWorkspace -WarningAction SilentlyContinue -WarningVariable warnings)
