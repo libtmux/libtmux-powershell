@@ -60,7 +60,9 @@ PassThru emits the whole grouped hook readback. WhatIf performs no tmux I/O.
 Store one indexed command on a native $session and inspect the grouped result.
 
 ```powershell
-$session | LibTmux\Set-TmuxHook -Name 'alert-bell[7]' -Command 'display-message "build finished"' -PassThru
+$command = 'display-message "build finished"'
+$session |
+    LibTmux\Set-TmuxHook -Name 'alert-bell[7]' -Command $command -PassThru
 ```
 
 ## PARAMETERS
