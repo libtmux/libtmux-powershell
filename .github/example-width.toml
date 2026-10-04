@@ -1,0 +1,19 @@
+width = 80
+markdown = ["**/*.md"]
+sources = ["examples/**/*.ps1"]
+shared_digest = "6620940102329b52f09ad111bf657a0e3eebfe26efa109ab150e0ae6bbd6ce40"
+checker_digest = "ac2efe0c07aa3fddefe6d8daff0406ce695c4f199a91cd8f7122fdf37dcab839"
+allow_ceiling = 1
+
+[[exclude]]
+glob = "THIRD-PARTY-NOTICES.md"
+reason = "licence notices copied from third parties"
+
+[[exclude]]
+glob = "tests/fixtures/**/*.md"
+reason = "index of the unchanged upstream tmuxp fixtures the corpus test compares"
+
+[[allow]]
+path = ".github/WRITING.md"
+line = "        -Name ('pane-run-' + [Guid]::NewGuid().ToString('N')) -Command 'exec /bin/sh'"
+reason = "the Bad example in the port block; it shows the width problem the Good example fixes"
