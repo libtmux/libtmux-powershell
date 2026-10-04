@@ -88,7 +88,8 @@ directory, use the path printed by the bootstrap as the value of
 `LIBTMUX_REVIEW_MODULE_ROOT`:
 
 ```console
-$ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/../libtmux-powershell-review/port/build/Modules" \
+$ review="$PWD/../libtmux-powershell-review"
+$ LIBTMUX_REVIEW_MODULE_ROOT="$review/port/build/Modules" \
     pwsh \
     -NoLogo \
     -NoProfile
