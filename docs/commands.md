@@ -43,9 +43,14 @@ server and session running.
 <!-- example: commands.control -->
 ```powershell
 & {
-    $control = $server | Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+    $control = $server |
+        Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
     try {
-        $control | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', '#{session_name}')) -ErrorAction Stop
+        $command = New-TmuxCommand -Name 'display-message' -Arguments @(
+            '-p', '#{session_name}'
+        )
+        $control |
+            Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
     } finally {
         $control | Disconnect-TmuxControl -Confirm:$false
     }
