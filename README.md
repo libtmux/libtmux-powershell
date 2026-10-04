@@ -116,8 +116,10 @@ a captured native `LibTmux.Session`. Show each window's pane IDs:
 
 <!-- example: readme.quickstart -->
 ```powershell
-(./examples/QuickStart.ps1).Windows |
-    Select-Object Name, @{ Name = 'PaneIds'; Expression = { $_.Panes.Id -join ', ' } }
+(./examples/QuickStart.ps1).Windows | Select-Object Name, @{
+    Name = 'PaneIds'
+    Expression = { $_.Panes.Id -join ', ' }
+}
 ```
 
 Output from the private server:
