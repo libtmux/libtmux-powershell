@@ -71,7 +71,8 @@ line was observed:
 ```powershell
 & {
     $pane | LibTmux\Send-TmuxText -Text go -Enter -Confirm:$false
-    $pane | LibTmux\Wait-TmuxPaneText -Pattern '^READY$' -Timeout 5 -Confirm:$false
+    $pane |
+        LibTmux\Wait-TmuxPaneText -Pattern '^READY$' -Timeout 5 -Confirm:$false
 }
 ```
 
