@@ -67,8 +67,9 @@ It writes inspected .NET archives to `feed/`, PowerShell archives to
 paths of the `Package` and `Install` check receipts. Use its printed paths for
 further tests.
 
-The committed dependency pins use unpublished `0.0.0-alpha.17.ps.4` archives
-from this [earlier reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/e80a6c3ac7d1545e203e6027cf68e7269416ed09).
+The committed pins use unpublished review archives, version
+`0.0.0-alpha.19.ps.review.1791134823197`, from this
+[reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/6fc8fc25ad96627a8ebb341741c9440060bca334).
 NuGet.org does not contain this version. The committed lockfiles identify
 those existing package bytes; an ordinary restore needs the original inspected
 archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
@@ -80,8 +81,7 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -PackageCache build/review-package-cache
 ```
 
-The bootstrap uses disposable locks; it does not replace the committed
-`ps.4` archives.
+The bootstrap uses disposable locks; it does not replace the retained archives.
 
 Choose a fresh cache directory for the first consumer proof.
 `-CorePackageDirectory` requires `-Restore`: it checks the inspected
@@ -92,20 +92,20 @@ To build the current reviewed source manually, use a new, unused prerelease
 identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
 promise to reproduce the locked package bytes. Do not overwrite or recreate
-`0.0.0-alpha.17.ps.4` to satisfy its existing locks.
+`0.0.0-alpha.19.ps.review.1791134823197` to satisfy its existing locks.
 
 Set `CORE_SOURCE` to a clean checkout of the revision pinned in the bootstrap,
 `REVIEW_VERSION` to the new identifier, and `CORE_PACKAGES` to a new output
 directory. Use absolute directory paths. The checkout uses its own SDK pin;
 avoid running this recipe while another task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/55a3f4180f3ff48d54e62cb567cd245878ea2f4a/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/6fc8fc25ad96627a8ebb341741c9440060bca334/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision 55a3f4180f3ff48d54e62cb567cd245878ea2f4a \
+    --revision 6fc8fc25ad96627a8ebb341741c9440060bca334 \
     --output "$CORE_PACKAGES"
 ```
 
