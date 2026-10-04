@@ -212,7 +212,7 @@ $job = & {
     $ErrorActionPreference = 'Stop'
     Import-Module LibTmux
     $name = 'libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N')
-    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) $name
+    $socketDirectory = Join-Path '/tmp' $name
     $null = New-Item $socketDirectory -ItemType Directory -ErrorAction Stop
     $ownerOnly = [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor
