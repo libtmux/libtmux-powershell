@@ -76,7 +76,7 @@ Invoke-WithOwnedTmux {
     Assert-Received $fixture $receiver ([byte[]] @(120, 13))
 
     $recipe = Join-Path $PSScriptRoot '../examples/ConcurrentCommands.ps1'
-    $ordered = @(& $recipe -Server $server -Command $commands -MaxPending 2)
+    $ordered = @(& $recipe -Server $server -Command $commands -MaxPending 2 -Timeout $HangGuardSeconds)
     Assert-Command (($ordered.Index -join '|') -ceq '0|1' -and
         ($ordered.StandardOutputLines -join '|') -ceq "first value|$nativeSecond" -and
         ($ordered | Measure-Object Utf8Bytes -Sum).Sum -le 65536) 'concurrent process results lost input order, attribution or byte accounting'
@@ -84,7 +84,7 @@ Invoke-WithOwnedTmux {
         '-F', '1', 'wait-for concurrent-release ; display-message -p delayed')
     $completion = [Collections.Generic.List[object]]::new()
     try {
-        & $recipe -Server $server -Command @($blocked, $commands[0]) -MaxPending 2 -CompletionOrder |
+        & $recipe -Server $server -Command @($blocked, $commands[0]) -MaxPending 2 -Timeout $HangGuardSeconds -CompletionOrder |
             ForEach-Object {
                 $completion.Add($_)
                 if ($_.Index -eq 1) {
@@ -101,7 +101,7 @@ Invoke-WithOwnedTmux {
     $cancelled = $false
     $cancelledResults = [Collections.Generic.List[object]]::new()
     try {
-        & $recipe -Server $server -Command @($commands[0], $cancelBlocked) -MaxPending 2 -CompletionOrder -CancellationToken $cancel.Token |
+        & $recipe -Server $server -Command @($commands[0], $cancelBlocked) -MaxPending 2 -Timeout $HangGuardSeconds -CompletionOrder -CancellationToken $cancel.Token |
             ForEach-Object { $cancelledResults.Add($_); $cancel.Cancel() }
     } catch {
         $cancelError = $_.Exception
@@ -114,7 +114,7 @@ Invoke-WithOwnedTmux {
     }
     Assert-Command ($cancelled -and $cancelledResults.Count -eq 1 -and $cancelledResults[0].Index -eq 0) 'concurrent cancellation emitted an unfinished result'
     $failed = $false
-    try { & $recipe -Server $server -Command $move } catch {
+    try { & $recipe -Server $server -Command $move -Timeout $HangGuardSeconds } catch {
         Assert-Command ($_.Exception.Data['LibTmux.ConcurrentCommandIndex'] -eq 0) 'concurrent process error lost submitted index'
         $failed = $true
     }
@@ -177,9 +177,9 @@ Invoke-WithOwnedTmux {
             $invocation = $pipeline.BeginInvoke()
             $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', 'command-started')
             $stop = $pipeline.BeginStop($null, $null)
-            Assert-Command ($stop.AsyncWaitHandle.WaitOne(1000)) 'control command stop did not complete promptly'
+            Assert-Command ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'control command stop did not complete promptly'
             $pipeline.EndStop($stop)
-            Assert-Command ($invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped control invocation stayed active'
+            Assert-Command ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped control invocation stayed active'
             $stopped = $false
             try { $null = $pipeline.EndInvoke($invocation) } catch {
                 if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }

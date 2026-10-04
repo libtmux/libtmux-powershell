@@ -77,7 +77,7 @@ function Start-PaneTextWait {
 }
 
 function Complete-PaneTextWait($Running) {
-    Assert-PaneTextWait ($Running.Invocation.AsyncWaitHandle.WaitOne(1000)) 'pending wait did not complete after pane activity'
+    Assert-PaneTextWait ($Running.Invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'pending wait did not complete after pane activity'
     $result = @($Running.Pipeline.EndInvoke($Running.Invocation))
     Assert-PaneTextWait ($Running.Pipeline.Streams.Error.Count -eq 0) 'wait emitted an operation error'
     return $result
@@ -87,7 +87,7 @@ function Close-PaneTextWait($Running) {
     try {
         if (!$Running.Invocation.IsCompleted) {
             $stop = $Running.Pipeline.BeginStop($null, $null)
-            Assert-PaneTextWait ($stop.AsyncWaitHandle.WaitOne(1000)) 'failed wait did not stop during cleanup'
+            Assert-PaneTextWait ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'failed wait did not stop during cleanup'
             $Running.Pipeline.EndStop($stop)
         }
     } finally {
@@ -109,10 +109,10 @@ Invoke-WithOwnedTmux {
 
     $present = $server | LibTmux\Get-TmuxSession -Name fixture | LibTmux\Get-TmuxPane
     $completed = $present | LibTmux\Invoke-TmuxPaneCommand -Command "printf 'PRESENT-$marker\n'" `
-        -Timeout 5 -Confirm:$false -ErrorAction Stop
+        -Timeout $HangGuardSeconds -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($completed.ExitStatus -eq 0) 'present-at-entry producer did not complete'
     $entry = $present | LibTmux\Wait-TmuxPaneText -Pattern "^PRESENT-$marker`$" `
-        -Timeout 1 -Confirm:$false -ErrorAction Stop
+        -Timeout $HangGuardSeconds -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($entry -is [LibTmux.PaneWaitResult] -and
         $entry.Outcome -eq [LibTmux.PaneWaitOutcome]::PresentAtEntry -and
         $entry.PaneId -eq $present.Id -and $entry.EventsDropped -eq 0 -and
@@ -122,7 +122,7 @@ Invoke-WithOwnedTmux {
         $defaultView.Contains('Missed') -and !$defaultView.Contains($marker)) `
         'default result view omitted outcome/loss or exposed matched text'
     $ignoreCase = $present | LibTmux\Wait-TmuxPaneText -Pattern "present-$marker" `
-        -SimpleMatch -Timeout 1 -Confirm:$false -ErrorAction Stop
+        -SimpleMatch -Timeout $HangGuardSeconds -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($ignoreCase.Outcome -eq [LibTmux.PaneWaitOutcome]::PresentAtEntry) `
         'literal matching lost its default case-insensitive behavior'
     $caseSensitive = $present | LibTmux\Wait-TmuxPaneText -Pattern "present-$marker" `
@@ -134,7 +134,7 @@ Invoke-WithOwnedTmux {
         ($caseSensitive.Elapsed + $timerResolution) -ge $caseSensitive.EffectiveTimeout) `
         'CaseSensitive matched differently cased text or ended before its budget'
     $stoppedAtEntry = $present | LibTmux\Wait-TmuxPaneText -Pattern "^PRESENT-$marker`$" `
-        -StopPattern "^PRESENT-$marker`$" -Timeout 1 -Confirm:$false -ErrorAction Stop
+        -StopPattern "^PRESENT-$marker`$" -Timeout $HangGuardSeconds -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($stoppedAtEntry.Outcome -eq [LibTmux.PaneWaitOutcome]::Stopped) `
         'wanted text took precedence over a stop pattern already visible at entry'
     Assert-NoObservationClient $server 'present-at-entry wait'
@@ -153,7 +153,7 @@ Invoke-WithOwnedTmux {
         'WhatIf captured the pane or emitted a result'
     Assert-NoObservationClient $server 'WhatIf preview'
     $pending = Start-PaneTextWait $module $ready.Pane @{
-        Pattern = @("^READY-$marker`$"); Timeout = 1; Confirm = $false
+        Pattern = @("^READY-$marker`$"); Timeout = $HangGuardSeconds; Confirm = $false
     }
     try {
         $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', $ready.Signal)
@@ -184,12 +184,12 @@ Invoke-WithOwnedTmux {
         "IFS= read -r trigger || exit 1`nprintf 'ANY-$marker\n'`nexec /bin/cat`n"
     foreach ($case in @(
             @{ Name = 'stop'; Program = "IFS= read -r trigger || exit 1`nprintf 'STOP-$marker\n'`nexec /bin/cat`n";
-                Parameters = @{ Pattern = @('NEVER-READY'); StopPattern = @("^STOP-$marker`$"); Timeout = 1 };
+                Parameters = @{ Pattern = @('NEVER-READY'); StopPattern = @("^STOP-$marker`$"); Timeout = $HangGuardSeconds };
                 Outcome = [LibTmux.PaneWaitOutcome]::Stopped; Pattern = "^STOP-$marker`$" },
             @{ Name = 'any'; Program = $anyProgram;
-                Parameters = @{ Timeout = 1 }; Outcome = [LibTmux.PaneWaitOutcome]::AnyOutput; Pattern = $null },
+                Parameters = @{ Timeout = $HangGuardSeconds }; Outcome = [LibTmux.PaneWaitOutcome]::AnyOutput; Pattern = $null },
             @{ Name = 'death'; Program = "IFS= read -r trigger || exit 1`nexit 0`n";
-                Parameters = @{ Pattern = @('NEVER-READY'); Timeout = 1 };
+                Parameters = @{ Pattern = @('NEVER-READY'); Timeout = $HangGuardSeconds };
                 Outcome = [LibTmux.PaneWaitOutcome]::PaneExited; Pattern = $null }
         )) {
         $owner = New-CaptureSignallingPane $fixture ('pane-text-' + $case.Name) $case.Program
@@ -231,14 +231,14 @@ Invoke-WithOwnedTmux {
     $cancelProgram = "IFS= read -r trigger || exit 1`nprintf 'CANCEL-$marker\n'`nexec /bin/cat`n"
     $cancel = New-CaptureSignallingPane $fixture 'pane-text-cancel' $cancelProgram
     $running = Start-PaneTextWait $module $cancel.Pane @{
-        Pattern = @('NEVER-READY'); Timeout = 1
+        Pattern = @('NEVER-READY'); Timeout = $HangGuardSeconds
     }
     try {
         $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', $cancel.Signal)
         $stop = $running.Pipeline.BeginStop($null, $null)
-        Assert-PaneTextWait ($stop.AsyncWaitHandle.WaitOne(1000)) 'pipeline stop did not cancel the wait promptly'
+        Assert-PaneTextWait ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'pipeline stop did not cancel the wait promptly'
         $running.Pipeline.EndStop($stop)
-        Assert-PaneTextWait ($running.Invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped wait remained active'
+        Assert-PaneTextWait ($running.Invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped wait remained active'
         $stopped = $false
         try { $null = $running.Pipeline.EndInvoke($running.Invocation) } catch {
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }

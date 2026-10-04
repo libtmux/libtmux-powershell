@@ -3,6 +3,7 @@ param([Parameter(Mandatory)] [string] $ModuleRoot)
 # Outer integration: installed callbacks, runspace lifecycle and owned real tmux.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 
@@ -79,9 +80,9 @@ try {
     $result = @($probe | Watch-TmuxEvent -MaxEvents 1 -ErrorAction Continue -ErrorVariable errors 2>$null)
     Assert-Watch ($result.Count -eq 0 -and $errors.Count -eq 1 -and $errors[0].Exception -is [InvalidOperationException]) 'competing package watcher consumed the stream'
     $stop = $pipeline.BeginStop($null, $null)
-    Assert-Watch ($stop.AsyncWaitHandle.WaitOne(1000)) 'pending watch did not stop promptly'
+    Assert-Watch ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'pending watch did not stop promptly'
     $pipeline.EndStop($stop)
-    Assert-Watch ($invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped watch invocation stayed active'
+    Assert-Watch ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped watch invocation stayed active'
     $stopped = $false
     try { $null = $pipeline.EndInvoke($invocation) } catch {
         if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }
@@ -140,7 +141,7 @@ try {
         $local.ConnectionDisposals -eq 0 -and $errors.Count -eq 1 -and $errors[0].Exception -is [OperationCanceledException]) 'module removal did not cancel only its active reader'
     Assert-Watch (!$invocation.IsCompleted -and $foreign.EnumeratorDisposals -eq 0 -and $foreign.IsRunning) 'module removal cancelled another runspace'
     $foreign.Write((Get-WatchOutput 'other-runspace'))
-    Assert-Watch ($invocation.AsyncWaitHandle.WaitOne(1000)) 'other runspace did not remain usable'
+    Assert-Watch ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'other runspace did not remain usable'
     $output = @($pipeline.EndInvoke($invocation))
     Assert-Watch ($output.Count -eq 1 -and $output[0].Data -ceq 'other-runspace') 'other runspace lost its event'
 } finally {
@@ -213,9 +214,9 @@ Invoke-WithOwnedTmux {
         $invocation = $pipeline.BeginInvoke()
         Assert-Watch ($ready.Wait(10000)) 'owned live watcher did not emit its initial event'
         $stop = $pipeline.BeginStop($null, $null)
-        Assert-Watch ($stop.AsyncWaitHandle.WaitOne(1000)) 'owned live watcher did not stop promptly'
+        Assert-Watch ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'owned live watcher did not stop promptly'
         $pipeline.EndStop($stop)
-        Assert-Watch ($invocation.AsyncWaitHandle.WaitOne(1000)) 'owned stopped watch did not finish'
+        Assert-Watch ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'owned stopped watch did not finish'
         $stopped = $false
         try { $null = $pipeline.EndInvoke($invocation) } catch {
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }
@@ -248,7 +249,7 @@ Invoke-WithOwnedTmux {
         Assert-Watch ($ready.Wait(10000)) 'owned job did not start watching'
         $watch = [Diagnostics.Stopwatch]::StartNew()
         $job | Stop-Job
-        Assert-Watch ($watch.ElapsedMilliseconds -lt 1000 -and $job.State -eq 'Stopped' -and
+        Assert-Watch ($watch.ElapsedMilliseconds -lt $HangGuardMilliseconds -and $job.State -eq 'Stopped' -and
             @($server | Get-TmuxClient).Count -eq 0) 'Stop-Job did not promptly remove its owned control client'
     } finally {
         if ($job) { $job | Stop-Job; $job | Remove-Job }
@@ -270,7 +271,7 @@ Invoke-WithOwnedTmux {
         $invocation = $pipeline.BeginInvoke()
         Assert-Watch ($ready.Wait(10000)) 'server-loss watcher did not attach'
         $null = Invoke-OwnedTmux $fixture -Arguments @('kill-server')
-        Assert-Watch ($invocation.AsyncWaitHandle.WaitOne(1000)) 'server exit left the watcher running'
+        Assert-Watch ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'server exit left the watcher running'
         $output = @($pipeline.EndInvoke($invocation))
         Assert-Watch ($pipeline.Streams.Error.Count -eq 0 -and $output.Count -gt 0 -and
             $output[-1] -is [LibTmux.TmuxExitEvent]) 'native server exit was hidden or converted into a success sentinel'

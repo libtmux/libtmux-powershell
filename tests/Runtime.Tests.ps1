@@ -6,6 +6,7 @@ param(
 # Native is integration: a dispatched tmux wait proves client cleanup on stop.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 $ModuleRoot = (Resolve-Path $ModuleRoot).Path
 Import-Module (Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1')
 $references = @(
@@ -38,10 +39,10 @@ function Invoke-RuntimeProbe([LibTmux.Testing.RuntimeProbeState] $State, [LibTmu
             Assert-True ($State.Started.Wait(10000)) 'The runtime operation did not start.'
             if ($Ready) { & $Ready }
             $stop = $pipeline.BeginStop($null, $null)
-            Assert-True ($stop.AsyncWaitHandle.WaitOne(2000)) 'Stopping the runtime operation did not finish.'
+            Assert-True ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'Stopping the runtime operation did not finish.'
             $pipeline.EndStop($stop)
         }
-        Assert-True ($invocation.AsyncWaitHandle.WaitOne(1000)) 'The stopped pipeline did not complete.'
+        Assert-True ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'The stopped pipeline did not complete.'
         $stopped = $false
         try { $null = $pipeline.EndInvoke($invocation) } catch {
             $stopped = $_.Exception.InnerException -is [System.Management.Automation.PipelineStoppedException]

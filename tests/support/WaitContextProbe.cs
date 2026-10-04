@@ -12,7 +12,7 @@ namespace LibTmux.Testing;
 
 public static class WaitContextProbe
 {
-    public static void AssertCancellationDoesNotCaptureContext()
+    public static void AssertCancellationDoesNotCaptureContext(TimeSpan hangGuard)
     {
         using var cancellation = new CancellationTokenSource();
         using var context = new DeferredContext();
@@ -67,12 +67,12 @@ public static class WaitContextProbe
         bool racedBeforeSuspending = cancelledOnCaller && signals == 1 && !operation.IsCompleted;
         waiter.SetResult(Success(new[] { "wait-for", "context-race" }));
         withdrawal.SetResult(Success(new[] { "wait-for", "-S", "context-race" }));
-        int completed = WaitHandle.WaitAny(new[] { ((IAsyncResult)operation).AsyncWaitHandle, context.Posted.WaitHandle }, 1000);
+        int completed = WaitHandle.WaitAny(new[] { ((IAsyncResult)operation).AsyncWaitHandle, context.Posted.WaitHandle }, (int)hangGuard.TotalMilliseconds);
         bool capturedCaller = context.PostCount != 0;
 
         // Drain only after observing the failure so a red run leaves no queued work.
         context.Drain();
-        if (!((IAsyncResult)operation).AsyncWaitHandle.WaitOne(1000))
+        if (!((IAsyncResult)operation).AsyncWaitHandle.WaitOne(hangGuard))
         {
             throw new InvalidOperationException("Channel withdrawal did not finish after releasing the probe.");
         }

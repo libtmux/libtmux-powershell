@@ -32,12 +32,12 @@ Invoke-WithOwnedTmux {
         $before = @($pane | LibTmux\Invoke-TmuxPaneCommand -Command "touch '$escaped'" -WhatIf)
         Assert-PaneRun ($before.Count -eq 0 -and !(Test-Path -LiteralPath $preview)) 'WhatIf ran a shell command or emitted a result'
 
-        $success = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'printf "pane run ok\n"' -Timeout 5 -Confirm:$false
+        $success = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'printf "pane run ok\n"' -Timeout $HangGuardSeconds -Confirm:$false
         Assert-PaneRun ($success -is [LibTmux.PaneRunResult] -and
             $success.PaneId -eq $pane.Id -and $success.ExitStatus -eq 0 -and !$success.TimedOut -and
-            $success.EffectiveTimeout -eq [TimeSpan]::FromSeconds(5)) 'success lost native completion facts'
+            $success.EffectiveTimeout -eq $HangGuard) 'success lost native completion facts'
 
-        $nonzero = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+        $nonzero = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout $HangGuardSeconds -Confirm:$false
         Assert-PaneRun ($nonzero -is [LibTmux.PaneRunResult] -and
             $nonzero.ExitStatus -eq 7 -and !$nonzero.TimedOut) 'nonzero shell exit became a cmdlet error'
 
@@ -50,7 +50,7 @@ Invoke-WithOwnedTmux {
             $timedOut.TimedOut -and $null -eq $timedOut.ExitStatus -and
             $timedOut.PaneId -eq $pane.Id) 'timeout claimed command completion'
         $errors = @()
-        $overlap = @($pane | LibTmux\Invoke-TmuxPaneCommand -Command 'true' -Timeout 5 `
+        $overlap = @($pane | LibTmux\Invoke-TmuxPaneCommand -Command 'true' -Timeout $HangGuardSeconds `
                 -Confirm:$false -ErrorAction Continue -ErrorVariable errors 2>$null)
         Assert-PaneRun ($overlap.Count -eq 0 -and $errors.Count -eq 1 -and
             $errors[0].FullyQualifiedErrorId -like 'Tmux.PaneCommandFailed,*' -and

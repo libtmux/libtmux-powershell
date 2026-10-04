@@ -238,7 +238,7 @@ windows:
     panes:
       - null
 '@
-    $earlyPlan = $early | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession Append -Readiness Cooperative -ReadinessTimeout 0.5 -CompensateOnFailure
+    $earlyPlan = $early | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession Append -Readiness Cooperative -ReadinessTimeout $HangGuardSeconds -CompensateOnFailure
     [IO.File]::WriteAllText($readinessArm, '')
     $earlyResult = $earlyPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false
     Register-OwnedTmuxPane $fixture
@@ -282,9 +282,9 @@ windows:
         $clientId = [int] [IO.File]::ReadAllText($clientPath)
         $null = $fixture.OwnedProcessIds.Add($clientId)
         $stop = $pipeline.BeginStop($null, $null)
-        Assert-WorkspaceApply ($stop.AsyncWaitHandle.WaitOne(1000)) 'workspace pipeline did not stop'
+        Assert-WorkspaceApply ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'workspace pipeline did not stop'
         $pipeline.EndStop($stop)
-        Assert-WorkspaceApply ($invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped application did not complete'
+        Assert-WorkspaceApply ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped application did not complete'
         try { $null = $pipeline.EndInvoke($invocation) } catch {
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }
         }

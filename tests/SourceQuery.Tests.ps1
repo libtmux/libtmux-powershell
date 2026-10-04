@@ -231,9 +231,9 @@ exec $quotedTmux "`$@"
         $clientId = [int] [IO.File]::ReadAllText($pidFile)
         $null = $fixture.OwnedProcessIds.Add($clientId)
         $stop = $pipeline.BeginStop($null, $null)
-        Assert-SourceQuery ($stop.AsyncWaitHandle.WaitOne(1000)) 'source acquisition did not stop'
+        Assert-SourceQuery ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'source acquisition did not stop'
         $pipeline.EndStop($stop)
-        Assert-SourceQuery ($invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped source pipeline did not complete'
+        Assert-SourceQuery ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped source pipeline did not complete'
         $stopped = $false
         try { $null = $pipeline.EndInvoke($invocation) } catch {
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }

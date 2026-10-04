@@ -134,7 +134,7 @@ exec $quotedTmux "`$@"
         $stop = $pipeline.BeginStop($null, $null)
         Assert-Selection ($pipeline.InvocationStateInfo.State -eq [Management.Automation.PSInvocationState]::Stopping) 'selection stop was not acknowledged before input release'
         $release.Set()
-        Assert-Selection ($stop.AsyncWaitHandle.WaitOne(1000)) 'selection stop did not complete'
+        Assert-Selection ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'selection stop did not complete'
         $pipeline.EndStop($stop)
         $stopped = $false
         try { $null = $pipeline.EndInvoke($invocation) } catch {

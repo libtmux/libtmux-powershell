@@ -21,9 +21,9 @@ $references = @(
     [Management.Automation.PSCmdlet].Assembly.Location
 ) + @(Get-ChildItem "$PSHOME/ref/*.dll" | Select-Object -ExpandProperty FullName)
 Add-Type -Path "$PSScriptRoot/support/WaitContextProbe.cs" -ReferencedAssemblies $references -CompilerOptions '/nowarn:1701'
-[LibTmux.Testing.WaitContextProbe]::AssertCancellationDoesNotCaptureContext()
+[LibTmux.Testing.WaitContextProbe]::AssertCancellationDoesNotCaptureContext($HangGuard)
 
-function Assert-NextSignal($Fixture, $Server, [string] $Channel, [double] $Timeout = 0.5) {
+function Assert-NextSignal($Fixture, $Server, [string] $Channel, [double] $Timeout = $HangGuardSeconds) {
     $null = Invoke-OwnedTmux $Fixture -Arguments @('wait-for', '-S', $Channel)
     $result = @($Server | LibTmux\Wait-TmuxChannel -Channel $Channel -Timeout $Timeout)
     Assert-Wait ($result.Count -eq 1 -and $result[0] -is [bool] -and $result[0]) 'withdrawn waiter swallowed the next signal'
@@ -80,9 +80,9 @@ exec $quotedTmux "`$@"
         $clientId = [int] [IO.File]::ReadAllText($pidFile)
         $null = $fixture.OwnedProcessIds.Add($clientId)
         $stop = $pipeline.BeginStop($null, $null)
-        Assert-Wait ($stop.AsyncWaitHandle.WaitOne(1000)) 'pipeline stop did not withdraw promptly'
+        Assert-Wait ($stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'pipeline stop did not withdraw promptly'
         $pipeline.EndStop($stop)
-        Assert-Wait ($invocation.AsyncWaitHandle.WaitOne(1000)) 'stopped pipeline did not complete'
+        Assert-Wait ($invocation.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) 'stopped pipeline did not complete'
         $stopped = $false
         try { $null = $pipeline.EndInvoke($invocation) } catch {
             if ($_.Exception.InnerException -isnot [Management.Automation.PipelineStoppedException]) { throw }

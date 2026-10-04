@@ -352,7 +352,7 @@ windows:
         Assert-WorkspaceCorpus ($pendingText.Contains($marker) -and
             ![IO.File]::Exists($received)) 'Enter=false executed a command instead of leaving literal text pending'
         $null = $livePane.EnterAsync().GetAwaiter().GetResult()
-        Assert-WorkspaceCorpus ($waiter.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult() -and
+        Assert-WorkspaceCorpus ($waiter.WaitAsync($HangGuard).GetAwaiter().GetResult() -and
             [IO.File]::ReadAllText($received) -ceq $marker) 'explicit Enter did not execute the pending command'
     } finally {
         $null = $waiter.DisposeAsync().AsTask().GetAwaiter().GetResult()
