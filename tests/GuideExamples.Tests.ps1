@@ -191,9 +191,25 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'input-demo' -and $sessions -ccontains 'fixture') 'input cleanup and unrelated session'
         } }
+    'input.http-ready' = @{ Group = 'Commands'; Count = 2; Assert = {
+            param($o)
+            $ready = $o.Result[0]
+            Assert-Guide ($ready -is [LibTmux.PaneWaitResult] -and
+                $ready.Outcome.ToString() -cin @('PresentAtEntry', 'Matched') -and
+                $ready.Pattern -ceq '^Serving HTTP on 127\.0\.0\.1 port [0-9]+' -and
+                ($ready.Tail -join "`n") -cmatch 'Serving HTTP on 127\.0\.0\.1 port [0-9]+' -and
+                $ready.EffectiveTimeout -eq [TimeSpan]::FromSeconds(10) -and
+                !$ready.PollingFallback -and $ready.EventsDropped -eq 0 -and
+                $o.Result[1] -eq 200 -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'HTTP ready-line observation and successful request'
+            $sessions = @((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim().Split("`n"))
+            Assert-Guide ($sessions.Count -eq 1 -and $sessions[0] -ceq 'fixture' -and
+                @($o.Server | Get-TmuxClient).Count -eq 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'HTTP session/client cleanup and unrelated session'
+        } }
     'input.run' = @{ Group = 'Commands'; Count = 1; Assert = {
             param($o)
-            Assert-Guide ($o.Result[0] -is [LibTmux.PaneCommandResult] -and
+            Assert-Guide ($o.Result[0] -is [LibTmux.PaneRunResult] -and
                 $o.Result[0].ExitStatus -eq 7 -and !$o.Result[0].TimedOut -and
                 $o.Result[0].EffectiveTimeout -eq [TimeSpan]::FromSeconds(5) -and
                 (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'pane command completion result'
@@ -534,6 +550,21 @@ $assertions = @{
                 $live[0].Windows[0].Name -ceq 'editor' -and
                 (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'fresh snapshot did not preserve borrowed state or prove owned cleanup'
             Assert-Guide ((Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'recovery guide did not inspect fresh native state'
+        } }
+    'workspace.10-pending' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            $pending = $o.Result[0]
+            $sends = @($pending.Plan.Actions | Where-Object Kind -eq SendText)
+            Assert-Guide ($sends.Count -eq 1 -and $sends[0].Request -is [LibTmux.SendKeysRequest] -and
+                !$sends[0].Request.Enter -and $sends[0].Request.Literal) 'reviewed command stayed pending'
+            Assert-Guide ($pending.Pending.Contains("printf '\nreview %s\n' complete") -and
+                $pending.Pending -notmatch '(?m)^review complete$') 'pending command ran before Enter'
+            Assert-Guide ($pending.Completion -is [LibTmux.PaneWaitResult] -and
+                $pending.Completion.Outcome -in 'PresentAtEntry', 'Matched' -and
+                $pending.Completion.Pattern -ceq '^review complete$' -and
+                $pending.Completion.Tail -ccontains 'review complete') 'explicit Enter command output'
+            Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('has-session', '-t', 'review-command') -AllowFailure).ExitCode -ne 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'pending-input session cleanup and borrowed anchor'
         } }
     'readme.workspace.01-import' = @{ Group = 'Workspace'; Count = 0; Assert = {
             param($o)
@@ -983,7 +1014,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover', 'workspace.10-pending')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {

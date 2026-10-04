@@ -32,6 +32,33 @@ function Send-AttachmentPrepared {
     }
 }
 try {
+    if ($Mode -ceq 'Detach') {
+        Import-Module (Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1')
+        $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: fixture
+windows:
+  - window_name: workspace-attachment
+    focus: true
+    options:
+      automatic-rename: 'off'
+      '@workspace-attachment': installed
+    panes:
+      - shell_command: stty -echo; printf 'LIBTMUX_ATTACHMENT_%s\n' READY; exec /bin/cat
+'@
+        $plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server `
+            -ExistingSession Append -ServerStartup RequireExisting -ErrorAction Stop
+        $applied = $plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+        if ($applied -isnot [LibTmux.Workspace.WorkspaceResult] -or
+            $applied.Session.Id.ToString() -cne $SessionId -or $applied.Windows.Count -ne 1 -or
+            $applied.Windows[0].Panes.Count -ne 1) {
+            throw 'Workspace application did not return the appended native session, window and pane.'
+        }
+        $session = $applied.Session
+        $report.workspaceApplied = $true
+        $report.appliedSessionId = $session.Id.ToString()
+        $report.workspaceWindowId = $applied.Windows[0].Id.ToString()
+        $report.workspacePaneId = $applied.Windows[0].Panes[0].Id.ToString()
+    }
     if ($Mode -ceq 'Cancel') {
         # This test host can stop the second pipeline after the observed attach event.
         $initial = [Management.Automation.Runspaces.InitialSessionState]::CreateDefault2()

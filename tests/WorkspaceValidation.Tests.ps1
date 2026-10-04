@@ -26,6 +26,24 @@ try {
     try { $partial | LibTmux.Workspace\Test-TmuxWorkspace -ErrorAction Stop } catch { $caught = $true }
     Assert-WorkspaceValidation $caught 'ErrorAction Stop did not terminate invalid validation'
 
+    $locatedYaml = "session_name: located`nwindows:`n  - window_index: 2`n  - window_index: 2`n"
+    $locatedJson = "{`n  `"session_name`": `"located`",`n  `"windows`": [`n    {`"window_index`": 2},`n    {`"window_index`": 2}`n  ]`n}`n"
+    foreach ($case in @(
+            @{ Extension = 'yaml'; Text = $locatedYaml; Location = 'line 4, column 19' },
+            @{ Extension = 'json'; Text = $locatedJson; Location = 'line 5, column 22' }
+        )) {
+        $source = Join-Path $directory.FullName "located.$($case.Extension)"
+        [IO.File]::WriteAllText($source, $case.Text)
+        $resolved = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath $source |
+            LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $directory.FullName
+        $diagnostics = @()
+        $valid = $resolved | LibTmux.Workspace\Test-TmuxWorkspace -ErrorAction Continue -ErrorVariable diagnostics 2>$null
+        Assert-WorkspaceValidation (!$valid -and $diagnostics.Count -eq 1 -and
+            $diagnostics[0].Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+            $diagnostics[0].Exception.Message.Contains('windows[1].window_index', [StringComparison]::Ordinal) -and
+            $diagnostics[0].Exception.Message.Contains($case.Location, [StringComparison]::Ordinal)) "$($case.Extension) import/resolve/validation lost the second window index source location"
+    }
+
     $sentinel = Join-Path $directory.FullName 'must-not-execute'
     $escaped = "'" + $sentinel.Replace("'", "'\''") + "'"
     $hostDeclaration = [LibTmux.Workspace.WorkspaceFile]::new('host-check', $directory.FullName, $null,

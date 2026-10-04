@@ -113,6 +113,29 @@ $captured.Windows |
     }
 }
     } }
+    'input.http-ready' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession `
+        -Name ('http-' + [Guid]::NewGuid().ToString('N')) `
+        -Command 'exec python3 -u -m http.server 0 --bind 127.0.0.1'
+    try {
+        $pane = $session | Get-TmuxPane
+        $ready = $pane | Wait-TmuxPaneText `
+            -Pattern '^Serving HTTP on 127\.0\.0\.1 port [0-9]+' `
+            -CaseSensitive -Timeout 10 -TailLines 4 -Confirm:$false
+        if ($ready.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "HTTP readiness ended with $($ready.Outcome)."
+        }
+        $port = [regex]::Match(($ready.Tail -join "`n"), 'port ([0-9]+)').Groups[1].Value
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -TimeoutSec 5 -NoProxy
+        $ready
+        $response.StatusCode
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'input.run' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
@@ -333,6 +356,41 @@ windows:
         Plan = $plan
         Failure = $failure
         Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
+    }
+}
+    } }
+    'workspace.10-pending' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: review-command
+options:
+  default-command: exec /bin/sh
+windows:
+  - window_name: review
+    panes:
+      - shell_command:
+          - cmd: "printf '\\nreview %s\\n' complete"
+            enter: false
+'@
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false
+        $pane = $result.Windows[0].Panes[0]
+        $pending = $pane | Wait-TmuxPaneText `
+            -Pattern "printf '\nreview %s\n' complete" -SimpleMatch -Timeout 10 -Confirm:$false
+        if ($pending.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending input wait ended with $($pending.Outcome)."
+        }
+        $pane | Send-TmuxKey -Key Enter -Confirm:$false
+        $completion = $pane | Wait-TmuxPaneText -Pattern '^review complete$' -Timeout 10 -Confirm:$false
+        if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending command wait ended with $($completion.Outcome)."
+        }
+        [pscustomobject]@{ Pending = $pending.Tail -join "`n"; Completion = $completion; Plan = $plan }
+    } finally {
+        if ($result) { $result.Session | Remove-TmuxSession -Confirm:$false }
     }
 }
     } }

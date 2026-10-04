@@ -130,7 +130,7 @@ try {
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
     $paneRun = @(. $blocks['input.run'])
     Assert-Readme ($paneRun.Count -eq 1 -and
-        $paneRun[0] -is [LibTmux.PaneCommandResult] -and
+        $paneRun[0] -is [LibTmux.PaneRunResult] -and
         $paneRun[0].ExitStatus -eq 7 -and !$paneRun[0].TimedOut) 'the shell exit status was not reported'
     $lines = @(. $blocks['readme.input'])
     Assert-Readme ($lines -ccontains 'hello from PowerShell') 'the signalled output was not captured'

@@ -9,6 +9,7 @@ the source for the help installed with each module.
 | Select an endpoint and read objects | [New-TmuxServer](LibTmux/New-TmuxServer.md), [Get-TmuxSnapshot](LibTmux/Get-TmuxSnapshot.md), [Get-TmuxPane](LibTmux/Get-TmuxPane.md) | [Read tmux objects](../read.md) |
 | Create a session and split a pane | [New-TmuxSession](LibTmux/New-TmuxSession.md), [Split-TmuxPane](LibTmux/Split-TmuxPane.md) | [Create sessions, windows and panes](../create.md) |
 | Run a command and inspect its exit status | [Invoke-TmuxPaneCommand](LibTmux/Invoke-TmuxPaneCommand.md) | [Run to completion](../input.md#run-a-command-to-completion) |
+| Wait for an application's ready line | [Wait-TmuxPaneText](LibTmux/Wait-TmuxPaneText.md) | [Wait for readiness](../input.md#wait-for-an-applications-readiness-line) |
 | Send input and read the screen | [Send-TmuxText](LibTmux/Send-TmuxText.md), [Wait-TmuxChannel](LibTmux/Wait-TmuxChannel.md), [Get-TmuxPaneContent](LibTmux/Get-TmuxPaneContent.md) | [Send a command and wait for its output](../input.md#send-a-command-and-wait-for-its-output) |
 | Filter a capture or query fresh state | [Get-TmuxQueryField](LibTmux/Get-TmuxQueryField.md), [New-TmuxQuery](LibTmux/New-TmuxQuery.md), [Invoke-TmuxQuery](LibTmux/Invoke-TmuxQuery.md) | [Filter and query](../query.md) |
 | Run batches or watch events | [Invoke-TmuxChain](LibTmux/Invoke-TmuxChain.md), [Connect-TmuxControl](LibTmux/Connect-TmuxControl.md), [Watch-TmuxEvent](LibTmux/Watch-TmuxEvent.md) | [Commands](../commands.md), [events](../watch.md) |

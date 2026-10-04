@@ -39,21 +39,33 @@ foreach ($source in @(
         [Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($path))).ToLowerInvariant()
     Assert-WorkspaceCorpus ($hash -ceq $source.Hash) "$($source.File) changed from the pinned tmuxp fixture"
 }
-$modifierFailure = $null
+$enterDeclarations = @{}
+foreach ($source in @(
+        @{ File = 'tmuxp-v1.74.0-skip-send.yaml'; Hash = '94f9966e4a8b7540d1fcf8297af3b86c239f6376019cd954174ddc8af4644529' },
+        @{ File = 'tmuxp-v1.74.0-skip-send.json'; Hash = '3615f4c75ff43fbed2ed71d4a9e5bdb2bc1688871b3d26634a7fa8f25a3b0d52' },
+        @{ File = 'tmuxp-v1.74.0-skip-send-pane-level.yaml'; Hash = 'bbcfafd8a18df84e1d7ba82b317412234c943ef18404e16bd8a671a575a2a96f' },
+        @{ File = 'tmuxp-v1.74.0-skip-send-pane-level.json'; Hash = '53b7ef9cf0f96772988c36b807b1e1fc3cd9f82fa13c7c9ce71af670c616d6f8' }
+    )) {
+    $path = Join-Path $corpusFixtures $source.File
+    $hash = [Convert]::ToHexString(
+        [Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($path))).ToLowerInvariant()
+    Assert-WorkspaceCorpus ($hash -ceq $source.Hash) "$($source.File) changed from tmuxp v1.74.0"
+    $enterDeclarations[$source.File] = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath $path -ErrorAction Stop
+}
+$invalidEnter = $null
 try {
     $null = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 windows:
   - panes:
       - shell_command:
           - cmd: echo ready
-            enter: false
+            enter: maybe
 '@ -ErrorAction Stop
-} catch { $modifierFailure = $_ }
-Assert-WorkspaceCorpus ($null -ne $modifierFailure -and
-    $modifierFailure.Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
-    $modifierFailure.Exception.Message.Contains('shell_command[0]') -and
-    $modifierFailure.Exception.Message.Contains('enter') -and
-    $modifierFailure.Exception.Message.Contains('At line 5, column')) 'unsupported tmuxp command modifier was accepted or lost its location'
+} catch { $invalidEnter = $_ }
+Assert-WorkspaceCorpus ($null -ne $invalidEnter -and
+    $invalidEnter.Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+    $invalidEnter.Exception.Message.Contains('shell_command[0].enter') -and
+    $invalidEnter.Exception.Message.Contains('At line 5, column')) 'invalid command Enter did not retain its source location'
 
 # One YAML creation and one JSON append cover the declaration semantics that
 # must survive parsing, resolution, planning and real pane startup together.
@@ -61,6 +73,59 @@ Invoke-WithOwnedTmux {
     param($fixture)
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $fixture.TmuxPath
     $created = $null
+    foreach ($format in @('yaml', 'json')) {
+        $commandLevel = $enterDeclarations["tmuxp-v1.74.0-skip-send.$format"] |
+            LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+        $commands = @($commandLevel.Actions | Where-Object Kind -eq SendText)
+        Assert-WorkspaceCorpus ($commands.Count -eq 2 -and
+            $commands[0].Request -is [LibTmux.SendKeysRequest] -and
+            $commands[0].Request.Text -ceq 'echo "___$((11 + 1))___"' -and
+            $commands[0].Request.Enter -and $commands[0].Request.Literal -and
+            $commands[1].Request.Text -ceq 'echo "___$((1 + 3))___"' -and
+            !$commands[1].Request.Enter -and $commands[1].Request.Literal) "$format command-level Enter plan"
+        $preview = $commands | Out-String -Width 200
+        Assert-WorkspaceCorpus ($preview.Contains('enter=True') -and
+            $preview.Contains('enter=False') -and !$preview.Contains('echo')) `
+            "$format preview hid Enter behavior or exposed command text"
+
+        $paneLevel = $enterDeclarations["tmuxp-v1.74.0-skip-send-pane-level.$format"] |
+            LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+        $commands = @($paneLevel.Actions | Where-Object Kind -eq SendText)
+        Assert-WorkspaceCorpus ($commands.Count -eq 3 -and
+            @($commands | Where-Object { $_.Request -isnot [LibTmux.SendKeysRequest] -or
+                    $_.Request.Enter -or !$_.Request.Literal }).Count -eq 0) "$format pane-level Enter plan"
+    }
+    $sticky = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: workspace-enter-sticky
+shell_command_before:
+  - cmd: root
+    enter: false
+windows:
+  - shell_command_before: [window]
+    panes:
+      - shell_command_before:
+          - cmd: pane
+            enter: true
+        shell_command:
+          - main
+          - cmd: hold
+            enter: false
+          - sticky
+          - cmd: resume
+            enter: true
+          - last
+'@ -ErrorAction Stop | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $fixture.DirectoryPath -ErrorAction Stop
+    $stickyPlan = $sticky | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $stickyRequests = @($stickyPlan.Actions | Where-Object Kind -eq SendText | ForEach-Object Request)
+    $expectedText = @('root', 'window', 'pane', 'main', 'hold', 'sticky', 'resume', 'last')
+    $expectedEnter = @($false, $false, $true, $true, $false, $false, $true, $true)
+    Assert-WorkspaceCorpus ($stickyRequests.Count -eq $expectedText.Count) 'sticky Enter plan changed command count'
+    for ($index = 0; $index -lt $expectedText.Count; $index++) {
+        Assert-WorkspaceCorpus ($stickyRequests[$index] -is [LibTmux.SendKeysRequest] -and
+            $stickyRequests[$index].Text -ceq $expectedText[$index] -and
+            $stickyRequests[$index].Enter -eq $expectedEnter[$index] -and
+            $stickyRequests[$index].Literal) "sticky Enter plan command $index"
+    }
     foreach ($format in @('yaml', 'json')) {
         $caseDirectory = Join-Path $fixture.DirectoryPath $format
         $firstDirectory = Join-Path $caseDirectory 'project/window'
@@ -84,7 +149,7 @@ Invoke-WithOwnedTmux {
         $policy = if ($format -ceq 'json') { 'Append' } else { 'Error' }
         $plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession $policy -ErrorAction Stop
         if ($format -ceq 'yaml') {
-            $sent = @($plan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request })
+            $sent = @($plan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request.Text })
             Assert-WorkspaceCorpus ($sent.Count -eq 11 -and
                 $sent[0] -ceq 'echo session >> order.txt' -and
                 $sent[1] -ceq 'echo window >> order.txt' -and
@@ -147,7 +212,7 @@ Invoke-WithOwnedTmux {
     $three = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-three_windows.yaml') -ErrorAction Stop
     $three = $three.Resolve($fixture.DirectoryPath, $null)
     $threePlan = $three | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
-    $threeCommands = @($threePlan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request })
+    $threeCommands = @($threePlan.Actions | Where-Object Kind -eq SendText | ForEach-Object { $_.Request.Text })
     Assert-WorkspaceCorpus ($threeCommands.Count -eq 3 -and
         $threeCommands[0] -ceq "echo 'first window'" -and
         $threeCommands[1] -ceq "echo 'second window'" -and
@@ -257,5 +322,43 @@ Invoke-WithOwnedTmux {
         $declaredOrder -ceq 'zero:0,five:5,one:1' -and
         $nativeOrder -ceq 'zero:0,one:1,five:5') 'upstream window indexes did not reach native tmux placements'
     Assert-WorkspaceCorpus ([int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'corpus application replaced the borrowed daemon'
+
+    $marker = 'ENTER_HELD_' + [Guid]::NewGuid().ToString('N')
+    $channel = 'workspace-enter-' + [Guid]::NewGuid().ToString('N')
+    $received = Join-Path $fixture.DirectoryPath 'enter-received'
+    $quotedFile = "'" + $received.Replace("'", "'\''") + "'"
+    $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
+    $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
+    $command = "printf '%s' '$marker' > $quotedFile; $quotedTmux -S $quotedSocket wait-for -S $channel"
+    $liveDocument = Microsoft.PowerShell.Utility\ConvertTo-Json -InputObject @{
+        session_name = 'workspace-enter-live'
+        windows = @(@{ panes = @(@{ shell_command = @(@{ cmd = $command; enter = $false }) }) })
+    } -Depth 8 -Compress
+    $live = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $liveDocument -ErrorAction Stop
+    $livePlan = $live | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ErrorAction Stop
+    $pending = @($livePlan.Actions | Where-Object Kind -eq SendText)
+    Assert-WorkspaceCorpus ($pending.Count -eq 1 -and
+        $pending[0].Request -is [LibTmux.SendKeysRequest] -and
+        $pending[0].Request.Text -ceq $command -and
+        !$pending[0].Request.Enter -and $pending[0].Request.Literal) 'live Enter plan was not an inspectable literal send without Enter'
+    $waiter = $server.OpenWaitChannel($channel)
+    $liveSession = $null
+    try {
+        $liveResult = $livePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+        $liveSession = $liveResult.Session
+        Register-OwnedTmuxPane $fixture
+        $livePane = @($liveResult.Windows[0] | LibTmux\Get-TmuxPane)[0]
+        $pendingText = (Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-J', '-t', $livePane.Id.ToString())).StdOut
+        Assert-WorkspaceCorpus ($pendingText.Contains($marker) -and
+            ![IO.File]::Exists($received)) 'Enter=false executed a command instead of leaving literal text pending'
+        $null = $livePane.EnterAsync().GetAwaiter().GetResult()
+        Assert-WorkspaceCorpus ($waiter.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult() -and
+            [IO.File]::ReadAllText($received) -ceq $marker) 'explicit Enter did not execute the pending command'
+    } finally {
+        $null = $waiter.DisposeAsync().AsTask().GetAwaiter().GetResult()
+        if ($liveSession) { $liveSession | LibTmux\Remove-TmuxSession -Confirm:$false -ErrorAction Stop }
+    }
+    Assert-WorkspaceCorpus ((Invoke-OwnedTmux $fixture -Arguments @('has-session', '-t', 'fixture')).ExitCode -eq 0 -and
+        [int](Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut -eq $fixture.ServerPid) 'Enter test removed or replaced its borrowed fixture daemon'
 }
-'PASS workspace corpus: local YAML/JSON, unchanged tmuxp windows/directories/environment/options/indices, and detached daemon'
+'PASS workspace corpus: local YAML/JSON, pinned tmuxp declarations, literal pending input and explicit Enter, and detached daemon'

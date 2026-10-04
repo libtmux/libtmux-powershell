@@ -30,16 +30,19 @@ None.
 ## DESCRIPTION
 
 Run Command in a subshell in the selected pane and return a native
-`LibTmux.PaneCommandResult`. The result records the pane ID, authenticated shell
+`LibTmux.PaneRunResult`. The result records the pane ID, authenticated shell
 exit status, whether the wait timed out, elapsed time and effective timeout. A
 nonzero exit status is a result, not a cmdlet error. The command does not change
 the parent shell's working directory or environment.
 
 A timeout returns `TimedOut = True` and a null `ExitStatus`; the command may
 still be running. Cancellation after dispatch can leave it running too. Inspect
-the pane before retrying either case. This command does not capture stdout or
-stderr; [Get-TmuxPaneContent](Get-TmuxPaneContent.md) reads rendered screen
-text separately and is not a byte-exact process stream.
+the pane before retrying either case. `Output` contains bounded rendered command
+output, which may include stdout and stderr together. It is not a byte-exact
+process stream. Inspect `LinesMissed`, `AnchorLost` and omission counts before
+treating it as complete. `Started = False` means no start marker was confirmed;
+it does not prove the command never ran. The default view omits output text.
+[Get-TmuxPaneContent](Get-TmuxPaneContent.md) reads the current screen separately.
 
 The pane must be a live, writable POSIX-compatible shell. `-WhatIf` performs
 no tmux I/O or input operation. Confirmation identifies the endpoint and pane
@@ -210,7 +213,7 @@ The native pane selected from an explicit endpoint.
 
 ## OUTPUTS
 
-### LibTmux.PaneCommandResult
+### LibTmux.PaneRunResult
 
 One result per pane with exit status or a timeout indication.
 

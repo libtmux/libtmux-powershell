@@ -24,12 +24,33 @@ Invoke-WithOwnedTmux {
     $wrapper = Join-Path $fixture.DirectoryPath 'workspace-tmux'
     $arm = Join-Path $fixture.DirectoryPath 'block-workspace'
     $clientPath = Join-Path $fixture.DirectoryPath 'workspace-client'
+    $readinessArm = Join-Path $fixture.DirectoryPath 'signal-before-readiness-wait'
+    $readinessSignal = Join-Path $fixture.DirectoryPath 'readiness-channel-signalled'
     $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
+    $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
     @"
 #!/bin/sh
 printf '%s\n' dispatch >> '$trace'
 case "`$*" in
     *new-window*)
+        if [ -f '$readinessArm' ]; then
+            rm '$readinessArm'
+            channel=''
+            for arg in "`$@"; do
+                case "`$arg" in
+                    LIBTMUX_WORKSPACE_READY=*) channel=`${arg#LIBTMUX_WORKSPACE_READY=} ;;
+                esac
+            done
+            if [ -z "`$channel" ]; then printf 'missing readiness channel\n' >&2; exit 42; fi
+            $quotedTmux "`$@"
+            status=`$?
+            if [ "`$status" -ne 0 ]; then exit "`$status"; fi
+            $quotedTmux -S $quotedSocket wait-for -S "`$channel"
+            status=`$?
+            if [ "`$status" -ne 0 ]; then exit "`$status"; fi
+            printf '%s' "`$channel" > '$readinessSignal'
+            exit 0
+        fi
         if [ -f '$arm' ]; then
             rm '$arm'
             printf '%s\n' "`$`$" > '$clientPath'
@@ -42,11 +63,15 @@ exec $quotedTmux "`$@"
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper
     $source = Join-Path $fixture.DirectoryPath 'workspace.yaml'
-    $hostMarker = Join-Path $fixture.DirectoryPath 'host-effect'
+    $sessionDirectory = Join-Path $fixture.DirectoryPath 'session-cwd'
+    $null = New-Item -ItemType Directory -Path $sessionDirectory
+    $hostMarker = Join-Path $sessionDirectory 'host-effect'
     $sensitive = 'review-' + [Guid]::NewGuid().ToString('N')
     $yaml = @"
 session_name: reviewed
-before_script: printf '$sensitive' > host-effect
+start_directory: session-cwd
+before_script: >-
+  $quotedTmux -S $quotedSocket has-session -t '=reviewed' && printf '%s' "`$PWD" && printf '$sensitive' > host-effect
 environment:
   REVIEW_TOKEN: '$sensitive'
 options:
@@ -83,12 +108,12 @@ windows:
         $plan.CleanupTimeout -eq [TimeSpan]::FromSeconds(0.5)) 'planning replaced the native endpoint or lost seconds/policy'
     $hostAction = @($plan.Actions | Where-Object Kind -eq RunHostScript)
     Assert-WorkspaceApply ($hostAction.Count -eq 1 -and $hostAction[0].Request.Timeout -eq [TimeSpan]::FromSeconds(2) -and
-        $hostAction[0].Request.MaxOutputBytes -eq 256 -and $hostAction[0].Request.WorkingDirectory -ceq $fixture.DirectoryPath) 'host action lost reviewed bounds or origin'
+        $hostAction[0].Request.MaxOutputBytes -eq 256 -and $hostAction[0].Request.WorkingDirectory -ceq $sessionDirectory) 'host action lost reviewed bounds or session directory'
     $paneText = @($plan.Actions | Where-Object Kind -eq SendText)
     $paneOption = @($plan.Actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -eq '@role' })
     Assert-WorkspaceApply ($hostAction[0].Request.Script.Contains($sensitive) -and
         $hostAction[0].Request.Environment['REVIEW_TOKEN'] -ceq $sensitive -and
-        $paneText.Count -eq 1 -and $paneText[0].Request.Contains($sensitive) -and
+        $paneText.Count -eq 1 -and $paneText[0].Request.Text.Contains($sensitive) -and
         $paneOption.Count -eq 1 -and $paneOption[0].Request.Value -ceq $sensitive) 'exact requests lost plan values'
     $review = $plan.Actions | Out-String -Width 240
     Assert-WorkspaceApply (!$review.Contains($sensitive) -and
@@ -160,6 +185,9 @@ windows:
     Assert-WorkspaceApply ($result -is [LibTmux.Workspace.WorkspaceResult] -and $result.Session.Name -ceq 'reviewed' -and
         $result.Windows.Count -eq 1 -and $result.Windows[0].Index -eq 4 -and
         [IO.File]::ReadAllText($hostMarker) -ceq $sensitive) 'exact reviewed application lost native result, layout order or host action'
+    $hostOutcome = @($result.Journal | Where-Object { $_.Action.Kind -eq 'RunHostScript' })
+    Assert-WorkspaceApply ($hostOutcome.Count -eq 1 -and
+        $hostOutcome[0].Result.StandardOutput -ceq $sessionDirectory) 'host script did not observe the created session and its resolved session directory'
     Assert-WorkspaceApply ($result.Journal.Count -eq $plan.Actions.Count) 'successful action journal is incomplete'
     for ($index = 0; $index -lt $plan.Actions.Count; $index++) {
         Assert-WorkspaceApply ([object]::ReferenceEquals($result.Journal[$index].Action, $plan.Actions[$index]) -and
@@ -202,6 +230,32 @@ windows:
         $null -ne $failure.Exception.InnerException -and
         @($failure.Exception.CompensationJournal | Where-Object State -eq Completed).Count -gt 0) 'failure lost native cause, partial result, dispatch or compensation journal'
     Assert-WorkspaceApply (@($result.Session | LibTmux\Get-TmuxWindow).Count -eq 1) 'failed append removed the existing window or left its creation'
+
+    $early = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: reviewed
+windows:
+  - window_name: early-ready
+    panes:
+      - null
+'@
+    $earlyPlan = $early | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession Append -Readiness Cooperative -ReadinessTimeout 0.5 -CompensateOnFailure
+    [IO.File]::WriteAllText($readinessArm, '')
+    $earlyResult = $earlyPlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false
+    Register-OwnedTmuxPane $fixture
+    try {
+        $open = @($earlyResult.Journal | Where-Object { $_.Action.Kind -eq 'OpenReadinessChannel' })
+        $wait = @($earlyResult.Journal | Where-Object { $_.Action.Kind -eq 'WaitForReadiness' })
+        Assert-WorkspaceApply ($open.Count -eq 1 -and $wait.Count -eq 1 -and
+            $open[0].State -eq [LibTmux.Workspace.WorkspaceActionState]::Completed -and
+            $wait[0].State -eq [LibTmux.Workspace.WorkspaceActionState]::Completed -and
+            (Test-Path -LiteralPath $readinessSignal) -and
+            [IO.File]::ReadAllText($readinessSignal) -ceq $open[0].Result -and
+            $earlyResult.Windows.Count -eq 1) 'early owned readiness signal was lost before Apply waited'
+    } finally {
+        if ($earlyResult.Windows.Count -eq 1) {
+            $earlyResult.Windows[0] | LibTmux\Remove-TmuxWindow -Confirm:$false -ErrorAction Stop
+        }
+    }
 
     $replace = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server -ExistingSession Replace -AllowHostScripts
     $replacement = $replace | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false

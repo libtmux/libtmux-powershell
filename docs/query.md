@@ -63,6 +63,7 @@ criteria maps; unsupported field/operator combinations fail at construction.
 | `Lt`, `Le`, `Gt`, `Ge` | `lessThan`, `lessThanOrEqual`, `greaterThan`, `greaterThanOrEqual` | Int64-representable integer |
 | `StartsWith`, `EndsWith`, `Contains` | `startsWithOrdinal`, `endsWithOrdinal`, `containsOrdinal` | String |
 | `EqualIgnoreCase` | `stringEqualOrdinalIgnoreCase` | String |
+| `StartsWithIgnoreCase`, `EndsWithIgnoreCase`, `ContainsIgnoreCase` | `startsWithOrdinalIgnoreCase`, `endsWithOrdinalIgnoreCase`, `containsOrdinalIgnoreCase` | String |
 | `In`, `NotIn` | `or` of `equal`, optionally `not` | Array or list of scalar values |
 | `IsNull`, `IsNotNull` | `equal` or `notEqual` with null | `$true` only |
 | `Regex` | `regex` | Map with `Pattern` and optional `Options` list |
@@ -72,8 +73,9 @@ criteria maps; unsupported field/operator combinations fail at construction.
 
 Ordinary string equality, membership and substring matching are ordinal and
 case-sensitive. Compare with PowerShell `-ceq` or `-cin`, not its normally
-case-insensitive `-eq` or `-in`. `EqualIgnoreCase` explicitly requests ordinal
-case-insensitive equality. No wildcard expansion or string normalization is
+case-insensitive `-eq` or `-in`. `EqualIgnoreCase`, `StartsWithIgnoreCase`,
+`EndsWithIgnoreCase` and `ContainsIgnoreCase` explicitly request ordinal
+case-insensitive matching. No wildcard expansion or string normalization is
 implicit. The catalog also exposes `stringEqualOrdinal`; the criteria form
 uses bare string equality or `Eq` for that behavior.
 
