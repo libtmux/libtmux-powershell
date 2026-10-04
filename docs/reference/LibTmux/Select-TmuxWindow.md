@@ -55,7 +55,10 @@ before mutation, use -ErrorAction Stop on every upstream acquisition.
 Capture the existing endpoint selected by $SocketPath, then select active window placements.
 
 ```powershell
-(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Windows | LibTmux\Select-TmuxWindow -Criteria @{ IsActive = $true }
+$snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxSnapshot
+$snapshot.Windows |
+    LibTmux\Select-TmuxWindow -Criteria @{ IsActive = $true }
 ```
 
 ## PARAMETERS
