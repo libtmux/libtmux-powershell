@@ -91,7 +91,10 @@ semicolons in each value remain part of that argument.
 
 <!-- example: create.environment -->
 ```powershell
-$window = $session | New-TmuxWindow -Environment @{ APP_MODE = 'development'; OPTIONAL = '' }
+$window = $session | New-TmuxWindow -Environment @{
+    APP_MODE = 'development'
+    OPTIONAL = ''
+}
 ```
 
 ## Failures and results
