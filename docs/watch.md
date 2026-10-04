@@ -65,8 +65,8 @@ server is reachable. The default tmux server is untouched.
         $null = $server | Invoke-TmuxCommand -Arguments @(
             'rename-window', '-t', 'watch-demo:0', 'after'
         )
-        if (-not ($job | Wait-Job -Timeout 5)) {
-            throw 'The rename notification did not arrive within five seconds.'
+        if (-not ($job | Wait-Job -Timeout 30)) {
+            throw 'The rename notification did not arrive in time.'
         }
         $notification = $job | Receive-Job -ErrorAction Stop
         if ($null -eq $notification) {

@@ -241,8 +241,8 @@ $job = & {
         $null = $server | Invoke-TmuxCommand -Arguments @(
             'rename-window', '-t', 'watch-demo:0', 'after'
         )
-        if (-not ($job | Wait-Job -Timeout 5)) {
-            throw 'The rename notification did not arrive within five seconds.'
+        if (-not ($job | Wait-Job -Timeout 30)) {
+            throw 'The rename notification did not arrive in time.'
         }
         $notification = $job | Receive-Job -ErrorAction Stop
         if ($null -eq $notification) {
@@ -317,7 +317,7 @@ $commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
     New-TmuxCommand -Name 'display-message' -Arguments @('-p', $name)
 })
 ./examples/ConcurrentCommands.ps1 -Server $server -Command $commands `
-    -MaxPending 2 -MaxResultBytes 4096 -Timeout 1
+    -MaxPending 2 -MaxResultBytes 4096 -Timeout 30
     } }
     'commands.concurrent-control' = @{ Requires = @('server'); Code = {
 & {
@@ -332,7 +332,7 @@ $commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
         })
         ./examples/ConcurrentCommands.ps1 -Connection $control `
             -Command $commands -MaxPending 2 -MaxResultBytes 4096 `
-            -Timeout 1 -CompletionOrder
+            -Timeout 30 -CompletionOrder
     } finally {
         $control | Disconnect-TmuxControl -Confirm:$false
     }

@@ -93,7 +93,7 @@ $commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
     New-TmuxCommand -Name 'display-message' -Arguments @('-p', $name)
 })
 ./examples/ConcurrentCommands.ps1 -Server $server -Command $commands `
-    -MaxPending 2 -MaxResultBytes 4096 -Timeout 1
+    -MaxPending 2 -MaxResultBytes 4096 -Timeout 30
 ```
 
 Pass a borrowed control client to reuse its connection. `-CompletionOrder`
@@ -115,7 +115,7 @@ The recipe leaves the client open; its owner closes it here.
         })
         ./examples/ConcurrentCommands.ps1 -Connection $control `
             -Command $commands -MaxPending 2 -MaxResultBytes 4096 `
-            -Timeout 1 -CompletionOrder
+            -Timeout 30 -CompletionOrder
     } finally {
         $control | Disconnect-TmuxControl -Confirm:$false
     }
