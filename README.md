@@ -245,18 +245,22 @@ so capture starts only when the command has reached that point.
 & {
     $ErrorActionPreference = 'Stop'
     $ready = 'libtmux-demo-' + [Guid]::NewGuid().ToString('N')
-    $tmux = (Get-Command $server.ConnectionOptions.TmuxBinaryPath -CommandType Application |
+    $binary = $server.ConnectionOptions.TmuxBinaryPath
+    $tmux = (Get-Command $binary -CommandType Application |
         Select-Object -First 1).Source
     $selector = if ($server.ConnectionOptions.SocketPath) {
         "-S '{0}'" -f $server.ConnectionOptions.SocketPath.Replace("'", "'\''")
     } elseif ($server.ConnectionOptions.SocketName) {
         "-L '{0}'" -f $server.ConnectionOptions.SocketName.Replace("'", "'\''")
     } else { '' }
-    $signal = "'{0}' {1} wait-for -S '{2}'" -f $tmux.Replace("'", "'\''"), $selector, $ready
-    $session = $server | New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
+    $quoted = $tmux.Replace("'", "'\''")
+    $signal = "'{0}' {1} wait-for -S '{2}'" -f $quoted, $selector, $ready
+    $session = $server |
+        New-TmuxSession -Name 'input-demo' -Command 'exec /bin/sh'
     try {
         $pane = $session | Get-TmuxPane
-        $pane | Send-TmuxText -Text ('printf "\nhello from PowerShell\n"; ' + $signal) -Enter
+        $text = 'printf "\nhello from PowerShell\n"; ' + $signal
+        $pane | Send-TmuxText -Text $text -Enter
         $null = $server | Wait-TmuxChannel -Channel $ready -Timeout 10
         $pane | Get-TmuxPaneContent
     } finally {
