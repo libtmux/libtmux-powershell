@@ -27,14 +27,16 @@ enforces the example rules in WRITING.md. Configuration lives in
     line = "the exact line, as it appears in the file"
     reason = "why breaking it would make the example worse"
 
-It checks fenced code in ``markdown`` files, every line of ``sources``
-files, and fenced or ``>>>`` code inside doc comments of ``doc_comments``
-files. Output is not checked: fences tagged ``text`` (or another output
-tag) and the lines a ``console`` block prints. An untagged Markdown fence
-is code. A line that is only a URL (after an optional comment, list or
-quote marker) and a hidden line (a rustdoc ``# `` line, a doctest marked
-``# doctest: +HIDE``) are skipped. Wide characters count as two columns;
-a tab advances to the next multiple of ``tab_width`` (default 4).
+It checks fenced code in ``markdown`` files (literal and ``code-block``
+blocks in a ``.rst`` one), every line of ``sources`` files, and the code
+inside doc comments of ``doc_comments`` files: fences, ``>>>`` doctests,
+and reST literal blocks in Python docstrings. Output is not checked:
+fences tagged ``text`` and the lines a ``console`` block prints. An
+untagged Markdown fence is code. A line that is only a URL (after an
+optional comment, list or quote marker) and a hidden line (a rustdoc
+``# `` line, a doctest marked ``# doctest: +HIDE``) are skipped. Wide
+characters count as two columns; a tab advances to the next multiple of
+``tab_width`` (default 4).
 
 ``width`` must be 80, the shared rule. Every glob must match a tracked
 file and every exclusion a checked one; every exclusion and allow entry
@@ -96,7 +98,12 @@ GLOB_KEYS = ("markdown", "sources", "doc_comments")
 CODE_DIRECTIVES = frozenset({"code-block", "code", "code-cell", "sourcecode"})
 # gp-libs hides a doctest line carrying this directive from the rendered page.
 HIDDEN = re.compile(r"^\s*(?:>>>|\.\.\.) .*# doctest: \+HIDE\b")
-OUTPUT_TAGS = frozenset({"text", "txt", "plain", "output", "log", "diff"})
+OUTPUT_TAGS = frozenset({"text"})
+# A reST line that opens an indented code block: a paragraph ending in
+# ``::`` or a code directive. Other directives, such as toctree, hold no code.
+REST_BLOCK = re.compile(
+    r"^\s*(?!\.\. )\S.*::\s*$|^\s*\.\. (code-block|code|sourcecode)::"
+)
 FENCE = re.compile(r"^(?P<indent>\s*)(?P<mark>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
 RUSTDOC_TAGS = frozenset({"rust", "no_run", "ignore", "should_panic", "compile_fail"})
 SHARED = re.compile(
@@ -261,11 +268,38 @@ def markdown_lines(text: str) -> list[tuple[int, str]]:
     return found
 
 
+def rest_block_lines(text: str) -> list[tuple[int, str]]:
+    r"""Return the lines of reST literal and code-directive blocks.
+
+    A block is every line indented past the line that opens it, up to the
+    next non-blank line at or left of that indent.
+
+    >>> doc = "Use it::\n\n    pane.run(1)\n\nProse.\n.. code-block:: sh\n\n   ls\n"
+    >>> [line for _, line in rest_block_lines(doc)]
+    ['    pane.run(1)', '   ls']
+    >>> rest_block_lines(".. toctree::\n\n   capture\n")
+    []
+    """
+    found: list[tuple[int, str]] = []
+    opener: int | None = None
+    for number, line in enumerate(text.splitlines(), 1):
+        indent = len(line) - len(line.lstrip())
+        if opener is not None and line.strip():
+            if indent > opener:
+                found.append((number, line))
+                continue
+            opener = None
+        if REST_BLOCK.search(line) and not line.lstrip().startswith((">>>", "...")):
+            opener = indent
+    return found
+
+
 def doc_comment_lines(text: str, suffix: str) -> list[tuple[int, str]]:
     r"""Return code inside doc comments: fences and ``{@code}``/``<code>``.
 
-    Python docstrings contribute their doctest lines, Go doc comments their
-    tab-indented code blocks, and Julia docstrings their fences. A fence
+    Python docstrings contribute their doctest lines and reST literal
+    blocks, Go doc comments their tab-indented code blocks, and Julia
+    docstrings their fences. A fence
     tagged as output is skipped, and a plain ``//`` comment is not a doc
     comment.
 
@@ -283,20 +317,26 @@ def doc_comment_lines(text: str, suffix: str) -> list[tuple[int, str]]:
     >>> py = '    >>> pane.send_keys("x")\n    plain prose'
     >>> [line for _, line in doc_comment_lines(py, ".py")]
     ['    >>> pane.send_keys("x")']
+    >>> literal = '    Example::\n\n        server.cmd("x")\n    Prose.'
+    >>> [line for _, line in doc_comment_lines(literal, ".py")]
+    ['        server.cmd("x")']
     >>> go = "// Run starts a pane:\n//\tpane.Run(ctx)\nfunc Run() {}"
     >>> [line for _, line in doc_comment_lines(go, ".go")]
     ['//\tpane.Run(ctx)']
     """
     if suffix == ".jl":
         return markdown_lines(text)
+    if suffix == ".py":
+        doctests = [
+            (number, line)
+            for number, line in enumerate(text.splitlines(), 1)
+            if line.lstrip().startswith((">>> ", "... "))
+        ]
+        return sorted(set(doctests + rest_block_lines(text)))
     found: list[tuple[int, str]] = []
     inside = False
     output = False
     for number, line in enumerate(text.splitlines(), 1):
-        if suffix == ".py":
-            if line.lstrip().startswith((">>> ", "... ")):
-                found.append((number, line))
-            continue
         if suffix == ".go":
             if line.lstrip().startswith("//\t"):
                 found.append((number, line))
@@ -486,7 +526,9 @@ def check(
             text = (root / path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        if kind == "markdown":
+        if kind == "markdown" and suffix == ".rst":
+            lines = rest_block_lines(text)
+        elif kind == "markdown":
             lines = markdown_lines(text)
         elif kind == "doc":
             lines = doc_comment_lines(text, suffix)
