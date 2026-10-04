@@ -87,7 +87,9 @@ arguments into a shell command or expand their contents.
 
 <!-- example: capture.raw-list -->
 ```powershell
-$server | Invoke-TmuxCommand -Arguments @('list-sessions', '-F', '#{session_name}')
+$server | Invoke-TmuxCommand -Arguments @(
+    'list-sessions', '-F', '#{session_name}'
+)
 ```
 
 For tmux features without a dedicated cmdlet, use the same literal argument
