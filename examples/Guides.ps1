@@ -39,7 +39,9 @@ $captured.Windows | Select-TmuxWindow -Criteria @{
 }
     } }
     'query.08-regex' = @{ Requires = @('captured'); Code = {
-$captured.Windows | Select-TmuxWindow -Criteria @{ Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } } }
+$captured.Windows | Select-TmuxWindow -Criteria @{
+    Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } }
+}
     } }
     'query.09-json' = @{ Requires = @('query'); Code = {
 New-TmuxQuery -Json ($query | ConvertTo-TmuxQueryJson)

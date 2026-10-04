@@ -145,7 +145,9 @@ For a regular expression, pass an explicit pattern and semantic option list:
 
 <!-- example: query.08-regex -->
 ```powershell
-$captured.Windows | Select-TmuxWindow -Criteria @{ Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } } }
+$captured.Windows | Select-TmuxWindow -Criteria @{
+    Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } }
+}
 ```
 
 Regex uses the .NET dialect with `CultureInvariant` always enabled. Options
