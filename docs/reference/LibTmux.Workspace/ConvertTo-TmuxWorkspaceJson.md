@@ -52,7 +52,12 @@ of the native declaration and are not reproduced.
 Convert a two-pane declaration for storage or inspection.
 
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{"session_name":"development","windows":[{"window_name":"work","panes":["nvim",""]}]}' | LibTmux.Workspace\ConvertTo-TmuxWorkspaceJson
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: work
+    panes: [nvim, ""]
+'@ | LibTmux.Workspace\ConvertTo-TmuxWorkspaceJson
 ```
 
 ## PARAMETERS
