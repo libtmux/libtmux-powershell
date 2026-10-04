@@ -91,7 +91,7 @@ $windows = @($session.Windows | ForEach-Object {
 
 $blocks = @{}
 foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
-    'readme.related', 'input.run', 'readme.input', 'readme.control',
+    'readme.related', 'input.run', 'input.http-ready', 'readme.control',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
     'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
     $blocks[$id] = Get-ReadmeBlock $id
@@ -132,8 +132,18 @@ try {
     Assert-Readme ($paneRun.Count -eq 1 -and
         $paneRun[0] -is [LibTmux.PaneRunResult] -and
         $paneRun[0].ExitStatus -eq 7 -and !$paneRun[0].TimedOut) 'the shell exit status was not reported'
-    $lines = @(. $blocks['readme.input'])
-    Assert-Readme ($lines -ccontains 'hello from PowerShell') 'the signalled output was not captured'
+    $httpReady = @(. $blocks['input.http-ready'])
+    $readyLine = 'Serving HTTP on 127\.0\.0\.1 port [0-9]+'
+    Assert-Readme ($httpReady.Count -eq 2 -and
+        $httpReady[0] -is [LibTmux.PaneWaitResult] -and
+        $httpReady[0].Outcome.ToString() -cin @('PresentAtEntry', 'Matched') -and
+        ($httpReady[0].Tail -join "`n") -cmatch $readyLine -and
+        $httpReady[0].EffectiveTimeout -eq [TimeSpan]::FromSeconds(10) -and
+        !$httpReady[0].PollingFallback -and $httpReady[0].EventsDropped -eq 0 -and
+        $httpReady[1] -eq 200) 'the HTTP service was not ready and responsive'
+    Assert-Readme (
+        (Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0
+    ) 'HTTP cleanup left its owned session or client running'
     $controlReply = @(. $blocks['readme.control'])
     Assert-Readme ($controlReply.Count -eq 1 -and $controlReply[0] -ceq 'control-demo') 'the control client returned a different session'
     . $blocks['readme.workspace.01-import']
