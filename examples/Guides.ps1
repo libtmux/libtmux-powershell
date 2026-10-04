@@ -371,7 +371,8 @@ $workspacePlan.Actions
 $workspacePlan | Invoke-TmuxWorkspace -WhatIf
     } }
     'workspace.06-apply' = @{ Requires = @('workspacePlan'); Code = {
-$workspaceResult = $workspacePlan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+$workspaceResult = $workspacePlan |
+    Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
     } }
     'workspace.07-export' = @{ Requires = @('server', 'exportPath'); Code = {
 ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop).Sessions |
