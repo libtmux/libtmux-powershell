@@ -119,7 +119,9 @@ Select windows with at least one pane that meets both size conditions:
 
 <!-- example: query.06-related -->
 ```powershell
-$captured.Windows | Select-TmuxWindow -Criteria @{ Panes = @{ Some = @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } } } }
+$captured.Windows | Select-TmuxWindow -Criteria @{
+    Panes = @{ Some = @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } } }
+}
 ```
 
 Both conditions apply to the same pane. Two separate `Some` clauses may match
