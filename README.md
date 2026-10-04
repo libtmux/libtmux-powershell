@@ -156,7 +156,8 @@ one snapshot. `cat` keeps the three panes open without shell setup. The
 ```powershell
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
+    $session = $server |
+        New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
     try {
         $pane = $session | Get-TmuxPane
         $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
