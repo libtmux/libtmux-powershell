@@ -3412,7 +3412,9 @@ $server | LibTmux\Invoke-TmuxChain -Command $commands
           <maml:para>Read the version of the existing server identified by $SocketPath.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxCommand -Arguments @('display-message', '-p', '#{version}')
+$arguments = @('display-message', '-p', '#{version}')
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Invoke-TmuxCommand -Arguments $arguments
 ```</maml:para>
         </maml:introduction>
         <dev:code />
