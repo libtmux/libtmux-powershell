@@ -76,7 +76,8 @@ Import-Module -Name @(
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
+    $session = $server |
+        New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
     try {
         $pane = $session | Get-TmuxPane
         $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
