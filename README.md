@@ -297,12 +297,17 @@ removes the session it created:
 ```powershell
 & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession -Name control-demo -Command 'exec /bin/cat'
+    $session = $server |
+        New-TmuxSession -Name control-demo -Command 'exec /bin/cat'
     try {
-        $client = $server | Connect-TmuxControl -Target 'control-demo' -ErrorAction Stop
+        $client = $server |
+            Connect-TmuxControl -Target 'control-demo' -ErrorAction Stop
         try {
-            $command = New-TmuxCommand -Name display-message -Arguments @('-p', '#{session_name}')
-            $client | Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
+            $command = New-TmuxCommand -Name display-message -Arguments @(
+                '-p', '#{session_name}'
+            )
+            $client |
+                Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
         } finally {
             $client | Disconnect-TmuxControl -Confirm:$false
         }
