@@ -33,7 +33,10 @@ $captured.Windows | Select-TmuxWindow -Criteria @{
 }
     } }
     'query.07-boolean' = @{ Requires = @('captured'); Code = {
-$captured.Windows | Select-TmuxWindow -Criteria @{ Or = @(@{ Name = @{ StartsWith = 'api-' } }, @{ Name = 'logs' }); Not = @{ Name = @{ Contains = 'scratch' } } }
+$captured.Windows | Select-TmuxWindow -Criteria @{
+    Or = @(@{ Name = @{ StartsWith = 'api-' } }, @{ Name = 'logs' })
+    Not = @{ Name = @{ Contains = 'scratch' } }
+}
     } }
     'query.08-regex' = @{ Requires = @('captured'); Code = {
 $captured.Windows | Select-TmuxWindow -Criteria @{ Name = @{ Regex = @{ Pattern = '^API-'; Options = @('IgnoreCase') } } }
