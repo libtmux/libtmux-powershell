@@ -193,7 +193,7 @@ foreach ($badExecutable in @('/bin/false', '/nonexistent-libtmux-powershell')) {
 }
 
 # Integration: a real owned socket must become usable even when its watcher
-# never reports creation, as observed on macOS.
+# never reports creation, as FSEvents does on macOS.
 $missedSignal = [System.Threading.Tasks.TaskCompletionSource[bool]]::new()
 $missedFixture = New-OwnedTmuxFixture -SocketReadyTask $missedSignal.Task
 try {
@@ -204,6 +204,35 @@ try {
     Remove-OwnedTmuxFixture $missedFixture
 }
 Assert-CleanedUp $missedFixture
+
+# Integration: a daemon that opens its socket late must be adopted when the
+# watcher is silent, because an FSEvents watch never reports a Unix socket.
+$slowDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $slowDirectory
+try {
+    $realTmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    $slowTmux = Join-Path $slowDirectory 'slow-tmux'
+    [IO.File]::WriteAllText($slowTmux, @"
+#!/bin/sh
+for arg in "`$@"; do
+    if [ "`$arg" = '-D' ]; then /bin/sleep 2; fi
+done
+exec '$realTmux' "`$@"
+"@, [Text.UTF8Encoding]::new($false))
+    [IO.File]::SetUnixFileMode($slowTmux, [IO.UnixFileMode]::UserRead -bor
+        [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    $slowSignal = [System.Threading.Tasks.TaskCompletionSource[bool]]::new()
+    $slowFixture = New-OwnedTmuxFixture -TmuxPath $slowTmux -SocketReadyTask $slowSignal.Task
+    try {
+        $identity = Invoke-OwnedTmux $slowFixture -Arguments @('-N', 'display-message', '-p', '#{pid}')
+        Assert-True ([int] $identity.StdOut.Trim() -ne 0) 'A late socket was not adopted after a silent watcher.'
+    } finally {
+        Remove-OwnedTmuxFixture $slowFixture
+    }
+    Assert-CleanedUp $slowFixture
+} finally {
+    Remove-Item -LiteralPath $slowDirectory -Recurse -Force
+}
 
 # Integration: a live owned daemon without a socket must retain timeout diagnostics.
 $fakeDirectory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
@@ -221,7 +250,7 @@ exit 9
     [IO.File]::SetUnixFileMode($fakeTmux, [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     $readinessFailure = $null
-    try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+    try { New-OwnedTmuxFixture -TmuxPath $fakeTmux -SocketReadyTimeout ([TimeSpan]::FromSeconds(1)) | Out-Null }
     catch { $readinessFailure = $_.Exception }
     Assert-True ($readinessFailure -is [TimeoutException]) 'Missing socket did not preserve the timeout.'
     Assert-True ($readinessFailure.InnerException -is [TimeoutException]) 'Readiness diagnostics replaced the original timeout.'
@@ -236,7 +265,7 @@ exit 9
     try {
         Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value { throw 'injected diagnostic failure' }
         $diagnosticFailure = $null
-        try { New-OwnedTmuxFixture -TmuxPath $fakeTmux | Out-Null }
+        try { New-OwnedTmuxFixture -TmuxPath $fakeTmux -SocketReadyTimeout ([TimeSpan]::FromSeconds(1)) | Out-Null }
         catch { $diagnosticFailure = $_.Exception }
         Assert-True ($diagnosticFailure -is [TimeoutException] -and
             $diagnosticFailure.InnerException -is [TimeoutException]) 'A failed diagnostic replaced the readiness timeout.'
