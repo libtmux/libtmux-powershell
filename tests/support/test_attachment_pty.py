@@ -1,12 +1,14 @@
 """Process-group cleanup contracts for the owned attachment PTY."""
 
 import errno
+import fcntl
 import os
 from pathlib import Path
 import pty
 import signal
 import subprocess
 import sys
+import termios
 import time
 from types import SimpleNamespace
 import unittest
@@ -161,6 +163,43 @@ class ProcessGroupCleanupTests(unittest.TestCase):
             except ProcessLookupError:
                 pass
             process.wait(timeout=1)
+
+
+class TerminalAttributeTests(unittest.TestCase):
+    def test_attributes_come_from_the_master_after_the_slave_is_revoked(self):
+        master, slave = pty.openpty()
+        real = termios.tcgetattr
+        try:
+            expected = real(master)
+
+            def revoked_slave(fd):
+                if fd == slave:
+                    raise termios.error(errno.ENOTTY, "Inappropriate ioctl for device")
+                return real(fd)
+
+            with mock.patch.object(attachment_pty.termios, "tcgetattr", side_effect=revoked_slave):
+                self.assertEqual(attachment_pty.terminal_attributes(master), expected)
+        finally:
+            os.close(master)
+            os.close(slave)
+
+    def test_attributes_survive_session_leader_exit(self):
+        master, slave = pty.openpty()
+        try:
+            before = attachment_pty.terminal_attributes(master)
+
+            def terminal():
+                os.setsid()
+                fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+
+            process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=slave, stdout=slave,
+                                       stderr=slave, preexec_fn=terminal)
+            self.assertEqual(attachment_pty.wait_unreaped_draining_pty(process, master, timeout=5), 0)
+            process.wait(timeout=1)
+            self.assertEqual(attachment_pty.terminal_attributes(master), before)
+        finally:
+            os.close(master)
+            os.close(slave)
 
 
 if __name__ == "__main__":

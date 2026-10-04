@@ -38,6 +38,13 @@ def receive(fd, expected, seconds=5):
     return bytes(data)
 
 
+def terminal_attributes(master):
+    # Read through the master. When the session leader exits, XNU revokes the
+    # controlling terminal and every descriptor still open on the slave side
+    # answers ENOTTY, while the master keeps reporting the line discipline.
+    return termios.tcgetattr(master)
+
+
 def stop_group(process):
     # Every long-lived child starts a fresh process group owned by this harness.
     # A reaped leader no longer pins its PID against reuse by another group.
@@ -316,7 +323,7 @@ def run(args):
             try:
                 master, slave = pty.openpty()
                 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-                original = termios.tcgetattr(slave)
+                original = terminal_attributes(master)
 
                 def terminal():
                     os.setsid()
@@ -392,7 +399,7 @@ def run(args):
                 assert command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip() == generation
                 command("has-session", "-t", args.session)
                 command("has-session", "-t", args.sentinel_session)
-                restored = termios.tcgetattr(slave) == original
+                restored = terminal_attributes(master) == original
                 assert restored, "Terminal attributes were not restored"
                 cases.append({"mode": mode, "status": "PASS", "seconds": time.monotonic() - case_started,
                               "preparationSeconds": preparation_seconds, "attachmentSeconds": attachment_seconds,
