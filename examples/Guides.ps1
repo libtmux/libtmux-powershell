@@ -502,7 +502,11 @@ $workspaceResult.Windows |
     'capture.history' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw } }
     'capture.range' = @{ Requires = @('pane'); Code = { $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4 } }
     'capture.refresh' = @{ Requires = @('pane'); Code = { $currentPane = $pane | Update-TmuxPane } }
-    'capture.raw-list' = @{ Requires = @('server'); Code = { $server | Invoke-TmuxCommand -Arguments @('list-sessions', '-F', '#{session_name}') } }
+    'capture.raw-list' = @{ Requires = @('server'); Code = {
+$server | Invoke-TmuxCommand -Arguments @(
+    'list-sessions', '-F', '#{session_name}'
+)
+    } }
     'capture.buffer' = @{ Requires = @('server'); Code = {
 & {
     $name = 'libtmux-' + [guid]::NewGuid().ToString('N')
