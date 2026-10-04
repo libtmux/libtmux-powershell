@@ -45,7 +45,10 @@ finishes. WhatIf sends nothing; an empty connection pipeline performs no work.
 Print the attached session name using an existing $control owned by your surrounding try/finally scope.
 
 ```powershell
-$control | LibTmux\Invoke-TmuxControlCommand -Command (LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', '#{session_name}'))
+$command = LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @(
+    '-p', '#{session_name}'
+)
+$control | LibTmux\Invoke-TmuxControlCommand -Command $command
 ```
 
 ## PARAMETERS
