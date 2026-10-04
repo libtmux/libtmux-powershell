@@ -356,7 +356,13 @@ $workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
 $workspace | Test-TmuxWorkspace -ErrorAction Stop
     } }
     'workspace.03-plan' = @{ Requires = @('workspace', 'server'); Code = {
-$workspacePlan = $workspace | Get-TmuxWorkspacePlan -Server $server -ExistingSession Error -ServerStartup CreateOrJoin -ErrorAction Stop
+$planOptions = @{
+    Server = $server
+    ExistingSession = 'Error'
+    ServerStartup = 'CreateOrJoin'
+    ErrorAction = 'Stop'
+}
+$workspacePlan = $workspace | Get-TmuxWorkspacePlan @planOptions
     } }
     'workspace.04-review' = @{ Requires = @('workspacePlan'); Code = {
 $workspacePlan.Actions
