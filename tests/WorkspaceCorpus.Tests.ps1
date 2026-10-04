@@ -243,8 +243,8 @@ windows:
         $directoryWindows.Count -eq 1) 'upstream first-pane directory fixture did not create one window'
     $directoryPanes = @($directoryWindows[0] | LibTmux\Get-TmuxPane)
     Assert-WorkspaceCorpus ($directoryPanes.Count -eq 2 -and
-        $directoryPanes[0].CurrentPath -ceq '/usr' -and
-        $directoryPanes[1].CurrentPath -ceq '/etc') 'upstream first-pane start directory did not reach native panes'
+        $directoryPanes[0].CurrentPath -ceq (Resolve-PhysicalDirectory '/usr') -and
+        $directoryPanes[1].CurrentPath -ceq (Resolve-PhysicalDirectory '/etc')) 'upstream first-pane start directory did not reach native panes'
     $directoryResult.Session | LibTmux\Remove-TmuxSession -Confirm:$false -ErrorAction Stop
 
     $environment = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-environment_vars.yaml') -ErrorAction Stop
