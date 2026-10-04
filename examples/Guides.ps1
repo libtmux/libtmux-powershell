@@ -1,18 +1,9 @@
 # Authoritative guide operations. Callers supply the declared native owners.
-# The guide runner supplies owned fixtures; these operations do not own daemon lifetime.
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'currentPane', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'session', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'window', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'newPane', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'captured', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'job', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'query', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'queryPlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspace', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspacePlan', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspaceResult', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'workspaceRecovery', Justification = 'The exact guide assignment is observed by the caller after dot-sourcing this operation.')]
+# The guide runner supplies owned fixtures; operations do not own the daemon.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute(
+    'PSUseDeclaredVarsMoreThanAssignments',
+    '',
+    Justification = 'The caller observes each guide assignment.')]
 param()
 
 @{
