@@ -204,7 +204,8 @@ Resolve the captured development session before handing it to another command:
 
 <!-- example: query.12-one -->
 ```powershell
-$captured.Sessions | Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
+$captured.Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
 ```
 
 `-ExactlyOne` holds the match until finite input completes. Zero or multiple
