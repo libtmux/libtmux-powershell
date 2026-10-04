@@ -1,3 +1,4 @@
+. "$PSScriptRoot/HangGuard.ps1"
 if (-not ('LibTmux.Testing.SocketCreatedSignal' -as [type])) {
     Add-Type -Path "$PSScriptRoot/SocketCreatedSignal.cs"
 }
@@ -43,8 +44,8 @@ function Invoke-OwnedTmux {
         [switch] $AllowFailure,
         [scriptblock] $OnStarted,
         [System.Threading.CancellationToken] $CancellationToken = $Fixture.CancellationToken,
-        [TimeSpan] $WaitTimeout = [TimeSpan]::FromSeconds(1),
-        [int] $KillWaitMilliseconds = 1000,
+        [TimeSpan] $WaitTimeout = $HangGuard,
+        [int] $KillWaitMilliseconds = $HangGuardMilliseconds,
         [switch] $KillProcessOnly
     )
 
@@ -330,7 +331,7 @@ function Remove-OwnedTmuxFixture {
                 try {
                     if (-not $Fixture.ServerProcess.HasExited) {
                         $Fixture.ServerProcess.Kill($true)
-                        if (-not $Fixture.ServerProcess.WaitForExit(1000)) {
+                        if (-not $Fixture.ServerProcess.WaitForExit($HangGuardMilliseconds)) {
                             throw 'Owned tmux daemon did not exit after forced cleanup.'
                         }
                     }
@@ -344,18 +345,18 @@ function Remove-OwnedTmuxFixture {
                 $killResult = Invoke-OwnedTmux $Fixture -Arguments @('kill-server') -AllowFailure `
                     -CancellationToken ([System.Threading.CancellationToken]::None)
             } finally {
-                if (-not $Fixture.ServerProcess.WaitForExit(1000)) {
+                if (-not $Fixture.ServerProcess.WaitForExit($HangGuardMilliseconds)) {
                     $clientExit = if ($killResult) { $killResult.ExitCode } else { 'not sent' }
                     $socketExists = Test-Path -LiteralPath $Fixture.SocketPath
                     $state = ([string] (& /bin/ps -o stat= -p $Fixture.ServerPid 2>$null)).Trim()
                     $Fixture.ServerProcess.Kill($true)
-                    $forcedExit = $Fixture.ServerProcess.WaitForExit(1000)
+                    $forcedExit = $Fixture.ServerProcess.WaitForExit($HangGuardMilliseconds)
                     throw "Owned tmux daemon did not exit after kill-server (client exit: $clientExit; process state: $state; socket exists: $socketExists; forced exit: $forcedExit)."
                 }
             }
         }
         foreach ($pane in $Fixture.PaneProcesses) {
-            if (-not $pane.WaitForExit(1000)) { throw 'Owned tmux pane process did not exit.' }
+            if (-not $pane.WaitForExit($HangGuardMilliseconds)) { throw 'Owned tmux pane process did not exit.' }
         }
         foreach ($client in $Fixture.ClientProcesses) {
             if (-not $client.HasExited) { throw 'Owned tmux client remains alive after teardown.' }

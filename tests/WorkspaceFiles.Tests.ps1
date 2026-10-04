@@ -2,6 +2,7 @@ param([Parameter(Mandatory)] [string] $ModuleRoot)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 $workspaceModule = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1'
 Import-Module $workspaceModule
 
@@ -20,7 +21,7 @@ try {
         $mkfifoStart.ArgumentList.Add($fifo)
         $mkfifo = [Diagnostics.Process]::Start($mkfifoStart)
         try {
-            Assert-WorkspaceFile ($mkfifo.WaitForExit(1000) -and $mkfifo.ExitCode -eq 0) 'owned FIFO creation failed'
+            Assert-WorkspaceFile ($mkfifo.WaitForExit($HangGuardMilliseconds) -and $mkfifo.ExitCode -eq 0) 'owned FIFO creation failed'
         } finally { $mkfifo.Dispose() }
 
         $moduleLiteral = [Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($workspaceModule)
@@ -52,13 +53,13 @@ try {
             $null = [Threading.Tasks.Task]::WhenAny([Threading.Tasks.Task[]] @($enteredTask, $exitTask)).GetAwaiter().GetResult()
             $entered = $enteredTask.GetAwaiter().GetResult()
             Assert-WorkspaceFile ($entered -ceq 'entered') 'owned file-open probe did not reach admission'
-            Assert-WorkspaceFile ($child.WaitForExit(1000)) 'opening a replaced FIFO blocked before cancellation could be observed'
+            Assert-WorkspaceFile ($child.WaitForExit($HangGuardMilliseconds)) 'opening a replaced FIFO blocked before cancellation could be observed'
             $category = $child.StandardOutput.ReadToEnd().Trim()
             Assert-WorkspaceFile ($child.ExitCode -eq 0 -and $category -ceq 'InvalidData') 'nonseekable input was admitted or miscategorized'
             Assert-WorkspaceFile ($stderr.GetAwaiter().GetResult().Length -eq 0) 'owned FIFO probe wrote unexpected errors'
         } finally {
             if (!$child.HasExited) { $child.Kill($true) }
-            Assert-WorkspaceFile ($child.WaitForExit(1000)) 'owned FIFO probe did not exit during cleanup'
+            Assert-WorkspaceFile ($child.WaitForExit($HangGuardMilliseconds)) 'owned FIFO probe did not exit during cleanup'
             $child.Dispose()
         }
     }

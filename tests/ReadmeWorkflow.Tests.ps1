@@ -3,6 +3,7 @@ param([Parameter(Mandatory)] [string] $ModuleRoot)
 # Outer integration: run the README blocks in order on one private named socket.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 $root = Split-Path $PSScriptRoot
 $readme = [IO.File]::ReadAllText("$root/README.md")
 $moduleRootPath = (Resolve-Path -LiteralPath $ModuleRoot).Path
@@ -26,7 +27,7 @@ function Invoke-NamedTmux([string] $Binary, [string] $SocketName, [string] $Oper
     foreach ($argument in @('-L', $SocketName, $Operation)) { $start.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($start)
     try {
-        if (!$process.WaitForExit(3000)) {
+        if (!$process.WaitForExit($HangGuardMilliseconds)) {
             $process.Kill($true)
             throw "README workflow: tmux $Operation did not finish."
         }
@@ -77,7 +78,7 @@ $windows = @($session.Windows | ForEach-Object {
     try {
         $output = $process.StandardOutput.ReadToEndAsync()
         $errors = $process.StandardError.ReadToEndAsync()
-        if (!$process.WaitForExit(10000)) {
+        if (!$process.WaitForExit($HangGuardMilliseconds)) {
             $process.Kill($true)
             throw 'README workflow: the runnable quick start did not finish.'
         }

@@ -42,7 +42,7 @@ function Invoke-OwnedServerReplacement($Fixture, [Threading.Tasks.Task] $SocketR
     try {
         Register-OwnedTmuxPane $Fixture
         $null = Invoke-OwnedTmux $Fixture -Arguments @('kill-server')
-        Assert-True ($previous.WaitForExit(1000)) 'The replaced owned daemon did not exit.'
+        Assert-True ($previous.WaitForExit($HangGuardMilliseconds)) 'The replaced owned daemon did not exit.'
         $signal = [LibTmux.Testing.SocketCreatedSignal]::new($Fixture.DirectoryPath)
         $Fixture.ServerStarted = $false
         $Fixture.ServerProcess = [Diagnostics.Process]::new()

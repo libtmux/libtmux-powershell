@@ -59,7 +59,7 @@ try {
         } finally {
             $null = $control.DisposeAsync().AsTask().WaitAsync([TimeSpan]::FromSeconds(10)).GetAwaiter().GetResult()
             if ($clientProcess) {
-                try { Assert-True ($clientProcess.WaitForExit(1000)) 'The formatting control client did not exit.' }
+                try { Assert-True ($clientProcess.WaitForExit($HangGuardMilliseconds)) 'The formatting control client did not exit.' }
                 finally { $clientProcess.Dispose() }
             }
         }

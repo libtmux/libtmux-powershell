@@ -63,7 +63,7 @@ exec $quotedBinary "`$@"
         $child.StandardInput.Close()
         $output = $child.StandardOutput.ReadToEndAsync()
         $errorOutput = $child.StandardError.ReadToEndAsync()
-        if (!$child.WaitForExit(5000)) { throw 'Redirected attachment child exceeded its outer deadline.' }
+        if (!$child.WaitForExit($HangGuardMilliseconds)) { throw 'Redirected attachment child exceeded its outer deadline.' }
         if ($child.ExitCode -ne 0) { throw "Redirected attachment child failed: $($errorOutput.GetAwaiter().GetResult()) $($output.GetAwaiter().GetResult())" }
         $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
         Assert-Attachment ($result.outcome -ceq 'RedirectedRejected') 'redirected stdin was not rejected explicitly'
@@ -71,7 +71,7 @@ exec $quotedBinary "`$@"
     } finally {
         if ($started -and !$child.HasExited) {
             $child.Kill($true)
-            if (!$child.WaitForExit(1000)) { throw 'Redirected attachment child did not exit.' }
+            if (!$child.WaitForExit($HangGuardMilliseconds)) { throw 'Redirected attachment child did not exit.' }
         }
         if (!$started) { $child.Dispose() }
     }

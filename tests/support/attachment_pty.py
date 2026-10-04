@@ -20,6 +20,10 @@ import threading
 import time
 import uuid
 
+# Bounds one step that waits on a process or a tmux event. It stops a hang and
+# costs nothing otherwise, because every wait returns when its event happens.
+HANG_GUARD = 30
+
 
 def receive(fd, expected, seconds=5):
     data = bytearray()
@@ -80,7 +84,7 @@ def stop_group(process):
             _member_pid, pgid, state = line.split()
             if int(pgid) == process.pid and not state.startswith("Z"):
                 raise failure
-    process.wait(timeout=1)
+    process.wait(timeout=HANG_GUARD)
 
 
 def exit_status_unreaped(process):
@@ -287,7 +291,7 @@ def attachment_timeout_diagnostics(process, result_path, prefix, environment):
 
 def run(args):
     started = time.monotonic()
-    deadline = started + 15
+    deadline = started + HANG_GUARD * len(args.modes)
     environment = {key: value for key, value in os.environ.items() if key not in ("TMUX", "TMUX_PANE")}
     environment.update(TERM="xterm-256color", SHELL="/bin/sh")
     prefix = [args.binary, "-S", args.socket, "-f", "/dev/null"]
@@ -303,7 +307,7 @@ def run(args):
 
     def command(*arguments):
         return subprocess.run(prefix + list(arguments), env=environment, capture_output=True,
-                              timeout=remaining(5), check=True)
+                              timeout=remaining(HANG_GUARD), check=True)
 
     def clients():
         rows = command("list-clients", "-F", "#{client_pid}|#{client_tty}|#{session_id}|#{client_readonly}").stdout.decode()
@@ -324,7 +328,7 @@ def run(args):
                                     env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, start_new_session=True)
         owned.append(sentinel)
-        receive(sentinel.stdout.fileno(), b"%end ", seconds=remaining(5))
+        receive(sentinel.stdout.fileno(), b"%end ", seconds=remaining(HANG_GUARD))
         sentinel_reader = drain_until_eof(sentinel.stdout.fileno())
 
         for mode in args.modes:
@@ -357,12 +361,12 @@ def run(args):
                 ready_write = None
                 if mode in ("Detach", "ReadOnly", "Cancel"):
                     # Startup/import/help belong to the outer budget. Attachment
-                    # gets its own unchanged five seconds after child preparation.
+                    # gets its own hang guard after child preparation.
                     receive(ready_read, b"\x01", seconds=remaining())
                     preparation_seconds = time.monotonic() - case_started
                     attachment_started = time.monotonic()
                     # The pane's output persists in the PTY even if attach finishes first.
-                    receive(master, b"LIBTMUX_ATTACHMENT_READY", seconds=remaining(5))
+                    receive(master, b"LIBTMUX_ATTACHMENT_READY", seconds=remaining(HANG_GUARD))
                     attachment_seconds = time.monotonic() - attachment_started
                     rows = clients()
                     selected = [row for row in rows if row[2] == args.session]
@@ -378,7 +382,7 @@ def run(args):
                     if mode == "ReadOnly":
                         command("detach-client", "-t", selected[0][1])
                     else:
-                        receive(master, marker, seconds=remaining(5))
+                        receive(master, marker, seconds=remaining(HANG_GUARD))
                         assert marker in command("capture-pane", "-p", "-t", workspace_pane or args.session + ":").stdout
                         if mode == "Cancel":
                             command("wait-for", "-S", cancel)
@@ -391,7 +395,7 @@ def run(args):
                         "attachmentSeconds": attachment_seconds,
                         **attachment_timeout_diagnostics(child, result_path, prefix, environment)}
 
-                child_exit = wait_unreaped_draining_pty(child, master, timeout=remaining(5),
+                child_exit = wait_unreaped_draining_pty(child, master, timeout=remaining(HANG_GUARD),
                     on_timeout=on_child_timeout)
                 if mode == "ReadOnly":
                     assert marker not in command("capture-pane", "-p", "-t", args.session + ":").stdout

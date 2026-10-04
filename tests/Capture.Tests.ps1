@@ -42,7 +42,7 @@ exec $quotedTmux "`$@"
             }) @('kill-server')
             $client = [Diagnostics.Process]::Start($cleanup)
             try {
-                if (-not $client.WaitForExit(1000)) { $client.Kill($true); throw 'Unexpected owned daemon cleanup timed out.' }
+                if (-not $client.WaitForExit($HangGuardMilliseconds)) { $client.Kill($true); throw 'Unexpected owned daemon cleanup timed out.' }
             } finally { $client.Dispose() }
         }
     }

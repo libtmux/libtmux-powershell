@@ -13,7 +13,7 @@ if (args.Length != 7)
     throw new ArgumentException("Expected launcher, tmux executable, socket path, tool version, receipt path, process ID path and guide path.");
 }
 
-using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(10));
+using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(30));
 CancellationToken token = deadline.Token;
 string guide = await File.ReadAllTextAsync(args[6], token).ConfigureAwait(false);
 Dictionary<string, JsonElement> examples = ReadExamples(guide);

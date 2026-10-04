@@ -21,11 +21,11 @@ public static class OwnedDaemonReaper
         }
     }
 
-    public static void Reap(Process process)
+    public static void Reap(Process process, TimeSpan timeout)
     {
         if (!OperatingSystem.IsLinux())
         {
-            if (!process.WaitForExit(1000))
+            if (!process.WaitForExit(timeout))
             {
                 throw new TimeoutException("Owned tmux process did not exit.");
             }
@@ -39,12 +39,12 @@ public static class OwnedDaemonReaper
         Task wait = Task.Run(() => ReapChild(processId));
         try
         {
-            wait.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
+            wait.WaitAsync(timeout).GetAwaiter().GetResult();
         }
         catch (TimeoutException)
         {
             process.Kill(entireProcessTree: true);
-            wait.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
+            wait.WaitAsync(timeout).GetAwaiter().GetResult();
             throw;
         }
     }

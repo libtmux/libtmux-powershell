@@ -10,6 +10,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/../tests/support/HangGuard.ps1"
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
 $pwsh = [Environment]::ProcessPath
@@ -47,7 +48,7 @@ function Wait-TestScript {
         try {
             if (!$worker.process.HasExited) {
                 $worker.process.Kill($true)
-                if (!$worker.process.WaitForExit(1000)) {
+                if (!$worker.process.WaitForExit($HangGuardMilliseconds)) {
                     throw "$($worker.script) did not exit after termination."
                 }
             }
@@ -87,7 +88,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $timedOut = $false
     $exitCode = $null
     if ($parallelProduct) {
-        $deadline = [Threading.CancellationTokenSource]::new(30000)
+        $deadline = [Threading.CancellationTokenSource]::new(3 * $HangGuardMilliseconds)
         try {
             $process = [Diagnostics.Process]::Start($start)
             $activeTests.Add(@{ script = $Script; arguments = $Arguments;
@@ -99,7 +100,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
             try {
                 if ($process -and !$process.HasExited) {
                     $process.Kill($true)
-                    if (!$process.WaitForExit(1000)) {
+                    if (!$process.WaitForExit($HangGuardMilliseconds)) {
                         throw 'Child did not exit after termination.'
                     }
                 }
@@ -121,7 +122,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     }
     try {
         $process = [Diagnostics.Process]::Start($start)
-        if (!$process.WaitForExit(90000)) {
+        if (!$process.WaitForExit(3 * $HangGuardMilliseconds)) {
             $timedOut = $true
             $process.Kill($true)
             $process.WaitForExit()

@@ -16,10 +16,11 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 import attachment_pty
+from attachment_pty import HANG_GUARD
 
 
 def wait_unreaped(pid):
-    deadline = time.monotonic() + 0.5
+    deadline = time.monotonic() + HANG_GUARD
     while time.monotonic() < deadline:
         result = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
         if result is not None:
@@ -37,9 +38,9 @@ class ProcessGroupCleanupTests(unittest.TestCase):
                 "import os; os.write(1, b'READY'); data = memoryview(b'x' * 262144); "
                 "\nwhile data: data = data[os.write(1, data):]"],
                 stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
-            attachment_pty.receive(master, b"READY", seconds=0.5)
+            attachment_pty.receive(master, b"READY", seconds=HANG_GUARD)
             self.assertEqual(attachment_pty.wait_unreaped_draining_pty(
-                process, master, timeout=0.5), 0)
+                process, master, timeout=HANG_GUARD), 0)
         finally:
             if process is not None and process.returncode is None:
                 attachment_pty.stop_group(process)
@@ -87,7 +88,7 @@ class ProcessGroupCleanupTests(unittest.TestCase):
                 attachment_pty.stop_group(process)
             self.assertEqual(process.returncode, 7)
         finally:
-            process.wait(timeout=1)
+            process.wait(timeout=HANG_GUARD)
 
     def test_darwin_timeout_never_blocks_in_exit_observer(self):
         process = subprocess.Popen(["/bin/sleep", "10"], start_new_session=True)
@@ -162,7 +163,7 @@ class ProcessGroupCleanupTests(unittest.TestCase):
                 os.killpg(process.pid, 9)
             except ProcessLookupError:
                 pass
-            process.wait(timeout=1)
+            process.wait(timeout=HANG_GUARD)
 
 
 class TerminalAttributeTests(unittest.TestCase):
@@ -194,8 +195,8 @@ class TerminalAttributeTests(unittest.TestCase):
 
             process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=slave, stdout=slave,
                                        stderr=slave, preexec_fn=terminal)
-            self.assertEqual(attachment_pty.wait_unreaped_draining_pty(process, master, timeout=5), 0)
-            process.wait(timeout=1)
+            self.assertEqual(attachment_pty.wait_unreaped_draining_pty(process, master, timeout=HANG_GUARD), 0)
+            process.wait(timeout=HANG_GUARD)
             self.assertEqual(attachment_pty.terminal_attributes(master), before)
         finally:
             os.close(master)
@@ -222,7 +223,7 @@ class ControlClientDrainTests(unittest.TestCase):
         process = self.writer()
         try:
             reader = attachment_pty.drain_until_eof(process.stdout.fileno())
-            self.assertEqual(process.wait(timeout=5), 0)
+            self.assertEqual(process.wait(timeout=HANG_GUARD), 0)
             reader.join(timeout=2)
             self.assertFalse(reader.is_alive())
         finally:

@@ -45,7 +45,7 @@ function Invoke-AttachmentPty {
                     $null = $fixture.OwnedProcessIds.Add($process.Id)
                     $output = $process.StandardOutput.ReadToEndAsync()
                     $errorOutput = $process.StandardError.ReadToEndAsync()
-                    if (!$process.WaitForExit(15000)) { throw 'Attachment PTY owner exceeded its outer deadline.' }
+                    if (!$process.WaitForExit($HangGuardMilliseconds * ($context.Modes.Count + 1))) { throw 'Attachment PTY owner exceeded its outer deadline.' }
                     $stdout = $output.GetAwaiter().GetResult()
                     $stderr = $errorOutput.GetAwaiter().GetResult()
                     if (Test-Path -LiteralPath $resultPath) {
@@ -61,7 +61,7 @@ function Invoke-AttachmentPty {
                     try {
                         if ($started -and !$process.HasExited) {
                             $process.Kill($true)
-                            if (!$process.WaitForExit(1000)) { throw 'Attachment PTY owner did not exit.' }
+                            if (!$process.WaitForExit($HangGuardMilliseconds)) { throw 'Attachment PTY owner did not exit.' }
                         }
                     } catch {
                         $cleanupErrors.Add($_.Exception.Message)

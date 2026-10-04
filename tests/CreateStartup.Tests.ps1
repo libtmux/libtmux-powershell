@@ -86,7 +86,7 @@ exec $quotedTmux "`$@"
             $cleanupErrors = [Collections.Generic.List[Exception]]::new()
             foreach ($process in @($daemon, $paneProcess)) {
                 if ($process) {
-                    try { [LibTmux.Testing.OwnedDaemonReaper]::Reap($process) }
+                    try { [LibTmux.Testing.OwnedDaemonReaper]::Reap($process, $HangGuard) }
                     catch { $cleanupErrors.Add($_.Exception) }
                 }
             }

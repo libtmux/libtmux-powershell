@@ -48,7 +48,7 @@ try {
             $started = $process.Start()
             $fixture.ClientProcesses.Add($process)
             $null = $fixture.OwnedProcessIds.Add($process.Id)
-            if (!$process.WaitForExit(15000)) { throw 'MCP discovery probe exceeded its outer deadline.' }
+            if (!$process.WaitForExit(2 * $HangGuardMilliseconds)) { throw 'MCP discovery probe exceeded its outer deadline.' }
             if ($process.ExitCode -ne 0) { throw "MCP discovery probe failed with exit $($process.ExitCode)." }
             $result = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
             if ($result.server.version -cne $state.Version) { throw 'MCP receipt version differs.' }
@@ -86,7 +86,7 @@ try {
         } finally {
             if ($started -and !$process.HasExited) {
                 $process.Kill($true)
-                if (!$process.WaitForExit(1000)) { throw 'MCP discovery probe did not exit.' }
+                if (!$process.WaitForExit($HangGuardMilliseconds)) { throw 'MCP discovery probe did not exit.' }
             }
             if (!$started) { $process.Dispose() }
             if (Test-Path -LiteralPath "$pidFile.identity") {

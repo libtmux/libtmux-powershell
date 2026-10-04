@@ -6,6 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 $core = Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1'
 $workspace = Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1'
 if (!(Test-Path $core)) { throw 'Core module artifact is missing.' }
@@ -83,7 +84,7 @@ try {
             $null = $start.Environment.Remove('TMUX_PANE')
             $client = [Diagnostics.Process]::Start($start)
             try {
-                if (!$client.WaitForExit(1000)) { $client.Kill($true); throw 'Unexpected daemon cleanup timed out.' }
+                if (!$client.WaitForExit($HangGuardMilliseconds)) { $client.Kill($true); throw 'Unexpected daemon cleanup timed out.' }
             } finally { $client.Dispose() }
         }
     } finally { Remove-Item $temporary -Recurse -Force }

@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/HangGuard.ps1"
 $module = Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 $server = LibTmux\New-TmuxServer -SocketPath $Socket -TmuxBinaryPath $Binary
@@ -72,14 +73,14 @@ windows:
         $invocation = $pipeline.BeginInvoke()
         $wait = $server.OpenWaitChannel($CancelChannel)
         try {
-            if (!$wait.WaitAsync([TimeSpan]::FromSeconds(5)).GetAwaiter().GetResult()) {
+            if (!$wait.WaitAsync($HangGuard).GetAwaiter().GetResult()) {
                 throw 'Parent did not signal cancellation after attachment.'
             }
         } finally {
             $wait.DisposeAsync().AsTask().GetAwaiter().GetResult()
         }
         $stop = $pipeline.BeginStop($null, $null)
-        if (!$stop.AsyncWaitHandle.WaitOne(1000)) { throw 'Pipeline stop exceeded one second.' }
+        if (!$stop.AsyncWaitHandle.WaitOne($HangGuardMilliseconds)) { throw 'Pipeline stop exceeded the hang guard.' }
         $pipeline.EndStop($stop)
         try {
             $null = $pipeline.EndInvoke($invocation)

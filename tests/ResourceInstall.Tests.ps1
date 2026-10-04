@@ -10,6 +10,7 @@ param(
 # Integration: local package resolution and fresh consumer processes.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. "$PSScriptRoot/support/HangGuard.ps1"
 Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion $PSResourceGetVersion
 
 if ($SaveWorker) {
@@ -65,7 +66,7 @@ function Invoke-ResourceChild([string] $Script, [string[]] $Arguments, [string] 
     } finally {
         if ($started -and !$process.HasExited) {
             $process.Kill($true)
-            if (!$process.WaitForExit(1000)) { throw 'The package consumer did not exit after termination.' }
+            if (!$process.WaitForExit($HangGuardMilliseconds)) { throw 'The package consumer did not exit after termination.' }
         }
         $process.Dispose()
     }

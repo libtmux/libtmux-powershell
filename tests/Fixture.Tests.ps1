@@ -20,7 +20,7 @@ if (-not $Child) {
     } finally {
         if (-not $process.HasExited) {
             $process.Kill($true)
-            $null = $process.WaitForExit(1000)
+            $null = $process.WaitForExit($HangGuardMilliseconds)
         }
         $process.Dispose()
     }

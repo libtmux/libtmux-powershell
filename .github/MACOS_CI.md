@@ -57,5 +57,6 @@ configure on macOS without a choice for both.
 ## In this repository
 
 - `tests/support/OwnedTmux.ps1` holds the owned-tmux fixture, `Resolve-PhysicalDirectory`, and `Wait-OwnedTmuxSocketReady`.
+- `tests/support/HangGuard.ps1` defines the one bound for a test step that waits on a process or a tmux event. Use it instead of a literal; deadline tests keep their own short budgets.
 - `LIBTMUX_POWERSHELL_TEST_ROOT` moves the fixture directory, so a symlink reproduces the physical-path failures.
 - The [macOS workflow](workflows/macos.yml) gates pull requests, and the [stress workflow](workflows/macos-stress.yml) repeats the suites and reports each test's failures.
