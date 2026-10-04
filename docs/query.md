@@ -11,7 +11,9 @@ for source planning, then capture its complete pane graph:
 
 <!-- example: query.01-capture -->
 ```powershell
-$captured = $server | Get-TmuxServer -ErrorAction Stop | Get-TmuxSnapshot -ErrorAction Stop
+$captured = $server |
+    Get-TmuxServer -ErrorAction Stop |
+    Get-TmuxSnapshot -ErrorAction Stop
 ```
 
 ## Start with PowerShell

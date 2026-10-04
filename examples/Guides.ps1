@@ -8,7 +8,9 @@ param()
 
 @{
     'query.01-capture' = @{ Requires = @('server'); Code = {
-$captured = $server | Get-TmuxServer -ErrorAction Stop | Get-TmuxSnapshot -ErrorAction Stop
+$captured = $server |
+    Get-TmuxServer -ErrorAction Stop |
+    Get-TmuxSnapshot -ErrorAction Stop
     } }
     'query.02-native' = @{ Requires = @('captured'); Code = {
 $captured.Panes | Where-Object { $_.Width -ge 50 -and $_.Height -gt 0 }
