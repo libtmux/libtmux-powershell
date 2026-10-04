@@ -47,7 +47,9 @@ Prepare an exact pane-ID query for tmux 3.2a without opening a connection.
 Use the observed daemon version when preparing a plan for execution.
 
 ```powershell
-LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } | LibTmux\Get-TmuxQueryPlan -DaemonVersion ([LibTmux.TmuxVersion]::Parse('3.2a')) -Pushdown Require
+$version = [LibTmux.TmuxVersion]::Parse('3.2a')
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
+    LibTmux\Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
 ```
 
 ## PARAMETERS

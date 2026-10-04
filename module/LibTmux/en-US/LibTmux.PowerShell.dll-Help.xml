@@ -2567,7 +2567,9 @@ source evaluation does not reduce the captured rows.</maml:para>
 Use the observed daemon version when preparing a plan for execution.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } | LibTmux\Get-TmuxQueryPlan -DaemonVersion ([LibTmux.TmuxVersion]::Parse('3.2a')) -Pushdown Require
+$version = [LibTmux.TmuxVersion]::Parse('3.2a')
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
+    LibTmux\Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
 ```</maml:para>
         </maml:introduction>
         <dev:code />
