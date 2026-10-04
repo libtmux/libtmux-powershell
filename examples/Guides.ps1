@@ -16,7 +16,10 @@ $captured = $server |
 $captured.Panes | Where-Object { $_.Width -ge 50 -and $_.Height -gt 0 }
     } }
     'query.03-criteria' = @{ Requires = @(); Code = {
-$query = New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 50 }; Height = @{ Gt = 0 } }
+$query = New-TmuxQuery -Target Pane -Criteria @{
+    Width = @{ Ge = 50 }
+    Height = @{ Gt = 0 }
+}
     } }
     'query.04-select' = @{ Requires = @('query', 'captured'); Code = {
 $captured.Panes | Select-TmuxPane -Query $query
