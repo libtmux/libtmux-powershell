@@ -49,7 +49,8 @@ not contact tmux.
 Set a value for future processes in a native $session and inspect its readback.
 
 ```powershell
-$session | LibTmux\Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
+$session |
+    LibTmux\Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
 ```
 
 ## PARAMETERS

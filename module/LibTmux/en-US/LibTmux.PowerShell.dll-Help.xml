@@ -8653,7 +8653,8 @@ and Stop terminates. Cancellation cannot undo a dispatched mutation.</maml:para>
           <maml:para>Set a value for future processes in a native $session and inspect its readback.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$session | LibTmux\Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
+$session |
+    LibTmux\Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
 ```</maml:para>
         </maml:introduction>
         <dev:code />
