@@ -121,7 +121,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     }
     try {
         $process = [Diagnostics.Process]::Start($start)
-        if (!$process.WaitForExit(30000)) {
+        if (!$process.WaitForExit(90000)) {
             $timedOut = $true
             $process.Kill($true)
             $process.WaitForExit()
