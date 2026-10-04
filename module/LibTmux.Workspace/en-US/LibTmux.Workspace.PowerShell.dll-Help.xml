@@ -342,7 +342,12 @@ distinction between omitted and empty collections or omitted and false focus.</m
           <maml:para>Convert a two-pane declaration for storage or inspection.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{"session_name":"development","windows":[{"window_name":"work","panes":["nvim",""]}]}' | LibTmux.Workspace\ConvertTo-TmuxWorkspaceYaml
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: work
+    panes: [nvim, ""]
+'@ | LibTmux.Workspace\ConvertTo-TmuxWorkspaceYaml
 ```</maml:para>
         </maml:introduction>
         <dev:code />
