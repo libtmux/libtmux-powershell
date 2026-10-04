@@ -11889,7 +11889,8 @@ ThreadJob to make the prompt available.</maml:para>
 The command closes its new control client when the count limit is reached.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$server | LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1048576
+$server |
+    LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1MB
 ```</maml:para>
         </maml:introduction>
         <dev:code />

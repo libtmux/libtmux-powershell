@@ -60,7 +60,8 @@ Observe the first notification on fixture using a previously selected $server.
 The command closes its new control client when the count limit is reached.
 
 ```powershell
-$server | LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1048576
+$server |
+    LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1MB
 ```
 
 ## PARAMETERS
