@@ -182,8 +182,8 @@ windows:
         $panes = @($window | LibTmux\Get-TmuxPane)
         Assert-WorkspaceCorpus ($result -is [LibTmux.Workspace.WorkspaceResult] -and
             $result.Session.Name -ceq 'corpus' -and
-            $panes.Count -eq 2 -and $panes[0].CurrentPath -ceq $firstDirectory -and
-            $panes[1].CurrentPath -ceq $secondDirectory -and
+            $panes.Count -eq 2 -and $panes[0].CurrentPath -ceq (Resolve-PhysicalDirectory $firstDirectory) -and
+            $panes[1].CurrentPath -ceq (Resolve-PhysicalDirectory $secondDirectory) -and
             ($window | LibTmux\Get-TmuxOption -Name '@corpus-window').Value.Raw -ceq $format -and
             ($panes[1] | LibTmux\Get-TmuxOption -Name '@corpus-pane').Value.Raw -ceq $format -and
             (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $panes[1].Id.ToString(), '#{pane_active}')).StdOut.Trim() -ceq '1') "$format native graph, options, focus and directories"
@@ -304,7 +304,7 @@ windows:
     $mainPaneHeight = $nativeWindows[0] | LibTmux\Get-TmuxOption -Name 'main-pane-height' -ErrorAction Stop
     Assert-WorkspaceCorpus ($nativePanes.Count -eq 3 -and
         $nativePanes[0].Height -eq 5 -and
-        @($nativePanes | Where-Object CurrentPath -CNE $fixture.DirectoryPath).Count -eq 0 -and
+        @($nativePanes | Where-Object CurrentPath -CNE (Resolve-PhysicalDirectory $fixture.DirectoryPath)).Count -eq 0 -and
         $mainPaneHeight.Value.Raw -ceq '5' -and !$mainPaneHeight.Inherited) 'upstream window option, pane graph or inherited HOME was not applied'
     $indexed = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-window_index.yaml') -ErrorAction Stop
     $indexed = $indexed.Resolve($fixture.DirectoryPath, $null)

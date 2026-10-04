@@ -2,6 +2,21 @@ if (-not ('LibTmux.Testing.SocketCreatedSignal' -as [type])) {
     Add-Type -Path "$PSScriptRoot/SocketCreatedSignal.cs"
 }
 
+# tmux reads a pane directory from the kernel, so it reports the physical path
+# even when the test reached the directory through a symlink such as /tmp.
+function Resolve-PhysicalDirectory([string] $Path) {
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($fullPath)
+    $resolved = $root
+    foreach ($segment in [IO.Path]::GetRelativePath($root, $fullPath).Split(
+        [IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
+        $candidate = [IO.Path]::Combine($resolved, $segment)
+        $target = [IO.DirectoryInfo]::new($candidate).ResolveLinkTarget($true)
+        $resolved = if ($target) { Resolve-PhysicalDirectory $target.FullName } else { $candidate }
+    }
+    $resolved
+}
+
 function New-OwnedTmuxStartInfo {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only a local ProcessStartInfo value without starting a process.')]
     param($Fixture, [string[]] $Arguments)
@@ -159,7 +174,8 @@ function New-OwnedTmuxFixture {
     if ($CancellationToken.IsCancellationRequested) {
         throw [System.OperationCanceledException]::new($CancellationToken)
     }
-    $directory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
+    $root = if ($env:LIBTMUX_POWERSHELL_TEST_ROOT) { $env:LIBTMUX_POWERSHELL_TEST_ROOT } else { '/tmp' }
+    $directory = Join-Path $root ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $directory -ErrorAction Stop
     $fixture = [pscustomobject]@{
         TmuxPath = $TmuxPath

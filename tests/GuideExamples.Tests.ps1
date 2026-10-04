@@ -499,8 +499,9 @@ $assertions = @{
                     $result.Journal[$index].State -eq [LibTmux.Workspace.WorkspaceActionState]::Completed) 'workspace exact-plan completed journal'
             }
             $panes = $result.Windows[0].Panes
-            Assert-Guide ($panes[0].CurrentPath -ceq $o.Context.ProjectRoot -and
-                $panes[1].CurrentPath -ceq $o.Context.ProjectRoot -and
+            $physicalRoot = Resolve-PhysicalDirectory $o.Context.ProjectRoot
+            Assert-Guide ($panes[0].CurrentPath -ceq $physicalRoot -and
+                $panes[1].CurrentPath -ceq $physicalRoot -and
                 [Math]::Abs($panes[0].Width - $panes[1].Width) -le 1 -and
                 $panes[0].Height -eq $panes[1].Height -and
                 ($panes[0] | Get-TmuxOption -Name '@role').Value.Raw -ceq 'editor' -and
