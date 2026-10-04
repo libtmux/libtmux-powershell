@@ -381,8 +381,11 @@ result remains readable after cleanup:
 <!-- example: readme.workspace.05-apply -->
 ```powershell
 $workspaceResult = & {
-    $result = $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
-    try { $result } finally { $result.Session | Remove-TmuxSession -Confirm:$false }
+    $result = $workspacePlan |
+        LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    try { $result } finally {
+        $result.Session | Remove-TmuxSession -Confirm:$false
+    }
 }
 ```
 

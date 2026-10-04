@@ -487,8 +487,11 @@ $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
     } }
     'readme.workspace.05-apply' = @{ Requires = @('workspacePlan'); Code = {
 $workspaceResult = & {
-    $result = $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
-    try { $result } finally { $result.Session | Remove-TmuxSession -Confirm:$false }
+    $result = $workspacePlan |
+        LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+    try { $result } finally {
+        $result.Session | Remove-TmuxSession -Confirm:$false
+    }
 }
     } }
     'readme.workspace.06-graph' = @{ Requires = @('workspaceResult'); Code = {
