@@ -1,0 +1,89 @@
+name: macOS toolchain
+description: Install the pinned Python and PowerShell and build the pinned tmux for a hosted macOS runner.
+
+inputs:
+  arch:
+    description: Expected machine architecture, x86_64 or arm64.
+    required: true
+  asset_arch:
+    description: PowerShell and Python asset architecture, x64 or arm64.
+    required: true
+  powershell:
+    description: PowerShell version.
+    required: true
+  powershell_sha256:
+    description: SHA-256 of the PowerShell release archive.
+    required: true
+  tmux:
+    description: tmux release tag.
+    required: true
+  tmux_commit:
+    description: Commit the tmux tag must resolve to.
+    required: true
+
+runs:
+  using: composite
+  steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13.15'
+          architecture: ${{ inputs.asset_arch }}
+
+      - name: Verify Python PTY support and runner architecture
+        env:
+          EXPECTED_ARCH: ${{ inputs.arch }}
+        shell: bash
+        run: |
+          test "$(uname -m)" = "${EXPECTED_ARCH}"
+          python3 -c 'import os, platform, sys; assert sys.version_info[:3] == (3, 13, 15); assert platform.machine() == os.environ["EXPECTED_ARCH"]; assert hasattr(os, "waitid") and hasattr(os, "WNOWAIT")'
+
+      - name: Install official PowerShell ${{ inputs.powershell }}
+        env:
+          POWERSHELL_VERSION: ${{ inputs.powershell }}
+          POWERSHELL_SHA256: ${{ inputs.powershell_sha256 }}
+          ASSET_ARCH: ${{ inputs.asset_arch }}
+          EXPECTED_ARCH: ${{ inputs.arch }}
+        shell: bash
+        run: |
+          archive="${RUNNER_TEMP}/powershell-${POWERSHELL_VERSION}-osx-${ASSET_ARCH}.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-osx-${ASSET_ARCH}.tar.gz" \
+            --output "${archive}"
+          digest="$(shasum -a 256 "${archive}" | awk '{print $1}')"
+          test "${digest}" = "${POWERSHELL_SHA256}"
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+          test "$(lipo -archs "${RUNNER_TEMP}/powershell/pwsh")" = "${EXPECTED_ARCH}"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
+            "if (\$PSVersionTable.PSVersion.ToString() -cne \$env:POWERSHELL_VERSION) { throw 'Unexpected PowerShell version' }"
+
+      - name: Build tmux ${{ inputs.tmux }} from its pinned source tag
+        env:
+          TMUX_VERSION: ${{ inputs.tmux }}
+          TMUX_SOURCE_COMMIT: ${{ inputs.tmux_commit }}
+          EXPECTED_ARCH: ${{ inputs.arch }}
+          LIBTMUX_BUILD_JOBS: '3'
+        shell: bash
+        run: |
+          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
+          brew install autoconf automake bison pkg-config libevent ncurses utf8proc jemalloc jq
+          PATH="$(brew --prefix bison)/bin:${PATH}"
+          PKG_CONFIG_PATH="$(brew --prefix libevent)/lib/pkgconfig:$(brew --prefix ncurses)/lib/pkgconfig:$(brew --prefix utf8proc)/lib/pkgconfig:$(brew --prefix jemalloc)/lib/pkgconfig"
+          export PATH PKG_CONFIG_PATH
+          pkg-config --exists libutf8proc jemalloc
+          source="${GITHUB_WORKSPACE}/core/artifacts/tmux/sources/${TMUX_VERSION}"
+          mkdir -p "$(dirname "${source}")"
+          git clone --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
+          test "$(git -C "${source}" rev-parse HEAD)" = "${TMUX_SOURCE_COMMIT}"
+          test "$(git -C "${source}" describe --tags --exact-match HEAD)" = "${TMUX_VERSION}"
+          core/eng/tmux/build-version.sh "${TMUX_VERSION}"
+          binary="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}/bin/tmux"
+          test -x "${binary}"
+          test "$(cat "core/artifacts/tmux/installs/${TMUX_VERSION}/source-commit")" = "${TMUX_SOURCE_COMMIT}"
+          test "$("${binary}" -V)" = "tmux ${TMUX_VERSION}"
+          test "$(lipo -archs "${binary}")" = "${EXPECTED_ARCH}"
+          printf '%s\n' "$(dirname "${binary}")" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
+          brew list --versions autoconf automake bison pkgconf libevent ncurses utf8proc jemalloc jq \
+            > "${RUNNER_TEMP}/tmux-build-dependencies.txt"
