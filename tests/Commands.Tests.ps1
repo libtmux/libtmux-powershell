@@ -75,11 +75,72 @@ Invoke-WithOwnedTmux {
     $null = $server | Invoke-TmuxChain -Command $request.ToCommands($receiver.Pane)
     Assert-Received $fixture $receiver ([byte[]] @(120, 13))
 
+    $recipe = Join-Path $PSScriptRoot '../examples/ConcurrentCommands.ps1'
+    $ordered = @(& $recipe -Server $server -Command $commands -MaxPending 2)
+    Assert-Command (($ordered.Index -join '|') -ceq '0|1' -and
+        ($ordered.StandardOutputLines -join '|') -ceq "first value|$nativeSecond" -and
+        ($ordered | Measure-Object Utf8Bytes -Sum).Sum -le 65536) 'concurrent process results lost input order, attribution or byte accounting'
+    $blocked = New-TmuxCommand -Name 'if-shell' -Arguments @(
+        '-F', '1', 'wait-for concurrent-release ; display-message -p delayed')
+    $completion = [Collections.Generic.List[object]]::new()
+    try {
+        & $recipe -Server $server -Command @($blocked, $commands[0]) -MaxPending 2 -CompletionOrder |
+            ForEach-Object {
+                $completion.Add($_)
+                if ($_.Index -eq 1) {
+                    $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', '-S', 'concurrent-release')
+                }
+            }
+    } finally {
+        $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', '-S', 'concurrent-release')
+    }
+    Assert-Command (($completion.Index -join '|') -ceq '1|0' -and
+        ($completion.StandardOutputLines -join '|') -ceq 'first value|delayed') 'completion mode waited for input order or misattributed a native reply'
+    $cancel = [Threading.CancellationTokenSource]::new()
+    $cancelBlocked = New-TmuxCommand -Name 'wait-for' -Arguments @('concurrent-cancel-release')
+    $cancelled = $false
+    $cancelledResults = [Collections.Generic.List[object]]::new()
+    try {
+        & $recipe -Server $server -Command @($commands[0], $cancelBlocked) -MaxPending 2 -CompletionOrder -CancellationToken $cancel.Token |
+            ForEach-Object { $cancelledResults.Add($_); $cancel.Cancel() }
+    } catch {
+        $cancelError = $_.Exception
+        while ($null -ne $cancelError.InnerException) { $cancelError = $cancelError.InnerException }
+        Assert-Command ($cancelError -is [OperationCanceledException]) 'concurrent cancellation lost its native cancellation cause'
+        $cancelled = $true
+    } finally {
+        $cancel.Dispose()
+        $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', '-S', 'concurrent-cancel-release')
+    }
+    Assert-Command ($cancelled -and $cancelledResults.Count -eq 1 -and $cancelledResults[0].Index -eq 0) 'concurrent cancellation emitted an unfinished result'
+    $failed = $false
+    try { & $recipe -Server $server -Command $move } catch {
+        Assert-Command ($_.Exception.Data['LibTmux.ConcurrentCommandIndex'] -eq 0) 'concurrent process error lost submitted index'
+        $failed = $true
+    }
+    Assert-Command $failed 'concurrent process lane discarded the native placement guard'
+
     $control = $server | Connect-TmuxControl -Target $session.Id.ToString()
     try {
         Assert-Command ($control -is [LibTmux.IControlModeSession] -and $control.IsRunning) 'connect did not return a running native control client'
         $reply = @($control | Invoke-TmuxControlCommand -Command $commands[1])
         Assert-Command ($reply.Count -eq 1 -and $reply[0] -is [string] -and $reply[0] -ceq $nativeSecond) 'control reply lost native text'
+        $concurrent = @(& $recipe -Connection $control -Command $commands -MaxPending 2)
+        Assert-Command (($concurrent.Index -join '|') -ceq '0|1' -and
+            ($concurrent.StandardOutputLines -join '|') -ceq "first value|$nativeSecond" -and $control.IsRunning) 'concurrent control replies lost input order or disposed their borrowed client'
+        $empty = New-TmuxCommand -Name 'set-option' -Arguments @('-t', $session.Id.ToString(), '@concurrent', 'kept')
+        $emptyResult = @(& $recipe -Connection $control -Command $empty)
+        Assert-Command ($emptyResult.Count -eq 1 -and $emptyResult[0].StandardOutputLines.Count -eq 0) 'empty control reply became a false output line'
+        $unicode = New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'é')
+        $budget = [Text.Encoding]::UTF8.GetByteCount('display-message') + 3
+        $failed = $false
+        try { & $recipe -Connection $control -Command $unicode -MaxResultBytes $budget } catch {
+            Assert-Command ($_.Exception.Message -like '*MaxResultBytes*' -and
+                $_.Exception.Data['LibTmux.ConcurrentCommandIndex'] -eq 0) 'UTF-8 result budget error lost its cause or submitted index'
+            $failed = $true
+        }
+        Assert-Command ($failed -and $control.IsRunning -and
+            ($control | Invoke-TmuxControlCommand -Command $commands[0]) -ceq 'first value') 'UTF-8 over-budget result was admitted or borrowed client was damaged'
         $tasks = @(foreach ($n in 1..8) {
                 $control.SendAsync((New-TmuxCommand -Name 'display-message' -Arguments @('-p', "reply-$n")))
             })

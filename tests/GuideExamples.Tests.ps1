@@ -264,6 +264,22 @@ $assertions = @{
                 @($o.Server | Get-TmuxClient).Count -eq 0 -and
                 (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'control reply, client cleanup and borrowed topology'
         } }
+    'commands.concurrent' = @{ Group = 'Commands'; Count = 3; Assert = {
+            param($o)
+            Assert-Guide (($o.Result.Index -join '|') -ceq '0|1|2' -and
+                ($o.Result.StandardOutputLines -join '|') -ceq 'api|worker|scheduler' -and
+                @($o.Result | Where-Object { $_.ExitCode -ne 0 -or $_.StandardErrorLines.Count -ne 0 }).Count -eq 0 -and
+                ($o.Result | Measure-Object Utf8Bytes -Sum).Sum -le 4096) 'bounded process results retain input order and attribution'
+        } }
+    'commands.concurrent-control' = @{ Group = 'Commands'; Count = 3; Assert = {
+            param($o)
+            $ordered = @($o.Result | Sort-Object Index)
+            $expected = Get-GuideField $o.Context 'fixture:0.0' '#{session_name}|#{window_name}|#{pane_id}'
+            Assert-Guide (($ordered.Index -join '|') -ceq '0|1|2' -and
+                ($ordered.StandardOutputLines -join '|') -ceq $expected -and
+                ($o.Result | Measure-Object Utf8Bytes -Sum).Sum -le 4096 -and
+                @($o.Server | Get-TmuxClient).Count -eq 0) 'bounded control results remain correlated and borrowed client is cleaned up by its owner'
+        } }
     'layout.pane-size' = @{ Group = 'Settings'; Count = 1; Prepare = {
             param($c)
             $c.Window = $c.Session | Get-TmuxWindow | Select-Object -First 1
@@ -792,7 +808,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
 }
 
 function Assert-GuideSourceFile([string[]] $Files) {
-    if (Compare-Object @('Guides.ps1', 'QuickStart.ps1') $Files) { throw 'Guide source file registration differs.' }
+    if (Compare-Object @('ConcurrentCommands.ps1', 'Guides.ps1', 'QuickStart.ps1') $Files) { throw 'Guide source file registration differs.' }
 }
 
 function Assert-GuideExecutionGroup($Groups, $Assertions) {

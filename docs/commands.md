@@ -73,3 +73,71 @@ cleanup is awaited.
 that connection; its native interface exposes no endpoint metadata to display.
 The cmdlets run on the calling pipeline. They do not return Tasks or claim
 that a foreground command leaves the prompt available.
+
+## Collect concurrent command results
+
+Use the [finite concurrent-command recipe](../examples/ConcurrentCommands.ps1)
+when independent commands need separate results. Run it from the repository
+root after importing `LibTmux`. It accepts native command values, preserves
+their identity guards and starts at most `-MaxPending` calls at once.
+
+By default, each bounded wave finishes before its results are emitted in input
+order. The next wave then starts. This bounds reordering storage but can leave
+a slot idle while another command in the wave finishes. Each result carries
+its zero-based `Index`, `Name`, `ExitCode`, output lines, error lines and
+`Utf8Bytes`.
+
+<!-- example: commands.concurrent -->
+```powershell
+$commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
+    New-TmuxCommand -Name 'display-message' -Arguments @('-p', $name)
+})
+./examples/ConcurrentCommands.ps1 -Server $server -Command $commands `
+    -MaxPending 2 -MaxResultBytes 4096 -Timeout 1
+```
+
+Pass a borrowed control client to reuse its connection. `-CompletionOrder`
+emits each result as the caller harvests a completed task; simultaneous
+completions have no guaranteed order. `Index` still identifies its input.
+The recipe leaves the client open; its owner closes it here.
+
+<!-- example: commands.concurrent-control -->
+```powershell
+& {
+    $control = $server |
+        Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+    try {
+        $commands = @(foreach ($format in @(
+                '#{session_name}', '#{window_name}', '#{pane_id}')) {
+            New-TmuxCommand -Name 'display-message' -Arguments @(
+                '-p', '-t', 'fixture:0.0', $format
+            )
+        })
+        ./examples/ConcurrentCommands.ps1 -Connection $control `
+            -Command $commands -MaxPending 2 -MaxResultBytes 4096 `
+            -Timeout 1 -CompletionOrder
+    } finally {
+        $control | Disconnect-TmuxControl -Confirm:$false
+    }
+}
+```
+
+The recipe admits 1–64 commands and 1–16 pending calls; the default is four
+pending calls. Its cumulative result-text budget defaults to 64 KiB, counting
+UTF-8 command names and output/error lines plus one byte per item. A result
+that exceeds the remaining budget is rejected before being retained or
+emitted. This excludes exception diagnostics, object overhead and downstream
+consumer storage. Native buffers are separate: process transport allows
+64 MiB per output/error stream; default control limits allow 4 MiB per block
+and 16 MiB per reply. High concurrency with large replies can therefore use
+substantially more memory than `-MaxResultBytes`.
+
+`-Timeout` supplies one deadline for the entire batch, defaulting to one
+second. Supply `-CancellationToken` for caller-managed cancellation. The
+script waits synchronously on the calling runspace; it does not promise
+immediate Ctrl+C handling. On failure, cancellation or consumer termination,
+it cancels and observes every started task before returning; native cleanup
+may extend beyond the deadline. Previously emitted results and dispatched
+mutations remain. Command failures retain the native exception and identify
+their input with `Exception.Data['LibTmux.ConcurrentCommandIndex']`. Do not
+automatically retry canceled mutations.

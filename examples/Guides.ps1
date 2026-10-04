@@ -312,6 +312,32 @@ $server | Invoke-TmuxChain -Command @($first, $second)
     }
 }
     } }
+    'commands.concurrent' = @{ Requires = @('server'); Code = {
+$commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
+    New-TmuxCommand -Name 'display-message' -Arguments @('-p', $name)
+})
+./examples/ConcurrentCommands.ps1 -Server $server -Command $commands `
+    -MaxPending 2 -MaxResultBytes 4096 -Timeout 1
+    } }
+    'commands.concurrent-control' = @{ Requires = @('server'); Code = {
+& {
+    $control = $server |
+        Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+    try {
+        $commands = @(foreach ($format in @(
+                '#{session_name}', '#{window_name}', '#{pane_id}')) {
+            New-TmuxCommand -Name 'display-message' -Arguments @(
+                '-p', '-t', 'fixture:0.0', $format
+            )
+        })
+        ./examples/ConcurrentCommands.ps1 -Connection $control `
+            -Command $commands -MaxPending 2 -MaxResultBytes 4096 `
+            -Timeout 1 -CompletionOrder
+    } finally {
+        $control | Disconnect-TmuxControl -Confirm:$false
+    }
+}
+    } }
     'layout.pane-size' = @{ Requires = @('pane'); Code = {
 $pane | Set-TmuxPaneSize -Width '40' -PassThru
     } }
