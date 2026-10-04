@@ -80,4 +80,8 @@ exec $quotedBinary "`$@"
 
 $receipt = Invoke-AttachmentPty -ModuleRoot $ModuleRoot -Modes @('Detach', 'Cancel', 'Nested', 'WhatIf')
 Assert-Attachment ($receipt.cases.Count -eq 4 -and $receipt.ownedClientsExited -and $receipt.fixtureRemoved) 'PTY cases or owned cleanup were incomplete'
-'PASS foreground input, detach, pipeline stop, nested rejection, terminal restoration and owned cleanup'
+$workspaceCase = @($receipt.cases | Where-Object mode -eq Detach)
+Assert-Attachment ($workspaceCase.Count -eq 1 -and $workspaceCase[0].result.workspaceApplied -and
+    $workspaceCase[0].result.appliedSessionId -ceq $workspaceCase[0].result.returnedId -and
+    $workspaceCase[0].terminalRestored -and $workspaceCase[0].borrowedDaemonSessionsClientPreserved) 'installed workspace session attachment or borrowed cleanup was incomplete'
+'PASS installed workspace attachment, foreground input, detach, pipeline stop, nested rejection, terminal restoration and owned cleanup'

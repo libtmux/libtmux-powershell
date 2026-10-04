@@ -160,6 +160,62 @@
       </TableControl>
     </View>
     <View>
+      <Name>LibTmux.PaneRunResult</Name>
+      <ViewSelectedBy>
+        <TypeName>LibTmux.PaneRunResult</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Pane</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Status</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>TimedOut</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Elapsed</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Started</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Missed</Label><Width>8</Width></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>PaneId</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>ExitStatus</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>TimedOut</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Elapsed</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Started</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.LinesMissed -or $_.AnchorLost</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>LibTmux.PaneWaitResult</Name>
+      <ViewSelectedBy>
+        <TypeName>LibTmux.PaneWaitResult</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Pane</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Outcome</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Elapsed</Label><Width>12</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Dropped</Label><Width>10</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Missed</Label><Width>8</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Polling</Label><Width>10</Width></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>PaneId</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Outcome</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Elapsed</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>EventsDropped</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.LinesMissed -or $_.AnchorLost</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>PollingFallback</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
       <Name>LibTmux.Client</Name>
       <ViewSelectedBy>
         <TypeName>LibTmux.Client</TypeName>

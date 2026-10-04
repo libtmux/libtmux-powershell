@@ -297,6 +297,7 @@ def run(args):
     try:
         report["tmuxVersion"] = command("display-message", "-p", "#{version}").stdout.decode().strip()
         generation = command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip()
+        borrowed_windows = set(command("list-windows", "-t", args.session, "-F", "#{window_id}").stdout.decode().splitlines())
         sentinel = subprocess.Popen(prefix + ["-C", "attach-session", "-t", args.sentinel_session],
                                     env=environment, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, start_new_session=True)
@@ -311,6 +312,7 @@ def run(args):
             ready_read = ready_write = None
             child = None
             preparation_seconds = attachment_seconds = None
+            workspace_window = workspace_pane = None
             try:
                 master, slave = pty.openpty()
                 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
@@ -343,13 +345,18 @@ def run(args):
                     selected = [row for row in rows if row[2] == args.session]
                     assert len(selected) == 1, rows
                     assert selected[0][3] == ("1" if mode == "ReadOnly" else "0"), selected
+                    if mode == "Detach":
+                        active = command("display-message", "-p", "-t", args.session + ":",
+                                         "#{window_name}|#{window_id}|#{pane_id}").stdout.decode().strip().split("|")
+                        assert len(active) == 3 and active[0] == "workspace-attachment", active
+                        workspace_window, workspace_pane = active[1:]
                     marker = ("PS_ATTACH_INPUT_" + uuid.uuid4().hex).encode()
                     os.write(master, marker + b"\r")
                     if mode == "ReadOnly":
                         command("detach-client", "-t", selected[0][1])
                     else:
                         receive(master, marker, seconds=remaining(5))
-                        assert marker in command("capture-pane", "-p", "-t", args.session + ":").stdout
+                        assert marker in command("capture-pane", "-p", "-t", workspace_pane or args.session + ":").stdout
                         if mode == "Cancel":
                             command("wait-for", "-S", cancel)
                         else:
@@ -368,6 +375,18 @@ def run(args):
                 result = json.loads(result_path.read_text())
                 expected = {"Cancel": "Stopped", "Nested": "NestedRejected", "WhatIf": "Previewed"}.get(mode, "Returned")
                 assert child_exit == 0 and result["outcome"] == expected, result
+                if mode == "Detach":
+                    assert result["workspaceApplied"] is True, result
+                    assert result["appliedSessionId"] == result["returnedId"] == args.session, result
+                    assert result["workspaceWindowId"] == workspace_window, result
+                    assert result["workspacePaneId"] == workspace_pane, result
+                    assert command("show-window-options", "-v", "-t", workspace_window,
+                                   "automatic-rename").stdout.strip() == b"off"
+                    assert command("show-window-options", "-v", "-t", workspace_window,
+                                   "@workspace-attachment").stdout.strip() == b"installed", "Applied workspace window option was not retained."
+                    surviving_windows = set(command("list-windows", "-t", args.session,
+                                                    "-F", "#{window_id}").stdout.decode().splitlines())
+                    assert surviving_windows == borrowed_windows | {workspace_window}, surviving_windows
                 rows = clients()
                 assert len(rows) == 1 and rows[0][0] == str(sentinel.pid), rows
                 assert command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip() == generation

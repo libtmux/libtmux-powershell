@@ -284,7 +284,7 @@ function Get-HelpExampleAssertion {
                 $Context.Pane = $pane
             }; Assert = {
                 param($Result, $Context)
-                if ($Result[0] -isnot [LibTmux.PaneCommandResult] -or
+                if ($Result[0] -isnot [LibTmux.PaneRunResult] -or
                     $Result[0].PaneId -ne $Context.Pane.Id -or $Result[0].ExitStatus -ne 7 -or
                     $Result[0].TimedOut -or $Result[0].EffectiveTimeout -ne [TimeSpan]::FromSeconds(5)) {
                     throw 'Pane command example lost the native nonzero completion result.'
@@ -581,6 +581,35 @@ function Get-HelpExampleAssertion {
             }; Assert = {
                 param($Result)
                 if ($Result[0] -isnot [bool] -or !$Result[0]) { throw 'Wait example did not consume its pending signal.' }
+            } }
+        'LibTmux\Wait-TmuxPaneText#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+                $program = Join-Path $Context.Fixture.DirectoryPath 'pane-text-help.sh'
+                [IO.File]::WriteAllText($program, "IFS= read -r trigger || exit 1`nprintf 'READY\n'`nexec /bin/cat`n")
+                $quotedProgram = "'" + $program.Replace("'", "'\''") + "'"
+                $session = $server | LibTmux\New-TmuxSession -Name 'help-pane-text' `
+                    -Command "/bin/sh $quotedProgram" -Confirm:$false
+                $Context.Session = $session
+                $pane = $session | LibTmux\Get-TmuxPane
+                $Context.Pane = $pane
+            }; Assert = {
+                param($Result, $Context)
+                $wait = $Result[0]
+                $server = $Context.Session.Server
+                if ($wait -isnot [LibTmux.PaneWaitResult] -or
+                    $wait.Outcome -notin @([LibTmux.PaneWaitOutcome]::PresentAtEntry,
+                        [LibTmux.PaneWaitOutcome]::Matched) -or
+                    $wait.PaneId -ne $Context.Pane.Id -or
+                    $wait.Pattern -cne '^READY$' -or
+                    $wait.EventsDropped -ne 0 -or $wait.PollingFallback -or
+                    @($wait.Tail | Where-Object { $_ -cmatch '^READY$' }).Count -eq 0 -or
+                    @($server | LibTmux\Get-TmuxClient).Count -ne 0) {
+                    throw 'Pane text example did not observe the ready line or release its client.'
+                }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.Session) { $Context.Session | LibTmux\Remove-TmuxSession -Confirm:$false }
             } }
         'LibTmux\Send-TmuxText#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)

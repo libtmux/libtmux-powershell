@@ -28,7 +28,7 @@ start_directory: '${ROOT}/work $$ #{}'
 before_script: 'printf %s "$HOME"'
 options: { '@empty': '', '@null': 'null', '@tilde': '~' }
 environment: { EMPTY: '', 'NULL': 'null', BOOL: 'true' }
-shell_command_before: ['', 'first', 'second']
+shell_command_before: ['', { cmd: 'first', enter: false }, 'second']
 windows:
   - window_name: null
     window_index: 5
@@ -37,14 +37,15 @@ windows:
     focus: false
     options: { '@boolean': 'false' }
     environment: { LOCAL: 'window' }
-    shell_command_before: ['window before']
+    shell_command_before: [{ cmd: 'window before', enter: true }]
     panes:
-      - shell_command: ['', 'null', '~', 'true', '01', "line one\nline two", '#{pane_id}']
+      - shell_command: ['', 'null', '~', 'true', '01', "line one\nline two", '#{pane_id}', { cmd: 'hold', enter: false }, { cmd: 'resume', enter: true }, 'after resume']
+        enter: false
         start_directory: null
         focus: true
         options: { '@pane': '' }
         environment: { LOCAL: 'pane', EMPTY: '' }
-        shell_command_before: ['', 'pane before']
+        shell_command_before: ['', { cmd: 'pane before', enter: false }]
       - null
       - ''
   - window_name: ''
@@ -56,6 +57,14 @@ windows:
 $original = [LibTmux.Workspace.WorkspaceFile]::Parse($declaration)
 Assert-WorkspaceText ($original.Windows[0].WindowIndex -eq 5 -and
     $null -eq $original.Windows[1].WindowIndex) 'declared and implicit window indices were not distinguished'
+Assert-WorkspaceText ($original.BeforeCommands[1].Enter -eq $false -and
+    $null -eq $original.BeforeCommands[2].Enter -and
+    $original.Windows[0].BeforeCommands[0].Enter -eq $true -and
+    $original.Windows[0].Panes[0].Enter -eq $false -and
+    $original.Windows[0].Panes[0].BeforeCommands[1].Enter -eq $false -and
+    $original.Windows[0].Panes[0].Commands[7].Enter -eq $false -and
+    $original.Windows[0].Panes[0].Commands[8].Enter -eq $true -and
+    $null -eq $original.Windows[0].Panes[0].Commands[9].Enter) 'pane defaults, command overrides and inheritance were not distinguished'
 $empty = [LibTmux.Workspace.WorkspaceFile]::new()
 $directory = [IO.Directory]::CreateTempSubdirectory('libtmux-workspace-text-')
 $oldPath = $env:PATH
@@ -147,7 +156,8 @@ exec $quotedTmux "`$@"
         $frozen.Windows[0].Layout -ceq $captured.Windows[0].Layout -and
         $frozen.Windows[1].Layout -ceq $captured.Windows[1].Layout) 'freeze lost contextual order, focus, layout or unresolved provenance'
     Assert-WorkspaceText ($frozen.Windows[0].Panes[0].StartDirectory -ceq $physicalPath.Replace('$', '$$') -and
-        @($frozen.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -eq 0) 'freeze rewrote literal paths or invented startup commands'
+        @($frozen.Windows | ForEach-Object { $_.Panes } | ForEach-Object { $_.ShellCommands }).Count -eq 0 -and
+        @($frozen.Windows | ForEach-Object { $_.Panes } | Where-Object { $null -ne $_.Enter }).Count -eq 0) 'freeze rewrote literal paths or invented startup commands or Enter intent'
     foreach ($format in @('Yaml', 'Json')) {
         $text = $frozen | & "LibTmux.Workspace\ConvertTo-TmuxWorkspace$format"
         $restored = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $text |

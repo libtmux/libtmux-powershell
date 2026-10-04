@@ -52,7 +52,7 @@ the commands never retry automatically.
 ## Run a command to completion
 
 `Invoke-TmuxPaneCommand` runs a shell command in a writable POSIX shell pane.
-It returns a native `LibTmux.PaneCommandResult` with an authenticated exit
+It returns a native `LibTmux.PaneRunResult` with an authenticated exit
 status. A nonzero status remains a result; a timeout returns `TimedOut = True`
 and a null status because the command may still be running. The command runs
 in a subshell, so `cd` and `export` do not change the pane's parent shell.
@@ -76,11 +76,72 @@ session:
 }
 ```
 
-The result's `ExitStatus` is 7 and `TimedOut` is False. The command does
-not capture stdout or stderr; `Get-TmuxPaneContent` reads rendered screen
-text separately. On timeout or cancellation after dispatch, inspect the pane
+The result's `ExitStatus` is 7 and `TimedOut` is False. `Output` contains
+bounded rendered command output, which can include both stdout and stderr.
+It is not a byte-exact stream. The default view omits output text; inspect
+`Output`, `LinesMissed`, `AnchorLost` and omission counts when needed.
+`Get-TmuxPaneContent` reads the current pane screen separately. On timeout or cancellation after dispatch, inspect the pane
 before retrying. The [cmdlet reference](reference/LibTmux/Invoke-TmuxPaneCommand.md)
 describes history suppression, validation and confirmation.
+
+## Wait for an application's readiness line
+
+Use [Wait-TmuxPaneText](reference/LibTmux/Wait-TmuxPaneText.md) when an
+application reports readiness in its terminal output. It observes rendered
+text through a temporary control client, checks text already visible at entry,
+then wakes on output or layout changes. It returns a native
+`LibTmux.PaneWaitResult`; it does not require a cooperative tmux channel.
+
+With Python 3 on `PATH` and the selected endpoint in `$server`, start a local
+HTTP server on an available loopback port. Wait for its readiness line, then
+make an HTTP request to verify that the server responds. The `finally` block
+removes the session and stops the server process:
+
+<!-- example: input.http-ready -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession `
+        -Name ('http-' + [Guid]::NewGuid().ToString('N')) `
+        -Command 'exec python3 -u -m http.server 0 --bind 127.0.0.1'
+    try {
+        $pane = $session | Get-TmuxPane
+        $ready = $pane | Wait-TmuxPaneText `
+            -Pattern '^Serving HTTP on 127\.0\.0\.1 port [0-9]+' `
+            -CaseSensitive -Timeout 10 -TailLines 4 -Confirm:$false
+        if ($ready.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "HTTP readiness ended with $($ready.Outcome)."
+        }
+        $port = [regex]::Match(($ready.Tail -join "`n"), 'port ([0-9]+)').Groups[1].Value
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -TimeoutSec 5 -NoProxy
+        $ready
+        $response.StatusCode
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+The observation is `PresentAtEntry` or `Matched`, followed by HTTP status 200.
+The wait owns and closes its control client; it leaves the pane and daemon
+running. The example separately owns its session and removes it.
+
+Patterns use bounded .NET regular expressions and ignore case by default.
+Use `-SimpleMatch` for literal text, `-CaseSensitive` for case-sensitive
+matching, and `-StopPattern` for a terminal failure line. Stop patterns take
+priority over wanted patterns. Without `-Pattern`, the wait returns on new
+output. `TimedOut` and `PaneExited` are result outcomes; transport failures
+and invalid patterns are errors. Ctrl+C cancels observation, not the
+application. `-AllowPollingFallback` explicitly permits polling if control
+observation fails; `PollingFallback` and `EventsDropped` disclose degradation.
+
+Rendered text can include echoed input and can disappear on repaint or
+scrollback eviction. A match proves the text condition, not an exit status
+or continuing service health. The HTTP request above checks service behavior
+separately. Inspect `LinesMissed`, `AnchorLost`, `OmittedTailLines` and
+`OmittedTailBytes` before treating the bounded tail as complete output.
+Use [command completion](#run-a-command-to-completion) for an authenticated
+exit status and [event streams](watch.md) for individual notifications.
 
 ## Send a command and wait for its output
 

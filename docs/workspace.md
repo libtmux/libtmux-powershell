@@ -58,9 +58,11 @@ Ordered `shell_command` and `shell_command_before` lists accept command strings
 and tmuxp-style entries such as `- cmd: exec /bin/sh`. Commands remain literal
 and run in session-before, window-before, pane-before, then pane-command order.
 The [workspace corpus](../tests/fixtures/workspace/corpus.yaml) checks the
-mixed forms on an owned tmux server. Command modifiers such as `enter` are
-unsupported and fail during import with the declaration path and source
-location.
+mixed forms on an owned tmux server. Set `enter: false` on a pane or command
+to type its text without submitting it. Commands inherit the current Enter
+setting until another command overrides it; the default is `true`. The
+[pinned tmuxp fixtures](../tests/fixtures/workspace/tmuxp-v1.74.0-skip-send.yaml)
+cover pending text and execution after an explicit Enter.
 
 Set `window_index` on a window to request a nonnegative session-relative
 index. Omit it to let tmux choose the next free index. Duplicate requested
@@ -241,10 +243,55 @@ Editing runs no workspace command or tmux operation. Import, resolve, validate
 and review a new plan explicitly afterward. An existing plan still contains
 the declaration captured when it was created.
 
+## Type a command without submitting it
+
+Use `enter: false` to prepare input for review. This example creates a shell,
+reads the pending command, submits one Enter, and waits for its rendered
+output. The result contains the reviewed plan, pending text, and completion.
+The `finally` block removes the session it created.
+
+<!-- example: workspace.10-pending -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: review-command
+options:
+  default-command: exec /bin/sh
+windows:
+  - window_name: review
+    panes:
+      - shell_command:
+          - cmd: "printf '\\nreview %s\\n' complete"
+            enter: false
+'@
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false
+        $pane = $result.Windows[0].Panes[0]
+        $pending = $pane | Wait-TmuxPaneText `
+            -Pattern "printf '\nreview %s\n' complete" -SimpleMatch -Timeout 10 -Confirm:$false
+        if ($pending.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending input wait ended with $($pending.Outcome)."
+        }
+        $pane | Send-TmuxKey -Key Enter -Confirm:$false
+        $completion = $pane | Wait-TmuxPaneText -Pattern '^review complete$' -Timeout 10 -Confirm:$false
+        if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending command wait ended with $($completion.Outcome)."
+        }
+        [pscustomobject]@{ Pending = $pending.Tail -join "`n"; Completion = $completion; Plan = $plan }
+    } finally {
+        if ($result) { $result.Session | Remove-TmuxSession -Confirm:$false }
+    }
+}
+```
+
 ## Startup, host effects and failures
 
-`-Readiness Immediate` sends configured commands as literal input followed
-by Enter. It does not infer shell readiness or command completion. With
+`-Readiness Immediate` sends configured commands as literal input, applying
+each command's Enter setting. It does not infer shell readiness or command
+completion. With
 `-Readiness Cooperative`, pane startup receives a fresh
 `LIBTMUX_WORKSPACE_READY` channel and must signal it when it can accept
 input, using the selected tmux executable and the same server. The shell
@@ -254,8 +301,12 @@ completion of the sent command needs its own application signal. See the
 [shared engine's cooperative startup example](https://github.com/libtmux/libtmux-dotnet/blob/master/src/LibTmux.Workspace/README.md#readiness-and-existing-sessions).
 
 A declaration's `before_script` runs on the host only when planning admits
-it with `-AllowHostScripts`. Resolve the document first; the script runs in
-its recorded document directory. Supply the same policy to
+it with `-AllowHostScripts`. Resolve the document first. Creation and
+replacement run the script after the named session exists; Append uses the
+existing session, and Reuse skips the script. Its working directory is the
+resolved session `start_directory`, falling back to the document directory.
+The script is literal shell text passed to `/bin/sh -c`; tmuxp's separate
+rewrite of a leading `./script` path is not applied. Supply the same policy to
 `Test-TmuxWorkspace` and `Get-TmuxWorkspacePlan`, including
 `-HostScriptTimeout` and `-MaxHostOutputBytes` when changing their bounds.
 Invocation uses those frozen settings. Validation, planning and `-WhatIf`

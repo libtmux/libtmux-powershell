@@ -12,7 +12,7 @@ function Assert-PaneRun([bool] $Condition, [string] $Message) {
 
 $command = Get-Command 'LibTmux\Invoke-TmuxPaneCommand' -ErrorAction SilentlyContinue
 Assert-PaneRun ($null -ne $command) 'installed module has no native Invoke-TmuxPaneCommand'
-Assert-PaneRun ($command.OutputType.Type -contains [LibTmux.PaneCommandResult]) 'cmdlet does not declare the native result type'
+Assert-PaneRun ($command.OutputType.Type -contains [LibTmux.PaneRunResult]) 'cmdlet does not declare the native result type'
 Assert-PaneRun ($command.Parameters['Timeout'].ParameterType -eq [double]) 'timeout must use seconds'
 
 Invoke-WithOwnedTmux {
@@ -33,12 +33,12 @@ Invoke-WithOwnedTmux {
         Assert-PaneRun ($before.Count -eq 0 -and !(Test-Path -LiteralPath $preview)) 'WhatIf ran a shell command or emitted a result'
 
         $success = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'printf "pane run ok\n"' -Timeout 5 -Confirm:$false
-        Assert-PaneRun ($success -is [LibTmux.PaneCommandResult] -and
+        Assert-PaneRun ($success -is [LibTmux.PaneRunResult] -and
             $success.PaneId -eq $pane.Id -and $success.ExitStatus -eq 0 -and !$success.TimedOut -and
             $success.EffectiveTimeout -eq [TimeSpan]::FromSeconds(5)) 'success lost native completion facts'
 
         $nonzero = $pane | LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
-        Assert-PaneRun ($nonzero -is [LibTmux.PaneCommandResult] -and
+        Assert-PaneRun ($nonzero -is [LibTmux.PaneRunResult] -and
             $nonzero.ExitStatus -eq 7 -and !$nonzero.TimedOut) 'nonzero shell exit became a cmdlet error'
 
         $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
@@ -46,7 +46,7 @@ Invoke-WithOwnedTmux {
         $channel = 'libtmux-pane-run-' + [Guid]::NewGuid().ToString('N')
         $blocked = "$quotedTmux -S $quotedSocket wait-for $channel"
         $timedOut = $pane | LibTmux\Invoke-TmuxPaneCommand -Command $blocked -Timeout 0.02 -Confirm:$false
-        Assert-PaneRun ($timedOut -is [LibTmux.PaneCommandResult] -and
+        Assert-PaneRun ($timedOut -is [LibTmux.PaneRunResult] -and
             $timedOut.TimedOut -and $null -eq $timedOut.ExitStatus -and
             $timedOut.PaneId -eq $pane.Id) 'timeout claimed command completion'
         $errors = @()

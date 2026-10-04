@@ -41,6 +41,18 @@ Assert-RejectedCriterion { New-TmuxQuery -Json $before.Replace('"version":2', '"
 Assert-RejectedCriterion { New-TmuxQuery -Json $before.Replace('"version":2', '"version":2,"version":2') }
 Assert-RejectedCriterion { New-TmuxQuery -Json $before.Replace('"schema":', '"unexpected":0,"schema":') }
 
+$ignoreCaseOperators = @(
+    @{ Key = 'StartsWithIgnoreCase'; Wire = 'startsWithOrdinalIgnoreCase'; Value = 'FIX' },
+    @{ Key = 'EndsWithIgnoreCase'; Wire = 'endsWithOrdinalIgnoreCase'; Value = 'TURE' },
+    @{ Key = 'ContainsIgnoreCase'; Wire = 'containsOrdinalIgnoreCase'; Value = 'IXT' }
+)
+foreach ($operation in $ignoreCaseOperators) {
+    $condition = @{ Name = @{ $operation.Key = $operation.Value } }
+    $document = New-TmuxQuery -Target Session -Criteria $condition
+    $wire = ($document | ConvertTo-TmuxQueryJson | ConvertFrom-Json).predicate.operator
+    Assert-Criterion ($wire -ceq $operation.Wire) 'case-insensitive string operator used a different wire operation'
+}
+
 foreach ($invalid in @(
         @{ Unknown = 'x' }, @{ Width = $true }, @{ Width = '50' }, @{ Width = 1.5 },
         @{ Width = [decimal] 1 }, @{ Width = [uint64]::MaxValue }, @{ CurrentCommand = 1 },
@@ -106,6 +118,13 @@ Invoke-WithOwnedTmux {
     Assert-Criterion (@([LibTmux.Query.QueryExtensions]::Matching[LibTmux.Session]($sessions, $ordinal, [Threading.CancellationToken]::None)).Count -eq 0) 'case-insensitive field aliases changed ordinal string equality'
     $regex = New-TmuxQuery -Target Session -Criteria @{ Name = @{ Regex = @{ Pattern = '^FIXTURE$'; Options = @('IgnoreCase') } } }
     Assert-Criterion (@([LibTmux.Query.QueryExtensions]::Matching[LibTmux.Session]($sessions, $regex, [Threading.CancellationToken]::None)).Count -eq 1) 'regex options did not reach native matching'
+    foreach ($operation in $ignoreCaseOperators) {
+        $condition = @{ Name = @{ $operation.Key = $operation.Value } }
+        $insensitive = New-TmuxQuery -Target Session -Criteria $condition
+        $selected = @([LibTmux.Query.QueryExtensions]::Matching[LibTmux.Session]($sessions, $insensitive, [Threading.CancellationToken]::None))
+        Assert-Criterion ($selected.Count -eq 1 -and
+            [object]::ReferenceEquals($selected[0], $sessions[0])) 'case-insensitive string matching lost the captured native session'
+    }
     $identity = New-TmuxQuery -Target Pane -Criteria @{ Id = $panes[0].Id }
     $identified = @([LibTmux.Query.QueryExtensions]::Matching[LibTmux.Pane]($panes, $identity, [Threading.CancellationToken]::None))
     Assert-Criterion ($identified.Count -eq 1 -and [object]::ReferenceEquals($identified[0], $panes[0])) 'native typed ID was not preserved'

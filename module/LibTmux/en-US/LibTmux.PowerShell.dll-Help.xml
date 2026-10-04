@@ -3957,16 +3957,19 @@ $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
     </command:details>
     <maml:description>
       <maml:para>Run Command in a subshell in the selected pane and return a native
-`LibTmux.PaneCommandResult`. The result records the pane ID, authenticated shell
+`LibTmux.PaneRunResult`. The result records the pane ID, authenticated shell
 exit status, whether the wait timed out, elapsed time and effective timeout. A
 nonzero exit status is a result, not a cmdlet error. The command does not change
 the parent shell's working directory or environment.
 
 A timeout returns `TimedOut = True` and a null `ExitStatus`; the command may
 still be running. Cancellation after dispatch can leave it running too. Inspect
-the pane before retrying either case. This command does not capture stdout or
-stderr; [Get-TmuxPaneContent](Get-TmuxPaneContent.md) reads rendered screen
-text separately and is not a byte-exact process stream.
+the pane before retrying either case. `Output` contains bounded rendered command
+output, which may include stdout and stderr together. It is not a byte-exact
+process stream. Inspect `LinesMissed`, `AnchorLost` and omission counts before
+treating it as complete. `Started = False` means no start marker was confirmed;
+it does not prove the command never ran. The default view omits output text.
+[Get-TmuxPaneContent](Get-TmuxPaneContent.md) reads the current screen separately.
 
 The pane must be a live, writable POSIX-compatible shell. `-WhatIf` performs
 no tmux I/O or input operation. Confirmation identifies the endpoint and pane
@@ -4103,7 +4106,7 @@ Cleanup after an observed result may take additional time.</maml:para>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>LibTmux.PaneCommandResult</maml:name>
+          <maml:name>LibTmux.PaneRunResult</maml:name>
         </dev:type>
         <maml:description>
           <maml:para>One result per pane with exit status or a timeout indication.</maml:para>
@@ -11247,6 +11250,320 @@ $server | LibTmux\Wait-TmuxChannel -Channel 'build-finished' -Timeout 10
       <maml:navigationLink>
         <maml:linkText>Send input and wait for completion</maml:linkText>
         <maml:uri>../../input.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Wait-TmuxPaneText</command:name>
+      <maml:description>
+        <maml:para>Wait for rendered text in a native tmux pane.</maml:para>
+      </maml:description>
+      <command:verb>Wait</command:verb>
+      <command:noun>TmuxPaneText</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Watch the selected pane until one pattern matches rendered text. A match
+already visible when observation begins returns `PresentAtEntry`. With no
+pattern, the command waits for any new rendered output and returns `AnyOutput`.
+Stop patterns return `Stopped`; the deadline and a pane exit return `TimedOut`
+and `PaneExited`. These are native `LibTmux.PaneWaitResult` outcomes, not cmdlet
+errors. Inspect `Outcome` before treating a wait as readiness.
+
+The observer attaches a temporary control client before its first capture.
+Control events wake a grid-aware reader; matching uses captured rendered rows,
+not individual output fragments. Results include a bounded final screen tail,
+elapsed and effective timeout, dropped-event count, polling fallback, and
+missed-line or lost-anchor indicators. The default view shows `Missed` and
+omits the tail; inspect `Tail` explicitly if you need its text. A lost event
+or anchor means the observer may have missed transient output.
+
+Control observation is required by default. `-AllowPollingFallback` permits
+bounded polling if control observation fails, and the result discloses whether
+it ran. The wait borrows the pane and server; it disposes only its own observer
+and client on completion or Ctrl+C. `-WhatIf` attaches no client and captures
+no text. Confirmation identifies the endpoint and pane without displaying
+patterns or pane content.
+
+This command recognizes text; it does not authenticate command completion or
+an exit status. Use [Invoke-TmuxPaneCommand](Invoke-TmuxPaneCommand.md) for a
+shell command you start or [Wait-TmuxChannel](Wait-TmuxChannel.md) for a
+cooperative application signal. Visible text can include input echoed by a
+shell or application. `Get-TmuxPaneContent -History` reads retained rendered
+scrollback, while `-Raw` joins rendered rows; neither is a byte-exact process
+stream.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Wait-TmuxPaneText</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Pane</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Pane</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Pane</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Pattern</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>StopPattern</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CaseSensitive</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>SimpleMatch</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Timeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllowPollingFallback</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>TailLines</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxOutputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>AllowPollingFallback</maml:name>
+        <maml:description>
+          <maml:para>Allow bounded capture polling if the control client cannot observe the pane.
+The default is to report the control failure. `PollingFallback` discloses use.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CaseSensitive</maml:name>
+        <maml:description>
+          <maml:para>Match letter case. Patterns are case-insensitive by default.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompt before attaching an observer. The prompt omits pattern and pane text.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxOutputBytes</maml:name>
+        <maml:description>
+          <maml:para>Maximum UTF-8 bytes retained in the result tail. The default is 65536; the
+valid range is 1 through 1048576. This bounds returned text, not the producer.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Pane</maml:name>
+        <maml:description>
+          <maml:para>The native pane to observe. An arbitrary object with an Id property is not a
+pane owner.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Pane</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Pattern</maml:name>
+        <maml:description>
+          <maml:para>Regular expressions to wait for. Omit or pass an empty array to wait for any
+new rendered output. Empty entries are rejected. The shared observer bounds
+regex matching work and time over rendered rows. It uses .NET's nonbacktracking
+regex mode; unsupported constructs such as lookarounds and backreferences are
+rejected before attaching a client.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>SimpleMatch</maml:name>
+        <maml:description>
+          <maml:para>Treat each pattern and stop pattern as literal text instead of a regular
+expression. `-CaseSensitive` still controls case matching.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>StopPattern</maml:name>
+        <maml:description>
+          <maml:para>Regular expressions that end the wait with `Outcome = Stopped`. Stop patterns
+take precedence over wanted patterns, including text visible at entry. Across both
+pattern lists, at most 32 entries, 999 UTF-8 bytes per entry and 16384 bytes
+in total are accepted.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>TailLines</maml:name>
+        <maml:description>
+          <maml:para>Maximum rendered screen lines retained in the result tail. The default is 20;
+the valid range is 1 through 1000. Truncation is reported separately.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Timeout</maml:name>
+        <maml:description>
+          <maml:para>Wait budget in seconds. Fractions are accepted. The default is 10; the valid
+range is 0.0000001 through 86400. A timed-out wait does not prove the program
+stopped or the desired text was never printed.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the intended observer without attaching a client or capturing text.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Pane</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The pane selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.PaneWaitResult</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One result per pane with outcome, matched pattern, bounded rendered tail and
+observation metadata. No result is emitted for `-WhatIf` or an empty pipeline.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>`Tmux.PaneTextWaitFailed` retains the native pane as its error target for
+transport and capture failures. `Tmux.InvalidTimeout` and
+`Tmux.InvalidPaneTextRequest` fail before attaching a client. `-ErrorAction
+Continue` can advance to the next pane after an operation error;
+`-ErrorAction Stop` stops the pipeline.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Given a native `$pane` running a program that reads one line, prints `READY`,
+then stays alive, send a trigger that cannot match the ready pattern. Output
+may arrive before the wait begins; both `PresentAtEntry` and `Matched` mean the
+line was observed:</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+&amp; {
+    $pane | LibTmux\Send-TmuxText -Text go -Enter -Confirm:$false
+    $pane | LibTmux\Wait-TmuxPaneText -Pattern '^READY$' -Timeout 5 -Confirm:$false
+}
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Wait-TmuxPaneText.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Send input to a pane</maml:linkText>
+        <maml:uri>../../input.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Capture rendered pane text</maml:linkText>
+        <maml:uri>../../capture.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

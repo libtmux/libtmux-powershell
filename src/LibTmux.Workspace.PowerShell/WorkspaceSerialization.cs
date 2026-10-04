@@ -35,7 +35,7 @@ internal static class WorkspaceSerialization
             ["start_directory"] = Directory(workspace.StartDirectory, resolved),
             ["options"] = workspace.Options,
             ["environment"] = workspace.Environment,
-            ["shell_command_before"] = workspace.ShellCommandsBefore,
+            ["shell_command_before"] = ProjectCommands(workspace.BeforeCommands),
             ["windows"] = workspace.Windows.Select(window => Project(window, resolved)).ToArray(),
         };
         // Unlike nullable path/name fields, the parser rejects an explicit null host command.
@@ -59,20 +59,31 @@ internal static class WorkspaceSerialization
         result.Add("focus", window.Focus);
         result.Add("options", window.Options);
         result.Add("environment", window.Environment);
-        result.Add("shell_command_before", window.ShellCommandsBefore);
+        result.Add("shell_command_before", ProjectCommands(window.BeforeCommands));
         result.Add("panes", window.Panes.Select(pane => Project(pane, resolved)).ToArray());
         return result;
     }
 
-    private static Dictionary<string, object?> Project(WorkspacePane pane, bool resolved) => new(StringComparer.Ordinal)
+    private static Dictionary<string, object?> Project(WorkspacePane pane, bool resolved)
     {
-        ["shell_command"] = pane.ShellCommands,
-        ["start_directory"] = Directory(pane.StartDirectory, resolved),
-        ["focus"] = pane.Focus,
-        ["options"] = pane.Options,
-        ["environment"] = pane.Environment,
-        ["shell_command_before"] = pane.ShellCommandsBefore,
-    };
+        Dictionary<string, object?> result = new(StringComparer.Ordinal)
+        {
+            ["shell_command"] = ProjectCommands(pane.Commands),
+            ["start_directory"] = Directory(pane.StartDirectory, resolved),
+            ["focus"] = pane.Focus,
+            ["options"] = pane.Options,
+            ["environment"] = pane.Environment,
+            ["shell_command_before"] = ProjectCommands(pane.BeforeCommands),
+        };
+        if (pane.Enter is bool enter)
+            result.Add("enter", enter);
+        return result;
+    }
+
+    private static object[] ProjectCommands(IReadOnlyList<WorkspaceCommand> commands) =>
+        commands.Select(command => command.Enter is bool enter
+            ? (object)new Dictionary<string, object?> { ["cmd"] = command.Text, ["enter"] = enter }
+            : command.Text).ToArray();
 
     private static string? Directory(string? path, bool resolved) =>
         resolved ? path?.Replace("$", "$$", StringComparison.Ordinal) : path;

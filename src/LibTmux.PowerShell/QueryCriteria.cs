@@ -288,6 +288,9 @@ internal static class QueryCriteria
                 case "ENDSWITH": Comparison(alias, "endsWithOrdinal", value, depth); break;
                 case "CONTAINS": Comparison(alias, "containsOrdinal", value, depth); break;
                 case "EQUALIGNORECASE": Comparison(alias, "stringEqualOrdinalIgnoreCase", value, depth); break;
+                case "STARTSWITHIGNORECASE": Comparison(alias, "startsWithOrdinalIgnoreCase", value, depth); break;
+                case "ENDSWITHIGNORECASE": Comparison(alias, "endsWithOrdinalIgnoreCase", value, depth); break;
+                case "CONTAINSIGNORECASE": Comparison(alias, "containsOrdinalIgnoreCase", value, depth); break;
                 case "ISNULL":
                 case "ISNOTNULL":
                     if (value is not true)
