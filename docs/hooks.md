@@ -21,7 +21,8 @@ Set one indexed command and inspect the complete grouped hook:
 
 <!-- example: hooks.set -->
 ```powershell
-$session | Set-TmuxHook -Name 'alert-bell[7]' -Command 'display-message "build finished"' -PassThru
+$command = 'display-message "build finished"'
+$session | Set-TmuxHook -Name 'alert-bell[7]' -Command $command -PassThru
 ```
 
 The command is tmux syntax, not PowerShell syntax. tmux normalizes it;
