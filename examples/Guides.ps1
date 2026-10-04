@@ -315,7 +315,10 @@ $server | Invoke-TmuxChain -Command @($first, $second)
     'layout.select' = @{ Requires = @('window'); Code = { $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru } }
     'layout.window-size' = @{ Requires = @('window'); Code = { $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru } }
     'layout.zoom' = @{ Requires = @('pane'); Code = { $pane | Set-TmuxPaneSize -Zoom } }
-    'placement.01-link' = @{ Requires = @('window', 'session'); Code = { $window | New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false } }
+    'placement.01-link' = @{ Requires = @('window', 'session'); Code = {
+$window |
+    New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false
+    } }
     'placement.02-select' = @{ Requires = @('window', 'session'); Code = {
 $window = $session | Get-TmuxWindow |
     Where-Object { $_.Id -eq $window.Id -and $_.Index -eq 5 }

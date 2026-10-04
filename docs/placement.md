@@ -11,7 +11,8 @@ session's selected window alone:
 
 <!-- example: placement.01-link -->
 ```powershell
-$window | New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false
+$window |
+    New-TmuxWindowLink -Session $session -Index 5 -NoSelect -Confirm:$false
 ```
 
 The command emits no placement handle. Read the destination session's windows
