@@ -48,7 +48,9 @@ lines naming ``key``, and the digests of this checker and of WRITING.md's
 shared section must equal ``checker_digest`` and ``shared_digest``, so a
 local edit to either fails until every port changes together. AGENTS.md
 must link the WRITING.md heading the shared section sits under, so an
-agent is routed to the rules.
+agent is routed to the rules, and WRITING.md's ``### In this repository``
+block must hold the four labelled bullets in order, then one Bad and one
+Good example.
 
 Run ``--self-test`` to prove the checker can fail. ``--digest`` prints the
 SHA-256 of this file and of WRITING.md's shared example section (between
@@ -69,7 +71,10 @@ import sys
 import typing as t
 import unicodedata
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # tomllib is in the standard library from 3.11.
+    sys.exit("check_example_width.py needs Python 3.11 or newer")
 
 CONFIG = pathlib.PurePosixPath(".github/example-width.toml")
 KEYS = frozenset(
@@ -103,6 +108,15 @@ BLOCK_CLOSE = re.compile(r"\}\s*</pre>|^\s*</code>")
 URL = re.compile(r"^(?:(?:#+|//+!?|-+|\*|>|<!--)\s*)?<?[a-z][a-z0-9+.-]*://\S+$")
 EXAMPLE_DIR = re.compile(r"(^|/)examples/", re.IGNORECASE)
 HEADING = re.compile(r"^(#{1,6}) (.+)$", re.MULTILINE)
+PORT_BLOCK = re.compile(
+    r"^### In this repository\n(?P<body>.*?)(?=^#{1,3} |\Z)", re.MULTILINE | re.DOTALL
+)
+PORT_LABELS = (
+    "- **Hard limit:**",
+    "- **Not formatted:**",
+    "- **Runs, compiles, exempt:**",
+    "- **Compared output and copied blocks:**",
+)
 # Where every port lists its copy, so a digest change reaches all of them.
 PORTS = "PORTS in scripts/check_shared_examples.py of libtmux/docs"
 
@@ -545,6 +559,37 @@ def routing_problems(root: pathlib.Path) -> list[str]:
     return [f"AGENTS.md does not link {anchor}, the section with the example rules"]
 
 
+def port_block_problems(text: str) -> list[str]:
+    r"""Return how a WRITING.md's ``### In this repository`` block strays.
+
+    >>> labels = "\n".join(label + " x" for label in PORT_LABELS)
+    >>> block = f"### In this repository\n\n{labels}\n\nBad, over 80:\n\nGood, named:\n"
+    >>> port_block_problems(block)
+    []
+    >>> port_block_problems(block.replace("- **Not formatted:**", "- **Other:**"))
+    ['In this repository: no "- **Not formatted:**" bullet in its place']
+    >>> port_block_problems("## Examples\n")
+    ['no "### In this repository" block']
+    """
+    match = PORT_BLOCK.search(text)
+    if match is None:
+        return ['no "### In this repository" block']
+    lines = match["body"].splitlines()
+    problems = []
+    at = 0
+    for label in PORT_LABELS:
+        found = next((i for i, line in enumerate(lines) if line.startswith(label)), -1)
+        if found < at:
+            problems.append(f'In this repository: no "{label}" bullet in its place')
+        else:
+            at = found
+    for example in ("Bad, over 80", "Good"):
+        count = sum(line.startswith(example) for line in lines[at:])
+        if count != 1:
+            problems.append(f'In this repository: {count} "{example}" examples, want 1')
+    return problems
+
+
 def digests(root: pathlib.Path) -> list[str]:
     """Return ``checker <sha256>`` and ``shared <sha256>`` lines.
 
@@ -673,11 +718,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     config = tomllib.loads((root / CONFIG).read_text(encoding="utf-8"))
     files = tracked_files(root)
+    writing = writing_path(root)
     problems = (
         config_problems(config, files)
         + copy_problems(root, config)
         + digest_problems(root, config)
         + routing_problems(root)
+        + (port_block_problems(writing.read_text(encoding="utf-8")) if writing else [])
     )
     findings, stale = check(root, config, files)
     annotate = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -693,7 +740,6 @@ def main(argv: list[str] | None = None) -> int:
     for entry in stale:
         print(f"{entry['path']}: allow entry matches no line: {entry['line']!r}")
     if problems or findings or stale:
-        writing = writing_path(root)
         rules = writing.relative_to(root).as_posix() if writing else "WRITING.md"
         print(
             f"{len(problems)} config problems, {len(findings)} wide lines, "
