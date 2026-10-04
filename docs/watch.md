@@ -102,12 +102,12 @@ limits deliberately for a longer observation.
 <!-- example: watch.job-create -->
 ```powershell
 $job = & {
-    $socketPath = $server.ConnectionOptions.SocketPath
-    $tmuxBinaryPath = $server.ConnectionOptions.TmuxBinaryPath
+    $path = $server.ConnectionOptions.SocketPath
+    $binary = $server.ConnectionOptions.TmuxBinaryPath
     Start-ThreadJob -ScriptBlock {
         Import-Module LibTmux
-        New-TmuxServer -SocketPath $using:socketPath -TmuxBinaryPath $using:tmuxBinaryPath |
-            Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1048576
+        New-TmuxServer -SocketPath $using:path -TmuxBinaryPath $using:binary |
+            Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1MB
     }
 }
 ```
