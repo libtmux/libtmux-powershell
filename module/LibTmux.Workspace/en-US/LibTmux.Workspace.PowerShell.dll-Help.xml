@@ -1523,7 +1523,16 @@ under Tmux.WorkspaceResolutionFailed; ErrorAction Continue permits later input.<
 different explicit BaseDirectory when the declaration came from elsewhere.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: development, start_directory: "${PROJECT}", windows: [{panes: [null]}]}' | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory (Get-Location).Path -Variables @{ PROJECT = 'src' }
+$resolve = @{
+    BaseDirectory = (Get-Location).Path
+    Variables = @{ PROJECT = 'src' }
+}
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+start_directory: "${PROJECT}"
+windows:
+  - panes: [null]
+'@ | LibTmux.Workspace\Resolve-TmuxWorkspace @resolve
 ```</maml:para>
         </maml:introduction>
         <dev:code />

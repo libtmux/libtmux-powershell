@@ -67,7 +67,16 @@ Resolve a parsed declaration against the current filesystem directory. Pass a
 different explicit BaseDirectory when the declaration came from elsewhere.
 
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: development, start_directory: "${PROJECT}", windows: [{panes: [null]}]}' | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory (Get-Location).Path -Variables @{ PROJECT = 'src' }
+$resolve = @{
+    BaseDirectory = (Get-Location).Path
+    Variables = @{ PROJECT = 'src' }
+}
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+start_directory: "${PROJECT}"
+windows:
+  - panes: [null]
+'@ | LibTmux.Workspace\Resolve-TmuxWorkspace @resolve
 ```
 
 ## PARAMETERS
