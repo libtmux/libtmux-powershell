@@ -38,7 +38,10 @@ Acquire current pane data through the native core handle. Return a new Pane and 
 Refresh the first pane on the existing server identified by $SocketPath.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane | Select-Object -First 1 | LibTmux\Update-TmuxPane
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxPane |
+    Select-Object -First 1 |
+    LibTmux\Update-TmuxPane
 ```
 
 ## PARAMETERS
