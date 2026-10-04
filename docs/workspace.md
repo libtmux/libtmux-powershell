@@ -357,7 +357,8 @@ windows:
         $null = $plan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
         throw 'The deliberately invalid option was accepted.'
     } catch {
-        if ($_.Exception -isnot [LibTmux.Workspace.WorkspaceBuildException]) { throw }
+        $type = [LibTmux.Workspace.WorkspaceBuildException]
+        if ($_.Exception -isnot $type) { throw }
         $failure = $_.Exception
     }
     [pscustomobject]@{
