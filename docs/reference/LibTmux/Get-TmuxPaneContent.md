@@ -48,7 +48,10 @@ Read a native pane through the core capture request. By default each captured li
 Capture the first pane on the existing server identified by $SocketPath.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane | Select-Object -First 1 | LibTmux\Get-TmuxPaneContent -Raw
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxPane |
+    Select-Object -First 1 |
+    LibTmux\Get-TmuxPaneContent -Raw
 ```
 
 ## PARAMETERS
