@@ -22,7 +22,8 @@ reply processing does not wait for notification delivery.
 
 After [installing libtmux for PowerShell](../README.md#install-from-source),
 paste this script into PowerShell. It creates one session on a socket in a
-private temporary directory. It connects a control client before renaming the
+private directory under `/tmp`, which keeps the socket path short enough for
+macOS. It connects a control client before renaming the
 window, so tmux queues the notification even if the job reads it later. The job
 emits that native event. An event limit, byte budget and five-second deadline
 bound the observation. The finally block removes the job, client, session and
@@ -35,7 +36,7 @@ server is reachable. The default tmux server is untouched.
     $ErrorActionPreference = 'Stop'
     Import-Module LibTmux
     $name = 'libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N')
-    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) $name
+    $socketDirectory = Join-Path '/tmp' $name
     $null = New-Item $socketDirectory -ItemType Directory -ErrorAction Stop
     $ownerOnly = [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor
