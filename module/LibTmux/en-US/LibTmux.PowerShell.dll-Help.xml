@@ -7649,7 +7649,10 @@ cardinality on an input stream that never completes.</maml:para>
           <maml:para>Capture the existing endpoint selected by $SocketPath, then select panes at least 80 columns wide.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-(LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSnapshot).Panes | LibTmux\Select-TmuxPane -Criteria @{ Width = @{ Ge = 80 } }
+$snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Get-TmuxSnapshot
+$snapshot.Panes |
+    LibTmux\Select-TmuxPane -Criteria @{ Width = @{ Ge = 80 } }
 ```</maml:para>
         </maml:introduction>
         <dev:code />
