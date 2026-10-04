@@ -17,8 +17,60 @@ $records = [Collections.Generic.List[object]]::new()
 $passed = $false
 $runProduct = $Suite -in @('Product', 'All')
 $runDocumentation = $Suite -in @('Documentation', 'All')
+$parallelProduct = $false
+$activeTests = [Collections.Generic.List[object]]::new()
+$workerFailures = [Collections.Generic.List[Management.Automation.ErrorRecord]]::new()
+$unreapedChildren = [Collections.Generic.List[int]]::new()
+$retainedModule = $null
+
+function Wait-TestScript {
+    if (!$activeTests.Count) { return }
+    $tasks = [Threading.Tasks.Task[]] @($activeTests | ForEach-Object { $_.completion })
+    $completed = [Threading.Tasks.Task]::WhenAny($tasks).GetAwaiter().GetResult()
+    $worker = @($activeTests | Where-Object {
+        [object]::ReferenceEquals($_.completion, $completed)
+    })[0]
+    $timedOut = $false
+    $exitCode = $null
+    try {
+        try { $null = $worker.completion.GetAwaiter().GetResult() }
+        catch [OperationCanceledException] {
+            if (!$worker.deadline.IsCancellationRequested) { throw }
+            $timedOut = $true
+            throw "$($worker.script) exceeded the test deadline."
+        }
+        $exitCode = $worker.process.ExitCode
+        if ($exitCode) { throw "$($worker.script) failed with exit $exitCode." }
+    } catch {
+        $workerFailures.Add($_)
+    } finally {
+        try {
+            if (!$worker.process.HasExited) {
+                $worker.process.Kill($true)
+                if (!$worker.process.WaitForExit(1000)) {
+                    throw "$($worker.script) did not exit after termination."
+                }
+            }
+        } catch {
+            $workerFailures.Add($_)
+            $confirmedExited = $false
+            try { $confirmedExited = $worker.process.HasExited } catch {}
+            if (!$confirmedExited) { $unreapedChildren.Add($worker.process.Id) }
+        } finally {
+            $records.Add(@{ script = $worker.script; arguments = $worker.arguments;
+                exit = $exitCode; timedOut = $timedOut; seconds = $worker.watch.Elapsed.TotalSeconds })
+            $null = $activeTests.Remove($worker)
+            $worker.deadline.Dispose()
+            $worker.process.Dispose()
+        }
+    }
+}
 
 function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [string] $ModuleRoot) {
+    if ($parallelProduct) {
+        while ($activeTests.Count -ge 2) { Wait-TestScript }
+        if ($workerFailures.Count) { return }
+    }
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $root
@@ -34,6 +86,39 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $process = $null
     $timedOut = $false
     $exitCode = $null
+    if ($parallelProduct) {
+        $deadline = [Threading.CancellationTokenSource]::new(30000)
+        try {
+            $process = [Diagnostics.Process]::Start($start)
+            $activeTests.Add(@{ script = $Script; arguments = $Arguments;
+                process = $process; watch = $watch; deadline = $deadline;
+                completion = $process.WaitForExitAsync($deadline.Token) })
+        } catch {
+            $startFailure = $_
+            $workerFailures.Add($startFailure)
+            try {
+                if ($process -and !$process.HasExited) {
+                    $process.Kill($true)
+                    if (!$process.WaitForExit(1000)) {
+                        throw 'Child did not exit after termination.'
+                    }
+                }
+            } catch {
+                $startFailure.Exception.Data['TestCleanupFailure'] = $_.Exception
+                $workerFailures.Add($_)
+                $confirmedExited = $false
+                try { $confirmedExited = $process.HasExited } catch {}
+                if (!$confirmedExited) { $unreapedChildren.Add($process.Id) }
+            } finally {
+                $records.Add(@{ script = $Script; arguments = $Arguments; exit = $null;
+                    timedOut = $false; seconds = $watch.Elapsed.TotalSeconds })
+                $deadline.Dispose()
+                if ($process) { $process.Dispose() }
+            }
+            throw $startFailure
+        }
+        return
+    }
     try {
         $process = [Diagnostics.Process]::Start($start)
         if (!$process.WaitForExit(30000)) {
@@ -83,6 +168,8 @@ try {
                     Invoke-TestScript 'tests/DependencyIdentity.Tests.ps1' @('-ModuleRoot', $installed, '-Case', $case) $installed
                 }
             }
+            # Package checks mutate shared bytes; later scripts own their fixtures.
+            $parallelProduct = $runProduct
             if ($Suite -eq 'Read' -or $runProduct) {
                 Invoke-TestScript 'tests/Read.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
@@ -172,6 +259,12 @@ try {
             if ($Suite -eq 'PaneTextWait' -or $runProduct) {
                 Invoke-TestScript 'tests/PaneTextWait.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
+            if ($Suite -eq 'Runtime' -or $runProduct) {
+                Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            while ($activeTests.Count) { Wait-TestScript }
+            $parallelProduct = $false
+            if ($workerFailures.Count) { throw $workerFailures[0] }
             if ($Suite -eq 'Help' -or $runDocumentation) {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
@@ -188,17 +281,21 @@ try {
                         '-RunExamples', '-ExampleGroup', $group) $installed
                 }
             }
-            if ($Suite -eq 'Runtime' -or $runProduct) {
-                Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
-            }
         } finally {
-            if (Test-Path $installed) { Remove-Item $installed -Recurse -Force }
+            try {
+                while ($activeTests.Count) { Wait-TestScript }
+            } finally {
+                if ($unreapedChildren.Count) { $retainedModule = $installed }
+                elseif (Test-Path $installed) { Remove-Item $installed -Recurse -Force }
+            }
         }
     }
     $passed = $true
 } finally {
     $null = New-Item "$root/build" -ItemType Directory -Force
     @{ suite = $Suite; status = $(if ($passed) { 'PASS' } else { 'FAIL' });
-        seconds = $timer.Elapsed.TotalSeconds; commands = @($records.ToArray()) } |
+        seconds = $timer.Elapsed.TotalSeconds; commands = @($records.ToArray());
+        retainedModule = $retainedModule; unreapedChildProcessIds = @($unreapedChildren.ToArray());
+        workerFailures = @($workerFailures | ForEach-Object { $_.Exception.Message }) } |
         ConvertTo-Json -Depth 8 | Set-Content "$root/build/test-$Suite.json"
 }
