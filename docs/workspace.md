@@ -40,9 +40,13 @@ sessions or executes commands.
 
 <!-- example: workspace.01-load -->
 ```powershell
+$resolve = @{
+    BaseDirectory = Split-Path -LiteralPath $workspacePath
+    Variables = @{ PROJECT_ROOT = $projectRoot }
+}
 $workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
     Import-TmuxWorkspace -ErrorAction Stop |
-    Resolve-TmuxWorkspace -BaseDirectory (Split-Path -LiteralPath $workspacePath) -Variables @{ PROJECT_ROOT = $projectRoot } -ErrorAction Stop
+    Resolve-TmuxWorkspace @resolve -ErrorAction Stop
 ```
 
 Only the supplied string variables participate in `$NAME` or `${NAME}`
