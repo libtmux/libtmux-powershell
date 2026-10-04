@@ -124,6 +124,8 @@ jobs:
         run: |
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Setup.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Lint.ps1
+          python3 eng/check_example_width.py --self-test
+          python3 eng/check_example_width.py
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Help.ps1 -Check
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/GuideExamples.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/BootstrapReview.Tests.ps1

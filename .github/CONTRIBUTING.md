@@ -229,6 +229,13 @@ Run PowerShell analysis after setup, without downloading tools:
 $ pwsh -NoLogo -NoProfile -File eng/Lint.ps1
 ```
 
+Check that code blocks in every Markdown page and the example programs stay
+within 80 columns:
+
+```console
+$ python3 eng/check_example_width.py
+```
+
 Native help is authored under `docs/reference/` and generated with the pinned
 PlatyPS version. Check that the packaged MAML matches its source:
 
