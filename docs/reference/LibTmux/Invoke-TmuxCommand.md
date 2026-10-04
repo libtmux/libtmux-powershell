@@ -38,7 +38,9 @@ Pass the tmux command name and arguments as a string array. The adapter invokes 
 Read the version of the existing server identified by $SocketPath.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxCommand -Arguments @('display-message', '-p', '#{version}')
+$arguments = @('display-message', '-p', '#{version}')
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Invoke-TmuxCommand -Arguments $arguments
 ```
 
 ## PARAMETERS
