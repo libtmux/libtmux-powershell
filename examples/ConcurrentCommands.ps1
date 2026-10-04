@@ -37,6 +37,8 @@ $pending = [Collections.Generic.List[object]]::new()
 $started = [Collections.Generic.List[Threading.Tasks.Task]]::new()
 $retainedBytes = 0L
 $primaryError = $null
+# Callers read a failed command's submitted position from this exception key.
+$indexKey = 'LibTmux.ConcurrentCommandIndex'
 try {
     for ($offset = 0; $offset -lt $commands.Count; $offset += $MaxPending) {
         $wave = [Collections.Generic.List[object]]::new()
@@ -58,7 +60,7 @@ try {
                     [Management.Automation.MethodInvocationException]) {
                     $commandError = $commandError.InnerException
                 }
-                $commandError.Data['LibTmux.ConcurrentCommandIndex'] = $index
+                $commandError.Data[$indexKey] = $index
                 throw $commandError
             }
         }
@@ -108,7 +110,7 @@ try {
                     [Management.Automation.MethodInvocationException]) {
                     $commandError = $commandError.InnerException
                 }
-                $commandError.Data['LibTmux.ConcurrentCommandIndex'] = $entry.Index
+                $commandError.Data[$indexKey] = $entry.Index
                 throw $commandError
             }
         }
