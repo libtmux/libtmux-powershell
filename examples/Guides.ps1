@@ -376,7 +376,9 @@ $workspaceResult = $workspacePlan |
     } }
     'workspace.07-export' = @{ Requires = @('server', 'exportPath'); Code = {
 ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop).Sessions |
-    Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne -ErrorAction Stop |
+    Select-TmuxSession -ExactlyOne -ErrorAction Stop -Criteria @{
+        Name = 'development'
+    } |
     ConvertTo-TmuxWorkspace -ErrorAction Stop |
     ConvertTo-TmuxWorkspaceYaml -ErrorAction Stop |
     Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
