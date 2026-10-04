@@ -306,7 +306,8 @@ Restore the document with New-TmuxQuery -Json.</maml:para>
           <maml:para>Serialize a pane-width filter for storage or another native consumer.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } } | LibTmux\ConvertTo-TmuxQueryJson
+LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } } |
+    LibTmux\ConvertTo-TmuxQueryJson
 ```</maml:para>
         </maml:introduction>
         <dev:code />
