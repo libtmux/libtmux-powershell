@@ -152,11 +152,12 @@ $captured.Windows |
     'input.run' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
-    $session = $server | New-TmuxSession `
-        -Name ('pane-run-' + [Guid]::NewGuid().ToString('N')) -Command 'exec /bin/sh'
+    $name = 'pane-run-' + [Guid]::NewGuid().ToString('N')
+    $session = $server | New-TmuxSession -Name $name -Command 'exec /bin/sh'
     try {
         $pane = $session | Get-TmuxPane
-        $pane | Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
+        $pane |
+            Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
     } finally {
         $session | Remove-TmuxSession -Confirm:$false
     }
