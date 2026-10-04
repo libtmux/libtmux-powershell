@@ -63,7 +63,9 @@ Query, Plan, Pushdown or AsResult.
 Acquire panes at least 80 columns wide from an explicit socket.
 
 ```powershell
-LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Invoke-TmuxQuery -Query (LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } })
+$query = LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
+LibTmux\New-TmuxServer -SocketPath $SocketPath |
+    LibTmux\Invoke-TmuxQuery -Query $query
 ```
 
 ### Example 2
