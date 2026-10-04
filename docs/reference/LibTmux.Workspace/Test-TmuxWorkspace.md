@@ -50,7 +50,11 @@ and a reviewable plan; the validation result is not permission to apply it.
 Check a one-window declaration without opening a tmux connection.
 
 ```powershell
-LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: development, windows: [{panes: [null]}]}' | LibTmux.Workspace\Test-TmuxWorkspace
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - panes: [null]
+'@ | LibTmux.Workspace\Test-TmuxWorkspace
 ```
 
 ## PARAMETERS
