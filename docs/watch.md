@@ -166,14 +166,20 @@ order; include an identifier in your real workload if input order matters.
 <!-- example: watch.parallel -->
 ```powershell
 & {
-    $socketPath = $server.ConnectionOptions.SocketPath
-    $tmuxBinaryPath = $server.ConnectionOptions.TmuxBinaryPath
+    $path = $server.ConnectionOptions.SocketPath
+    $binary = $server.ConnectionOptions.TmuxBinaryPath
     'first', 'second' | ForEach-Object -ThrottleLimit 2 -Parallel {
         Import-Module LibTmux
-        $endpoint = New-TmuxServer -SocketPath $using:socketPath -TmuxBinaryPath $using:tmuxBinaryPath
-        $control = $endpoint | Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
+        $options = @{ SocketPath = $using:path; TmuxBinaryPath = $using:binary }
+        $endpoint = New-TmuxServer @options
+        $control = $endpoint |
+            Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
         try {
-            $control | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', $_)) -ErrorAction Stop
+            $command = New-TmuxCommand -Name 'display-message' -Arguments @(
+                '-p', $_
+            )
+            $control |
+                Invoke-TmuxControlCommand -Command $command -ErrorAction Stop
         } finally {
             $control | Disconnect-TmuxControl -Confirm:$false
         }
