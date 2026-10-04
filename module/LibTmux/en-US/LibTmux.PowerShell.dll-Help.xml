@@ -5386,8 +5386,13 @@ Choose an endpoint you control; the created session remains running until you
 remove it.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
+$options = @{
+    Name = 'help-session'
+    WindowName = 'work'
+    Command = 'exec /bin/sh'
+}
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
-    LibTmux\New-TmuxSession -Name 'help-session' -WindowName 'work' -Command 'exec /bin/sh'
+    LibTmux\New-TmuxSession @options
 ```</maml:para>
         </maml:introduction>
         <dev:code />
