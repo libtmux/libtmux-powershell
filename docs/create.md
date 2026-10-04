@@ -19,7 +19,8 @@ detached session with the requested window name and dimensions:
 
 <!-- example: create.session -->
 ```powershell
-$session = $server | New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30
+$session = $server |
+    New-TmuxSession -Name 'work' -WindowName 'editor' -Width 100 -Height 30
 ```
 
 Omitting `-Name` lets tmux choose a name. An existing name remains an error;
