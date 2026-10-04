@@ -394,7 +394,8 @@ $workspaceResult = $workspacePlan |
     }
 }
     } }
-    'workspace.09-recover' = @{ Requires = @('server', 'workspaceResult'); Code = {
+    'workspace.09-recover' = @{
+        Requires = @('server', 'workspaceResult'); Code = {
 $workspaceRecovery = & {
     $broken = Import-TmuxWorkspace -Yaml @'
 session_name: development
@@ -411,7 +412,8 @@ windows:
         $null = $plan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
         throw 'The deliberately invalid option was accepted.'
     } catch {
-        if ($_.Exception -isnot [LibTmux.Workspace.WorkspaceBuildException]) { throw }
+        $type = [LibTmux.Workspace.WorkspaceBuildException]
+        if ($_.Exception -isnot $type) { throw }
         $failure = $_.Exception
     }
     [pscustomobject]@{
