@@ -72,6 +72,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import json
 import os
 import pathlib
 import re
@@ -180,6 +181,8 @@ class Finding:
     number: int
     columns: int
     width: int
+    # The line as an allow entry must quote it.
+    text: str = ""
 
     def __str__(self) -> str:
         """Render as ``path:line: width > limit``.
@@ -474,6 +477,28 @@ def matches(path: str, patterns: list[str]) -> bool:
     return any(glob_regex(pattern).fullmatch(path) for pattern in patterns)
 
 
+def allow_hint(finding: Finding) -> str:
+    r"""Return an ``[[allow]]`` entry for a finding, ready to paste.
+
+    JSON string escapes are valid TOML basic-string escapes, so a tab or a
+    quote in the line survives the copy.
+
+    >>> print(allow_hint(Finding("main.go", 3, 90, 80, '\tx := "y"')))
+    [[allow]]
+    path = "main.go"
+    line = "\tx := \"y\""
+    reason = "why breaking this line would make the example worse"
+    """
+    return "\n".join(
+        [
+            "[[allow]]",
+            f"path = {json.dumps(finding.path, ensure_ascii=False)}",
+            f"line = {json.dumps(finding.text, ensure_ascii=False)}",
+            'reason = "why breaking this line would make the example worse"',
+        ]
+    )
+
+
 def plural(count: int, one: str, many: str | None = None) -> str:
     """Return a count with its noun in the matching number.
 
@@ -625,12 +650,14 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
         )
     elif count > int(ceiling):
         problems.append(
-            f"{count} allow entries exceed allow_ceiling {ceiling}; shorten the "
+            f"allow_ceiling {ceiling} is below the "
+            f"{plural(count, 'allow entry', 'allow entries')}; shorten the "
             "new line, or raise the ceiling in a change that gives the reason"
         )
     elif count < int(ceiling):
         problems.append(
-            f"allow_ceiling {ceiling} is above the {count} allow entries; lower it"
+            f"allow_ceiling {ceiling} is above the "
+            f"{plural(count, 'allow entry', 'allow entries')}; lower it"
         )
     problems.extend(
         f"allow entry for {entry.get('path')} has no reason: {entry.get('line')!r}"
@@ -725,7 +752,7 @@ def check(
             if key in allowed:
                 used.add(key)
                 continue
-            findings.append(Finding(path, number, wide, width))
+            findings.append(Finding(path, number, wide, width, key[1]))
     stale = [entry for entry in allow if (entry["path"], entry["line"]) not in used]
     return findings, stale
 
@@ -902,6 +929,8 @@ def self_test() -> int:
         config: dict[str, t.Any] = {"width": 60, "markdown": ["README.md"]}
         planted, _ = check(root, config, ["README.md"])
         expect(len(planted) == 1, "a planted wide line was not reported")
+        pasted = tomllib.loads(allow_hint(planted[0]))["allow"][0]
+        expect(pasted["line"] == wide, "the allow hint does not round-trip")
         config["allow"] = [{"path": "README.md", "line": wide, "reason": "test"}]
         clean, stale = check(root, config, ["README.md"])
         expect(not clean and not stale, "an allowed line was reported")
@@ -1043,9 +1072,10 @@ def main(argv: list[str] | None = None) -> int:
     files = tracked_files(root)
     writing = writing_path(root)
     # Each problem names the file to change; routing problems name their own.
+    setup = config_problems(config, files)
     problems = [
         f"{CONFIG}: {problem}"
-        for problem in config_problems(config, files)
+        for problem in setup
         + copy_problems(root, config)
         + digest_problems(root, config)
     ] + routing_problems(root)
@@ -1053,7 +1083,9 @@ def main(argv: list[str] | None = None) -> int:
         where = writing.relative_to(root).as_posix()
         text = writing.read_text(encoding="utf-8")
         problems += [f"{where}: {problem}" for problem in port_block_problems(text)]
-    findings, stale = check(root, config, files)
+    # A config problem such as a misspelled glob key would make allow entries
+    # look stale, so the width pass waits until the config is right.
+    findings, stale = check(root, config, files) if not setup else ([], [])
     annotate = os.environ.get("GITHUB_ACTIONS") == "true"
     for problem in problems:
         print(problem)
@@ -1073,13 +1105,16 @@ def main(argv: list[str] | None = None) -> int:
             f"{plural(len(findings), 'wide line')}, "
             f"{plural(len(stale), 'stale allow entry', 'stale allow entries')}."
         )
+        if setup:
+            print(f"The width check runs once the problems in {CONFIG} are fixed.")
         if findings:
             print(
                 "Fix a wide line by changing the code, not the line breaks: "
                 f"{rules}#reaching-80. If no change keeps the example clear, "
                 f"add the line to [[allow]] in {CONFIG} with a reason and raise "
-                "allow_ceiling."
+                "allow_ceiling. The first one, as an entry:"
             )
+            print(allow_hint(findings[0]))
         if stale:
             print("Delete each stale allow entry and lower allow_ceiling to match.")
         return 1
