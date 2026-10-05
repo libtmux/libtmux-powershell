@@ -52,10 +52,11 @@ excluded, so a new example file cannot go unread.
 grows only through a reviewed change to that number and a fixed line must
 lower it. Each formatter copy must equal its root file except for the
 lines naming ``key``, and the digests of this checker and of WRITING.md's
-shared section must equal ``checker_digest`` and ``shared_digest``, so a
-local edit to either fails until every port changes together. AGENTS.md
-must link the WRITING.md heading the shared section sits under, so an
-agent is routed to the rules, and WRITING.md's ``### In this repository``
+shared section must equal ``checker_digest`` and ``shared_digest``, both
+required, so a local edit to either fails until every port changes
+together. AGENTS.md must hold a Markdown link that resolves to this
+WRITING.md and the heading the shared section sits under, so an agent is
+routed to the rules, and WRITING.md's ``### In this repository``
 block must hold the four labelled bullets in order, then one Bad and one
 Good example.
 
@@ -126,6 +127,8 @@ BLOCK_CLOSE = re.compile(r"\}\s*</pre>|^\s*</code>")
 URL = re.compile(r"^(?:(?:#+|//+!?|-+|\*|>|<!--)\s*)?<?[a-z][a-z0-9+.-]*://\S+$")
 EXAMPLE_DIR = re.compile(r"(^|/)examples/", re.IGNORECASE)
 HEADING = re.compile(r"^(#{1,6}) (.+)$", re.MULTILINE)
+# A Markdown link target: [text](target).
+LINK = re.compile(r"\]\(<?([^)\s>]+)>?\)")
 PORT_BLOCK = re.compile(
     r"^### In this repository\n(?P<body>.*?)(?=^#{1,3} |\Z)", re.MULTILINE | re.DOTALL
 )
@@ -712,11 +715,15 @@ def routing_problems(root: pathlib.Path) -> list[str]:
     if not headings:
         where = writing.relative_to(root).as_posix()
         return [f"{where}: no heading above the shared section"]
-    anchor = f"WRITING.md#{slug(headings[-1])}"
+    anchor = slug(headings[-1])
     agents = root / "AGENTS.md"
-    if agents.is_file() and anchor in agents.read_text(encoding="utf-8"):
-        return []
-    return [f"AGENTS.md: no link to {anchor}, the section with the example rules"]
+    links = LINK.findall(agents.read_text(encoding="utf-8")) if agents.is_file() else []
+    for target in links:
+        path, _, fragment = target.partition("#")
+        if fragment == anchor and (root / path).resolve() == writing.resolve():
+            return []
+    where = f"{writing.relative_to(root).as_posix()}#{anchor}"
+    return [f"AGENTS.md: no link to {where}, the section with the example rules"]
 
 
 def port_block_problems(text: str) -> list[str]:
@@ -776,7 +783,13 @@ def digest_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     names = {"checker": "this checker", "shared": "WRITING.md's shared section"}
     here, top = pathlib.Path(__file__).resolve(), root.resolve()
     script = here.relative_to(top) if here.is_relative_to(top) else here.name
-    return [
+    missing = [
+        f"{name}_digest is missing; run `python3 {script} --digest` and record "
+        f"its {name} line"
+        for name in ("checker", "shared")
+        if name + "_digest" not in config
+    ]
+    return missing + [
         f"{names[name]} has digest {actual[name][:12]}, but {name}_digest records "
         f"{config[name + '_digest'][:12]}. Every libtmux port carries the same "
         f"file: change it in each repository listed in {PORTS}, then run the "
@@ -830,15 +843,29 @@ def self_test() -> int:
         shared = "<!-- shared:examples -->\nrule\n<!-- /shared:examples -->\n"
         (root / "WRITING.md").write_text(shared)
         expect(digests(root)[1] != "shared missing", "a shared section was missed")
-        recorded = {"shared_digest": "0" * 64}
+        checker_now = digests(root)[0].split(" ", 1)[1]
+        recorded = {"checker_digest": checker_now, "shared_digest": "0" * 64}
         expect(bool(digest_problems(root, recorded)), "a digest change was missed")
         shared_now = digests(root)[1].split(" ", 1)[1]
-        recorded = {"shared_digest": shared_now}
+        recorded = {"checker_digest": checker_now, "shared_digest": shared_now}
         expect(not digest_problems(root, recorded), "a matching digest was reported")
+        del recorded["checker_digest"]
+        expect(bool(digest_problems(root, recorded)), "a missing digest passed")
         (root / "WRITING.md").write_text("## Examples\n\n" + shared)
         expect(bool(routing_problems(root)), "a missing AGENTS.md link passed")
         (root / "AGENTS.md").write_text("Code examples: WRITING.md#examples\n")
+        expect(bool(routing_problems(root)), "a bare anchor counted as a link")
+        (root / "AGENTS.md").write_text("[Examples](docs/WRITING.md#examples)\n")
+        expect(bool(routing_problems(root)), "a link to a missing file passed")
+        (root / "AGENTS.md").write_text("[Examples](WRITING.md#examples)\n")
         expect(not routing_problems(root), "a linked section was reported")
+        labels = "\n".join(label + " x" for label in PORT_LABELS)
+        block = f"### In this repository\n\n{labels}\n\nBad, over 80:\n\nGood, x:\n"
+        expect(not port_block_problems(block), "a complete port block was reported")
+        missing = block.replace(PORT_LABELS[2], "- **Other:**")
+        expect(
+            bool(port_block_problems(missing)), "a port block missing a label passed"
+        )
         fenced = "## Examples\n\n```sh\n# a comment\n```\n\n" + shared
         (root / "WRITING.md").write_text(fenced)
         expect(not routing_problems(root), "a fenced comment read as a heading")
