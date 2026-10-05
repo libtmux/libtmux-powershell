@@ -483,6 +483,8 @@ def type_problems(config: dict[str, t.Any]) -> list[str]:
     markdown must be a list of globs, not '**/*.md'
     >>> type_problems({"width": 80, "markdown": ["**/*.md"], "exclude": []})
     []
+    >>> type_problems({"exclude": [{"glob": 5, "reason": "r"}]})
+    ['glob in an [[exclude]] entry must be a string, not 5']
     """
     problems = [
         f"{key} must be {name}, not {config[key]!r}"
@@ -499,6 +501,17 @@ def type_problems(config: dict[str, t.Any]) -> list[str]:
         for table in TABLE_KEYS
         if not isinstance(config.get(table, []), list)
     )
+    for table, keys in TABLE_KEYS.items():
+        table_entries = config.get(table, [])
+        if not isinstance(table_entries, list):
+            continue
+        problems.extend(
+            f"{key} in an [[{table}]] entry must be a string, not {entry[key]!r}"
+            for entry in table_entries
+            if isinstance(entry, dict)
+            for key in sorted(keys & set(entry))
+            if not isinstance(entry[key], str)
+        )
     return problems
 
 
@@ -629,6 +642,12 @@ def copy_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     """
     problems = []
     for pair in entries(config, "formatter_copies"):
+        missing = [
+            pair[side] for side in ("copy", "root") if not (root / pair[side]).is_file()
+        ]
+        if missing:
+            problems.extend(f"formatter copy file does not exist: {m}" for m in missing)
+            continue
 
         def kept(path: str, key: str = pair["key"]) -> list[str]:
             lines = (root / path).read_text(encoding="utf-8").splitlines()
@@ -924,6 +943,13 @@ def self_test() -> int:
         expect(not config_problems(nested, ["a"]), "a clean [[exclude]] was reported")
         typed = {"width": "80", "markdown": "**/*.md"}
         expect(len(type_problems(typed)) == 2, "a string width or glob list passed")
+        listed = {"allow": [{"path": ["a"], "line": "b", "reason": "c"}]}
+        expect(bool(type_problems(listed)), "a list where a string belongs passed")
+        absent = {"copy": "gone.toml", "root": "fmt.toml", "key": "max_width"}
+        expect(
+            bool(copy_problems(root, {"formatter_copies": [absent]})),
+            "a missing formatter copy passed",
+        )
         expect(not type_problems({"width": 80, "markdown": ["a"]}), "good types failed")
         misnamed: dict[str, t.Any] = {
             "markdown": ["README.md"],
@@ -982,7 +1008,11 @@ def main(argv: list[str] | None = None) -> int:
         for line in digests(root):
             print(line)
         return 0
-    config = tomllib.loads((root / CONFIG).read_text(encoding="utf-8"))
+    try:
+        config = tomllib.loads((root / CONFIG).read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        print(f"{CONFIG}: cannot read the config: {error}")
+        return 1
     wrong = type_problems(config)
     if wrong:
         for problem in wrong:
