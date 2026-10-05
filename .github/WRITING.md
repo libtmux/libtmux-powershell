@@ -88,11 +88,12 @@ Change it in all of them together.
 - **Examples stay within 80 columns.** They render in fixed-width boxes that
   scroll sideways, and 80 columns fits a libtmux.org code block in a
   laptop-width window. Comments inside examples wrap at 80 too.
-- **The width check enforces it.** It reads the files that
-  `.github/example-width.toml` names and fails on a wider line. It skips
-  output (a fence tagged `text`, and what a `console` block prints), hidden
-  setup lines, and a line that is only a URL; an untagged fence counts as
-  code.
+- **The width check enforces it.** It reads the tracked files that
+  `.github/example-width.toml` names and fails on a wider line. It measures
+  the whole source line, so code in a doc comment counts its indent and
+  comment marker. It skips output (a fence tagged `text`, and what a
+  `console` block prints), hidden setup lines, and a line that is only a URL;
+  an untagged fence counts as code.
 - **A line that must stay wider is listed there with its reason.** An entry
   that no longer matches a line fails the check, so no stale entry stays.
 - **The formatter's width is the hard limit for all other source.** Example
