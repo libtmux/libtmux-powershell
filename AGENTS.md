@@ -26,7 +26,7 @@ requested work.
 - Setup, testing, tmux isolation, and pull requests:
   [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 - Documentation, user-facing text, comments, commit messages, and any code
-  example (example programs, doctests, Markdown code blocks):
+  example (example scripts, help examples, Markdown code blocks):
   [WRITING.md](.github/WRITING.md), and its
   [Examples](.github/WRITING.md#examples) section for code a reader sees.
 
