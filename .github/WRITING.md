@@ -74,11 +74,11 @@ Code blocks are paste-and-run units:
 
 ## Examples
 
+<!-- shared:examples -->
+
 An example is code written for a reader: a program under `examples/`, code in
 a doc comment or docstring, and every fenced block in a README or docs page.
 Shell blocks also follow [Code blocks](#code-blocks).
-
-<!-- shared:examples -->
 
 The text between the shared markers is the same in every libtmux port.
 Change it in all of them together.
