@@ -26,7 +26,8 @@ $declaration = @'
 session_name: ''
 start_directory: '${ROOT}/work $$ #{}'
 before_script: 'printf %s "$HOME"'
-options: { '@empty': '', '@null': 'null', '@tilde': '~' }
+options: { '@empty': '', '@null': 'null', '@tilde': '~', '@literal': '$$cash' }
+global_options: { '@global': '$$cash' }
 environment: { EMPTY: '', 'NULL': 'null', BOOL: 'true' }
 shell_command_before: ['', { cmd: 'first', enter: false }, 'second']
 windows:
@@ -35,7 +36,8 @@ windows:
     start_directory: null
     layout: even-horizontal
     focus: false
-    options: { '@boolean': 'false' }
+    options: { '@boolean': 'false', '@literal': '$$cash' }
+    options_after: { '@after': '$$cash' }
     environment: { LOCAL: 'window' }
     shell_command_before: [{ cmd: 'window before', enter: true }]
     panes:
@@ -43,7 +45,7 @@ windows:
         enter: false
         start_directory: null
         focus: true
-        options: { '@pane': '' }
+        options: { '@pane': '', '@literal': '$$cash' }
         environment: { LOCAL: 'pane', EMPTY: '' }
         shell_command_before: ['', { cmd: 'pane before', enter: false }]
       - null
@@ -75,6 +77,8 @@ try {
         $outputs = @(@($original, $empty) | & $command)
         Assert-WorkspaceText ($outputs.Count -eq 2 -and $outputs[0] -is [string] -and $outputs[1] -is [string]) 'conversion did not emit one string per native declaration'
         $restored = [LibTmux.Workspace.WorkspaceFile]::Parse($outputs[0])
+        Assert-WorkspaceText ($restored.GlobalOptions['@global'] -ceq '$$cash' -and
+            $restored.Windows[0].OptionsAfter['@after'] -ceq '$$cash') 'global options or options_after did not survive text conversion'
         Assert-WorkspaceEquivalent $original $restored
         Assert-WorkspaceText ($restored.Windows[0].WindowIndex -eq 5 -and
             $null -eq $restored.Windows[1].WindowIndex) 'window index did not survive text conversion'
@@ -83,10 +87,20 @@ try {
         Assert-WorkspaceText ($restored.StartDirectory -ceq '${ROOT}/work $$ #{}') 'unresolved path expressions were rewritten'
 
         $resolved = $original | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $directory.FullName -Variables @{ ROOT = $directory.FullName }
+        Assert-WorkspaceText ($resolved.Options['@literal'] -ceq '$cash' -and
+            $resolved.GlobalOptions['@global'] -ceq '$cash' -and
+            $resolved.Windows[0].Options['@literal'] -ceq '$cash' -and
+            $resolved.Windows[0].OptionsAfter['@after'] -ceq '$cash' -and
+            $resolved.Windows[0].Panes[0].Options['@literal'] -ceq '$cash') 'literal-dollar option fixture did not resolve as expected'
         $text = $resolved | & $command
         $imported = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $text
         Assert-WorkspaceText ($null -eq $imported.DocumentDirectory) 'resolution provenance was serialized as declaration data'
-        $again = $imported | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $directory.FullName
+        $again = $imported | LibTmux.Workspace\Resolve-TmuxWorkspace -BaseDirectory $directory.FullName -Variables @{ cash = 'changed' }
+        Assert-WorkspaceText ($again.Options['@literal'] -ceq '$cash' -and
+            $again.GlobalOptions['@global'] -ceq '$cash' -and
+            $again.Windows[0].Options['@literal'] -ceq '$cash' -and
+            $again.Windows[0].OptionsAfter['@after'] -ceq '$cash' -and
+            $again.Windows[0].Panes[0].Options['@literal'] -ceq '$cash') 'resolved literal dollar changed in option values'
         Assert-WorkspaceEquivalent $resolved $again
         Assert-WorkspaceText ($again.Windows[0].Panes[0].StartDirectory.EndsWith('work $ #{}', [StringComparison]::Ordinal)) 'resolved literal dollar, space or tmux format path changed'
         Assert-WorkspaceText ($again.BeforeScript -ceq $original.BeforeScript) 'host command text was expanded or rewritten'

@@ -33,7 +33,8 @@ internal static class WorkspaceSerialization
         {
             ["session_name"] = workspace.SessionName,
             ["start_directory"] = Directory(workspace.StartDirectory, resolved),
-            ["options"] = workspace.Options,
+            ["options"] = Options(workspace.Options, resolved),
+            ["global_options"] = Options(workspace.GlobalOptions, resolved),
             ["environment"] = workspace.Environment,
             ["shell_command_before"] = ProjectCommands(workspace.BeforeCommands),
             ["windows"] = workspace.Windows.Select(window => Project(window, resolved)).ToArray(),
@@ -57,7 +58,8 @@ internal static class WorkspaceSerialization
         result.Add("start_directory", Directory(window.StartDirectory, resolved));
         result.Add("layout", window.Layout);
         result.Add("focus", window.Focus);
-        result.Add("options", window.Options);
+        result.Add("options", Options(window.Options, resolved));
+        result.Add("options_after", Options(window.OptionsAfter, resolved));
         result.Add("environment", window.Environment);
         result.Add("shell_command_before", ProjectCommands(window.BeforeCommands));
         result.Add("panes", window.Panes.Select(pane => Project(pane, resolved)).ToArray());
@@ -71,7 +73,7 @@ internal static class WorkspaceSerialization
             ["shell_command"] = ProjectCommands(pane.Commands),
             ["start_directory"] = Directory(pane.StartDirectory, resolved),
             ["focus"] = pane.Focus,
-            ["options"] = pane.Options,
+            ["options"] = Options(pane.Options, resolved),
             ["environment"] = pane.Environment,
             ["shell_command_before"] = ProjectCommands(pane.BeforeCommands),
         };
@@ -87,4 +89,11 @@ internal static class WorkspaceSerialization
 
     private static string? Directory(string? path, bool resolved) =>
         resolved ? path?.Replace("$", "$$", StringComparison.Ordinal) : path;
+
+    private static IReadOnlyDictionary<string, string> Options(
+        IReadOnlyDictionary<string, string> options, bool resolved) =>
+        resolved
+            ? options.ToDictionary(item => item.Key,
+                item => item.Value.Replace("$", "$$", StringComparison.Ordinal), StringComparer.Ordinal)
+            : options;
 }

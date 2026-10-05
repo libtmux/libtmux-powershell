@@ -7,17 +7,16 @@ the PowerShell modules or require a PowerShell launcher.
 
 ## Install and select a server
 
-Choose an exact published version from NuGet and set `MCP_VERSION` to it.
-Install the tool on the Unix host running tmux:
+Install the published alpha.20 tool on the Unix host running tmux:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version "$MCP_VERSION"
+    --version 0.0.0-alpha.20 \
+    --framework net8.0
 ```
 
-For the current unpublished review tool, use the .NET `feed/` and unique
-version from the [source bootstrap](../README.md#install-from-source); see
+For shared .NET source changes, use the optional
 [MCP development setup](../.github/CONTRIBUTING.md#mcp-discovery).
 A desktop-launched client may need `DOTNET_ROOT` in its server environment
 when .NET comes from a version manager.
@@ -77,8 +76,8 @@ completion result of `run_shell_command` for a command you start; cancellation
 or timeout can leave that command running in its pane. For a program already
 running, wait for its output rather than repeatedly capturing the screen.
 
-Pane text waits require control observation by default in this checkout's
-review tool. Explicitly enabling `LIBTMUX_MCP_ALLOW_POLLING_FALLBACK=true`
+Pane text waits require control observation by default in alpha.20.
+Explicitly enabling `LIBTMUX_MCP_ALLOW_POLLING_FALLBACK=true`
 allows repeated captures if control observation fails; capabilities disclose
 the policy and affected results report `pollingFallback`. Give text waits a
 finite timeout; the server bounds their returned tail. For captures, select

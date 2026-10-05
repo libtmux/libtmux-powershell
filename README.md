@@ -38,19 +38,12 @@ published to PowerShell Gallery.
 ## Install from source
 
 Run PowerShell and tmux on the same Unix host. The module targets PowerShell
-7.4 and .NET 8; the source build also needs the .NET 10 SDK, Git and Python
-3.9 or newer. See [compatibility](docs/compatibility.md) for tested versions.
-Install PowerShell and .NET 8 from [.tool-versions](.tool-versions) with
+7.4 and .NET 8. See [compatibility](docs/compatibility.md) for tested versions.
+Install PowerShell and the .NET SDK from [.tool-versions](.tool-versions) with
 [mise](https://mise.jdx.dev/):
 
 ```console
 $ mise install
-```
-
-Install the SDK pinned by the linked .NET source:
-
-```console
-$ mise install dotnet@10.0.302
 ```
 
 Install tmux with your operating system's package manager and check that it
@@ -60,39 +53,22 @@ is on `PATH`:
 $ tmux -V
 ```
 
-From a clean committed checkout, build the unpublished .NET dependency and
-both PowerShell modules in a new sibling directory:
+From the checkout root, restore the published
+[.NET alpha.20 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.20)
+and build both PowerShell modules:
 
 ```console
-$ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
-    -OutputDirectory "$PWD/../libtmux-powershell-review"
+$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
+    -Restore
 ```
 
-The bootstrap clones this committed revision and the
-[reviewed .NET core revision](https://github.com/libtmux/libtmux-dotnet/tree/4c379e2905c4917fc71b75afd11256383774915a),
-builds a unique local package version, inspects its archives, and checks the
-disposable lockfiles. It also packs both PowerShell modules, verifies their
-archive hashes, and tests extraction, both import orders and package-manager
-dependency resolution from a local feed. The printed `ModulePackages` path
-and `bootstrap.json` identify the review artifacts and check receipts.
-
-It leaves this checkout's pins and lockfiles unchanged and publishes nothing.
-If a run fails, its partial output remains for inspection. Retry with a new
-output directory after resolving the error.
-If you already have the exact inspected archives, the
-[review-package recipe](.github/CONTRIBUTING.md#review-package-builds)
-shows how to consume that retained feed.
-
-Start PowerShell with the staged module path. If you chose another output
-directory, use the path printed by the bootstrap as the value of
-`LIBTMUX_REVIEW_MODULE_ROOT`:
+Restore checks the committed lockfiles and stages both modules under
+`build/Modules`. Developing shared .NET changes uses the optional
+[review-package workflow](.github/CONTRIBUTING.md#review-package-builds).
+Start PowerShell with the staged module path:
 
 ```console
-$ review="$PWD/../libtmux-powershell-review"
-```
-
-```console
-$ LIBTMUX_REVIEW_MODULE_ROOT="$review/port/build/Modules" \
+$ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/build/Modules" \
     pwsh \
     -NoLogo \
     -NoProfile

@@ -46,33 +46,44 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-For a clean review build of the current shared .NET source, use the
-[source bootstrap](../README.md#install-from-source). It builds, packages and
-tests both modules. An ordinary locked restore requires the unpublished
-archives named by this checkout's committed pins; see
-[review package builds](#review-package-builds).
-
-The exact dependency versions are in
+Both modules consume published .NET alpha.20 packages, pinned in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
 the optional `build/nuget` feed, and an isolated `build/packages` cache.
-Ordinary restore checks the committed lockfiles. When changing a dependency,
-update its exact reference and run with `-Restore -UpdateLock`.
+Restore checks the committed lockfiles and stages both modules:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
+    -Restore
+```
+
+When changing a dependency, update its exact reference and run with
+`-Restore -UpdateLock`. Shared .NET development can use the optional
+[review-package workflow](#review-package-builds).
 
 ## Review package builds
 
-The source bootstrap builds the current .NET revision pinned in
+Use this workflow to test shared .NET source changes before publication.
+It needs Git, Python 3.9 or newer and the .NET SDKs required by
+[BootstrapReview.ps1](../eng/BootstrapReview.ps1), in addition to the normal
+setup. From a clean committed checkout, choose a new sibling output directory:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/BootstrapReview.ps1 \
+    -OutputDirectory "$PWD/../libtmux-powershell-review"
+```
+
+The bootstrap builds the .NET revision pinned in
 [BootstrapReview.ps1](../eng/BootstrapReview.ps1) under a unique package version.
 It writes inspected .NET archives to `feed/`, PowerShell archives to
 `module-packages/`; `bootstrap.json` records package hashes and the status and
 paths of the `Package` and `Install` check receipts. Use its printed paths for
-further tests.
+further tests. It leaves this checkout's pins and lockfiles unchanged and
+publishes nothing. If a run fails, keep its partial output for inspection and
+retry with a new output directory after resolving the error.
 
-The committed pins use unpublished review archives, version
-`0.0.0-alpha.19.ps.review.1791134823197`, from this
-[reviewed .NET source](https://github.com/libtmux/libtmux-dotnet/tree/4c379e2905c4917fc71b75afd11256383774915a).
-NuGet.org does not contain this version. The committed lockfiles identify
-those existing package bytes; an ordinary restore needs the original inspected
-archives and their `provenance.json`. Set `CORE_PACKAGES` to that feed directory:
+To reuse those review archives, work in the bootstrap's disposable `port/`
+checkout. Its pins and locks identify the exact inspected bytes. Set
+`CORE_PACKAGES` to the corresponding `feed/` directory:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
@@ -81,31 +92,29 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -PackageCache build/review-package-cache
 ```
 
-The bootstrap uses disposable locks; it does not replace the retained archives.
-
 Choose a fresh cache directory for the first consumer proof.
 `-CorePackageDirectory` requires `-Restore`: it checks the inspected
 core/query/workspace hashes before restore and does not repack the archives.
 Keep lock checking enabled when consuming the existing archives.
 
-To build the current reviewed source manually, use a new, unused prerelease
-identifier.
+To build shared .NET source manually, use a new, unused prerelease identifier.
 The archives contain ZIP entry timestamps, so rebuilding the source is not a
-promise to reproduce the locked package bytes. Do not overwrite or recreate
-`0.0.0-alpha.19.ps.review.1791134823197` to satisfy its existing locks.
+promise to reproduce the locked package bytes. Do not overwrite or recreate a
+review version to satisfy existing locks.
 
-Set `CORE_SOURCE` to a clean checkout of the revision pinned in the bootstrap,
-`REVIEW_VERSION` to the new identifier, and `CORE_PACKAGES` to a new output
-directory. Use absolute directory paths. The checkout uses its own SDK pin;
-avoid running this recipe while another task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/4c379e2905c4917fc71b75afd11256383774915a/eng/package_review.py)
+Set `CORE_SOURCE` to a clean checkout of the shared source, `CORE_REVISION` to
+its full Git revision, `REVIEW_VERSION` to the new identifier, and
+`CORE_PACKAGES` to a new output directory. Use absolute directory paths.
+The checkout uses its own SDK pin; avoid running this recipe while another
+task builds in that checkout. Its
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.20/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
 ```console
 $ python "$CORE_SOURCE/eng/package_review.py" \
     --version "$REVIEW_VERSION" \
-    --revision 4c379e2905c4917fc71b75afd11256383774915a \
+    --revision "$CORE_REVISION" \
     --output "$CORE_PACKAGES"
 ```
 
@@ -123,6 +132,8 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
 Review the changed versions and content hashes in both lockfiles, then run
 the installed package checks below. Subsequent restores omit `-UpdateLock`.
 These commands create local review artifacts; they do not publish archives.
+
+## Build and check modules
 
 After restore, rebuild and stage without network access:
 
@@ -271,17 +282,19 @@ The complete platform, example and API suites are not established yet.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. For the current source, set `CORE_PACKAGES` to `packageFeed`
-and `MCP_VERSION` to `version` from the bootstrap's `bootstrap.json`.
-Choose a fresh tool directory:
+module package. Install the published alpha.20 tool in a fresh directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
-    --tool-path build/mcp-review \
-    --version "$MCP_VERSION" \
-    --framework net8.0 \
-    --add-source "$CORE_PACKAGES"
+    --tool-path build/mcp \
+    --version 0.0.0-alpha.20 \
+    --framework net8.0
 ```
+
+For shared source changes, set `CORE_PACKAGES` to `packageFeed` and
+`MCP_VERSION` to `version` from the review bootstrap's `bootstrap.json`.
+Use a separate tool directory and add `--add-source "$CORE_PACKAGES"` to the
+installation command, replacing its version with `"$MCP_VERSION"`.
 
 The test client pins the official `ModelContextProtocol` SDK in its own
 project and lockfile. Restore it during setup:
@@ -299,8 +312,9 @@ $ dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
     --no-restore
 ```
 
-Set `MCP_COMMAND` to the absolute path of `build/mcp-review/libtmux-mcp`. Run the
-[client workflow command](../docs/mcp.md#check-the-client-workflow-from-this-checkout).
+Set `MCP_COMMAND` to the installed tool's absolute path and `MCP_VERSION` to
+its exact version, then run the
+[client workflow](../docs/mcp.md#check-the-client-workflow-from-this-checkout).
 The runner requires the existing executable and built probe; it does not
 install, restore or build. It starts only its own tmux fixture and stdio
 client. Tool installation and client compilation are setup/outer-loop work.

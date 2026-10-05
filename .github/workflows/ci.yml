@@ -1,6 +1,4 @@
-# This builds a new review identity from one committed .NET source revision.
-# CI updates dependency lock hashes only in its disposable checkout: it proves
-# source-pinned consumer behavior, not the committed unpublished archive bytes.
+# Restore the published .NET dependencies with the committed package locks.
 name: powershell
 
 on:
@@ -18,61 +16,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CORE_REVISION: 4c379e2905c4917fc71b75afd11256383774915a
+  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
+  CORE_PACKAGE_VERSION: '0.0.0-alpha.20'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 jobs:
-  core:
-    name: inspected .NET review packages
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    outputs:
-      version: ${{ steps.version.outputs.value }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: libtmux/libtmux-dotnet
-          ref: ${{ env.CORE_REVISION }}
-          path: core
-          persist-credentials: false
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: core/global.json
-
-      - name: Verify dependency source and choose an unused review identity
-        id: version
-        run: |
-          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          review_version="$(python3 eng/ci/review_dependencies.py version \
-            --run-id "${GITHUB_RUN_ID}" --attempt "${GITHUB_RUN_ATTEMPT}")"
-          echo "value=${review_version}" >> "${GITHUB_OUTPUT}"
-
-      - name: Build and inspect the shared packages
-        env:
-          REVIEW_VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          python3 core/eng/package_review.py \
-            --version "${REVIEW_VERSION}" \
-            --revision "${CORE_REVISION}" \
-            --output "${RUNNER_TEMP}/core-review"
-          jq -e --arg revision "${CORE_REVISION}" --arg version "${REVIEW_VERSION}" \
-            '.revision == $revision and .version == $version and .inspection == "passed"' \
-            "${RUNNER_TEMP}/core-review/provenance.json"
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: core-review
-          path: ${{ runner.temp }}/core-review/
-          if-no-files-found: error
-          retention-days: 7
-
   port:
-    needs: core
     name: build and pack PowerShell modules
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -97,28 +48,14 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
             "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: core-review
-          path: ${{ runner.temp }}/core-review
-
-      - name: Test the CI-only dependency overlay
+      - name: Test optional review dependency helpers
         run: python3 -m unittest discover -s eng/ci -p 'test_*.py'
 
-      - name: Build from the inspected feed
-        env:
-          REVIEW_VERSION: ${{ needs.core.outputs.version }}
+      - name: Build from locked NuGet dependencies
         run: |
-          python3 eng/ci/review_dependencies.py prepare \
-            --version "${REVIEW_VERSION}" \
-            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
-            -Restore -UpdateLock \
-            -CorePackageDirectory "${RUNNER_TEMP}/core-review" \
+            -Restore \
             -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
-          python3 eng/ci/review_dependencies.py verify \
-            --version "${REVIEW_VERSION}" \
-            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
 
       - name: Check source, examples, and generated help
         run: |
@@ -149,7 +86,7 @@ jobs:
           retention-days: 7
 
   matrix:
-    needs: [core, port]
+    needs: port
     name: PowerShell ${{ matrix.powershell }} / tmux ${{ matrix.tmux }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -258,29 +195,22 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.2a' || matrix.tmux == '3.7c')
-        with:
-          name: core-review
-          path: ${{ runner.temp }}/core-review
-
       - name: Discover the separate MCP tool
         if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.2a' || matrix.tmux == '3.7c')
         env:
-          REVIEW_VERSION: ${{ needs.core.outputs.version }}
+          MCP_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
         run: |
           dotnet tool install LibTmux.Mcp \
             --tool-path "${RUNNER_TEMP}/mcp-tool" \
-            --version "${REVIEW_VERSION}" \
-            --framework net8.0 \
-            --add-source "${RUNNER_TEMP}/core-review"
+            --version "${MCP_VERSION}" \
+            --framework net8.0
           dotnet restore tests/support/McpDiscovery/McpDiscovery.csproj --locked-mode
           dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
             --configuration Release --no-restore --warnaserror
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite Mcp \
             -McpCommand "${RUNNER_TEMP}/mcp-tool/libtmux-mcp" \
-            -McpVersion "${REVIEW_VERSION}"
+            -McpVersion "${MCP_VERSION}"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -295,7 +225,7 @@ jobs:
           retention-days: 7
 
   gate:
-    needs: [core, port, matrix]
+    needs: [port, matrix]
     if: always()
     name: powershell gate
     runs-on: ubuntu-24.04
@@ -303,6 +233,5 @@ jobs:
     steps:
       - name: Require every dependency and matrix lane
         run: |
-          test "${{ needs.core.result }}" = success
           test "${{ needs.port.result }}" = success
           test "${{ needs.matrix.result }}" = success

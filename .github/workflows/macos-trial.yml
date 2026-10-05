@@ -1,7 +1,6 @@
 # Hosted macOS trial: report suite failures without blocking the Linux baseline.
 # Passing suites are still required before making a macOS support claim.
-# CI rebuilds a unique .NET review version from a pinned commit and updates the
-# disposable checkout's locks. It does not prove committed unpublished archive bytes.
+# The trial consumes the same published .NET dependencies and locks as Linux.
 name: powershell macOS trial (advisory)
 
 on:
@@ -13,55 +12,23 @@ permissions:
   contents: read
 
 env:
-  CORE_REVISION: 4c379e2905c4917fc71b75afd11256383774915a
+  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
+  CORE_PACKAGE_VERSION: '0.0.0-alpha.20'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 jobs:
   package:
-    name: source-pinned installed packages
+    name: published dependency packages
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    outputs:
-      version: ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: libtmux/libtmux-dotnet
-          ref: ${{ env.CORE_REVISION }}
-          path: core
-          persist-credentials: false
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: core/global.json
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-
-      - name: Choose a unique version for the pinned source
-        id: version
-        run: |
-          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          review_version="$(python3 eng/ci/review_dependencies.py version \
-            --run-id "${GITHUB_RUN_ID}" --attempt "${GITHUB_RUN_ATTEMPT}")"
-          echo "value=${review_version}" >> "${GITHUB_OUTPUT}"
-
-      - name: Build and inspect the shared packages
-        env:
-          REVIEW_VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          python3 core/eng/package_review.py \
-            --version "${REVIEW_VERSION}" \
-            --revision "${CORE_REVISION}" \
-            --output "${RUNNER_TEMP}/core-review"
-          jq -e --arg revision "${CORE_REVISION}" --arg version "${REVIEW_VERSION}" \
-            '.revision == $revision and .version == $version and .inspection == "passed"' \
-            "${RUNNER_TEMP}/core-review/provenance.json"
 
       - name: Install official PowerShell 7.4.20 for packaging
         run: |
@@ -77,26 +44,16 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
             "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
 
-      - name: Resolve and pack the reviewed dependencies
-        env:
-          REVIEW_VERSION: ${{ steps.version.outputs.value }}
+      - name: Restore locked dependencies and pack the modules
         run: |
-          python3 -m unittest discover -s eng/ci -p 'test_*.py'
-          python3 eng/ci/review_dependencies.py prepare \
-            --version "${REVIEW_VERSION}" \
-            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
-            -Restore -UpdateLock \
-            -CorePackageDirectory "${RUNNER_TEMP}/core-review" \
+            -Restore \
             -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
-          python3 eng/ci/review_dependencies.py verify \
-            --version "${REVIEW_VERSION}" \
-            --baseline "${RUNNER_TEMP}/ci-lock-baseline"
           PSModulePath="${GITHUB_WORKSPACE}/build/Modules" \
             "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Package.ps1 \
             -DestinationPath "${RUNNER_TEMP}/port-package"
-          cp "${RUNNER_TEMP}/core-review/provenance.json" \
-            "${RUNNER_TEMP}/port-package/core-provenance.json"
+          cp build/Modules/LibTmux/0.1.0/dependencies.json \
+            "${RUNNER_TEMP}/port-package/core-dependencies.json"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -249,7 +206,7 @@ jobs:
 
       - name: Verify package and binary provenance
         env:
-          REVIEW_VERSION: ${{ needs.package.outputs.version }}
+          CORE_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
           POWERSHELL_VERSION: ${{ matrix.powershell }}
@@ -258,9 +215,9 @@ jobs:
         run: |
           test "$(command -v tmux)" = "${TMUX_BINARY}"
           test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          jq -e --arg revision "${CORE_REVISION}" --arg version "${REVIEW_VERSION}" \
-            '.revision == $revision and .version == $version and .inspection == "passed"' \
-            "${RUNNER_TEMP}/port-package/core-provenance.json"
+          jq -e --arg version "${CORE_VERSION}" \
+            '.corePackageVersion == $version' \
+            "${RUNNER_TEMP}/port-package/core-dependencies.json"
           jq -e '.packages | length == 2 and ([.[].file] | sort) == ["LibTmux.0.1.0.nupkg", "LibTmux.Workspace.0.1.0.nupkg"]' \
             "${RUNNER_TEMP}/port-package/package-evidence.json"
           jq -r '.packages[] | [.sha256, .file] | @tsv' \
@@ -274,7 +231,7 @@ jobs:
             --arg runner "${RUNNER_NAME}" \
             --arg arch "${EXPECTED_ARCH}" \
             --arg core "${CORE_REVISION}" \
-            --arg reviewVersion "${REVIEW_VERSION}" \
+            --arg corePackageVersion "${CORE_VERSION}" \
             --arg powershell "${POWERSHELL_VERSION}" \
             --arg powershellSha256 "${POWERSHELL_SHA256}" \
             --arg powershellBinarySha256 "$(shasum -a 256 "${RUNNER_TEMP}/powershell/pwsh" | awk '{print $1}')" \
@@ -284,7 +241,7 @@ jobs:
             --arg python "$(python3 --version)" \
             --rawfile buildDependencies "${RUNNER_TEMP}/tmux-build-dependencies.txt" \
             --slurpfile packages "${RUNNER_TEMP}/port-package/package-evidence.json" \
-            '{runner:$runner,arch:$arch,coreRevision:$core,reviewVersion:$reviewVersion,
+            '{runner:$runner,arch:$arch,coreRevision:$core,corePackageVersion:$corePackageVersion,
               powershell:$powershell,powershellSha256:$powershellSha256,
               powershellBinarySha256:$powershellBinarySha256,
               tmux:$tmux,tmuxCommit:$tmuxCommit,tmuxSha256:$tmuxSha256,
@@ -340,7 +297,7 @@ jobs:
             build/test-Product.json
             build/test-Documentation.json
             ${{ runner.temp }}/port-package/package-evidence.json
-            ${{ runner.temp }}/port-package/core-provenance.json
+            ${{ runner.temp }}/port-package/core-dependencies.json
           if-no-files-found: warn
           retention-days: 7
 
