@@ -42,12 +42,13 @@ characters count as two columns; a tab advances to the next multiple of
 
 ``width`` must be 80, the shared rule. Every key must be known, at the
 top level and inside each ``[[...]]`` entry, so a key written below a
-table header cannot be swallowed by that entry, and every entry must
-hold the keys the check reads. Every glob must match a
-tracked file and every exclusion a checked one; every exclusion and allow entry
-must give a reason, and every allow entry must match a line. Every
-tracked file under a directory named ``examples`` must be checked or
-excluded, so a new example file cannot go unread.
+table header cannot be swallowed by that entry; every entry must hold
+the keys the check reads, and every value must have the type it reads.
+Every glob must match a tracked file and every exclusion a checked one;
+every exclusion and allow entry must give a reason, and every allow entry
+must match a line. Every tracked file under a directory named
+``examples`` must be checked or excluded, so a new example file cannot go
+unread.
 ``allow_ceiling`` must equal the number of allow entries, so the list
 grows only through a reviewed change to that number and a fixed line must
 lower it. Each formatter copy must equal its root file except for the
@@ -107,6 +108,15 @@ TABLE_KEYS = {
     "formatter_copies": frozenset({"copy", "root", "key"}),
 }
 GLOB_KEYS = ("markdown", "sources", "doc_comments")
+# The type each top-level value must have; a TOML string where a list belongs
+# would otherwise be read one character at a time.
+VALUE_TYPES: dict[str, tuple[type, str]] = {
+    "width": (int, "an integer"),
+    "tab_width": (int, "an integer"),
+    "allow_ceiling": (int, "an integer"),
+    "shared_digest": (str, "a string"),
+    "checker_digest": (str, "a string"),
+}
 CODE_DIRECTIVES = frozenset({"code-block", "code", "code-cell", "sourcecode"})
 # gp-libs hides a doctest line carrying this directive from the rendered page.
 HIDDEN = re.compile(r"^\s*(?:>>>|\.\.\.) .*# doctest: \+HIDE\b")
@@ -464,6 +474,34 @@ def matches(path: str, patterns: list[str]) -> bool:
     return any(glob_regex(pattern).fullmatch(path) for pattern in patterns)
 
 
+def type_problems(config: dict[str, t.Any]) -> list[str]:
+    """Return values whose type the check cannot use.
+
+    >>> for problem in type_problems({"width": "80", "markdown": "**/*.md"}):
+    ...     print(problem)
+    width must be an integer, not '80'
+    markdown must be a list of globs, not '**/*.md'
+    >>> type_problems({"width": 80, "markdown": ["**/*.md"], "exclude": []})
+    []
+    """
+    problems = [
+        f"{key} must be {name}, not {config[key]!r}"
+        for key, (kind, name) in VALUE_TYPES.items()
+        if key in config
+        and (not isinstance(config[key], kind) or isinstance(config[key], bool))
+    ]
+    for key in GLOB_KEYS:
+        value = config.get(key, [])
+        if not isinstance(value, list) or not all(isinstance(g, str) for g in value):
+            problems.append(f"{key} must be a list of globs, not {value!r}")
+    problems.extend(
+        f"{table} must be written as [[{table}]] entries"
+        for table in TABLE_KEYS
+        if not isinstance(config.get(table, []), list)
+    )
+    return problems
+
+
 def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     """Return configuration mistakes that would silently weaken the check.
 
@@ -505,9 +543,13 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
                     problems.append(f"an [[{table}]] entry is not a table: {entry!r}")
                 continue
             problems.extend(
-                f"unknown key in an [[{table}]] entry: {key}; TOML puts every "
-                "key below a [[...]] header into that entry, so top-level keys "
-                "go above the first one"
+                f"unknown key in an [[{table}]] entry: {key}; "
+                + (
+                    "TOML puts every key below a [[...]] header into that "
+                    "entry, so top-level keys go above the first one"
+                    if key in KEYS
+                    else f"an [[{table}]] entry takes {', '.join(sorted(keys))}"
+                )
                 for key in sorted(set(entry) - keys)
             )
             problems.extend(
@@ -880,6 +922,9 @@ def self_test() -> int:
         )
         del nested["exclude"][0]["doc_comments"]
         expect(not config_problems(nested, ["a"]), "a clean [[exclude]] was reported")
+        typed = {"width": "80", "markdown": "**/*.md"}
+        expect(len(type_problems(typed)) == 2, "a string width or glob list passed")
+        expect(not type_problems({"width": 80, "markdown": ["a"]}), "good types failed")
         misnamed: dict[str, t.Any] = {
             "markdown": ["README.md"],
             "exclude": [{"path": "README.md", "reason": "r"}],
@@ -938,6 +983,12 @@ def main(argv: list[str] | None = None) -> int:
             print(line)
         return 0
     config = tomllib.loads((root / CONFIG).read_text(encoding="utf-8"))
+    wrong = type_problems(config)
+    if wrong:
+        for problem in wrong:
+            print(f"{CONFIG}: {problem}")
+        print(f"{len(wrong)} setup problems; fix the config before the check runs.")
+        return 1
     files = tracked_files(root)
     writing = writing_path(root)
     # Each problem names the file to change; routing problems name their own.
