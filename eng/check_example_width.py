@@ -474,6 +474,15 @@ def matches(path: str, patterns: list[str]) -> bool:
     return any(glob_regex(pattern).fullmatch(path) for pattern in patterns)
 
 
+def plural(count: int, one: str, many: str | None = None) -> str:
+    """Return a count with its noun in the matching number.
+
+    >>> plural(1, "wide line"), plural(2, "wide line")
+    ('1 wide line', '2 wide lines')
+    """
+    return f"{count} {one if count == 1 else (many or one + 's')}"
+
+
 def type_problems(config: dict[str, t.Any]) -> list[str]:
     """Return values whose type the check cannot use.
 
@@ -519,8 +528,11 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     """Return configuration mistakes that would silently weaken the check.
 
     >>> config = {"widht": 80, "markdown": ["nope/*.md"], "allow_ceiling": 0}
-    >>> config_problems(config, ["README.md"])
+    >>> [problem.split(";")[0] for problem in config_problems(config, ["README.md"])]
     ['unknown key: widht', 'markdown glob matches no tracked file: nope/*.md']
+    >>> config_problems({"reason": "r", "allow_ceiling": 0}, [])[0]
+    'unknown key: reason; reason belongs inside an [[...]] entry, below its header'
+
     >>> config = {"allow": [{"path": "a", "line": "b"}], "allow_ceiling": 1}
     >>> config_problems(config, ["a"])
     ["allow entry for a has no reason: 'b'"]
@@ -547,7 +559,16 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     >>> config_problems(dict(config, allow_ceiling=1), ["a"])[1]
     "an [[allow]] entry has no path: {'file': 'a', 'line': 'b', 'reason': 'c'}"
     """
-    problems = [f"unknown key: {key}" for key in sorted(set(config) - KEYS)]
+    entry_keys = set().union(*TABLE_KEYS.values())
+    problems = [
+        f"unknown key: {key}; "
+        + (
+            f"{key} belongs inside an [[...]] entry, below its header"
+            if key in entry_keys
+            else f"the config takes {', '.join(sorted(KEYS))}"
+        )
+        for key in sorted(set(config) - KEYS)
+    ]
     for table, keys in TABLE_KEYS.items():
         for entry in config.get(table, []):
             if not isinstance(entry, dict):
@@ -1017,7 +1038,7 @@ def main(argv: list[str] | None = None) -> int:
     if wrong:
         for problem in wrong:
             print(f"{CONFIG}: {problem}")
-        print(f"{len(wrong)} setup problems; fix the config before the check runs.")
+        print(f"{plural(len(wrong), 'setup problem')}; fix the config first.")
         return 1
     files = tracked_files(root)
     writing = writing_path(root)
@@ -1048,8 +1069,9 @@ def main(argv: list[str] | None = None) -> int:
     if problems or findings or stale:
         rules = writing.relative_to(root).as_posix() if writing else "WRITING.md"
         print(
-            f"{len(problems)} setup problems, {len(findings)} wide lines, "
-            f"{len(stale)} stale allow entries."
+            f"{plural(len(problems), 'setup problem')}, "
+            f"{plural(len(findings), 'wide line')}, "
+            f"{plural(len(stale), 'stale allow entry', 'stale allow entries')}."
         )
         if findings:
             print(
