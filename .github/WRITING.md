@@ -75,7 +75,7 @@ Code blocks are paste-and-run units:
 ## Examples
 
 An example is code written for a reader: a program under `examples/`, code in
-a doc comment, a doctest, and every fenced block in a README or docs page.
+a doc comment or docstring, and every fenced block in a README or docs page.
 Shell blocks also follow [Code blocks](#code-blocks).
 
 <!-- shared:examples -->
