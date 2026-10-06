@@ -109,6 +109,8 @@ TABLE_KEYS = {
     "formatter_copies": frozenset({"copy", "root", "key"}),
 }
 GLOB_KEYS = ("markdown", "sources", "doc_comments")
+# The reason the printed allow entry carries until someone writes a real one.
+PLACEHOLDER = "why breaking this line would make the example worse"
 # The type each top-level value must have; a TOML string where a list belongs
 # would otherwise be read one character at a time.
 VALUE_TYPES: dict[str, tuple[type, str]] = {
@@ -122,6 +124,11 @@ CODE_DIRECTIVES = frozenset({"code-block", "code", "code-cell", "sourcecode"})
 # gp-libs hides a doctest line carrying this directive from the rendered page.
 HIDDEN = re.compile(r"^\s*(?:>>>|\.\.\.) .*# doctest: \+HIDE\b")
 OUTPUT_TAGS = frozenset({"text"})
+# Fences that mix prompted commands with the output they print.
+SESSION_TAGS = frozenset({"console", "shell-session", "pycon"})
+# A Python fence that opens with a doctest prompt is a session too.
+PYTHON_TAGS = frozenset({"python", "py", "python3"})
+PROMPTS = ("$ ", "PS> ", ">>> ", "... ")
 # A reST line that opens an indented code block: a paragraph ending in
 # ``::`` or a code directive. Other directives, such as toctree, hold no code.
 REST_BLOCK = re.compile(
@@ -245,6 +252,56 @@ def indent_code(line: str) -> bool:
     return line.startswith(("    ", "\t"))
 
 
+def has_prompt(lines: list[str], mark: str) -> bool:
+    """Return whether a session fence holds a prompt before it closes.
+
+    >>> has_prompt(["$ ls", "```"], "```"), has_prompt(["ls", "```", "$ x"], "```")
+    (True, False)
+    """
+    for line in lines:
+        match = FENCE.match(line)
+        if match and match["mark"].startswith(mark) and not match["info"].strip():
+            return False
+        if line.lstrip().startswith(PROMPTS):
+            return True
+    return False
+
+
+def doctest_first(lines: list[str], mark: str) -> bool:
+    """Return whether a fence's first code line is a ``>>>`` doctest prompt.
+
+    >>> doctest_first(["", ">>> 1 + 1", "2", "```"], "```")
+    True
+    >>> doctest_first(["x = 1", ">>> x", "```"], "```")
+    False
+    """
+    for line in lines:
+        match = FENCE.match(line)
+        if match and match["mark"].startswith(mark) and not match["info"].strip():
+            return False
+        if line.strip():
+            return line.lstrip().startswith(">>> ")
+    return False
+
+
+def untracked_matches(config: dict[str, t.Any], untracked: list[str]) -> list[str]:
+    """Return untracked files the check would read once git tracks them.
+
+    >>> untracked_matches({"markdown": ["*.md"]}, ["new.md", "build.log"])
+    ['new.md']
+    >>> excluded = {"exclude": [{"glob": "examples/x/**", "reason": "r"}]}
+    >>> untracked_matches(excluded, ["examples/new.rs", "examples/x/y.rs"])
+    ['examples/new.rs']
+    """
+    read = [g for key in GLOB_KEYS for g in config.get(key, [])]
+    skip = [entry["glob"] for entry in entries(config, "exclude")]
+    return [
+        path
+        for path in untracked
+        if (matches(path, read) or EXAMPLE_DIR.search(path)) and not matches(path, skip)
+    ]
+
+
 def markdown_lines(text: str, indented: bool = True) -> list[tuple[int, str]]:
     r"""Return the code lines of the fences a reader runs or copies.
 
@@ -272,6 +329,16 @@ def markdown_lines(text: str, indented: bool = True) -> list[tuple[int, str]]:
     >>> [line for _, line in markdown_lines(quoted)]
     ["$ julia -e '", "    using Pkg'"]
 
+    A ``console`` block with no prompt line holds no output to skip, so it is
+    measured as code:
+
+    >>> bare = "```console\ncargo test --doc\n```"
+    >>> [line for _, line in markdown_lines(bare)]
+    ['cargo test --doc']
+    >>> pydoc = "```python\n>>> pane.capture()\n['output line']\n```"
+    >>> [line for _, line in markdown_lines(pydoc)]
+    ['>>> pane.capture()']
+
     A ``text`` fence that opens with a prompt is a console session, and an
     indented code block or a ``<pre>`` block outside a list is code:
 
@@ -290,10 +357,15 @@ def markdown_lines(text: str, indented: bool = True) -> list[tuple[int, str]]:
     continued = False
     quote: str | None = None
     blank, in_list, in_block, in_pre = True, False, False, False
-    for number, line in enumerate(text.splitlines(), 1):
+    lines = text.splitlines()
+    for number, line in enumerate(lines, 1):
         match = FENCE.match(line)
         if fence is None and match:
             fence = (match["mark"], fence_tag(match["info"]))
+            if fence[1] in PYTHON_TAGS and doctest_first(lines[number:], fence[0]):
+                fence = (fence[0], "pycon")
+            if fence[1] in SESSION_TAGS and not has_prompt(lines[number:], fence[0]):
+                fence = (fence[0], "sh")
             first, continued, in_block = True, False, False
             continue
         if fence is None:
@@ -330,8 +402,8 @@ def markdown_lines(text: str, indented: bool = True) -> list[tuple[int, str]]:
             line.strip() == "#" or line.lstrip().startswith("# ")
         ):
             continue
-        if tag in {"console", "shell-session", "pycon"}:
-            prompt = line.lstrip().startswith(("$ ", "PS> ", ">>> ", "... "))
+        if tag in SESSION_TAGS:
+            prompt = line.lstrip().startswith(PROMPTS)
             if not (prompt or continued):
                 continue
             quote = open_quote(line, quote if continued else None)
@@ -494,7 +566,7 @@ def allow_hint(finding: Finding) -> str:
             "[[allow]]",
             f"path = {json.dumps(finding.path, ensure_ascii=False)}",
             f"line = {json.dumps(finding.text, ensure_ascii=False)}",
-            'reason = "why breaking this line would make the example worse"',
+            f"reason = {json.dumps(PLACEHOLDER)}",
         ]
     )
 
@@ -563,13 +635,16 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     ["allow entry for a has no reason: 'b'"]
     >>> for problem in config_problems({"width": 100, "exclude": ["a"]}, ["a"]):
     ...     print(problem)
+    an [[exclude]] entry is not a table: 'a'
     width is 100; the shared rule is 80
-    exclude entry has no reason: 'a'
     allow_ceiling is missing; set it to 0, the number of allow entries
     >>> excluded = {"glob": "notes/*.md", "reason": "drafts"}
     >>> config = {"markdown": ["*.md"], "exclude": [excluded], "allow_ceiling": 0}
     >>> config_problems(config, ["a.md", "notes/b.md"])
     ['exclude glob matches no checked file: notes/*.md']
+    >>> config = {"markdwn": ["**/*.md"], "exclude": [excluded], "allow_ceiling": 0}
+    >>> [problem.split(";")[0] for problem in config_problems(config, ["notes/b.md"])]
+    ['unknown key: markdwn']
     >>> config = {"sources": ["examples/*.go"], "allow_ceiling": 0}
     >>> files = ["examples/a.go", "examples/go.mod"]
     >>> config_problems(config, files)[0].split(";")[0]
@@ -583,6 +658,13 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     >>> config = {"allow": [{"file": "a", "line": "b", "reason": "c"}]}
     >>> config_problems(dict(config, allow_ceiling=1), ["a"])[1]
     "an [[allow]] entry has no path: {'file': 'a', 'line': 'b', 'reason': 'c'}"
+    >>> pasted = {"path": "a", "line": "b", "reason": PLACEHOLDER}
+    >>> config_problems({"allow": [pasted], "allow_ceiling": 1}, ["a"])[0]
+    'allow entry for a keeps the placeholder reason; say why this line cannot break'
+    >>> misspelled = {"markdwn": ["*.md"], "allow_ceiling": 0}
+    >>> found = config_problems(misspelled, ["examples/a.md"])
+    >>> [problem.split(";")[0] for problem in found]
+    ['unknown key: markdwn']
     """
     entry_keys = set().union(*TABLE_KEYS.values())
     problems = [
@@ -597,9 +679,7 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     for table, keys in TABLE_KEYS.items():
         for entry in config.get(table, []):
             if not isinstance(entry, dict):
-                # An exclusion that is not a table is reported below.
-                if table != "exclude":
-                    problems.append(f"an [[{table}]] entry is not a table: {entry!r}")
+                problems.append(f"an [[{table}]] entry is not a table: {entry!r}")
                 continue
             problems.extend(
                 f"unknown key in an [[{table}]] entry: {key}; "
@@ -625,23 +705,30 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
     )
     checked = [path for path in files if matches(path, [p for _, p in globs])]
     examples = [path for path in files if EXAMPLE_DIR.search(path)]
+    # An unknown top-level key is usually a misspelled glob key, which leaves
+    # files unchecked: exclusions look unused and example files look unread.
+    # Report the key alone until it is fixed.
+    known = not set(config) - KEYS
     excluded: list[str] = []
     for entry in config.get("exclude", []):
-        if not isinstance(entry, dict) or not str(entry.get("reason", "")).strip():
+        if not isinstance(entry, dict):
+            continue
+        if not str(entry.get("reason", "")).strip():
             problems.append(f"exclude entry has no reason: {entry!r}")
             continue
         if "glob" not in entry:
             continue
         excluded.append(entry["glob"])
         pattern = glob_regex(entry["glob"])
-        if not any(pattern.fullmatch(path) for path in checked + examples):
+        if known and not any(pattern.fullmatch(path) for path in checked + examples):
             problems.append(f"exclude glob matches no checked file: {entry['glob']}")
-    problems.extend(
-        f"{path} is under examples/ but neither checked nor excluded; add it to "
-        "sources, or to [[exclude]] with a reason"
-        for path in examples
-        if path not in checked and not matches(path, excluded)
-    )
+    if known:
+        problems.extend(
+            f"{path} is under examples/ but neither checked nor excluded; add it "
+            "to sources, or to [[exclude]] with a reason"
+            for path in examples
+            if path not in checked and not matches(path, excluded)
+        )
     count = len(config.get("allow", []))
     ceiling = config.get("allow_ceiling")
     if ceiling is None:
@@ -663,6 +750,12 @@ def config_problems(config: dict[str, t.Any], files: list[str]) -> list[str]:
         f"allow entry for {entry.get('path')} has no reason: {entry.get('line')!r}"
         for entry in config.get("allow", [])
         if isinstance(entry, dict) and not str(entry.get("reason", "")).strip()
+    )
+    problems.extend(
+        f"allow entry for {entry.get('path')} keeps the placeholder reason; "
+        "say why this line cannot break"
+        for entry in config.get("allow", [])
+        if isinstance(entry, dict) and entry.get("reason") == PLACEHOLDER
     )
     return problems
 
@@ -686,7 +779,8 @@ def entries(config: dict[str, t.Any], table: str) -> list[dict[str, t.Any]]:
 def copy_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     """Return formatter copies that drifted from their root file.
 
-    A copy may differ from its root only on lines naming the width key.
+    A copy may differ from its root only on lines naming the width key. A
+    drifted copy is reported against its own path, the file to change.
     """
     problems = []
     for pair in entries(config, "formatter_copies"):
@@ -694,7 +788,9 @@ def copy_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
             pair[side] for side in ("copy", "root") if not (root / pair[side]).is_file()
         ]
         if missing:
-            problems.extend(f"formatter copy file does not exist: {m}" for m in missing)
+            problems.extend(
+                f"{CONFIG}: formatter copy file does not exist: {m}" for m in missing
+            )
             continue
 
         def kept(path: str, key: str = pair["key"]) -> list[str]:
@@ -703,7 +799,8 @@ def copy_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
 
         if kept(pair["copy"]) != kept(pair["root"]):
             problems.append(
-                f"{pair['copy']} differs from {pair['root']} beyond {pair['key']}"
+                f"{pair['copy']}: differs from {pair['root']} beyond {pair['key']}; "
+                f"make it equal to {pair['root']} except the {pair['key']} line"
             )
     return problems
 
@@ -757,10 +854,14 @@ def check(
     return findings, stale
 
 
-def tracked_files(root: pathlib.Path) -> list[str]:
-    """Return the files git tracks, as POSIX paths relative to the root."""
+def tracked_files(root: pathlib.Path, others: bool = False) -> list[str]:
+    """Return the files git tracks, as POSIX paths relative to the root.
+
+    With ``others``, return instead the untracked files git does not ignore.
+    """
+    untracked = ["--others", "--exclude-standard"] if others else []
     output = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z"],
+        ["git", "-C", str(root), "ls-files", "-z", *untracked],
         check=True,
         capture_output=True,
         text=True,
@@ -832,7 +933,11 @@ def routing_problems(root: pathlib.Path) -> list[str]:
         if fragment == anchor and (root / path).resolve() == writing.resolve():
             return []
     where = f"{writing.relative_to(root).as_posix()}#{anchor}"
-    return [f"AGENTS.md: no link to {where}, the section with the example rules"]
+    link = f"[{headings[-1]}]({where})"
+    return [
+        f"AGENTS.md: no link to {where}, the section with the example rules; "
+        + f"add one such as {link}"
+    ]
 
 
 def port_block_problems(text: str) -> list[str]:
@@ -885,25 +990,39 @@ def digests(root: pathlib.Path) -> list[str]:
 def digest_problems(root: pathlib.Path, config: dict[str, t.Any]) -> list[str]:
     """Return digests that differ from the ones the configuration records.
 
-    Both files are the same in every port, so the message sends the reader to
-    all of them rather than to this repository's digest.
+    Each message names the file that changed. Both files are the same in
+    every port, so an intended change goes to all of them; an edit meant for
+    one repository is undone instead.
     """
     actual = dict(line.split(" ", 1) for line in digests(root))
-    names = {"checker": "this checker", "shared": "WRITING.md's shared section"}
     here, top = pathlib.Path(__file__).resolve(), root.resolve()
     script = here.relative_to(top) if here.is_relative_to(top) else here.name
+    writing = writing_path(root)
+    shared = writing.relative_to(root).as_posix() if writing else "WRITING.md"
+    where = {"checker": script, "shared": shared}
+    names = {"checker": "this checker", "shared": "the shared section"}
+    undo = {
+        "checker": f"it (`git checkout -- {script}`, or a copy from another port)",
+        "shared": (
+            "the text between the shared markers, copied from "
+            f"`git show HEAD:{shared}` so port-block edits stay"
+        ),
+    }
     missing = [
-        f"{name}_digest is missing; run `python3 {script} --digest` and record "
-        f"its {name} line"
+        f"{CONFIG}: {name}_digest is missing; run `python3 {script} --digest` "
+        f"and set {name}_digest to the {name} value it prints"
         for name in ("checker", "shared")
         if name + "_digest" not in config
     ]
     return missing + [
-        f"{names[name]} has digest {actual[name][:12]}, but {name}_digest records "
-        f"{config[name + '_digest'][:12]}. Every libtmux port carries the same "
-        f"file: change it in each repository listed in {PORTS}, then run the "
-        f"checker with --digest in each (here `python3 {script} --digest`) and "
-        "record both lines in that repository's config"
+        f"{where[name]}: {names[name]} has digest {actual[name][:12]}, but "
+        f"{name}_digest in {CONFIG} records {config[name + '_digest'][:12]}. If "
+        f"the edit was meant for this repository only, restore {undo[name]}. "
+        "Every libtmux port carries the same text: to change it, change it in "
+        f"libtmux/docs and in each repository listed in {PORTS}, then run "
+        f"`python3 {script} "
+        "--digest` in each and set checker_digest and shared_digest in that "
+        "repository's config to the values it prints"
         for name in ("checker", "shared")
         if name + "_digest" in config and actual[name] != config[name + "_digest"]
     ]
@@ -1062,6 +1181,7 @@ def main(argv: list[str] | None = None) -> int:
         config = tomllib.loads((root / CONFIG).read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
         print(f"{CONFIG}: cannot read the config: {error}")
+        print("1 setup problem; fix the config first.")
         return 1
     wrong = type_problems(config)
     if wrong:
@@ -1073,12 +1193,27 @@ def main(argv: list[str] | None = None) -> int:
     writing = writing_path(root)
     # Each problem names the file to change; routing problems name their own.
     setup = config_problems(config, files)
-    problems = [
-        f"{CONFIG}: {problem}"
-        for problem in setup
+    problems = (
+        [f"{CONFIG}: {problem}" for problem in setup]
         + copy_problems(root, config)
         + digest_problems(root, config)
-    ] + routing_problems(root)
+        + routing_problems(root)
+    )
+    new = untracked_matches(config, tracked_files(root, others=True))
+    notice = (
+        f"Not checked until `git add`: {plural(len(new), 'untracked file')} "
+        f"the config selects ({', '.join(new[:3])}{', ...' if len(new) > 3 else ''})."
+        if new
+        else ""
+    )
+    # An untracked file does not fail the run, but its wide lines are shown
+    # so a new example can be fixed before it is added.
+    pending, _ = check(root, config, new) if new and not setup else ([], [])
+    if pending:
+        they = "it fails" if len(new) == 1 else "they fail"
+        notice += f" Once added, {they} on {plural(len(pending), 'wide line')}: " + (
+            "; ".join(str(finding) for finding in pending[:3])
+        )
     if writing:
         where = writing.relative_to(root).as_posix()
         text = writing.read_text(encoding="utf-8")
@@ -1097,7 +1232,10 @@ def main(argv: list[str] | None = None) -> int:
                 f"{finding.columns} columns > {finding.width}"
             )
     for entry in stale:
-        print(f"{entry['path']}: allow entry matches no line: {entry['line']!r}")
+        print(
+            f"{CONFIG}: allow entry for {entry['path']} matches no line: "
+            f"{entry['line']!r}"
+        )
     if problems or findings or stale:
         rules = writing.relative_to(root).as_posix() if writing else "WRITING.md"
         print(
@@ -1112,16 +1250,28 @@ def main(argv: list[str] | None = None) -> int:
                 "Fix a wide line by changing the code, not the line breaks: "
                 f"{rules}#reaching-80. If no change keeps the example clear, "
                 f"add the line to [[allow]] in {CONFIG} with a reason and raise "
-                "allow_ceiling. The first one, as an entry:"
+                "allow_ceiling. "
+                + (
+                    f"The first of {len(findings)}, as an entry:"
+                    if len(findings) > 1
+                    else "As an entry:"
+                )
             )
             print(allow_hint(findings[0]))
         if stale:
-            print("Delete each stale allow entry and lower allow_ceiling to match.")
+            print(
+                f"Delete each stale allow entry in {CONFIG} and lower "
+                f"allow_ceiling to {len(config.get('allow', [])) - len(stale)}."
+            )
+        if notice:
+            print(notice)
         return 1
     read = [g for key in GLOB_KEYS for g in config.get(key, [])]
     skip = [entry["glob"] for entry in entries(config, "exclude")]
     count = sum(matches(path, read) and not matches(path, skip) for path in files)
     print(f"{count} files checked; no example is over {config.get('width', 80)}.")
+    if notice:
+        print(notice)
     return 0
 
 
