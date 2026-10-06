@@ -130,9 +130,8 @@ Change it in all of them together.
 - **Hard limit:** no formatter here takes a width. PSScriptAnalyzer
   (`PSScriptAnalyzerSettings.psd1`, installed by `eng/Setup.ps1`) checks
   braces and whitespace but never wraps, and `dotnet format` never wraps
-  either. The example files and pages are held to the `width` in
-  `.github/example-width.toml`. The width check is
-  `python3 eng/check_example_width.py`.
+  either. The example files and pages are held to 80 columns by the width
+  check, `python3 eng/check_example_width.py`.
 - **Not formatted:** every example: README and `docs/` fences,
   `examples/*.ps1`, and the `docs/reference/` help examples. Hold them to
   80 by hand.
