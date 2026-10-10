@@ -14,7 +14,7 @@ sample. A mismatch stops the run without writing a passing report.
 
 Build and package the module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). Supply the resulting
-`LibTmux.0.1.0-alpha1.nupkg` as `-PackageRoot`. Run the unequal-text control and
+`LibTmux.0.1.0-alpha2.nupkg` as `-PackageRoot`. Run the unequal-text control and
 two-round installed-package smoke:
 
 ```console

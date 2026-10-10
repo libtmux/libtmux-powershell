@@ -32,13 +32,13 @@
     AliasesToExport = @()
     PrivateData = @{
         PSData = @{
-            Prerelease = 'alpha1'
+            Prerelease = 'alpha2'
             Tags = @('tmux', 'automation', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
             LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
             ReleaseNotes = @'
-First alpha prerelease (0.1.0-alpha1). Create and inspect sessions, windows
-and panes with native pipelines. Capture snapshots, send input and read output.
+Alpha 2 prerelease (0.1.0-alpha2). Follow Gallery installation and runnable
+object-graph examples with direct documentation links.
 
 Built on libtmux for .NET 0.0.0-alpha.20.
 APIs may change before a stable release.

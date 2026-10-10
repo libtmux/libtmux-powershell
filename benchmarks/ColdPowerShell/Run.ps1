@@ -129,9 +129,9 @@ function Invoke-FreshPowerShell {
 
 $runWatch = [Diagnostics.Stopwatch]::StartNew()
 $budget = [Threading.CancellationTokenSource]::new([TimeSpan]::FromMinutes(8))
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha2.nupkg'
 if (!(Test-Path -LiteralPath $package -PathType Leaf)) {
-    throw 'PackageRoot must contain LibTmux.0.1.0-alpha1.nupkg.'
+    throw 'PackageRoot must contain LibTmux.0.1.0-alpha2.nupkg.'
 }
 $packageHash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($packageHash -cne $ExpectedPackageSha256.ToLowerInvariant()) {

@@ -7,7 +7,7 @@ expected pane IDs. The runner requires every C# capture to return those same
 sixteen IDs and checks that a deliberately wrong reference is rejected.
 
 The build consumes `LibTmux.dll` and its dependency closure embedded in the
-Product-tested `LibTmux.0.1.0-alpha1.nupkg`. Preparation verifies the exact assembly
+Product-tested `LibTmux.0.1.0-alpha2.nupkg`. Preparation verifies the exact assembly
 hashes and identities in `dependencies.json`, restores a project with no
 package references from an empty local feed, then builds with `--no-restore`.
 It writes output only under a new preparation directory. This proves an

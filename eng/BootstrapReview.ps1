@@ -205,7 +205,7 @@ try {
         throw 'PowerShell package evidence must identify both modules.'
     }
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        $file = "$name.0.1.0-alpha1.nupkg"
+        $file = "$name.0.1.0-alpha2.nupkg"
         $records = @($moduleEvidence.packages | Where-Object file -CEQ $file)
         if ($records.Count -ne 1 -or
             (Get-FileHash -LiteralPath (Join-Path $modulePackages $file)).Hash.ToLowerInvariant() -cne $records[0].sha256) {

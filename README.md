@@ -47,7 +47,7 @@ windows, panes, snapshots, input and capture:
 
 ```console
 $ Install-PSResource -Name LibTmux `
-    -Version 0.1.0-alpha1 `
+    -Version 0.1.0-alpha2 `
     -Prerelease `
     -Repository PSGallery `
     -Scope CurrentUser `
@@ -60,7 +60,7 @@ both modules:
 
 ```console
 $ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha1 `
+    -Version 0.1.0-alpha2 `
     -Prerelease `
     -Repository PSGallery `
     -Scope CurrentUser `
@@ -76,7 +76,7 @@ $ Import-Module -Name LibTmux, LibTmux.Workspace `
 ```
 
 PowerShell imports use the numeric module version, `0.1.0`; Gallery packages
-carry the `alpha1` prerelease label. Browse cmdlets with
+carry the `alpha2` prerelease label. Browse cmdlets with
 `Get-Command -Module LibTmux` and examples with
 `Get-Help LibTmux\New-TmuxSession -Examples`. The MCP server is a separate
 .NET tool; see [MCP setup](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#install-and-select-a-server).

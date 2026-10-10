@@ -14,7 +14,7 @@ function Assert-Identity([bool] $Condition, [string] $Message) {
 Import-Module "$PSScriptRoot/PackageIdentity.psm1" -Force -ErrorAction Stop
 $packageRoot = (Resolve-Path -LiteralPath $PackageRoot).Path
 $reviewRoot = (Resolve-Path -LiteralPath $ReviewRoot).Path
-$package = Join-Path $packageRoot 'LibTmux.0.1.0-alpha1.nupkg'
+$package = Join-Path $packageRoot 'LibTmux.0.1.0-alpha2.nupkg'
 $receipt = Get-Content -LiteralPath (Join-Path $reviewRoot 'bootstrap.json') -Raw | ConvertFrom-Json
 $temporary = Join-Path ([IO.Path]::GetTempPath()) (
     'libtmux-benchmark-identity-' + [Guid]::NewGuid().ToString('N'))
@@ -60,9 +60,9 @@ try {
         $null = Get-BenchmarkPackageIdentity -PackageRoot $packageRoot -ModuleRoot $alteredModule
     } catch { $wrongArchiveRejected = $true }
     Assert-Identity $wrongArchiveRejected 'Package identity accepted an extracted module from another archive.'
-    $alteredPackage = Join-Path $alteredRoot 'LibTmux.0.1.0-alpha1.nupkg'
+    $alteredPackage = Join-Path $alteredRoot 'LibTmux.0.1.0-alpha2.nupkg'
     [IO.Compression.ZipFile]::CreateFromDirectory($alteredModule, $alteredPackage)
-    @{ packages = @(@{ file = 'LibTmux.0.1.0-alpha1.nupkg';
+    @{ packages = @(@{ file = 'LibTmux.0.1.0-alpha2.nupkg';
                 sha256 = (Get-FileHash -LiteralPath $alteredPackage -Algorithm SHA256).Hash.ToLowerInvariant() }) } |
         ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $alteredRoot 'package-evidence.json')
 

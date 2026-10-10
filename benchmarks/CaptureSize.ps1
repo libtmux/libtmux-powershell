@@ -32,8 +32,8 @@ function Get-CaptureTiming([Diagnostics.Stopwatch] $Watch) {
     [long] [Math]::Round($Watch.ElapsedTicks * 1000000000.0 / [Diagnostics.Stopwatch]::Frequency)
 }
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
-if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0-alpha1.nupkg.' }
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha2.nupkg'
+if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0-alpha2.nupkg.' }
 $binary = (Resolve-Path -LiteralPath $TmuxBinaryPath).Path
 $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $destination) { throw 'OutputPath already exists; choose a new report path.' }

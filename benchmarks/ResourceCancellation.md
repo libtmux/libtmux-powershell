@@ -27,7 +27,7 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/ResourceCancellation.ps1 \
     -OutputPath artifacts/benchmarks/resource-cancellation.json
 ```
 
-The runner extracts and imports the exact `LibTmux.0.1.0-alpha1.nupkg`, validates its
+The runner extracts and imports the exact `LibTmux.0.1.0-alpha2.nupkg`, validates its
 embedded core version and assembly hashes, and records source, runner, package,
 tmux, runtime, and assembly identities. Package-only runs report
 `sourceProvenance: unverified`. Pass `-ReviewRoot` from a clean-source bootstrap

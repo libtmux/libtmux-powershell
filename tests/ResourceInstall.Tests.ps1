@@ -28,10 +28,10 @@ if ($Gallery) {
 }
 
 if ($SaveWorker) {
-    Save-PSResource -Name LibTmux.Workspace -Version '0.1.0-alpha1' -Prerelease `
+    Save-PSResource -Name LibTmux.Workspace -Version '0.1.0-alpha2' -Prerelease `
         -Repository $RepositoryName -Path "$OwnedRoot/modules" `
         -TemporaryPath "$OwnedRoot/download" -TrustRepository -AcceptLicense -Quiet
-    'PASS Save-PSResource requested only LibTmux.Workspace 0.1.0-alpha1'
+    'PASS Save-PSResource requested only LibTmux.Workspace 0.1.0-alpha2'
     return
 }
 
@@ -100,7 +100,7 @@ function Invoke-ResourceChild([string] $Script, [string[]] $Arguments, [string] 
 function Assert-ResourcePayload([string] $Name, [string] $Modules) {
     $modulePath = Join-Path $Modules "$Name/0.1.0"
     $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.0.1.0-alpha1.nupkg")
+    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.0.1.0-alpha2.nupkg")
     try {
         foreach ($entry in $archive.Entries) {
             $relative = $entry.FullName
@@ -183,7 +183,7 @@ try {
         }
         $data = Import-PowerShellDataFile -LiteralPath $manifest
         if ($data.ModuleVersion -cne '0.1.0' -or
-            $data.PrivateData.PSData.Prerelease -cne 'alpha1') {
+            $data.PrivateData.PSData.Prerelease -cne 'alpha2') {
             throw "$name resolved an unexpected prerelease."
         }
         $versions = @(Get-ChildItem -LiteralPath "$modules/$name" -Directory)
@@ -204,7 +204,7 @@ try {
     $duplicateCore = @(Get-ChildItem -LiteralPath "$modules/LibTmux.Workspace" -Recurse -File |
         Where-Object Name -CEQ 'LibTmux.dll')
     if ($duplicateCore.Count) { throw 'Workspace bundles a duplicate core assembly.' }
-    'PASS native dependency resolution: LibTmux.Workspace 0.1.0-alpha1 -> LibTmux 0.1.0-alpha1'
+    'PASS native dependency resolution: LibTmux.Workspace 0.1.0-alpha2 -> LibTmux 0.1.0-alpha2'
     if ($Gallery) {
         Invoke-ResourceChild "$PSScriptRoot/Package.Tests.ps1" @('-ModuleRoot', $modules,
             '-Order', 'CoreFirst') $modules

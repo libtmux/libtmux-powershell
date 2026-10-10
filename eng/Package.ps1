@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
 $moduleVersion = '0.1.0'
-$prerelease = 'alpha1'
+$prerelease = 'alpha2'
 $packageVersion = "$moduleVersion-$prerelease"
 $sourceCommit = (& git -C $root rev-parse HEAD).Trim()
 if ($LASTEXITCODE -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$') {

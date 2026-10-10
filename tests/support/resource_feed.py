@@ -13,7 +13,7 @@ import zipfile
 ATOM = "http://www.w3.org/2005/Atom"
 DATA = "http://schemas.microsoft.com/ado/2007/08/dataservices"
 META = "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"
-VERSION = "0.1.0-alpha1"
+VERSION = "0.1.0-alpha2"
 for prefix, namespace in (("", ATOM), ("d", DATA), ("m", META)):
     ET.register_namespace(prefix, namespace)
 

@@ -128,9 +128,9 @@ function Invoke-ConcurrentFailure([string] $Lane, $Server, $Control, [object[]] 
     $status
 }
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha2.nupkg'
 if (!(Test-Path -LiteralPath $package -PathType Leaf)) {
-    throw 'PackageRoot must contain LibTmux.0.1.0-alpha1.nupkg.'
+    throw 'PackageRoot must contain LibTmux.0.1.0-alpha2.nupkg.'
 }
 $binary = (Resolve-Path -LiteralPath $TmuxBinaryPath).Path
 $temporary = Join-Path ([IO.Path]::GetTempPath()) (

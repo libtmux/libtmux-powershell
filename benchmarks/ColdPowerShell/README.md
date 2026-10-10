@@ -13,7 +13,7 @@ installed-package smoke. The hash is read from the exact archive under test;
 the runner does not import product code from the source tree.
 
 ```powershell
-$nupkg = 'artifacts/local-build/LibTmux.0.1.0-alpha1.nupkg'
+$nupkg = 'artifacts/local-build/LibTmux.0.1.0-alpha2.nupkg'
 $test = @{
     PackageRoot = 'artifacts/local-build'
     ExpectedPackageSha256 = (Get-FileHash $nupkg -Algorithm SHA256).Hash
@@ -25,7 +25,7 @@ Collect twenty timed fresh processes after one first observation and two
 untimed warmups. Choose an output path that does not exist yet.
 
 ```powershell
-$nupkg = 'artifacts/local-build/LibTmux.0.1.0-alpha1.nupkg'
+$nupkg = 'artifacts/local-build/LibTmux.0.1.0-alpha2.nupkg'
 $run = @{
     PackageRoot = 'artifacts/local-build'
     ExpectedPackageSha256 = (Get-FileHash $nupkg -Algorithm SHA256).Hash

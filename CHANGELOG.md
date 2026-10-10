@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.1.0-alpha2 - Unreleased
+## 0.1.0-alpha3 - Unreleased
+
+## 0.1.0-alpha2 - 2026-10-10
+
+### Documentation
+
+- Start with PowerShell Gallery installation, then follow the object-graph
+  and workspace examples from installed modules. Documentation and image
+  links use absolute URLs for Gallery imports; source-build instructions
+  and the checkout quick start have their own section.
+
+### Development
+
+- Run the README quick start from the checkout root when verifying saved
+  Gallery packages, and restore the caller's working directory afterward.
 
 ## 0.1.0-alpha1 - 2026-10-10
 

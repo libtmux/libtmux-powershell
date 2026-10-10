@@ -31,7 +31,7 @@ $reads = [Collections.Generic.List[string]]::new()
 $failureCode = 0
 $failWorkspace = $false
 
-function New-TestPackage([string] $Name, [string] $Path, [string] $Version = '0.1.0', [string] $Payload = 'tested', [string] $Prerelease = 'alpha1') {
+function New-TestPackage([string] $Name, [string] $Path, [string] $Version = '0.1.0', [string] $Payload = 'tested', [string] $Prerelease = 'alpha2') {
     $packageVersion = if ($Prerelease) { "$Version-$Prerelease" } else { $Version }
     $required = if ($Name -ceq 'LibTmux.Workspace') {
         "RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '0.1.0' })"
@@ -57,7 +57,7 @@ function New-TestPackage([string] $Name, [string] $Path, [string] $Version = '0.
 
 function Set-TestEvidence {
     @{ sourceCommit = $source; packages = @(foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        @{ file = "$name.0.1.0-alpha1.nupkg"; sha256 = (Get-FileHash "$owned/$name.0.1.0-alpha1.nupkg").Hash.ToLowerInvariant() }
+        @{ file = "$name.0.1.0-alpha2.nupkg"; sha256 = (Get-FileHash "$owned/$name.0.1.0-alpha2.nupkg").Hash.ToLowerInvariant() }
     }) } | ConvertTo-Json -Depth 5 | Set-Content "$owned/package-evidence.json"
     @{ schemaVersion = 1; repository = 'libtmux/libtmux-powershell'; sourceCommit = $source
         workflowPath = '.github/workflows/ci.yml'; runId = 123; runAttempt = 1; artifactId = 456
@@ -78,7 +78,7 @@ function Assert-PublishFailure([string] $Reason, [switch] $Upload, [string] $Rev
 
 function Invoke-WebRequest {
     param([string] $Uri, [string] $OutFile, [int] $TimeoutSec, [string] $ErrorAction)
-    if ($Uri -cmatch '^https://cdn\.powershellgallery\.com/packages/(libtmux(?:\.workspace)?)\.0\.1\.0-alpha1\.nupkg$') {
+    if ($Uri -cmatch '^https://cdn\.powershellgallery\.com/packages/(libtmux(?:\.workspace)?)\.0\.1\.0-alpha2\.nupkg$') {
         $name = if ($Matches[1] -ceq 'libtmux.workspace') { 'LibTmux.Workspace' } else { 'LibTmux' }
     } else {
         throw 'Expected the exact Gallery CDN package URL.'
@@ -93,7 +93,7 @@ function Invoke-WebRequest {
 function Publish-PSResource {
     param([string] $NupkgPath, [string] $Repository, [string] $ApiKey, [string] $ErrorAction)
     if ($Repository -cne 'PSGallery' -or $ApiKey -cne 'fixture-credential') { throw 'Wrong publishing boundary.' }
-    $name = [IO.Path]::GetFileName($NupkgPath).Replace('.0.1.0-alpha1.nupkg', '')
+    $name = [IO.Path]::GetFileName($NupkgPath).Replace('.0.1.0-alpha2.nupkg', '')
     $uploads.Add($name)
     if ($name -ceq 'LibTmux.Workspace' -and $failWorkspace) { throw 'Sensitive upload diagnostics must not escape.' }
     $public[$name] = $NupkgPath
@@ -101,28 +101,28 @@ function Publish-PSResource {
 
 try {
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        New-TestPackage $name "$owned/$name.0.1.0-alpha1.nupkg" -Prerelease ''
+        New-TestPackage $name "$owned/$name.0.1.0-alpha2.nupkg" -Prerelease ''
     }
     Set-TestEvidence
     if (!(Test-Path -LiteralPath $publisher)) { throw 'Publisher does not implement offline candidate validation.' }
     Assert-PublishFailure 'version|prerelease'
     if ($reads.Count -or $uploads.Count) { throw 'Stable candidate reached publication.' }
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        Remove-Item -LiteralPath "$owned/$name.0.1.0-alpha1.nupkg"
-        New-TestPackage $name "$owned/$name.0.1.0-alpha1.nupkg"
+        Remove-Item -LiteralPath "$owned/$name.0.1.0-alpha2.nupkg"
+        New-TestPackage $name "$owned/$name.0.1.0-alpha2.nupkg"
     }
     Set-TestEvidence
     & $publisher -PackageRoot $owned -SourceCommit $source | Out-Null
     if ($reads.Count -or $uploads.Count) { throw 'Dry run performed network I/O.' }
     Assert-PublishFailure 'source' -Revision ('2' * 40)
-    Add-Content "$owned/LibTmux.0.1.0-alpha1.nupkg" 'modified'
+    Add-Content "$owned/LibTmux.0.1.0-alpha2.nupkg" 'modified'
     Assert-PublishFailure 'hash'
-    Remove-Item "$owned/LibTmux.0.1.0-alpha1.nupkg"
-    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha1.nupkg" -Version '0.2.0'
+    Remove-Item "$owned/LibTmux.0.1.0-alpha2.nupkg"
+    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha2.nupkg" -Version '0.2.0' -Prerelease 'alpha1'
     Set-TestEvidence
     Assert-PublishFailure 'version'
-    Remove-Item "$owned/LibTmux.0.1.0-alpha1.nupkg"
-    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha1.nupkg"
+    Remove-Item "$owned/LibTmux.0.1.0-alpha2.nupkg"
+    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha2.nupkg"
     Set-TestEvidence
     $provenance = Get-Content "$owned/release-provenance.json" -Raw | ConvertFrom-Json
     $provenance.repository = 'other/repository'
@@ -160,9 +160,9 @@ try {
     $uploads.Clear()
     Assert-PublishFailure 'payload' -Upload
     if ($uploads.Count) { throw 'Different public bytes permitted a subsequent upload.' }
-    $public['LibTmux'] = "$owned/LibTmux.0.1.0-alpha1.nupkg"
+    $public['LibTmux'] = "$owned/LibTmux.0.1.0-alpha2.nupkg"
     $wrongDependency = "$owned/wrong-dependency.nupkg"
-    Copy-Item -LiteralPath "$owned/LibTmux.Workspace.0.1.0-alpha1.nupkg" -Destination $wrongDependency
+    Copy-Item -LiteralPath "$owned/LibTmux.Workspace.0.1.0-alpha2.nupkg" -Destination $wrongDependency
     $archive = [IO.Compression.ZipFile]::Open($wrongDependency, [IO.Compression.ZipArchiveMode]::Update)
     try {
         $entry = $archive.GetEntry('LibTmux.Workspace.nuspec')
@@ -170,7 +170,7 @@ try {
         try { $nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $entry.Delete()
         $writer = [IO.StreamWriter]::new($archive.CreateEntry('LibTmux.Workspace.nuspec').Open())
-        try { $writer.Write($nuspec.Replace('version="[0.1.0-alpha1]"', 'version="[0.2.0-alpha1]"')) }
+        try { $writer.Write($nuspec.Replace('version="[0.1.0-alpha2]"', 'version="[0.2.0-alpha1]"')) }
         finally { $writer.Dispose() }
     } finally { $archive.Dispose() }
     $public['LibTmux.Workspace'] = $wrongDependency

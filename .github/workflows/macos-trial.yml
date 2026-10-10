@@ -218,7 +218,7 @@ jobs:
           jq -e --arg version "${CORE_VERSION}" \
             '.corePackageVersion == $version' \
             "${RUNNER_TEMP}/port-package/core-dependencies.json"
-          jq -e '.packages | length == 2 and ([.[].file] | sort) == ["LibTmux.0.1.0-alpha1.nupkg", "LibTmux.Workspace.0.1.0-alpha1.nupkg"]' \
+          jq -e '.packages | length == 2 and ([.[].file] | sort) == ["LibTmux.0.1.0-alpha2.nupkg", "LibTmux.Workspace.0.1.0-alpha2.nupkg"]' \
             "${RUNNER_TEMP}/port-package/package-evidence.json"
           jq -r '.packages[] | [.sha256, .file] | @tsv' \
             "${RUNNER_TEMP}/port-package/package-evidence.json" \
