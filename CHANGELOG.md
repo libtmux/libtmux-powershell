@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.1.0-alpha2 - Unreleased
+
 ## 0.1.0-alpha1 - 2026-10-10
 
 First alpha release of `LibTmux` and `LibTmux.Workspace`. APIs may change before
