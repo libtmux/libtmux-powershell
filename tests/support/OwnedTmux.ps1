@@ -2,6 +2,21 @@ if (-not ('LibTmux.Testing.SocketCreatedSignal' -as [type])) {
     Add-Type -Path "$PSScriptRoot/SocketCreatedSignal.cs"
 }
 
+# tmux reads a pane directory from the kernel, so it reports the physical path
+# even when the test reached the directory through a symlink such as /tmp.
+function Resolve-PhysicalDirectory([string] $Path) {
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $root = [IO.Path]::GetPathRoot($fullPath)
+    $resolved = $root
+    foreach ($segment in [IO.Path]::GetRelativePath($root, $fullPath).Split(
+        [IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
+        $candidate = [IO.Path]::Combine($resolved, $segment)
+        $target = [IO.DirectoryInfo]::new($candidate).ResolveLinkTarget($true)
+        $resolved = if ($target) { Resolve-PhysicalDirectory $target.FullName } else { $candidate }
+    }
+    $resolved
+}
+
 function New-OwnedTmuxStartInfo {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only a local ProcessStartInfo value without starting a process.')]
     param($Fixture, [string[]] $Arguments)
@@ -47,12 +62,22 @@ function Invoke-OwnedTmux {
         $output = $process.StandardOutput.ReadToEndAsync()
         $errorOutput = $process.StandardError.ReadToEndAsync()
         if ($OnStarted) { & $OnStarted $process }
+        $waitClock = [Diagnostics.Stopwatch]::StartNew()
         try {
             $null = $process.WaitForExitAsync($CancellationToken).WaitAsync(
                 $WaitTimeout).GetAwaiter().GetResult()
         } catch {
             if ($_.Exception.InnerException) { throw $_.Exception.InnerException }
             throw
+        } finally {
+            if ($env:LIBTMUX_TEST_WAIT_LOG) {
+                $caller = (Get-PSCallStack)[1]
+                $text = ($Arguments -join ' ') -replace '\s+', ' '
+                if ($text.Length -gt 120) { $text = $text.Substring(0, 120) }
+                $line = "{0:F1}`t{1}`t{2}:{3}`t{4}" -f $waitClock.Elapsed.TotalMilliseconds,
+                    $Arguments[0], [IO.Path]::GetFileName($caller.ScriptName), $caller.ScriptLineNumber, $text
+                [IO.File]::AppendAllText($env:LIBTMUX_TEST_WAIT_LOG, $line + "`n")
+            }
         }
         $result = [pscustomobject]@{
             ExitCode = $process.ExitCode
@@ -147,19 +172,47 @@ function Test-OwnedTmuxSocketReady {
     return $true
 }
 
+# The signal completes when the daemon creates its socket; then the socket must
+# accept a connection and name the owned daemon. The bound only stops a hang.
+function Wait-OwnedTmuxSocketReady {
+    param(
+        $Fixture,
+        [System.Threading.Tasks.Task] $Signal,
+        [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
+        [TimeSpan] $HangGuard = [TimeSpan]::FromSeconds(1)
+    )
+
+    $socketClock = [Diagnostics.Stopwatch]::StartNew()
+    $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
+        $Signal, $Fixture.ServerProcess.WaitForExitAsync()))
+    $null = $ready.WaitAsync($HangGuard, $CancellationToken).GetAwaiter().GetResult()
+    $signalled = $socketClock.Elapsed.TotalMilliseconds
+    if ($Fixture.ServerProcess.HasExited) { return }
+    if (-not [LibTmux.Testing.SocketCreatedSignal]::WaitListening($Fixture.SocketPath, $Fixture.ServerProcess) -or
+        -not (Test-OwnedTmuxSocketReady $Fixture)) {
+        throw [System.TimeoutException]::new('The owned tmux socket did not accept the owned daemon.')
+    }
+    if ($env:LIBTMUX_TEST_WAIT_LOG) {
+        [IO.File]::AppendAllText($env:LIBTMUX_TEST_WAIT_LOG, ("{0:F1}`tsocket-ready`tsignal {1:F1} ms`t-`n" -f
+            $socketClock.Elapsed.TotalMilliseconds, $signalled))
+    }
+}
+
 function New-OwnedTmuxFixture {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only explicitly owned test resources; confirmation would prevent deterministic setup.')]
     [CmdletBinding()]
     param(
         [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
         [string] $TmuxPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
-        [System.Threading.Tasks.Task] $SocketReadyTask
+        [System.Threading.Tasks.Task] $SocketReadyTask,
+        [TimeSpan] $SocketReadyTimeout = [TimeSpan]::FromSeconds(1)
     )
 
     if ($CancellationToken.IsCancellationRequested) {
         throw [System.OperationCanceledException]::new($CancellationToken)
     }
-    $directory = Join-Path '/tmp' ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
+    $root = if ($env:LIBTMUX_POWERSHELL_TEST_ROOT) { $env:LIBTMUX_POWERSHELL_TEST_ROOT } else { '/tmp' }
+    $directory = Join-Path $root ('libtmux-powershell-' + [Guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $directory -ErrorAction Stop
     $fixture = [pscustomobject]@{
         TmuxPath = $TmuxPath
@@ -193,20 +246,8 @@ function New-OwnedTmuxFixture {
         $fixture.ServerError = $fixture.ServerProcess.StandardError.ReadToEndAsync()
         # Subscribe before startup so a fast socket creation cannot lose its signal.
         $socketSignal = if ($SocketReadyTask) { $SocketReadyTask } else { $signal.Ready }
-        $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
-            $socketSignal, $fixture.ServerProcess.WaitForExitAsync()))
         $setupStage = 'socket readiness'
-        try {
-            $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(100), $CancellationToken).GetAwaiter().GetResult()
-        } catch [TimeoutException] {
-            if (-not (Test-OwnedTmuxSocketReady $fixture)) {
-                try {
-                    $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(900), $CancellationToken).GetAwaiter().GetResult()
-                } catch [TimeoutException] {
-                    if (-not (Test-OwnedTmuxSocketReady $fixture)) { throw }
-                }
-            }
-        }
+        Wait-OwnedTmuxSocketReady $fixture $socketSignal $CancellationToken $SocketReadyTimeout
         if ($fixture.ServerProcess.HasExited) {
             throw "Owned tmux server exited before socket readiness ($($fixture.ServerProcess.ExitCode))."
         }

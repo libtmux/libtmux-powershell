@@ -1,0 +1,59 @@
+# Builds the installed packages that the macOS workflows test, from the same
+# published .NET dependencies and locks as Linux. It is a reusable workflow so
+# the gating lane and the stress run share one recipe.
+name: powershell published dependency packages
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  package:
+    name: published dependency packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Install official PowerShell 7.4.20 for packaging
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
+            "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
+
+      - name: Restore locked dependencies and pack the modules
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
+            -Restore \
+            -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
+          PSModulePath="${GITHUB_WORKSPACE}/build/Modules" \
+            "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Package.ps1 \
+            -DestinationPath "${RUNNER_TEMP}/port-package"
+          cp build/Modules/LibTmux/0.1.0/dependencies.json \
+            "${RUNNER_TEMP}/port-package/core-dependencies.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-package
+          path: ${{ runner.temp }}/port-package/
+          if-no-files-found: error
+          retention-days: 7

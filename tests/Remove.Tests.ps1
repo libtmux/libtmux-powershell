@@ -53,19 +53,7 @@ function Invoke-OwnedServerReplacement($Fixture, [Threading.Tasks.Task] $SocketR
         $Fixture.ServerOutput = $Fixture.ServerProcess.StandardOutput.ReadToEndAsync()
         $Fixture.ServerError = $Fixture.ServerProcess.StandardError.ReadToEndAsync()
         $socketSignal = if ($SocketReadyTask) { $SocketReadyTask } else { $signal.Ready }
-        $ready = [Threading.Tasks.Task]::WhenAny([Threading.Tasks.Task[]] @(
-            $socketSignal, $Fixture.ServerProcess.WaitForExitAsync()))
-        try {
-            $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(100)).GetAwaiter().GetResult()
-        } catch [TimeoutException] {
-            if (-not (Test-OwnedTmuxSocketReady $Fixture)) {
-                try {
-                    $null = $ready.WaitAsync([TimeSpan]::FromMilliseconds(900)).GetAwaiter().GetResult()
-                } catch [TimeoutException] {
-                    if (-not (Test-OwnedTmuxSocketReady $Fixture)) { throw }
-                }
-            }
-        }
+        Wait-OwnedTmuxSocketReady $Fixture $socketSignal
         Assert-True (-not $Fixture.ServerProcess.HasExited) 'The replacement daemon exited before socket readiness.'
         if ($socketSignal.IsCompleted) { $null = $socketSignal.GetAwaiter().GetResult() }
         $null = Invoke-OwnedTmux $Fixture -Arguments @('new-session', '-d', '-s', 'fixture', 'exec /bin/sh')
@@ -195,8 +183,7 @@ Invoke-WithOwnedTmux {
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -ConfigurationFile '/dev/null'
     $snapshot = $server | LibTmux\Get-TmuxSnapshot
     $old = @{ Session = $snapshot.Sessions[0]; Window = $snapshot.Windows[0]; Pane = $snapshot.Panes[0] }
-    $missedSignal = [Threading.Tasks.TaskCompletionSource[bool]]::new()
-    Invoke-OwnedServerReplacement $fixture $missedSignal.Task
+    Invoke-OwnedServerReplacement $fixture
     foreach ($kind in @('Session', 'Window', 'Pane')) {
         $target = $old[$kind]
         $failure = $null

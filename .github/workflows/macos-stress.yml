@@ -1,0 +1,168 @@
+# Repeats the real-tmux suites and reports each test's failure count, on macOS
+# and on an ubuntu control. Run it before widening what the macOS lane gates.
+name: powershell macOS stress
+
+on:
+  push:
+    branches: [flaky-investigations-000]
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Repetitions of every suite.
+        default: '10'
+      suites:
+        description: Space-separated suites to repeat; empty repeats every suite.
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: powershell-macos-stress-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
+  REPEAT: ${{ inputs.repeat || '3' }}
+  SUITES: ${{ inputs.suites }}
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  package:
+    name: published dependency packages
+    uses: ./.github/workflows/package.yml
+
+  macos:
+    needs: package
+    name: macOS stress
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: libtmux/libtmux-dotnet
+          ref: ${{ env.CORE_REVISION }}
+          path: core
+          persist-credentials: false
+
+      - uses: ./.github/actions/macos-toolchain
+        with:
+          arch: arm64
+          asset_arch: arm64
+          powershell: '7.4.20'
+          powershell_sha256: 7f9a2503304ee239330f5c4ccc7eef11894b095d7ccb8f9fa78a16c6ee508edc
+          tmux: '3.7c'
+          tmux_commit: e476c1230b958df0cb12977517d24b3dc931375b
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: macos-package
+          path: ${{ runner.temp }}/port-package
+
+      - name: Repeat every suite
+        env:
+          LIBTMUX_TEST_WAIT_LOG: ${{ runner.temp }}/waits.tsv
+        run: |
+          eng/ci/stress.sh "${RUNNER_TEMP}/powershell/pwsh" \
+            "${RUNNER_TEMP}/port-package" "${REPEAT}" "${RUNNER_TEMP}/receipts" "${SUITES}"
+
+      - name: Report failure counts
+        if: always()
+        run: |
+          python3 eng/ci/stress.py report \
+            --receipts "${RUNNER_TEMP}/receipts" \
+            --label "macOS arm64, tmux 3.7c, ${REPEAT} repetitions" \
+            --csv "${RUNNER_TEMP}/stress-macos.csv" \
+            --summary "${GITHUB_STEP_SUMMARY}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: stress-macos
+          path: |
+            ${{ runner.temp }}/stress-macos.csv
+            ${{ runner.temp }}/waits.tsv
+            ${{ runner.temp }}/receipts/
+          retention-days: 30
+
+  linux:
+    needs: package
+    name: ubuntu control
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: libtmux/libtmux-dotnet
+          ref: ${{ env.CORE_REVISION }}
+          path: core
+          persist-credentials: false
+
+      - name: Install official PowerShell 7.4.20
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+
+      - name: Install tmux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            autoconf automake bison build-essential jq \
+            libevent-dev libncurses-dev pkg-config
+
+      - name: Build and identify tmux 3.7c
+        env:
+          TMUX_VERSION: '3.7c'
+          TMUX_SOURCE_COMMIT: e476c1230b958df0cb12977517d24b3dc931375b
+        run: |
+          core/eng/tmux/build-version.sh "${TMUX_VERSION}"
+          binary="core/artifacts/tmux/installs/${TMUX_VERSION}/bin/tmux"
+          test "$(cat "core/artifacts/tmux/installs/${TMUX_VERSION}/source-commit")" = "${TMUX_SOURCE_COMMIT}"
+          test "$("${binary}" -V)" = "tmux ${TMUX_VERSION}"
+          realpath "$(dirname "${binary}")" >> "${GITHUB_PATH}"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: macos-package
+          path: ${{ runner.temp }}/port-package
+
+      - name: Repeat every suite
+        env:
+          LIBTMUX_TEST_WAIT_LOG: ${{ runner.temp }}/waits.tsv
+        run: |
+          eng/ci/stress.sh "${RUNNER_TEMP}/powershell/pwsh" \
+            "${RUNNER_TEMP}/port-package" "${REPEAT}" "${RUNNER_TEMP}/receipts" "${SUITES}"
+
+      - name: Report failure counts
+        if: always()
+        run: |
+          python3 eng/ci/stress.py report \
+            --receipts "${RUNNER_TEMP}/receipts" \
+            --label "ubuntu control, tmux 3.7c, ${REPEAT} repetitions" \
+            --csv "${RUNNER_TEMP}/stress-linux.csv" \
+            --summary "${GITHUB_STEP_SUMMARY}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: stress-linux
+          path: |
+            ${{ runner.temp }}/stress-linux.csv
+            ${{ runner.temp }}/waits.tsv
+            ${{ runner.temp }}/receipts/
+          retention-days: 30

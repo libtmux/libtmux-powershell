@@ -10,19 +10,6 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
 
-function Resolve-PhysicalDirectory([string] $Path) {
-    $fullPath = [IO.Path]::GetFullPath($Path)
-    $root = [IO.Path]::GetPathRoot($fullPath)
-    $resolved = $root
-    foreach ($segment in [IO.Path]::GetRelativePath($root, $fullPath).Split(
-        [IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
-        $candidate = [IO.Path]::Combine($resolved, $segment)
-        $target = [IO.DirectoryInfo]::new($candidate).ResolveLinkTarget($true)
-        $resolved = if ($target) { Resolve-PhysicalDirectory $target.FullName } else { $candidate }
-    }
-    $resolved
-}
-
 foreach ($name in @('New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane')) {
     Assert-True ($null -ne (Get-Command "LibTmux\$name" -ErrorAction SilentlyContinue)) "Installed module does not export $name."
 }

@@ -38,6 +38,28 @@ def receive(fd, expected, seconds=5):
     return bytes(data)
 
 
+def terminal_attributes(master):
+    # Read through the master. When the session leader exits, XNU revokes the
+    # controlling terminal and every descriptor still open on the slave side
+    # answers ENOTTY, while the master keeps reporting the line discipline.
+    return termios.tcgetattr(master)
+
+
+def drain_until_eof(fd):
+    # tmux stops reading a pane while every client attached to it is a control
+    # client with unread output, so a control client must be read continuously.
+    def drain():
+        try:
+            while os.read(fd, 8192):
+                pass
+        except OSError:
+            pass
+
+    reader = threading.Thread(target=drain, daemon=True)
+    reader.start()
+    return reader
+
+
 def stop_group(process):
     # Every long-lived child starts a fresh process group owned by this harness.
     # A reaped leader no longer pins its PID against reuse by another group.
@@ -293,7 +315,7 @@ def run(args):
         except BaseException as failure:
             cleanup_errors.append(f"{label}: {failure!r}")
 
-    sentinel = None
+    sentinel = sentinel_reader = None
     try:
         report["tmuxVersion"] = command("display-message", "-p", "#{version}").stdout.decode().strip()
         generation = command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip()
@@ -303,6 +325,7 @@ def run(args):
                                     stderr=subprocess.PIPE, start_new_session=True)
         owned.append(sentinel)
         receive(sentinel.stdout.fileno(), b"%end ", seconds=remaining(5))
+        sentinel_reader = drain_until_eof(sentinel.stdout.fileno())
 
         for mode in args.modes:
             case_started = time.monotonic()
@@ -316,7 +339,7 @@ def run(args):
             try:
                 master, slave = pty.openpty()
                 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-                original = termios.tcgetattr(slave)
+                original = terminal_attributes(master)
 
                 def terminal():
                     os.setsid()
@@ -392,7 +415,7 @@ def run(args):
                 assert command("display-message", "-p", "#{pid}:#{start_time}").stdout.decode().strip() == generation
                 command("has-session", "-t", args.session)
                 command("has-session", "-t", args.sentinel_session)
-                restored = termios.tcgetattr(slave) == original
+                restored = terminal_attributes(master) == original
                 assert restored, "Terminal attributes were not restored"
                 cases.append({"mode": mode, "status": "PASS", "seconds": time.monotonic() - case_started,
                               "preparationSeconds": preparation_seconds, "attachmentSeconds": attachment_seconds,
@@ -419,6 +442,8 @@ def run(args):
         # A failed child cleanup must never suppress sentinel cleanup or the receipt.
         if sentinel is not None:
             cleanup("sentinel process group", lambda: stop_group(sentinel))
+            if sentinel_reader is not None:
+                sentinel_reader.join(timeout=1)
             for name in ("stdin", "stdout", "stderr"):
                 stream = getattr(sentinel, name)
                 if stream is not None:

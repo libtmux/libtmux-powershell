@@ -13,6 +13,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($Gallery) { $galleryTimer = [Diagnostics.Stopwatch]::StartNew() }
 Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion $PSResourceGetVersion
+. "$PSScriptRoot/support/ResourceFeed.ps1"
 
 if ($Gallery) {
     if ($RepositoryName -and $RepositoryName -cne 'PSGallery') {
@@ -42,9 +43,7 @@ $repository = if ($Gallery) { 'PSGallery' } else {
 }
 $before = @(Get-PSResourceRepository)
 $registered = $false
-$feedProcess = $null
-$feedStarted = $false
-$feedErrors = $null
+$feed = $null
 $passed = $false
 $timer = if ($Gallery) { $galleryTimer } else { [Diagnostics.Stopwatch]::StartNew() }
 
@@ -146,27 +145,8 @@ try {
     $null = New-Item "$owned/modules", "$owned/download" -ItemType Directory
     if (!$Gallery) {
         # File feeds read numeric manifest dependencies instead of alpha nuspec pins.
-        $feedStart = [Diagnostics.ProcessStartInfo]::new('python3')
-        $feedStart.UseShellExecute = $false
-        $feedStart.RedirectStandardInput = $true
-        $feedStart.RedirectStandardOutput = $true
-        $feedStart.RedirectStandardError = $true
-        $feedStart.WorkingDirectory = $owned
-        foreach ($argument in @("$PSScriptRoot/support/resource_feed.py", '--package-root', $PackageRoot)) {
-            $feedStart.ArgumentList.Add($argument)
-        }
-        $feedProcess = [Diagnostics.Process]::new()
-        $feedProcess.StartInfo = $feedStart
-        $feedStarted = $feedProcess.Start()
-        if (!$feedStarted) { throw 'The owned package feed did not start.' }
-        $feedErrors = $feedProcess.StandardError.ReadToEndAsync()
-        $ready = $feedProcess.StandardOutput.ReadLineAsync()
-        if (!$ready.Wait(1000)) { throw 'The owned package feed did not report readiness within one second.' }
-        $uri = $ready.GetAwaiter().GetResult()
-        if ($uri -cnotmatch '^http://127\.0\.0\.1:[0-9]+/api/v2$') {
-            throw 'The owned package feed returned an unexpected endpoint.'
-        }
-        Register-PSResourceRepository -Name $repository -Uri $uri -ApiVersion V2 -Trusted
+        $feed = Start-ResourceFeed $PackageRoot '0.1.0-alpha2'
+        Register-PSResourceRepository -Name $repository -Uri $feed.Uri -ApiVersion V2 -Trusted
         $registered = $true
     }
     $saveArguments = @('-PackageRoot', $PackageRoot,
@@ -234,21 +214,7 @@ try {
         }
     } finally {
         try {
-            if ($feedProcess) {
-                try {
-                    if ($feedStarted) {
-                        $feedProcess.StandardInput.Close()
-                        if (!$feedProcess.WaitForExit(1000)) {
-                            $feedProcess.Kill($true)
-                            if (!$feedProcess.WaitForExit(1000)) { throw 'The owned package feed did not exit after termination.' }
-                            throw 'The owned package feed did not stop when stdin closed.'
-                        }
-                        if ($feedProcess.ExitCode -ne 0 -or $feedErrors.GetAwaiter().GetResult()) {
-                            throw 'The owned package feed failed or wrote unexpected stderr.'
-                        }
-                    }
-                } finally { $feedProcess.Dispose() }
-            }
+            if ($feed) { Stop-ResourceFeed $feed }
         } finally {
             if (Test-Path -LiteralPath $owned) { Remove-Item -LiteralPath $owned -Recurse -Force }
             if (Test-Path -LiteralPath $owned) { throw 'Owned package directories remain after cleanup.' }

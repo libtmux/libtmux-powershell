@@ -1,12 +1,14 @@
 """Process-group cleanup contracts for the owned attachment PTY."""
 
 import errno
+import fcntl
 import os
 from pathlib import Path
 import pty
 import signal
 import subprocess
 import sys
+import termios
 import time
 from types import SimpleNamespace
 import unittest
@@ -161,6 +163,72 @@ class ProcessGroupCleanupTests(unittest.TestCase):
             except ProcessLookupError:
                 pass
             process.wait(timeout=1)
+
+
+class TerminalAttributeTests(unittest.TestCase):
+    def test_attributes_come_from_the_master_after_the_slave_is_revoked(self):
+        master, slave = pty.openpty()
+        real = termios.tcgetattr
+        try:
+            expected = real(master)
+
+            def revoked_slave(fd):
+                if fd == slave:
+                    raise termios.error(errno.ENOTTY, "Inappropriate ioctl for device")
+                return real(fd)
+
+            with mock.patch.object(attachment_pty.termios, "tcgetattr", side_effect=revoked_slave):
+                self.assertEqual(attachment_pty.terminal_attributes(master), expected)
+        finally:
+            os.close(master)
+            os.close(slave)
+
+    def test_attributes_survive_session_leader_exit(self):
+        master, slave = pty.openpty()
+        try:
+            before = attachment_pty.terminal_attributes(master)
+
+            def terminal():
+                os.setsid()
+                fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+
+            process = subprocess.Popen([sys.executable, "-c", "pass"], stdin=slave, stdout=slave,
+                                       stderr=slave, preexec_fn=terminal)
+            self.assertEqual(attachment_pty.wait_unreaped_draining_pty(process, master, timeout=5), 0)
+            process.wait(timeout=1)
+            self.assertEqual(attachment_pty.terminal_attributes(master), before)
+        finally:
+            os.close(master)
+            os.close(slave)
+
+
+class ControlClientDrainTests(unittest.TestCase):
+    def writer(self):
+        return subprocess.Popen([sys.executable, "-c",
+            "import os; data = memoryview(b'x' * 1048576)\nwhile data: data = data[os.write(1, data):]"],
+            stdout=subprocess.PIPE)
+
+    def test_unread_control_output_blocks_the_writer(self):
+        process = self.writer()
+        try:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                process.wait(timeout=0.3)
+        finally:
+            process.kill()
+            process.stdout.close()
+            process.wait()
+
+    def test_drained_control_output_lets_the_writer_finish(self):
+        process = self.writer()
+        try:
+            reader = attachment_pty.drain_until_eof(process.stdout.fileno())
+            self.assertEqual(process.wait(timeout=5), 0)
+            reader.join(timeout=2)
+            self.assertFalse(reader.is_alive())
+        finally:
+            if process.returncode is None:
+                process.kill()
+            process.stdout.close()
 
 
 if __name__ == "__main__":
