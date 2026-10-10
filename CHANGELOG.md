@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 - 2026-10-10
+
+First alpha release of `LibTmux` and `LibTmux.Workspace`. APIs may change before
+a stable release. Both modules build on
+[libtmux for .NET 0.0.0-alpha.20](https://github.com/libtmux/libtmux-dotnet/releases/tag/v0.0.0-alpha.20).
+Workspace requires `LibTmux` exactly `0.1.0`.
 
 ### What's new
 

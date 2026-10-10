@@ -18,6 +18,7 @@ $passed = $false
 $runProduct = $Suite -in @('Product', 'All')
 $runDocumentation = $Suite -in @('Documentation', 'All')
 $parallelTests = $false
+$workerLimit = 2
 $activeTests = [Collections.Generic.List[object]]::new()
 $workerFailures = [Collections.Generic.List[Management.Automation.ErrorRecord]]::new()
 $unreapedChildren = [Collections.Generic.List[int]]::new()
@@ -68,7 +69,7 @@ function Wait-TestScript {
 
 function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [string] $ModuleRoot) {
     if ($parallelTests) {
-        while ($activeTests.Count -ge 2) { Wait-TestScript }
+        while ($activeTests.Count -ge $workerLimit) { Wait-TestScript }
         if ($workerFailures.Count) { return }
     }
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
@@ -141,12 +142,12 @@ try {
         if (!$McpCommand -or !$McpVersion) { throw '-McpCommand and -McpVersion must identify the independently installed tool.' }
         Invoke-TestScript 'tests/Mcp.Tests.ps1' @('-McpCommand', $McpCommand, '-McpVersion', $McpVersion)
     }
-    if ($Suite -eq 'Install' -or $runProduct) {
+    if ($Suite -eq 'Install') {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
-    if ($Suite -eq 'Fixture' -or $runProduct) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
+    if ($Suite -eq 'Fixture') { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
     if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
@@ -157,18 +158,28 @@ try {
                 $destination = Join-Path $installed "$name/0.1.0"
                 [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
             }
+            if ($runProduct) {
+                # MixedCore changes shared files; finish before starting their readers.
+                Invoke-TestScript 'tests/MixedCore.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                $workerLimit = 3
+                $parallelTests = $true
+                Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', $PackageRoot,
+                    '-PSResourceGetVersion', $PSResourceGetVersion)
+                Invoke-TestScript 'tests/Fixture.Tests.ps1'
+            }
             if ($Suite -eq 'Package' -or $runProduct) {
                 foreach ($order in @('CoreFirst', 'WorkspaceFirst')) {
                     Invoke-TestScript 'tests/Package.Tests.ps1' @('-ModuleRoot', $installed, '-Order', $order) $installed
                 }
                 Invoke-TestScript 'tests/PackageConflict.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 Invoke-TestScript 'tests/AssemblyReplacement.Tests.ps1' @('-ModuleRoot', $installed) $installed
-                Invoke-TestScript 'tests/MixedCore.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                if (!$runProduct) {
+                    Invoke-TestScript 'tests/MixedCore.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                }
                 foreach ($case in @('PublicKeyToken', 'Culture', 'CompatibleVersion')) {
                     Invoke-TestScript 'tests/DependencyIdentity.Tests.ps1' @('-ModuleRoot', $installed, '-Case', $case) $installed
                 }
             }
-            # Package checks mutate shared bytes; later scripts own their fixtures.
             $parallelTests = $runProduct
             if ($Suite -eq 'Read' -or $runProduct) {
                 Invoke-TestScript 'tests/Read.Tests.ps1' @('-ModuleRoot', $installed) $installed
@@ -273,6 +284,7 @@ try {
                 Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed,
                     '-Phase', 'Metadata', '-AdmissionPath', $guideAdmission) $installed
             }
+            $workerLimit = 2
             $parallelTests = $runDocumentation
             if ($Suite -eq 'Help') {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed) $installed
