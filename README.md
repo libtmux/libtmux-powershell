@@ -32,8 +32,9 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 [Troubleshooting](docs/troubleshooting.md) ·
 [Cmdlet reference](docs/reference/README.md) · [License](#license)
 
-**Alpha.** APIs may change. Build from this checkout; the modules are not yet
-published to PowerShell Gallery.
+**Alpha.** APIs may change. Both modules are available on PowerShell Gallery:
+[LibTmux](https://www.powershellgallery.com/packages/LibTmux)
+and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
 ## Install from source
 
