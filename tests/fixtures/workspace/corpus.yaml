@@ -1,0 +1,40 @@
+session_name: corpus
+start_directory: ${PROJECT_ROOT}
+options:
+  default-command: exec /bin/sh
+  '@corpus-session': yaml-original
+environment:
+  CORPUS_SESSION: yaml-root
+  CORPUS_LAYER: session
+shell_command_before:
+  - cmd: echo session >> order.txt
+windows:
+  - window_name: yaml-editor
+    start_directory: window
+    layout: even-horizontal
+    focus: true
+    options:
+      '@corpus-window': '${OPTION_TAG}'
+    environment:
+      CORPUS_WINDOW: yaml-window
+      CORPUS_LAYER: window
+    shell_command_before:
+      - cmd: echo window >> order.txt
+    panes:
+      - shell_command:
+          - cmd: echo command >> order.txt
+          - 'echo "$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER" > environment.txt'
+          - tmux wait-for -S corpus-yaml-first
+      - start_directory: pane
+        focus: true
+        options:
+          '@corpus-pane': yaml
+        environment:
+          CORPUS_PANE: yaml-pane
+          CORPUS_LAYER: pane
+        shell_command_before:
+          - cmd: echo pane >> order.txt
+        shell_command:
+          - echo command >> order.txt
+          - 'echo "$CORPUS_SESSION|$CORPUS_WINDOW|$CORPUS_PANE|$CORPUS_LAYER" > environment.txt'
+          - tmux wait-for -S corpus-yaml-second

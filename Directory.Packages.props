@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="System.Management.Automation" Version="[7.4.20]" />
+    <PackageVersion Include="LibTmux" Version="[0.0.0-alpha.20]" />
+    <PackageVersion Include="LibTmux.Query.Json" Version="[0.0.0-alpha.20]" />
+    <PackageVersion Include="LibTmux.Workspace" Version="[0.0.0-alpha.20]" />
+    <PackageVersion Include="YamlDotNet" Version="[18.1.0]" />
+  </ItemGroup>
+</Project>

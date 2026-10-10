@@ -8,6 +8,8 @@
 **/obj/
 TestResults/
 BenchmarkDotNet.Artifacts/
+**/__pycache__/
+*.pyc
 *.nupkg
 *.snupkg
 *.log

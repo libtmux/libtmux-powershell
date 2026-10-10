@@ -1,0 +1,1862 @@
+<?xml version="1.0" encoding="utf-8"?>
+<helpItems xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" schema="maml" xmlns="http://msh">
+  <command:command>
+    <command:details>
+      <command:name>ConvertTo-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Convert a captured session to a native workspace declaration.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return one native WorkspaceFile for each captured Session received from the
+pipeline. The shared library preserves captured window placements and pane order,
+names, layouts, active window and pane flags, and pane directories. Repeated links
+to the same window become separate declared windows.
+
+Capture with Get-TmuxSnapshot -Depth Panes before selecting a Session. Conversion
+never contacts tmux or fills unavailable relations. The captured graph remains
+convertible after its daemon exits. A missing field or relation is an error;
+a captured null pane directory remains unspecified rather than using the host's
+current directory.
+
+Captured directories become unresolved declaration values with literal dollars
+escaped as `$$`. DocumentDirectory remains null. Use Resolve-TmuxWorkspace with
+an explicit BaseDirectory before planning, or convert the declaration to YAML
+or JSON and resolve it after importing. Do not interpret those escaped values
+as already resolved filesystem paths.
+
+Conversion preserves session-relative window indices. It emits a warning for
+each successful input because it omits observed environment, options,
+terminal text, entity IDs, pane indices and shared-link identity.
+It cannot reconstruct original commands, arguments or shell intent. Foreground
+command names do not establish the shell command that started a pane. Original
+relative paths, expansion variables, comments, host scripts and pre-commands
+are not reconstructed. Native custom layouts can change which pane occupies a
+position when applied. This declaration
+is a starting configuration, not a checkpoint of running programs.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native session whose window, pane and active-pane relations and required
+fields have already been captured. Binding by an arbitrary object's Session
+property is not supported.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native captured session; serialized copies are not live native objects.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One unresolved declaration per successfully converted input session.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.WorkspaceFreezeFailed retains the original native exception and input
+Session as its target. IncompleteSnapshotException uses the InvalidData error
+category. ErrorAction Continue permits later sessions to be converted without
+emitting a declaration for a failed input; ErrorAction Stop terminates.
+The loss warning uses PowerShell's warning stream and supports WarningAction.
+The command performs no acquisition, execution or file write and has no WhatIf
+or Confirm parameters.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Convert a native Session selected from a pane-depth snapshot. This operation
+uses only the supplied capture and does not own resources requiring cleanup.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$capturedSession | LibTmux.Workspace\ConvertTo-TmuxWorkspace
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/ConvertTo-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxSnapshot</maml:linkText>
+        <maml:uri>../LibTmux/Get-TmuxSnapshot.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceYaml</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceYaml.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceJson</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceJson.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>ConvertTo-TmuxWorkspaceJson</command:name>
+      <maml:description>
+        <maml:para>Convert a native workspace declaration to JSON text.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxWorkspaceJson</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return one string for each native WorkspaceFile received from the pipeline.
+The text uses the snake_case keys accepted by Import-TmuxWorkspace and the
+native parser. Conversion preserves pane and command order, empty strings,
+nullable fields, global and local options, post-construction options,
+environment and commands at every declaration level. It does not expand
+command text or inherit local defaults into children.
+
+Resolved directories and option values contain literal text. Conversion
+escapes their dollar signs as `$$` so export, import and a later explicit
+Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
+remain unchanged.
+DocumentDirectory is resolution provenance and is omitted from the text;
+provide an explicit base when resolving the imported declaration.
+
+The native parser checks emitted text, including its character limit. This is
+not application validation: incomplete declarations can still be converted.
+No tmux observation, command execution, file writing or plan serialization
+occurs. Formatting and comments from an imported source document are not part
+of the native declaration and are not reproduced.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxWorkspaceJson</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Workspace</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspaceFile</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Workspace</maml:name>
+        <maml:description>
+          <maml:para>The native declaration to serialize without applying it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceFile</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A parsed or explicitly resolved declaration.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One JSON document per input declaration.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Serialization errors terminate with Tmux.WorkspaceJsonFailed and retain the
+original exception. Null host commands are omitted because the native parser
+rejects an explicit null before_script. Nullable name and directory values
+remain distinct from empty strings. The native model does not retain a
+distinction between omitted and empty collections or omitted and false focus.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Convert a two-pane declaration for storage or inspection.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: work
+    panes: [nvim, ""]
+'@ | LibTmux.Workspace\ConvertTo-TmuxWorkspaceJson
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/ConvertTo-TmuxWorkspaceJson.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceYaml</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceYaml.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>ConvertTo-TmuxWorkspaceYaml</command:name>
+      <maml:description>
+        <maml:para>Convert a native workspace declaration to YAML text.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxWorkspaceYaml</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return one string for each native WorkspaceFile received from the pipeline.
+The text uses the snake_case keys accepted by Import-TmuxWorkspace and the
+native parser. Conversion preserves pane and command order, empty strings,
+nullable fields, global and local options, post-construction options,
+environment and commands at every declaration level. It does not expand
+command text or inherit local defaults into children.
+
+Resolved directories and option values contain literal text. Conversion
+escapes their dollar signs as `$$` so export, import and a later explicit
+Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
+remain unchanged.
+DocumentDirectory is resolution provenance and is omitted from the text;
+provide an explicit base when resolving the imported declaration.
+
+The native parser checks emitted text, including its character limit. This is
+not application validation: incomplete declarations can still be converted.
+No tmux observation, command execution, file writing or plan serialization
+occurs. Formatting and comments from an imported source document are not part
+of the native declaration and are not reproduced.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxWorkspaceYaml</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Workspace</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspaceFile</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Workspace</maml:name>
+        <maml:description>
+          <maml:para>The native declaration to serialize without applying it.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceFile</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A parsed or explicitly resolved declaration.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One YAML document per input declaration.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Serialization errors terminate with Tmux.WorkspaceYamlFailed and retain the
+original exception. Null host commands are omitted because the native parser
+rejects an explicit null before_script. Nullable name and directory values
+remain distinct from empty strings. The native model does not retain a
+distinction between omitted and empty collections or omitted and false focus.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Convert a two-pane declaration for storage or inspection.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: work
+    panes: [nvim, ""]
+'@ | LibTmux.Workspace\ConvertTo-TmuxWorkspaceYaml
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/ConvertTo-TmuxWorkspaceYaml.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>ConvertTo-TmuxWorkspaceJson</maml:linkText>
+        <maml:uri>ConvertTo-TmuxWorkspaceJson.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Get-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Find workspace declaration files without loading sessions.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return native FileInfo objects for readable, seekable declaration files.
+Discovery does not contact tmux, run scripts, resolve declaration variables or
+create configuration directories. Pipe a selected file to Import-TmuxWorkspace
+for parsing, or Resolve-TmuxWorkspace for explicit file-relative resolution.
+
+With no arguments, list .tmuxp.yaml, .tmuxp.yml and .tmuxp.json in the current
+filesystem directory, then each ancestor through HOME when it is an ancestor,
+otherwise through the filesystem root. Each directory uses that extension
+order. Append files from the first existing global configuration directory:
+ConfigurationDirectory, TMUXP_CONFIGDIR, XDG_CONFIG_HOME/tmuxp (or
+HOME/.config/tmuxp), then HOME/.tmuxp. HOME falls back to the platform user
+profile directory when unset. Missing default locations are skipped; an
+explicit missing ConfigurationDirectory is an error. AllLocations includes
+all existing global candidates in that order, preserving shadowed files.
+Global filenames sort ordinally within each location. Repeated full paths
+are emitted once.
+
+Directory checks only the three local .tmuxp filenames in that exact directory.
+LiteralPath selects one exact filesystem file and bypasses discovery; it has
+no extension restriction. File symlinks retain their literal paths when the
+shared opener accepts the target. Directory entries are not files and are
+never recursively descended, including directory symlinks.
+
+Name searches only the selected global locations. It is a literal basename,
+with an optional .yaml, .yml or .json suffix. Without a supported suffix, those
+three suffixes are tried in order. Multiple matches in one location are an
+ambiguity error naming the candidates; use LiteralPath to choose. A missing
+name emits no objects. Path separators are rejected; wildcard characters are
+literal. Filename suffixes are lowercase and literal; path/name identity
+follows the filesystem, independently of search case behavior.
+
+Search uses literal ordinal-ignore-case substring matching on filenames by
+default. CaseSensitive selects ordinal matching. SearchIn selects FileName,
+Path, Session, Window, Command or Directory fields. Path searches the full
+selected path without reading file content. Any content field
+parses every candidate with the shared strict UTF-8 reader, accepting a UTF-8
+BOM and at most 1048576 characters. Command includes before_script and all
+pane commands and shell_command_before entries; none are executed. Directory
+searches declared strings without expansion. Multiple fields combine by OR.
+Malformed candidate data fails content search even if its filename matches.
+
+Traversal stops with an error after 1024 examined entries: existing local
+marker probes and global directory entries count, including unselected suffixes
+and directories. Ancestor traversal also has a 1024-directory ceiling. Narrow
+the request with Directory, Name or LiteralPath. Results are published only
+after successful discovery/search, so failures do not emit truncated lists.
+Filesystem contents can change between discovery and later import; FileInfo
+output is not a locked or atomic filesystem snapshot.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspace</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ConfigurationDirectory</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllLocations</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ConfigurationDirectory</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllLocations</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Directory</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>LiteralPath</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Search</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>SearchIn</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">FileName</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Path</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Command</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Directory</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">String[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CaseSensitive</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ConfigurationDirectory</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllLocations</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>AllLocations</maml:name>
+        <maml:description>
+          <maml:para>Include every existing global location in precedence order instead of only the first.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CaseSensitive</maml:name>
+        <maml:description>
+          <maml:para>Use ordinal case-sensitive substring matching. This does not change path or name identity.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ConfigurationDirectory</maml:name>
+        <maml:description>
+          <maml:para>The first global directory candidate. An explicitly supplied missing directory is an error.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Directory</maml:name>
+        <maml:description>
+          <maml:para>One existing directory whose local .tmuxp declaration filenames are checked.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>LiteralPath</maml:name>
+        <maml:description>
+          <maml:para>One literal FileSystem path. Other providers and directories are rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>A literal global declaration basename, optionally ending in .yaml, .yml or .json.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Search</maml:name>
+        <maml:description>
+          <maml:para>Literal substring text, from 1 through 4096 characters. No regex or wildcard interpretation.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>SearchIn</maml:name>
+        <maml:description>
+          <maml:para>Fields to search. Any declaration field explicitly opts into bounded parsing of all candidates.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">FileName</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Path</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Session</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Window</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Command</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Directory</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.IO.FileInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Declaration files in documented precedence order.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures write Tmux.WorkspaceDiscoveryFailed with the request as TargetObject.
+File read/parse errors retain the original exception and identify the failing
+path in Exception.Data['WorkspacePath']. Use ErrorAction Stop to terminate.
+Cancellation is checked between traversal, read and search operations and
+before publication. Stopping discovery does not delete files or stop a daemon.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Select the existing declaration named by $WorkspacePath, retaining a native
+FileInfo that can feed Import-TmuxWorkspace or Resolve-TmuxWorkspace.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux.Workspace\Get-TmuxWorkspace -LiteralPath $WorkspacePath
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Get-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Get-TmuxWorkspacePlan</command:name>
+      <maml:description>
+        <maml:para>Observe an explicit endpoint and prepare a workspace plan.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxWorkspacePlan</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Validate the native declaration and policies, then inspect the supplied tmux
+endpoint. Return one native WorkspacePlan containing ordered actions, native
+requests and observed identity preconditions. Planning does not start a daemon,
+create panes, send commands or execute the declaration's host script.
+
+Resolve file-relative paths explicitly before planning. Host scripts require a
+resolved document directory and AllowHostScripts when they will execute. The
+plan freezes the chosen policies, host limits and command arguments. Review its
+Actions and CompensationActions, then pass that same plan to
+Invoke-TmuxWorkspace. Changing a source file does not change an existing plan.
+
+Error refuses a conflicting session. Reuse plans only reuse when that session
+exists, skipping declaration effects and host execution. Append creates declared
+windows while preserving local session settings and applying declared global
+defaults. Global options can affect other sessions that inherit them and are
+not restored by compensation. Replace selects the exact observed session for
+replacement. A stale plan fails at application; it is not automatically
+regenerated.
+
+Observation spans tmux operations and is not a transaction. Native options,
+layouts, hooks and configuration can still cause application failures.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxWorkspacePlan</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Workspace</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspaceFile</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExistingSession</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Error</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Reuse</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Append</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Replace</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceExistingSession</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceExistingSession</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ServerStartup</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">CreateOrJoin</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RequireExisting</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceServerStartup</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceServerStartup</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Readiness</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Immediate</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cooperative</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceReadiness</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceReadiness</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ReadinessTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CompensateOnFailure</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllowHostScripts</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>HostScriptTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxHostOutputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CleanupTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>AllowHostScripts</maml:name>
+        <maml:description>
+          <maml:para>Allow a declared before_script to become a native RunHostScript action. Planning does not execute it. Reuse skips it when the existing session can be reused.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CleanupTimeout</maml:name>
+        <maml:description>
+          <maml:para>The total failure-cleanup budget in seconds. Accepts finite values from 0.0000001 through 86400. Incomplete or uncertain cleanup remains visible in the native journal.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CompensateOnFailure</maml:name>
+        <maml:description>
+          <maml:para>Attempt cleanup of journal-proven creations after failure. Shell input and host-script effects are irreversible. Owned readiness channels and replacement keepalives have mandatory cleanup regardless of this switch.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ExistingSession</maml:name>
+        <maml:description>
+          <maml:para>Choose Error, Reuse, Append or Replace for a session with the same literal name. Replace is frozen into the plan; invocation uses normal PowerShell confirmation.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Error</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Reuse</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Append</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Replace</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceExistingSession</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceExistingSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>HostScriptTimeout</maml:name>
+        <maml:description>
+          <maml:para>The host script deadline, including output collection, in seconds. Accepts finite values from 0.0000001 through 86400.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxHostOutputBytes</maml:name>
+        <maml:description>
+          <maml:para>The positive combined stdout and stderr capture limit in UTF-8 bytes. Additional output is drained and its dropped byte count remains visible in the native host result.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Readiness</maml:name>
+        <maml:description>
+          <maml:para>Immediate sends input without claiming shell readiness or command completion. Cooperative requires pane startup to signal the channel named by LIBTMUX_WORKSPACE_READY.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Immediate</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Cooperative</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceReadiness</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceReadiness</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ReadinessTimeout</maml:name>
+        <maml:description>
+          <maml:para>Each cooperative signal budget in seconds. Accepts finite values from 0.0000001 through 86400.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The explicit endpoint to inspect. Planning borrows its lifetime and never initializes an absent daemon.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ServerStartup</maml:name>
+        <maml:description>
+          <maml:para>CreateOrJoin allows later application to start or join an initially absent daemon. RequireExisting fails planning when no daemon is present. Neither choice grants daemon ownership.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">CreateOrJoin</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RequireExisting</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceServerStartup</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceServerStartup</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Workspace</maml:name>
+        <maml:description>
+          <maml:para>The immutable parsed declaration. Resolve paths explicitly before planning when they depend on a document directory.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceFile</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A parsed declaration, optionally resolved against an explicit document directory.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspacePlan</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native immutable plan with its endpoint and ordered actions.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>All numeric timeout parameters use seconds. Policy validation occurs before
+endpoint observation. Planning errors preserve the native exception with the
+Tmux.WorkspacePlanFailed identifier; invalid policy values use
+Tmux.InvalidWorkspacePolicy.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Plan a workspace at an explicit socket without creating its session.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$endpoint = LibTmux\New-TmuxServer -SocketPath $SocketPath
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+'@ | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $endpoint
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Get-TmuxWorkspacePlan.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Invoke-TmuxWorkspace</maml:linkText>
+        <maml:uri>Invoke-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Import-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Parse a workspace declaration without executing it.</maml:para>
+      </maml:description>
+      <command:verb>Import</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Read a literal filesystem path, a FileInfo pipeline or supplied YAML/JSON text
+into a native WorkspaceFile. Inputs must be seekable UTF-8 files; a UTF-8 BOM
+is accepted. Named pipes are rejected without waiting for a writer.
+Admission stops at 1048576 characters, before retaining an oversized document.
+Malformed YAML/JSON and invalid UTF-8 preserve their exceptions as InvalidData
+errors.
+
+Parsing does not start tmux, execute host scripts or expand paths and variables.
+Resolve-TmuxWorkspace supplies an explicit document base and allowed variables.
+Test-TmuxWorkspace checks declaration completeness and execution policy.
+
+A window can set `window_index` to a nonnegative session-relative index. Omit
+it for tmux's next free index. Duplicate requested indexes fail validation;
+an index already occupied in the session fails during application.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Import-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>LiteralPath</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Import-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>File</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">FileInfo</command:parameterValue>
+          <dev:type>
+            <maml:name>System.IO.FileInfo</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Import-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Yaml</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="Named" aliases="none">
+        <maml:name>File</maml:name>
+        <maml:description>
+          <maml:para>A FileInfo returned by Get-Item or workspace discovery. Its path is literal.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.IO.FileInfo</command:parameterValue>
+        <dev:type>
+          <maml:name>System.IO.FileInfo</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>LiteralPath</maml:name>
+        <maml:description>
+          <maml:para>The literal file path to read.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Yaml</maml:name>
+        <maml:description>
+          <maml:para>YAML or JSON declaration text.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.IO.FileInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A file to read and parse.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Native pipeline type for this command.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>File errors retain Tmux.InvalidWorkspace and allow later pipeline files with
+ErrorAction Continue. ErrorAction Stop terminates. No form applies a workspace.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Inspect a declaration with a window at index 5 without starting tmux.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: editor
+    window_index: 5
+    panes: [null]
+'@
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Resolve-TmuxWorkspace</maml:linkText>
+        <maml:uri>Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Test-TmuxWorkspace</maml:linkText>
+        <maml:uri>Test-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Invoke-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Apply the exact workspace plan after one confirmation.</maml:para>
+      </maml:description>
+      <command:verb>Invoke</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Apply the supplied native WorkspacePlan using its own endpoint, observed
+identities and frozen actions. No declaration, file, endpoint or policy can be
+substituted at invocation. Stale preconditions fail; invocation never replans or
+retries mutations automatically.
+
+One PowerShell ShouldProcess decision covers the whole plan. Its target names
+the executable, socket and literal session name. Its action describes conflict,
+startup, readiness and compensation policy, global option effects, then lists
+every action and conditional cleanup step in order by kind and symbolic target.
+Option actions disclose scope and whether they change global defaults;
+request values are omitted. Inspect the original plan for full request and
+host-command values.
+WhatIf and declined confirmation perform no application I/O or cleanup and
+emit no WorkspaceResult.
+
+Successful invocation returns one native WorkspaceResult containing the session,
+created windows, unsupported layouts and action journals. WorkspaceBuildException
+remains ErrorRecord.Exception under Tmux.WorkspaceApplyFailed, with the original
+plan as TargetObject. Inspect its Dispatch, InnerException, PartialResult,
+Journal and CompensationJournal; partial results are never emitted as success.
+
+Stopping the pipeline cancels owned work. Cleanup follows the plan's frozen
+budget. A stopped pipeline can suppress subsequent error output, so receiving a
+cancellation journal after pipeline shutdown is not guaranteed. Application is
+detached; it does not attach a terminal or transfer ownership of the daemon.
+To enter the applied session, pass the successful WorkspaceResult.Session to
+Enter-TmuxSession in a foreground terminal outside tmux. Attachment has its own
+confirmation and cancellation behavior; it does not repeat application.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Plan</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspacePlan</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspacePlan</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Request normal PowerShell confirmation for the whole reviewed plan. The command has High confirmation impact.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Plan</maml:name>
+        <maml:description>
+          <maml:para>The exact native plan to apply. Its endpoint, actions, creation identity checks and cleanup policies are preserved.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspacePlan</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspacePlan</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the whole plan without tmux inspection, host execution, mutation or cleanup. No success object is returned.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspacePlan</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native plan prepared by Get-TmuxWorkspacePlan or the shared .NET API.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceResult</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>One completed native result. Preview and declined confirmation emit nothing.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Replace is an explicit planning policy. Compensation can remove only creations
+whose ownership is established by the native journal; shell and host-script
+effects cannot be undone. Reuse returns the existing session without running
+workspace mutation or host actions.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Preview an existing plan created by Get-TmuxWorkspacePlan without applying it.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 2 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Apply that reviewed plan with the normal confirmation explicitly disabled.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Invoke-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxWorkspacePlan</maml:linkText>
+        <maml:uri>Get-TmuxWorkspacePlan.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Enter-TmuxSession</maml:linkText>
+        <maml:uri>../LibTmux/Enter-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Resolve-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Resolve inherited workspace paths against an explicit document base.</maml:para>
+      </maml:description>
+      <command:verb>Resolve</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return a replacement native declaration with resolved inherited directories
+and option values.
+A parsed WorkspaceFile requires an explicit BaseDirectory. LiteralPath and
+File read a bounded, seekable UTF-8 YAML/JSON file and use its absolute parent
+as the base. Paths use the FileSystem provider without wildcard expansion.
+Malformed declarations and invalid UTF-8 retain their native exceptions as
+InvalidData errors.
+
+Expansion uses only the supplied case-sensitive string map. Supply HOME for
+home-directory expansion in paths; no process environment is copied implicitly.
+Dollar pairs represent a literal dollar sign in declaration paths and option
+values. Session, window and pane option values expand supplied variables;
+unknown variables in option values remain literal. Unresolved path variables
+are errors. Option names, command text, the host script, session and window
+names, and environment values remain literal. Resolution does not execute
+scripts, inspect tmux or require the resulting directories to exist. The input
+declaration remains unchanged.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Workspace</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspaceFile</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>BaseDirectory</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Variables</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>LiteralPath</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Variables</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>File</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">FileInfo</command:parameterValue>
+          <dev:type>
+            <maml:name>System.IO.FileInfo</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Variables</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>BaseDirectory</maml:name>
+        <maml:description>
+          <maml:para>The explicit filesystem base for a parsed declaration. Relative bases resolve against the current PowerShell location.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="Named" aliases="none">
+        <maml:name>File</maml:name>
+        <maml:description>
+          <maml:para>A FileInfo whose parent becomes the document base.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.IO.FileInfo</command:parameterValue>
+        <dev:type>
+          <maml:name>System.IO.FileInfo</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>LiteralPath</maml:name>
+        <maml:description>
+          <maml:para>The literal declaration path. The file parent becomes its document base.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Variables</maml:name>
+        <maml:description>
+          <maml:para>Allowed string expansion variables. Values requiring conversion are rejected.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Workspace</maml:name>
+        <maml:description>
+          <maml:para>The parsed declaration to resolve without reading a file.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceFile</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A declaration used with BaseDirectory.</maml:para>
+        </maml:description>
+      </command:inputType>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.IO.FileInfo</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A declaration file to read and resolve.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The replacement declaration with document-directory provenance.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Invalid variable maps terminate with Tmux.InvalidWorkspaceVariables before
+processing input. File and resolution failures retain their native exception
+under Tmux.WorkspaceResolutionFailed; ErrorAction Continue permits later input.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Resolve a parsed declaration against the current filesystem directory. Pass a
+different explicit BaseDirectory when the declaration came from elsewhere.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+$resolve = @{
+    BaseDirectory = (Get-Location).Path
+    Variables = @{ PROJECT = 'src' }
+}
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+start_directory: "${PROJECT}"
+windows:
+  - panes: [null]
+'@ | LibTmux.Workspace\Resolve-TmuxWorkspace @resolve
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Resolve-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Test-TmuxWorkspace</maml:linkText>
+        <maml:uri>Test-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxWorkspacePlan</maml:linkText>
+        <maml:uri>Get-TmuxWorkspacePlan.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Test-TmuxWorkspace</command:name>
+      <maml:description>
+        <maml:para>Validate a workspace declaration and its intended policies locally.</maml:para>
+      </maml:description>
+      <command:verb>Test</command:verb>
+      <command:noun>TmuxWorkspace</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Apply the shared .NET declaration and policy checks to a native WorkspaceFile.
+Validation reads no tmux state and executes no commands or scripts. Importing a
+workspace checks syntax; this command additionally rejects incomplete or invalid
+declarations under the supplied policy.
+
+Validation returns True on success. An invalid declaration writes its native
+error and returns False; ErrorAction Stop terminates instead. Invalid policy
+parameters terminate before processing input.
+
+Local validation does not check endpoint conflicts, paths on disk, shell syntax
+or tmux option support. Reuse defers host-script admission until planning knows
+whether creation is needed. Use Get-TmuxWorkspacePlan for endpoint observation
+and a reviewable plan; the validation result is not permission to apply it.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Test-TmuxWorkspace</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Workspace</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">WorkspaceFile</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ExistingSession</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Error</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Reuse</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Append</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Replace</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceExistingSession</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceExistingSession</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ServerStartup</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">CreateOrJoin</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">RequireExisting</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceServerStartup</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceServerStartup</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Readiness</maml:name>
+          <maml:description />
+          <command:parameterValueGroup>
+            <command:parameterValue required="false" variableLength="false">Immediate</command:parameterValue>
+            <command:parameterValue required="false" variableLength="false">Cooperative</command:parameterValue>
+          </command:parameterValueGroup>
+          <command:parameterValue required="true" variableLength="false">WorkspaceReadiness</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Workspace.WorkspaceReadiness</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ReadinessTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CompensateOnFailure</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>AllowHostScripts</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>HostScriptTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaxHostOutputBytes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Int32</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>CleanupTimeout</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Double</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Double</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>AllowHostScripts</maml:name>
+        <maml:description>
+          <maml:para>Admit declared host scripts for planning. Validation never executes them.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CleanupTimeout</maml:name>
+        <maml:description>
+          <maml:para>A finite positive application cleanup budget in seconds, at most 86400.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>CompensateOnFailure</maml:name>
+        <maml:description>
+          <maml:para>Validate the policy that permits compensation of journal-owned creations after application failure.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ExistingSession</maml:name>
+        <maml:description>
+          <maml:para>Reuse defers host-script admission until planning determines whether creation is necessary.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Error</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Reuse</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Append</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Replace</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceExistingSession</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceExistingSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>HostScriptTimeout</maml:name>
+        <maml:description>
+          <maml:para>A finite positive host-script budget in seconds, at most 86400.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaxHostOutputBytes</maml:name>
+        <maml:description>
+          <maml:para>A positive combined stdout and stderr capture limit in UTF-8 bytes.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Readiness</maml:name>
+        <maml:description>
+          <maml:para>The declared startup contract; validation does not wait for or prove shell readiness.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">Immediate</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">Cooperative</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceReadiness</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceReadiness</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ReadinessTimeout</maml:name>
+        <maml:description>
+          <maml:para>A finite positive readiness budget in seconds, at most 86400.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Double</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Double</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ServerStartup</maml:name>
+        <maml:description>
+          <maml:para>The startup policy intended for planning; validation does not inspect the endpoint.</maml:para>
+        </maml:description>
+        <command:parameterValueGroup>
+          <command:parameterValue required="false" variableLength="false">CreateOrJoin</command:parameterValue>
+          <command:parameterValue required="false" variableLength="false">RequireExisting</command:parameterValue>
+        </command:parameterValueGroup>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceServerStartup</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceServerStartup</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Workspace</maml:name>
+        <maml:description>
+          <maml:para>The immutable declaration to check.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Workspace.WorkspaceFile</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Workspace.WorkspaceFile</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A parsed or programmatically constructed declaration.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Boolean</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>True for a valid declaration; False after a nonterminating validation error.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Tmux.WorkspaceValidationFailed retains the native exception and declaration. Tmux.InvalidWorkspacePolicy identifies invalid policy parameters.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Check a one-window declaration without opening a tmux connection.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - panes: [null]
+'@ | LibTmux.Workspace\Test-TmuxWorkspace
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux.Workspace/Test-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Import-TmuxWorkspace</maml:linkText>
+        <maml:uri>Import-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Get-TmuxWorkspacePlan</maml:linkText>
+        <maml:uri>Get-TmuxWorkspacePlan.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+</helpItems>

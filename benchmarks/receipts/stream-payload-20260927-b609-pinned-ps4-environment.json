@@ -1,0 +1,42 @@
+{
+  "scope": "Exact pinned ps.4 module archive on one Linux x64 WSL2 guest; complete canonical block observation. Whole-command wall includes startup and cleanup. No raw transport throughput or speed ratio.",
+  "host": {
+    "os": "Ubuntu 24.04.5 LTS",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "architecture": "x86_64",
+    "cpuModel": "12th Gen Intel(R) Core(TM) i7-12700H",
+    "logicalCpuCount": 10,
+    "memoryBytes": 39635234816,
+    "hypervisorVendor": "Microsoft"
+  },
+  "artifact": {
+    "modulePackageSha256": "3259aa70b04af9bbd13b3de160ec7daa9134be567e97f0b4fb8a61626dad1646",
+    "corePackageVersion": "0.0.0-alpha.17.ps.4",
+    "embeddedCoreAssemblySha256": "75517deee75796d1da8fa50965596ad449446f5ac1ac0d432947ebef022ad770",
+    "embeddedCmdletAssemblySha256": "9bcaccba71fd90e699ce5e00ae7cc42d817a08ac88426788d45330327cb40f05",
+    "runnerRevision": "b609ce20c262cbcdae6ad8a027f8b1e2791597f5",
+    "runnerSha256": "80c42cd559f7614504371d1e1da97262ebdc1e87442067f39116554db7b1abd0",
+    "reportedSourceProvenance": "unverified",
+    "externalCheck": "Embedded LibTmux and LibTmux.Query.Json net8.0 DLL SHA-256 hashes match inspected CORE e80a6c3 ps.4 feed; package hash matches package-evidence.json. PORT binary source is not certified by a bootstrap receipt."
+  },
+  "runs": [
+    {
+      "tmuxVersion": "3.2a",
+      "reportFile": "stream-payload-20260927-b609-pinned-ps4-3.2a.json",
+      "reportSha256": "08fb0ea97abfad3e396d5e6cd75843f0c0f7972072e91b8a4e38612bc08351f0",
+      "commandWallSeconds": 6.53,
+      "exitCode": 0,
+      "timedSamples": 60,
+      "tmuxBinarySha256": "2e53b1a075d6a9ad94e7cad38eac827ced7224c57311f733352ec5ee12f28aca"
+    },
+    {
+      "tmuxVersion": "3.7c",
+      "reportFile": "stream-payload-20260927-b609-pinned-ps4-3.7c.json",
+      "reportSha256": "55312341c7b0f41d984958995a4801e62add17e6b56452173b0cb94fb5658ed6",
+      "commandWallSeconds": 5.83,
+      "exitCode": 0,
+      "timedSamples": 60,
+      "tmuxBinarySha256": "a490d0aa36e16188a9718aec34068cb9af652e4b2ce533a3d0f77089d7d5b264"
+    }
+  ]
+}

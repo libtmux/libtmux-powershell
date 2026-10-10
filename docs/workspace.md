@@ -1,0 +1,447 @@
+# Build a workspace from a file
+
+Describe a session once, inspect the proposed tmux operations, and apply the
+plan you reviewed. `LibTmux.Workspace` handles files and workspace commands;
+`LibTmux` supplies native server, session, window and pane objects. Both use
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet)'s shared engine.
+
+Install both modules as described in the [README](../README.md#install-from-source).
+Choose an explicit `$server` with [New-TmuxServer](read.md).
+The following workflow creates a detached `development` session with two
+shell panes in your project directory. It needs tmux and `/bin/sh` on a Unix
+host. The session remains available after the commands finish; remove it
+when done using [Remove-TmuxSession](remove.md).
+
+## Load and resolve the declaration
+
+Save this declaration as `development.yaml`. Set `$workspacePath` to its
+literal file path and `$projectRoot` to your project's absolute directory.
+
+<!-- declaration: workspace.basic -->
+```yaml
+session_name: development
+start_directory: ${PROJECT_ROOT}
+options:
+  default-command: exec /bin/sh
+windows:
+  - window_name: editor
+    layout: even-horizontal
+    options:
+      automatic-rename: 'off'
+    panes:
+      - options:
+          '@role': editor
+      - focus: true
+```
+
+`Get-TmuxWorkspace` emits a `FileInfo`. Import parses the file; Resolve
+returns a declaration with explicit directory expansion. Neither creates
+sessions or executes commands.
+
+<!-- example: workspace.01-load -->
+```powershell
+$resolve = @{
+    BaseDirectory = Split-Path -LiteralPath $workspacePath
+    Variables = @{ PROJECT_ROOT = $projectRoot }
+}
+$workspace = Get-TmuxWorkspace -LiteralPath $workspacePath -ErrorAction Stop |
+    Import-TmuxWorkspace -ErrorAction Stop |
+    Resolve-TmuxWorkspace @resolve -ErrorAction Stop
+```
+
+Only the supplied string variables participate in `$NAME` or `${NAME}`
+expansion; the resolver does not copy the process environment. Supply `HOME`
+explicitly when the declaration uses `~`. `$$` preserves a literal dollar
+sign. Resolution expands inherited directories and session, window and pane
+option values, including global and post-construction options. Unknown
+variables in option values remain literal; unresolved
+directory variables are errors. Option names, commands, the host script,
+session and window names, and environment values remain literal. The base
+directory also records the origin for an allowed `before_script`.
+
+Ordered `shell_command` and `shell_command_before` lists accept command strings
+and tmuxp-style entries such as `- cmd: exec /bin/sh`. Commands remain literal
+and run in session-before, window-before, pane-before, then pane-command order.
+The [workspace corpus](../tests/fixtures/workspace/corpus.yaml) checks the
+mixed forms on an owned tmux server. Set `enter: false` on a pane or command
+to type its text without submitting it. Commands inherit the current Enter
+setting until another command overrides it; the default is `true`. The
+[pinned tmuxp fixtures](../tests/fixtures/workspace/tmuxp-v1.74.0-skip-send.yaml)
+cover pending text and execution after an explicit Enter.
+
+Set `window_index` on a window to request a nonnegative session-relative
+index. Omit it to let tmux choose the next free index. Duplicate requested
+indices fail validation; an index occupied by an existing window fails when
+the reviewed plan is applied. The
+[pinned tmuxp fixture](../tests/fixtures/workspace/tmuxp-v1.74.0-window_index.yaml)
+checks a sparse `0, 5, 1` session on an owned server.
+
+tmux treats `PATH` specially. An unattached client can replace a pane's
+declared `PATH` with the client's value during pane creation, while the
+session environment retains the declared value. Set `PATH` inside the pane
+shell when pane commands depend on it.
+
+For discovery, `Get-TmuxWorkspace` lists nearby `.tmuxp.yaml`, `.tmuxp.yml`
+and `.tmuxp.json` files before the first configured global directory.
+`-Name development` selects a global basename, while `-LiteralPath` chooses
+one exact file. Use `-AllLocations` to include shadowed global locations.
+`-Search editor` searches filenames; `-SearchIn Path` also searches parent
+directories, while `-SearchIn Window` parses declared window names. Search
+never executes declaration commands.
+See the [discovery reference](reference/LibTmux.Workspace/Get-TmuxWorkspace.md)
+for precedence, ambiguity and traversal limits.
+
+## Choose when options apply
+
+Window `options` take effect before startup input, additional panes and the
+final layout. Put options such as `main-pane-height` there so the selected
+layout uses them. Window `options_after` apply after startup commands have
+been sent and the final layout is selected. This lets each pane receive its
+own setup text before `synchronize-panes` starts broadcasting later input.
+It does not wait for those setup commands to finish.
+
+Root `options` affect this session. Root `global_options` affect the server's
+global session defaults before the declared windows start. Global changes
+can affect inherited settings in existing sessions and survive creation
+cleanup after a later failure. Review their explicit scope before applying.
+
+This declaration chooses a shell for new windows, sizes the main pane, and
+defers synchronized input. The example returns a native plan and changes
+nothing; review its actions, then apply it using the workflow below.
+
+<!-- example: workspace.11-options -->
+```powershell
+& {
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: option-staging
+global_options:
+  default-shell: /bin/sh
+windows:
+  - window_name: workers
+    layout: main-horizontal
+    options:
+      main-pane-height: '5'
+    options_after:
+      synchronize-panes: 'on'
+    panes:
+      - shell_command: printf first
+      - shell_command: printf second
+'@
+    $declaration | Get-TmuxWorkspacePlan -Server $server
+}
+```
+
+The option actions retain native `SetOptionRequest` values. Their default
+view shows `scope=Session global=True` for the global setting and hides
+option values. `scope=Owner` follows the action's session, window or pane
+target. The confirmation preview also identifies global effects.
+
+## Validate before contacting tmux
+
+Check declaration and policy constraints locally. Success emits `$true`.
+With `-ErrorAction Stop`, an invalid declaration stops this workflow.
+
+<!-- example: workspace.02-validate -->
+```powershell
+$workspace | Test-TmuxWorkspace -ErrorAction Stop
+```
+
+This does not verify directory existence, shell syntax, tmux option support
+or session conflicts. Without `-ErrorAction Stop`, an invalid declaration
+writes an error and then `$false`; later pipeline records can continue.
+
+## Plan and review
+
+Planning observes only the selected endpoint and freezes the actions and
+policies. The default conflict policy refuses an existing session with the
+same name. `CreateOrJoin` permits application to start an absent daemon or
+join one that appeared since planning; it grants no ownership of the daemon.
+Use `RequireExisting` when planning must find one already running.
+
+<!-- example: workspace.03-plan -->
+```powershell
+$planOptions = @{
+    Server = $server
+    ExistingSession = 'Error'
+    ServerStartup = 'CreateOrJoin'
+    ErrorAction = 'Stop'
+}
+$workspacePlan = $workspace | Get-TmuxWorkspacePlan @planOptions
+```
+
+Inspect the ordered actions before applying them. The default view shows each
+action's symbolic target and source, plus a safe summary of its arguments:
+layout, dimensions when set, option name, readiness timeout and host limits.
+It marks scripts, pane text, option values, paths and environment without
+printing their contents. Reading the plan performs no I/O.
+
+<!-- example: workspace.04-review -->
+```powershell
+$workspacePlan.Actions
+```
+
+To inspect exact arguments in a trusted terminal, read an action's typed
+`Request` property. It contains the script, command, option value and other
+values that the default view hides. If planning used `-CompensateOnFailure`,
+inspect `$workspacePlan.CompensationActions` separately; those actions run only
+after a failed application. Targets are plan symbols bound to created tmux
+identities during application.
+
+The plan includes the transient bootstrap window used to install session
+options before starting the described panes. It also includes the final
+`CaptureResult` observation. tmux hooks can observe that bootstrap lifecycle.
+
+Preview the endpoint, session, policies and ordered actions through PowerShell's
+confirmation mechanism. Each action and conditional cleanup step shows its kind
+and symbolic target; option actions also show scope and global effects.
+Request values remain hidden. Preview emits no result and
+dispatches nothing.
+
+<!-- example: workspace.05-preview -->
+```powershell
+$workspacePlan | Invoke-TmuxWorkspace -WhatIf
+```
+
+## Apply the reviewed plan
+
+After review, apply that exact plan. Omitting `-Confirm:$false` retains the
+high-impact confirmation prompt. Invocation does not reread the source file
+or silently construct a replacement plan when its preconditions are stale.
+
+<!-- example: workspace.06-apply -->
+```powershell
+$workspaceResult = $workspacePlan |
+    Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+```
+
+`$workspaceResult.Session` and `.Windows` are native objects from the final
+captured graph. `.Journal` records action outcomes; `.Unsupported` lists
+requested final layouts tmux rejected while leaving their windows usable.
+The observation spans an interval, so concurrent changes can make it fail.
+
+To load the workspace into your foreground terminal, run
+`$workspaceResult.Session | LibTmux\Enter-TmuxSession -ErrorAction Stop`
+after the successful application. Run it outside tmux with terminal stdin;
+detach normally to receive one refreshed native session. The borrowed daemon
+and workspace remain running after you detach. See
+[Enter-TmuxSession](reference/LibTmux/Enter-TmuxSession.md) for its terminal
+and cancellation contract.
+
+`Enter-TmuxSession` accepts the native Session, not WorkspaceResult. It asks
+for its own PowerShell confirmation when requested. `-WhatIf` on
+`Invoke-TmuxWorkspace` emits no result to attach. A failed application with
+`-ErrorAction Stop` emits no result for this step. Entering a session does not
+undo workspace effects if the terminal client is cancelled or fails.
+
+For an existing session, choose `Reuse`, `Append` or `Replace` explicitly
+when planning. Reuse returns the inspected session without declaration
+effects; Append adds windows while retaining local session options and applies
+declared global defaults. Replace removes the inspected session before
+creating its replacement.
+Review those actions before approving them.
+
+## Export a starting declaration
+
+Capture an existing session at pane depth before converting it. Set
+`$exportPath` to the literal path for the YAML file you want to write. The
+conversion reads the capture only; `Set-Content` writes the file.
+
+<!-- example: workspace.07-export -->
+```powershell
+($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop).Sessions |
+    Select-TmuxSession -ExactlyOne -ErrorAction Stop -Criteria @{
+        Name = 'development'
+    } |
+    ConvertTo-TmuxWorkspace -ErrorAction Stop |
+    ConvertTo-TmuxWorkspaceYaml -ErrorAction Stop |
+    Set-Content -LiteralPath $exportPath -Encoding utf8NoBOM -ErrorAction Stop
+```
+
+Conversion preserves session-relative window indices. It warns because it
+omits observed options, environment, terminal text, entity IDs, pane indices
+and shared-link identity. It cannot reconstruct original startup commands or
+shell intent.
+Repeated window links become separate declarations. Check the exported layout
+and pane paths, add the commands you want on a future load, then import,
+resolve and review a new plan.
+For JSON, use `ConvertTo-TmuxWorkspaceJson` in place of the YAML converter.
+See [ConvertTo-TmuxWorkspace](reference/LibTmux.Workspace/ConvertTo-TmuxWorkspace.md)
+for the captured-field and literal-path rules.
+
+## Edit the declaration
+
+Choose a file and an installed editor explicitly. `$workspaceFile` is the
+`FileInfo` returned by `Get-TmuxWorkspace`; `$editor` is an `ApplicationInfo`
+returned by `Get-Command -Name nvim -CommandType Application -ErrorAction Stop`
+(or your chosen editor). Set `[string[]] $editorArguments = @()` for no extra
+arguments. A GUI editor that returns immediately needs its own wait option,
+such as `@('--wait')` where the selected editor supports it.
+
+Run this as a foreground command in your terminal, without assigning, piping
+or redirecting its output. The file's absolute path is one argument. Arguments
+are passed separately, including spaces, quotes and empty strings.
+
+<!-- example: workspace.08-edit -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $PSNativeCommandArgumentPassing = 'Standard'
+    $PSNativeCommandUseErrorActionPreference = $false
+    & $editor @editorArguments $workspaceFile.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Editor exited with code $LASTEXITCODE."
+    }
+}
+```
+
+A nonzero editor exit stops the block with the exit code. Launch errors also
+stop it. Exit the editor normally when finished. Ctrl+C follows the editor's
+and terminal's normal behavior; some editors treat it as an editing command
+and stay open. This recipe has no `-WhatIf`, forced-stop or process-tree
+cleanup contract. It does not undo edits already saved.
+
+Editing runs no workspace command or tmux operation. Import, resolve, validate
+and review a new plan explicitly afterward. An existing plan still contains
+the declaration captured when it was created.
+
+## Type a command without submitting it
+
+Use `enter: false` to prepare input for review. This example creates a shell,
+reads the pending command, submits one Enter, and waits for its rendered
+output. The result contains the reviewed plan, pending text, and completion.
+The `finally` block removes the session it created.
+
+<!-- example: workspace.10-pending -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: review-command
+options:
+  default-command: exec /bin/sh
+windows:
+  - window_name: review
+    panes:
+      - shell_command:
+          - cmd: "printf '\\nreview %s\\n' complete"
+            enter: false
+'@
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false
+        $pane = $result.Windows[0].Panes[0]
+        $typed = "printf '\nreview %s\n' complete"
+        $wait = @{ Timeout = 10; Confirm = $false }
+        $pending = $pane |
+            Wait-TmuxPaneText -Pattern $typed -SimpleMatch @wait
+        if ($pending.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending input wait ended with $($pending.Outcome)."
+        }
+        $pane | Send-TmuxKey -Key Enter -Confirm:$false
+        $completion = $pane |
+            Wait-TmuxPaneText -Pattern '^review complete$' @wait
+        if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Pending command wait ended with $($completion.Outcome)."
+        }
+        [pscustomobject]@{
+            Pending = $pending.Tail -join "`n"
+            Completion = $completion
+            Plan = $plan
+        }
+    } finally {
+        if ($result) { $result.Session | Remove-TmuxSession -Confirm:$false }
+    }
+}
+```
+
+## Startup, host effects and failures
+
+`-Readiness Immediate` sends configured commands as literal input, applying
+each command's Enter setting. It does not infer shell readiness or command
+completion. With
+`-Readiness Cooperative`, pane startup receives a fresh
+`LIBTMUX_WORKSPACE_READY` channel and must signal it when it can accept
+input, using the selected tmux executable and the same server. The shell
+operation is `tmux wait-for -S "$LIBTMUX_WORKSPACE_READY"`. A signal sent
+before the wait is retained. `-ReadinessTimeout` bounds each wait in seconds;
+completion of the sent command needs its own application signal. See the
+[shared engine's cooperative startup example](https://github.com/libtmux/libtmux-dotnet/blob/master/src/LibTmux.Workspace/README.md#readiness-and-existing-sessions).
+
+A declaration's `before_script` runs on the host only when planning admits
+it with `-AllowHostScripts`. Resolve the document first. Creation and
+replacement run the script after the named session exists; Append uses the
+existing session, and Reuse skips the script. Its working directory is the
+resolved session `start_directory`, falling back to the document directory.
+The script is literal shell text passed to `/bin/sh -c`; tmuxp's separate
+rewrite of a leading `./script` path is not applied. Supply the same policy to
+`Test-TmuxWorkspace` and `Get-TmuxWorkspacePlan`, including
+`-HostScriptTimeout` and `-MaxHostOutputBytes` when changing their bounds.
+Invocation uses those frozen settings. Validation, planning and `-WhatIf`
+never run the script. Review both host scripts and pane commands before
+applying files from another source.
+
+Application failures write `Tmux.WorkspaceApplyFailed` with a native
+`WorkspaceBuildException`; they do not emit a partial success object. With
+`-ErrorAction Stop`, a `catch` block can inspect `$_.Exception` through its
+`.PartialResult`, `.Journal`, `.CompensationJournal`, `.Dispatch` and
+`.InnerException` properties. With normal error handling, later plans can continue.
+A stopped PowerShell pipeline may suppress error delivery, so do not rely
+on receiving a journal after stopping it.
+
+This example deliberately appends a window to the `development` session built
+above, then asks tmux to set an invalid pane option. It requests compensation
+for the newly created window. The existing session and its `editor` window are
+borrowed and must remain. Run it only against the session this guide created.
+
+<!-- example: workspace.09-recover -->
+```powershell
+$workspaceRecovery = & {
+    $broken = Import-TmuxWorkspace -Yaml @'
+session_name: development
+windows:
+  - window_name: recovery-demo
+    panes:
+      - options:
+          libtmux-invalid-option: fail
+'@ -ErrorAction Stop
+    $plan = $broken | Get-TmuxWorkspacePlan -Server $server `
+        -ExistingSession Append -ServerStartup RequireExisting `
+        -CompensateOnFailure -ErrorAction Stop
+    try {
+        $null = $plan | Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
+        throw 'The deliberately invalid option was accepted.'
+    } catch {
+        $type = [LibTmux.Workspace.WorkspaceBuildException]
+        if ($_.Exception -isnot $type) { throw }
+        $failure = $_.Exception
+    }
+    [pscustomobject]@{
+        Plan = $plan
+        Failure = $failure
+        Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
+    }
+}
+```
+
+Inspect `$workspaceRecovery.Failure.Journal` for the failed action and its
+dispatch state, then `$workspaceRecovery.Failure.CompensationJournal` for
+attempted cleanup. The fresh `$workspaceRecovery.Current.Sessions` observation
+shows what remains. A completed cleanup entry records a tmux operation; the
+fresh observation proves whether `recovery-demo` is gone and `editor` remains.
+If dispatch is `Unknown` or cleanup failed, the action may have taken effect.
+Inspect the server and reconcile it before making another plan; do not retry
+the same plan blindly.
+
+`-CompensateOnFailure` at planning requests bounded cleanup of creations
+whose ownership is proven by that application. Review
+`$workspacePlan.CompensationActions` too. `-CleanupTimeout` bounds cleanup;
+it cannot undo shell or host side effects. The module never owns a borrowed
+daemon and never guesses cleanup targets from names.
+
+The declaration format covers session/window/pane options, global session
+defaults, post-construction window options, layouts, focus, environment,
+directory inheritance and command lists. Unsupported keys are
+errors. For complete policy parameters, see
+[Get-TmuxWorkspacePlan](reference/LibTmux.Workspace/Get-TmuxWorkspacePlan.md)
+and [Invoke-TmuxWorkspace](reference/LibTmux.Workspace/Invoke-TmuxWorkspace.md).

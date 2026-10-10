@@ -1,0 +1,37 @@
+# libtmux/docs compares every public port's width checker and shared example
+# rules, but cannot read this private repository. This job reads the docs
+# copies instead. It does not run on pull requests: a change to the shared
+# rules lands here and in docs as separate pull requests, so a PR check
+# would fail until the other one merges.
+name: shared examples
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  digests:
+    name: shared example rules match libtmux/docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch the docs checker and WRITING.md
+        run: |
+          mkdir -p "${RUNNER_TEMP}/docs"
+          cd "${RUNNER_TEMP}/docs"
+          base=https://raw.githubusercontent.com/libtmux/docs/HEAD
+          curl -fsSLO --retry 3 "${base}/scripts/check_example_width.py"
+          curl -fsSLO --retry 3 "${base}/WRITING.md"
+
+      - name: Compare digests
+        shell: bash
+        run: |
+          diff <(python3 eng/check_example_width.py --digest) \
+            <(python3 "${RUNNER_TEMP}/docs/check_example_width.py" --digest \
+              --root "${RUNNER_TEMP}/docs")

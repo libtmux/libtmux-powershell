@@ -1,10 +1,10 @@
 {
   "visibility": {
-    "origin": "private",
+    "origin": "public",
     "tony": "private"
   },
   "default_branch": "master",
-  "description": "libtmux for PowerShell: repository scaffold for typed tmux cmdlets built on LibTmux. No implementation yet.",
+  "description": "Native PowerShell cmdlets for tmux sessions, windows and panes, with workspace planning. Built on LibTmux for .NET.",
   "topics": [
     "csharp",
     "dotnet",

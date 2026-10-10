@@ -25,8 +25,10 @@ requested work.
 
 - Setup, testing, tmux isolation, and pull requests:
   [CONTRIBUTING.md](.github/CONTRIBUTING.md).
-- Documentation, user-facing text, comments, and commit messages:
-  [WRITING.md](.github/WRITING.md).
+- Documentation, user-facing text, comments, commit messages, and any code
+  example (example scripts, help examples, Markdown code blocks):
+  [WRITING.md](.github/WRITING.md), and its
+  [Examples](.github/WRITING.md#examples) section for code a reader sees.
 
 Each guide is the single home for its subject. `CLAUDE.md` is a relative
 symlink to this file; keep the instructions here.

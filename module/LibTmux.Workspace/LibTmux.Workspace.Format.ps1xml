@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>LibTmux.Workspace.WorkspaceAction</Name>
+      <ViewSelectedBy>
+        <TypeName>LibTmux.Workspace.WorkspaceAction</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Action</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Target &lt;= source</Label><Width>22</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Request summary</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <Wrap />
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Kind</PropertyName></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>if ($_.SourceTarget) { "$($_.Target) &lt;= $($_.SourceTarget)" } else { $_.Target }</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  $request = if ($_.PSObject.Properties.Match('Request').Count) { $_.Request } else { $null }
+                  switch ($_.Kind.ToString()) {
+                    'RunHostScript' {
+                      "script=[redacted] path=[redacted] env=$($request.Environment.Count) timeout=$($request.Timeout.TotalSeconds)s output=$($request.MaxOutputBytes)B"
+                      break
+                    }
+                    'CreateSession' {
+                      $parts = @()
+                      if ($request.Width -and $request.Height) { $parts += "size=$($request.Width)x$($request.Height)" }
+                      if ($request.Command) { $parts += 'command=[redacted]' }
+                      if ($request.StartDirectory) { $parts += 'path=[redacted]' }
+                      $parts += "env=$($request.Environment.Count)"
+                      $parts -join ' '
+                      break
+                    }
+                    { $_ -in 'CreateWindow', 'SplitPane' } {
+                      $parts = @()
+                      if ($request.StartDirectory) { $parts += 'path=[redacted]' }
+                      $parts += "env=$($request.Environment.Count)"
+                      $parts -join ' '
+                      break
+                    }
+                    'SetOption' {
+                      $scope = if ($null -eq $request.Scope) { 'Owner' } else { $request.Scope }
+                      "option=$($request.Name) scope=$scope global=$($request.Global) value=[redacted]"
+                      break
+                    }
+                    'SendText' { "text=[redacted] enter=$($request.Enter)"; break }
+                    { $_ -in 'SelectLayout', 'ArrangePanes' } { "layout=$($request.Layout)"; break }
+                    'WaitForReadiness' { "timeout=$($request.TotalSeconds)s"; break }
+                  }
+                </ScriptBlock>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>
