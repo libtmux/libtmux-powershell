@@ -40,6 +40,9 @@ What a test needs so it passes on macOS as well as Linux.
   through a file or a paste buffer.
 - **Read a pane until its process exits.** On macOS a process cannot finish
   exiting while its terminal output is unread.
+- **Don't wait on a reverse lookup.** Resolving `127.0.0.1` to a name can
+  outlast a test's wait on the hosted runner. Python's `HTTPServer`, and so
+  `python3 -m http.server`, does it on bind; use `socketserver.TCPServer`.
 
 ## Building tmux
 

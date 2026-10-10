@@ -195,9 +195,15 @@ also stops the server process:
 ```powershell
 & {
     $ErrorActionPreference = 'Stop'
+    # python3 -m http.server looks up the host name first, which can stall.
+    $serve = 'import http.server, socketserver; ' +
+        'handler = http.server.SimpleHTTPRequestHandler; ' +
+        'httpd = socketserver.TCPServer(("127.0.0.1", 0), handler); ' +
+        'print("Serving HTTP on 127.0.0.1 port", httpd.server_address[1]); ' +
+        'httpd.serve_forever()'
     $session = $server | New-TmuxSession `
         -Name ('http-' + [Guid]::NewGuid().ToString('N')) `
-        -Command 'exec python3 -u -m http.server 0 --bind 127.0.0.1'
+        -Command "exec python3 -u -c '$serve'"
     try {
         $pane = $session | Get-TmuxPane
         $ready = $pane | Wait-TmuxPaneText `
