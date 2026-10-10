@@ -4,6 +4,12 @@ This guide governs documentation, user-facing text, comments, Markdown,
 commit messages, changelogs, and release notes. [CONTRIBUTING.md](CONTRIBUTING.md)
 governs development workflow.
 
+Consult Microsoft's
+[PowerShell-Docs style guide](https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/powershell-style-guide?view=powershell-7.6)
+and [Markdown best practices](https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/general-markdown?view=powershell-7.6)
+for PowerShell examples and markup. This guide's conventions take precedence
+where they differ.
+
 ## Voice
 
 Lead with the conclusion or observable behavior, then give the evidence or
