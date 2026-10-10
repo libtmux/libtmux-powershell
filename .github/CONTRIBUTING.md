@@ -284,6 +284,41 @@ both import orders, module-qualified calls, native types, reimport, no-tmux
 imports and assembly conflicts. Fixture checks are integration tests.
 The complete platform, example and API suites are not established yet.
 
+## Documentation API export
+
+Run `eng/Setup.ps1` to install the pinned PlatyPS tool before exporting.
+The exporter reads authored defaults and examples with PlatyPS in a separate
+process, then combines them with packaged help and native command metadata.
+
+Export the public command surface from a committed source checkout:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Export-Docs.ps1 \
+    -Restore
+```
+
+The exporter rebuilds both modules and writes `build/docs/api.json`. It
+compares the manifest exports with native command discovery and packaged
+MAML help. Each command retains its parameter sets, pipeline binding,
+validation, confirmation behavior, input/output types, examples and source
+locations. Roslyn reads declarations and initializers without executing
+them. The artifact records the source revision, input hashes and tool
+versions; changed API or help sources fail extraction.
+
+Omit `-Restore` after the locked dependencies have been restored. Use
+`-SourceRoot` to extract another committed checkout with this exporter,
+and `-OutputPath` to select another artifact destination. The exporter hash
+identifies the tooling independently of the selected API source.
+Run the contract check:
+
+```console
+$ pwsh -NoLogo -NoProfile -File tests/DocsExport.Tests.ps1
+```
+
+This checks extraction fidelity, including a missing-parameter-set negative
+control. It does not execute the documented examples or establish that the
+website has rendered or published the artifact.
+
 ## Gallery releases
 
 The [release workflow](workflows/release.yml) publishes the two module
