@@ -6,7 +6,7 @@ checker_digest = "f261e9a3ef44101ead5fe1ce03331716372aac828f7421ef8f06c83c987ee9
 allow_ceiling = 1
 
 [[exclude]]
-glob = "THIRD-PARTY-NOTICES.md"
+glob = "licenses/THIRD-PARTY-NOTICES.md"
 reason = "licence notices copied from third parties"
 
 [[exclude]]
