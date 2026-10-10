@@ -5,7 +5,9 @@ plan you reviewed. `LibTmux.Workspace` handles files and workspace commands;
 `LibTmux` supplies native server, session, window and pane objects. Both use
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet)'s shared engine.
 
-Install both modules as described in the [README](../README.md#install-from-source).
+Install [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+as described in the [README](../README.md#install). Its package dependency
+installs the matching core module.
 Choose an explicit `$server` with [New-TmuxServer](read.md).
 The following workflow creates a detached `development` session with two
 shell panes in your project directory. It needs tmux and `/bin/sh` on a Unix

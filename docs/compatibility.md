@@ -2,9 +2,12 @@
 
 This source checkout targets PowerShell 7.4 and .NET 8. The Linux workflow
 tests the specific PowerShell and tmux versions below; other combinations
-remain unverified. The modules are not yet published to PowerShell Gallery.
-Both pin [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet); build
-them together from the [install guide](../README.md#install-from-source).
+remain unverified. [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
+and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+are published as prereleases on PowerShell Gallery. Both pin
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet).
+See the [install guide](../README.md#install) for package-manager commands
+and source builds. Publication does not expand the tested platforms below.
 
 | Environment | Contract |
 | --- | --- |
