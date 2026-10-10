@@ -199,7 +199,7 @@ windows:
         [IO.File]::ReadAllText($hostMarker) -ceq $sensitive) 'exact reviewed application lost native result, layout order or host action'
     $hostOutcome = @($result.Journal | Where-Object { $_.Action.Kind -eq 'RunHostScript' })
     Assert-WorkspaceApply ($hostOutcome.Count -eq 1 -and
-        $hostOutcome[0].Result.StandardOutput -ceq $sessionDirectory) 'host script did not observe the created session and its resolved session directory'
+        (Resolve-PhysicalDirectory $hostOutcome[0].Result.StandardOutput) -ceq (Resolve-PhysicalDirectory $sessionDirectory)) 'host script did not observe the created session and its resolved session directory'
     Assert-WorkspaceApply ($result.Journal.Count -eq $plan.Actions.Count) 'successful action journal is incomplete'
     for ($index = 0; $index -lt $plan.Actions.Count; $index++) {
         Assert-WorkspaceApply ([object]::ReferenceEquals($result.Journal[$index].Action, $plan.Actions[$index]) -and

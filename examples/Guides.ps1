@@ -128,9 +128,15 @@ $captured.Windows |
     'input.http-ready' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
+    # python3 -m http.server looks up the host name first, which can stall.
+    $serve = 'import http.server, socketserver; ' +
+        'handler = http.server.SimpleHTTPRequestHandler; ' +
+        'httpd = socketserver.TCPServer(("127.0.0.1", 0), handler); ' +
+        'print("Serving HTTP on 127.0.0.1 port", httpd.server_address[1]); ' +
+        'httpd.serve_forever()'
     $session = $server | New-TmuxSession `
         -Name ('http-' + [Guid]::NewGuid().ToString('N')) `
-        -Command 'exec python3 -u -m http.server 0 --bind 127.0.0.1'
+        -Command "exec python3 -u -c '$serve'"
     try {
         $pane = $session | Get-TmuxPane
         $ready = $pane | Wait-TmuxPaneText `
@@ -212,7 +218,7 @@ $job = & {
     $ErrorActionPreference = 'Stop'
     Import-Module LibTmux
     $name = 'libtmux-watch-' + $PID + '-' + [Guid]::NewGuid().ToString('N')
-    $socketDirectory = Join-Path ([IO.Path]::GetTempPath()) $name
+    $socketDirectory = Join-Path '/tmp' $name
     $null = New-Item $socketDirectory -ItemType Directory -ErrorAction Stop
     $ownerOnly = [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor
