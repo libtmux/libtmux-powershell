@@ -186,10 +186,14 @@ try {
         @($quickStart[0].PaneIds | Where-Object { $_ -notmatch '^%\d+$' }).Count -eq 0) 'the runnable quick start returned a different native graph'
     Assert-Readme ((Invoke-NamedTmux $tmux $quickStart[0].SocketName 'list-sessions') -ne 0) 'the runnable quick start left its server running'
     $priorModulePath = $env:PSModulePath
+    Push-Location -LiteralPath $root
     try {
         $env:PSModulePath = $moduleRootPath + [IO.Path]::PathSeparator + $priorModulePath
         $quickStartView = @(. $blocks['readme.quickstart'])
-    } finally { $env:PSModulePath = $priorModulePath }
+    } finally {
+        $env:PSModulePath = $priorModulePath
+        Pop-Location
+    }
     Assert-Readme ($quickStartView.Count -eq 2 -and
         $quickStartView[0].Name -ceq 'editor' -and $quickStartView[0].PaneIds -ceq '%0, %1' -and
         $quickStartView[1].Name -ceq 'logs' -and $quickStartView[1].PaneIds -ceq '%2') 'the README quick start view does not match its output'
