@@ -368,6 +368,113 @@ before the wait is retained. `-ReadinessTimeout` bounds each wait in seconds;
 completion of the sent command needs its own application signal. See the
 [shared engine's cooperative startup example](https://github.com/libtmux/libtmux-dotnet/blob/master/src/LibTmux.Workspace/README.md#readiness-and-existing-sessions).
 
+These examples need `stty` and `/bin/cat` on the tmux host. The receiver
+disables terminal echo and signals readiness before accepting input. It quotes
+the tmux executable selected by `$server`, gives it to the workspace resolver,
+and leaves `$LIBTMUX_WORKSPACE_READY` for the pane shell. It creates a unique
+session, sends one line to `/bin/cat`, checks the visible line, then removes
+that session.
+
+<!-- example: workspace.12-cooperative -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $name = 'cooperative-' + [Guid]::NewGuid().ToString('N')
+    $tmuxPath = $server.ConnectionOptions.TmuxBinaryPath
+    $tmux = "'" + $tmuxPath.Replace("'", "'\''") + "'"
+    $yaml = @'
+session_name: SESSION_NAME
+options:
+  default-command: >-
+    stty -echo && ${TMUX_BIN} wait-for -S "$LIBTMUX_WORKSPACE_READY" &&
+    exec /bin/cat
+windows:
+  - window_name: receiver
+    panes:
+      - shell_command: workspace-ready-input
+'@
+    $yaml = $yaml.Replace('SESSION_NAME', $name)
+    $declaration = Import-TmuxWorkspace -Yaml $yaml -ErrorAction Stop |
+        Resolve-TmuxWorkspace -BaseDirectory (Get-Location).Path `
+            -Variables @{ TMUX_BIN = $tmux } -ErrorAction Stop
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server `
+        -Readiness Cooperative -ReadinessTimeout 2 `
+        -CompensateOnFailure -ErrorAction Stop
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false `
+            -ErrorAction Stop
+        $pane = $result.Windows[0].Panes[0]
+        $completion = $pane | Wait-TmuxPaneText `
+            -Pattern 'workspace-ready-input' -SimpleMatch `
+            -Timeout 3 -Confirm:$false -ErrorAction Stop
+        if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Ready input wait ended with $($completion.Outcome)."
+        }
+        [pscustomobject]@{
+            Plan = $plan
+            Result = $result
+            Completion = $completion
+        }
+    } finally {
+        if ($result) {
+            $result.Session | Remove-TmuxSession -Confirm:$false
+        }
+    }
+}
+```
+
+The plan and result expose the channel open, wait, close and input actions.
+The visible line proves that this receiver accepted input; readiness alone
+does not prove that a general command finished.
+
+If startup does not signal, the bounded wait stops before input is sent. This
+example deliberately times out. Its returned `Failure` exception contains
+the action and compensation journals; `Current` is a fresh snapshot.
+`-CompensateOnFailure` removes only creations identified by this application.
+Inspect the journals and live state if cleanup reports uncertainty.
+
+<!-- example: workspace.13-cooperative-timeout -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $name = 'cooperative-timeout-' + [Guid]::NewGuid().ToString('N')
+    $yaml = @'
+session_name: SESSION_NAME
+options:
+  default-command: exec /bin/cat
+windows:
+  - window_name: receiver
+    panes:
+      - shell_command: never-sent-input
+'@
+    $yaml = $yaml.Replace('SESSION_NAME', $name)
+    $declaration = Import-TmuxWorkspace -Yaml $yaml -ErrorAction Stop
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server `
+        -Readiness Cooperative -ReadinessTimeout 0.25 `
+        -CompensateOnFailure -ErrorAction Stop
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false `
+            -ErrorAction Stop
+        throw 'Startup without a readiness signal was accepted.'
+    } catch {
+        $type = [LibTmux.Workspace.WorkspaceBuildException]
+        if ($_.Exception -isnot $type) { throw }
+        $failure = $_.Exception
+    } finally {
+        if ($result) {
+            $result.Session | Remove-TmuxSession -Confirm:$false
+        }
+    }
+    [pscustomobject]@{
+        Plan = $plan
+        Failure = $failure
+        Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
+    }
+}
+```
+
 A declaration's `before_script` runs on the host only when planning admits
 it with `-AllowHostScripts`. Resolve the document first. Creation and
 replacement run the script after the named session exists; Append uses the

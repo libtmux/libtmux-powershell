@@ -43,8 +43,14 @@ if ($PackageRoot) {
             Get-Content -LiteralPath (Join-Path $ReviewRoot 'bootstrap.json') -Raw | ConvertFrom-Json
         }
         if ($report.status -cne 'PASS' -or $report.shape.panes -ne 1 -or
-            @($report.expectedReplies).Count -ne 8 -or @($report.lanes).Count -ne 5 -or
-            @($report.firstCalls).Count -ne 5 -or @($report.samples).Count -ne 10 -or
+            @($report.expectedReplies).Count -ne 8 -or @($report.lanes).Count -ne 6 -or
+            @($report.lanes | Where-Object { $_ -ceq 'native-serial' }).Count -ne 1 -or
+            @($report.operations | Where-Object lane -CEQ 'native-serial').Count -ne 1 -or
+            @($report.firstCalls).Count -ne 6 -or
+            @($report.firstCalls | Where-Object lane -CEQ 'native-serial').Count -ne 1 -or
+            @($report.warmups | Where-Object lane -CEQ 'native-serial').Count -ne 1 -or
+            @($report.samples).Count -ne 12 -or
+            @($report.samples | Where-Object lane -CEQ 'native-serial').Count -ne 2 -or
             !$report.cleanup.controlDisconnected -or !$report.cleanup.borrowedSessionAlive -or
             !$report.cleanup.ownedFixtureRemoved -or !$report.cleanup.extractedPackageRemoved) {
             throw 'The display dispatch report omitted a lane, reply, sample, or cleanup check.'
@@ -78,7 +84,7 @@ if ($PackageRoot) {
 }
 
 if ($PackageRoot) {
-    'PASS display dispatch: unequal replies rejected; five live lanes and cleanup agree'
+    'PASS display dispatch: unequal replies rejected; six live lanes and cleanup agree'
 } else {
     'PASS display dispatch: unequal replies rejected'
 }

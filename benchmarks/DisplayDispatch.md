@@ -1,6 +1,6 @@
 # Display command dispatch benchmark
 
-This benchmark compares five ways to request the same eight distinct
+This benchmark compares six ways to request the same eight distinct
 `display-message -p` replies from one owned tmux session, window, and pane.
 Each command includes a literal sequence label and native session, window, and
 pane IDs. The runner takes the expected replies from native tmux before timing.
@@ -8,13 +8,15 @@ Every lane must return those exact indexed replies. Serial and chained lanes
 must also preserve command order. A native pane identity snapshot must remain
 unchanged before and after every lane, including warmups and samples.
 
-The lanes are serial `Invoke-TmuxCommand`, bounded
+The lanes are direct native tmux invocation, serial `Invoke-TmuxCommand`, bounded
 `Server.ExecuteCommandAsync`, serial `Invoke-TmuxControlCommand`, bounded
 `IControlModeSession.SendAsync`, and one `Invoke-TmuxChain` call. The concurrent
 lanes submit at most four commands per wave by default. They match replies by
 submitted index and record the order in which completed tasks were reaped.
 That observed order can differ from submission order; simultaneous completions
-may appear in submission order. The chain returns one merged output stream.
+may appear in submission order. The native lane starts one tmux client process
+per command through the owned fixture helper. The chain returns one merged
+output stream.
 
 Build and package the PowerShell module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). The runner checks the
@@ -56,8 +58,9 @@ clean-source bootstrap directory to verify the inspected .NET feed and staged
 PowerShell build; that reports `sourceProvenance: verified` with both source
 revisions.
 
-The control client is reused during samples. Disconnect must remove that
-client while leaving the borrowed session and daemon alive. The owned tmux
+The control client is reused during samples. Native timings include the owned
+helper's process launch and capture overhead along with tmux. Disconnect removes
+the client while leaving the borrowed session and daemon alive. The owned tmux
 fixture and extracted package are removed even if a lane fails. These timings
 cover end-to-end PowerShell API paths on one host, with separate direct core
 calls for concurrency; compare raw distributions across repeated clean runs
