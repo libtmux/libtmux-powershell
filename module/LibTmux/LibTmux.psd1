@@ -34,6 +34,18 @@
         PSData = @{
             Tags = @('tmux', 'automation', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
+            LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
+            ReleaseNotes = @'
+First alpha release. Create and inspect tmux sessions, windows and panes with
+native PowerShell pipelines. Capture snapshots, send input and observe output.
+
+Built on libtmux for .NET 0.0.0-alpha.20.
+APIs may change before a stable release.
+https://github.com/libtmux/libtmux-dotnet
+
+Release details:
+https://github.com/libtmux/libtmux-powershell/blob/master/CHANGELOG.md
+'@
         }
     }
 }
