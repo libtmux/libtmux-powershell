@@ -396,7 +396,8 @@ visibility, default branch, topics, and issue labels for both repositories:
 - `origin`: [libtmux/libtmux-powershell](https://github.com/libtmux/libtmux-powershell).
 - `tony`: [tony/libtmux-powershell](https://github.com/tony/libtmux-powershell).
 
-Both are private, independent repositories with `master` as the default
-branch. The personal repository is not a GitHub fork. Git does not apply the
-metadata file automatically; apply settings through the GitHub CLI or API
-and verify both repositories afterward.
+The organization repository is public; the personal repository is private.
+Both use `master` as the default branch and are independent repositories.
+The personal repository is not a GitHub fork. Git does not apply the metadata
+file automatically; apply settings through the GitHub CLI or API and verify
+both repositories afterward.
