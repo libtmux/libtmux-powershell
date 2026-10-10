@@ -349,6 +349,10 @@ and setup. Libraries should aim for the stretch budgets.
 Run the inner loop after each edit, the mid loop after each change and before
 handoff, and the outer loop before a code commit or pull request.
 
+The complete installed `Product` suite has a 70-second outer budget.
+`Documentation` keeps its 60-second budget. Individual test processes keep
+their existing deadlines.
+
 Keep network access, installs, production builds, browsers, sleeps, and broad
 corpus scans out of the inner and mid loops. Treat a timeout or wait over one
 second as a structural bug: investigate the cause and use events or
