@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 # Keep review builds from reusing MSBuild workers across checkouts.
 $env:MSBUILDDISABLENODEREUSE = '1'
-$coreRevision = 'ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc'
+$coreRevision = '38cd043d007bc7743880cfd3b3e9c72e38485ca0'
 $coreRemote = 'https://github.com/libtmux/libtmux-dotnet.git'
 $portRemote = 'https://github.com/libtmux/libtmux-powershell.git'
 $root = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot)).Path
@@ -129,12 +129,14 @@ try {
     $attempt = [Security.Cryptography.RandomNumberGenerator]::GetInt32(1, [int]::MaxValue)
     $version = & $python $review version --run-id $runId --attempt $attempt
     if ($LASTEXITCODE -or [string]::IsNullOrWhiteSpace($version)) {
-        throw 'Cannot create a unique review package version from the committed dependency pin.'
+        throw 'Cannot create a bounded review package version from the run ID and attempt.'
     }
     $version = $version.Trim()
 
     Invoke-Native $python @((Join-Path $core 'eng/package_review.py'), '--version', $version,
         '--revision', $coreRevision, '--output', $feed) 'Build and inspect .NET review packages'
+    Invoke-Native $python @($review, 'verify-feed', '--feed', $feed,
+        '--version', $version, '--revision', $coreRevision) 'Verify inspected .NET review feed'
     $provenance = Get-Content -LiteralPath (Join-Path $feed 'provenance.json') -Raw | ConvertFrom-Json
     if ($provenance.version -cne $version -or $provenance.revision -cne $coreRevision -or
         $provenance.inspection -cne 'passed') {
@@ -147,6 +149,8 @@ try {
         '-Restore', '-UpdateLock', '-CorePackageDirectory', $feed, '-PackageCache', $cache) 'Build PowerShell modules'
     Invoke-Native $python @($review, 'verify', '--version', $version,
         '--baseline', $baseline) 'Verify disposable dependency locks'
+    $dependencyBaseline = Get-Content -LiteralPath (Join-Path $baseline 'baseline.json') -Raw |
+        ConvertFrom-Json
 
     foreach ($name in @('LibTmux', 'LibTmux.Query.Json', 'LibTmux.Workspace')) {
         $file = "$name.$version.nupkg"
@@ -227,6 +231,8 @@ try {
     }
 
     @{ status = 'PASS'; version = $version; portRevision = $portRevision;
+        originalDependencyVersion = $dependencyBaseline.original_version;
+        dependencyBaseline = 'lock-baseline/baseline.json';
         coreRevision = $coreRevision; modulePath = $modulePath; packageFeed = $feed;
         modulePackageRoot = $modulePackages; modulePackages = @($moduleEvidence.packages);
         coreProvenance = 'feed/provenance.json';

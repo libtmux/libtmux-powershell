@@ -33,6 +33,7 @@ function Assert-True([bool] $Condition, [string] $Message) {
 }
 
 function Assert-CleanedUp($Fixture) {
+    Assert-True $Fixture.ExitConfirmedBeforeDirectoryRemoval 'Directory removal preceded daemon-exit proof.'
     Assert-True (-not (Test-Path -LiteralPath $Fixture.DirectoryPath)) 'Owned directory remains.'
     foreach ($processId in $Fixture.OwnedProcessIds) {
         $remaining = Get-Process -Id $processId -ErrorAction SilentlyContinue
@@ -212,6 +213,30 @@ try {
     Remove-OwnedTmuxFixture $borrowed
 }
 Assert-CleanedUp $borrowed
+
+$script:OriginalRemoveFixture = (Get-Command Remove-OwnedTmuxFixture).ScriptBlock
+$dualState = @{ Fixture = $null }
+$dualFailure = $null
+try {
+    Set-Item Function:\Remove-OwnedTmuxFixture -Value {
+        param($Fixture)
+        & $script:OriginalRemoveFixture $Fixture
+        throw 'injected scope cleanup failure'
+    }
+    try {
+        Invoke-WithOwnedTmux {
+            param($owned)
+            $dualState.Fixture = $owned
+            throw 'injected scope body failure'
+        }
+    } catch { $dualFailure = $_.Exception }
+} finally {
+    Set-Item Function:\Remove-OwnedTmuxFixture -Value $script:OriginalRemoveFixture
+    Remove-Variable OriginalRemoveFixture -Scope Script
+}
+Assert-True ($dualFailure.Message -ceq 'injected scope body failure' -and
+    $dualFailure.Data['OwnedTmuxCleanupFailure'].Message -ceq 'injected scope cleanup failure') 'Fixture scope lost body or cleanup failure.'
+Assert-CleanedUp $dualState.Fixture
 
 $setupState = @{ Fixture = $null }
 $failed = $false

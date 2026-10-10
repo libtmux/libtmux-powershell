@@ -7,7 +7,7 @@ namespace LibTmux.PowerShell;
 
 /// <summary>Splits a pane and returns the created pane's captured core object.</summary>
 [Cmdlet(VerbsCommon.Split, "TmuxPane", SupportsShouldProcess = true, DefaultParameterSetName = "Cells")]
-[OutputType(typeof(Pane))]
+[OutputType(typeof(Pane), typeof(OwnedPaneScope))]
 [UnsupportedOSPlatform("windows")]
 public sealed class SplitTmuxPaneCommand : TmuxCmdlet
 {
@@ -63,6 +63,10 @@ public sealed class SplitTmuxPaneCommand : TmuxCmdlet
     [Parameter]
     public SwitchParameter Zoom { get; set; }
 
+    /// <summary>Gets or sets whether to return an owner whose disposal destroys the created resource.</summary>
+    [Parameter]
+    public SwitchParameter Owned { get; set; }
+
     /// <inheritdoc />
     protected override void BeginProcessing()
     {
@@ -96,7 +100,14 @@ public sealed class SplitTmuxPaneCommand : TmuxCmdlet
     {
         if (ShouldProcess($"{CreationEnvironment.Endpoint(Pane.Server)} pane {Pane.Id}", "Split tmux pane"))
         {
-            ReadResult(token => Pane.SplitAsync(request, token), "Tmux.PaneSplitFailed", Pane);
+            if (Owned)
+            {
+                ReadScopedResult(token => Pane.SplitOwnedAsync(request, token), "Tmux.PaneSplitFailed", Pane);
+            }
+            else
+            {
+                ReadResult(token => Pane.SplitAsync(request, token), "Tmux.PaneSplitFailed", Pane);
+            }
         }
     }
 }

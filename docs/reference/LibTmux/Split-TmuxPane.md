@@ -21,7 +21,7 @@ Split an explicit pane and return the newly created pane.
 
 ```text
 Split-TmuxPane [-Pane] <Pane> [-Horizontal] [-Before] [-Size <int>] [-StartDirectory <string>]
- [-Command <string>] [-Environment <IDictionary>] [-Activate] [-FullWindow] [-Zoom] [-WhatIf]
+ [-Command <string>] [-Environment <IDictionary>] [-Activate] [-FullWindow] [-Zoom] [-Owned] [-WhatIf]
  [-Confirm]
 ```
 
@@ -29,7 +29,7 @@ Split-TmuxPane [-Pane] <Pane> [-Horizontal] [-Before] [-Size <int>] [-StartDirec
 
 ```text
 Split-TmuxPane [-Pane] <Pane> -Percentage <int> [-Horizontal] [-Before] [-StartDirectory <string>]
- [-Command <string>] [-Environment <IDictionary>] [-Activate] [-FullWindow] [-Zoom] [-WhatIf]
+ [-Command <string>] [-Environment <IDictionary>] [-Activate] [-FullWindow] [-Zoom] [-Owned] [-WhatIf]
  [-Confirm]
 ```
 
@@ -38,6 +38,8 @@ Split-TmuxPane [-Pane] <Pane> -Percentage <int> [-Horizontal] [-Before] [-StartD
 None.
 
 ## DESCRIPTION
+
+With Owned, return OwnedPaneScope and accept destruction responsibility for the new pane. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
 
 Split a native Pane directly or through the pipeline. By default the new pane is
 below its target and remains unselected. Horizontal chooses a left/right split;
@@ -61,6 +63,27 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
 ```
 
 ## PARAMETERS
+
+### -Owned
+
+Return the native owner of the created pane. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
 
 ### -Activate
 
@@ -365,6 +388,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 Native pipeline type for this command.
 
 ## OUTPUTS
+
+### LibTmux.OwnedPaneScope
+
+Returned with Owned; disposal destroys the created resource.
 
 ### LibTmux.Pane
 

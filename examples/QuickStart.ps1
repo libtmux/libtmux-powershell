@@ -1,23 +1,9 @@
-[CmdletBinding()]
-param()
+Import-Module LibTmux
 
-$ErrorActionPreference = 'Stop'
-if (!(Get-Module LibTmux)) { Import-Module LibTmux -ErrorAction Stop }
+$server = Start-TmuxServer -ErrorAction Stop
+$session = ($server | Resolve-TmuxSession -Name libtmux-demo `
+    -Request @{ WindowName = 'editor' } -ErrorAction Stop).Value
+$null = $session | Resolve-TmuxWindow -Name logs -ErrorAction Stop
 
-$socket = 'libtmux-quickstart-' + [Guid]::NewGuid().ToString('N')
-$options = @{ SocketName = $socket; ConfigurationFile = '/dev/null' }
-$server = LibTmux\New-TmuxServer @options
-$session = $null
-try {
-    $session = $server |
-        New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
-    $pane = $session | Get-TmuxPane
-    $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
-    $null = $session | New-TmuxWindow -Name logs -Command 'exec /bin/cat'
-
-    $captured = ($server | Get-TmuxSnapshot).Sessions |
-        Select-TmuxSession -Criteria @{ Name = 'demo' } -ExactlyOne
-    $captured
-} finally {
-    if ($session) { $session | Remove-TmuxSession -Confirm:$false }
-}
+($server | Get-TmuxSnapshot -ErrorAction Stop).Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'libtmux-demo' } -ExactlyOne

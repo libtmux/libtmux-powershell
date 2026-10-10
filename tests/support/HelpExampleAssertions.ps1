@@ -21,8 +21,78 @@ function Get-HelpExampleAssertion {
         $Context.Plan = $Plan
     }
 
+    $prepareLifecycle = {
+        param($Context)
+        $Context.LifecycleEnvironment = @{}
+        foreach ($key in @('LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'TMUX_TMPDIR')) {
+            $Context.LifecycleEnvironment[$key] = [Environment]::GetEnvironmentVariable($key)
+        }
+        [Environment]::SetEnvironmentVariable('LIBTMUX_SOCKET_PATH', $Context.Fixture.SocketPath)
+        [Environment]::SetEnvironmentVariable('LIBTMUX_SOCKET_NAME', '')
+        [Environment]::SetEnvironmentVariable('TMUX_TMPDIR', $Context.Fixture.DirectoryPath)
+    }
+    $cleanupLifecycle = {
+        param($Context)
+        foreach ($key in $Context.LifecycleEnvironment.Keys) {
+            [Environment]::SetEnvironmentVariable($key, $Context.LifecycleEnvironment[$key])
+        }
+    }
+
     # Each packaged example needs its own outcome assertion, including examples with no output.
     @{
+        'LibTmux\ConvertTo-TmuxOwnedResource#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.OwnedSessionScope] -or @($Result[0].Value.Server | Get-TmuxSession -Id $Result[0].Value.Id).Count) { throw 'Adoption help did not destroy its captured session.' }
+            } }
+        'LibTmux\Invoke-TmuxScope#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.Window] -or (Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Scope help did not return its window after session cleanup.' }
+            } }
+        'LibTmux\Close-TmuxScope#1' = @{ ExpectedCount = 0; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ((Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Repeated close help left a session.' }
+            } }
+        'LibTmux\Get-TmuxScopeFailure#1' = @{ ExpectedCount = 0; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ((Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Failure inspection help left a session.' }
+            } }
+        'LibTmux\Find-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.ServerDiscoveryResult] -or $Result[0].Servers.Count -ne 1 -or $Result[0].Servers[0].SocketPath -cne $Context.Fixture.SocketPath -or $Result[0].Truncated) { throw 'Discovery help did not find its configured fixture.' }
+            } }
+        'LibTmux\Start-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.Server] -or !$Result[0].IsMaterialized -or
+                    (Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') {
+                    throw 'Server startup help did not preserve the existing server and session.'
+                }
+            } }
+        'LibTmux\Resolve-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.FoundOrCreated[LibTmux.Server]] -or $Result[0].Created -or $null -ne $Result[0].Owner -or (Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Server resolution help claimed or destroyed the borrowed fixture.' }
+            } }
+        'LibTmux\Resolve-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.FoundOrCreated[LibTmux.Session]] -or !$Result[0].Created -or @($Result[0].Value.Server | Get-TmuxSession -Id $Result[0].Value.Id).Count) { throw 'Session resolution help did not destroy its created result.' }
+            } }
+        'LibTmux\Resolve-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.FoundOrCreated[LibTmux.Window]] -or !$Result[0].Created -or (Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Window resolution help left its owning session.' }
+            } }
+        'LibTmux\Resolve-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $true;
+            Prepare = $prepareLifecycle; Cleanup = $cleanupLifecycle; Assert = {
+                param($Result, $Context)
+                if ($Result[0] -isnot [LibTmux.FoundOrCreated[LibTmux.Pane]] -or !$Result[0].Created -or (Invoke-OwnedTmux $Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture') { throw 'Pane resolution help left its owning session.' }
+            } }
         'LibTmux\Enter-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath

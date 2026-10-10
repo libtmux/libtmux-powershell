@@ -2,6 +2,129 @@
 <helpItems xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10" schema="maml" xmlns="http://msh">
   <command:command>
     <command:details>
+      <command:name>Close-TmuxScope</command:name>
+      <maml:description>
+        <maml:para>Dispose an owned tmux resource or a created-versus-reused result.</maml:para>
+      </maml:description>
+      <command:verb>Close</command:verb>
+      <command:noun>TmuxScope</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>A successful repeated close has no effect. Failed cleanup remains retryable on the same owner. A reused Resolve-Tmux result has no owner, so closing it preserves the borrowed object. Borrowed Server, Session, Window and Pane handles are rejected; use ConvertTo-TmuxOwnedResource to accept destruction responsibility.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Close-TmuxScope</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>The native owned resource or created-versus-reused result. Pipeline binding uses the object itself, not a property.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Void</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success output.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt. The Owner from a Get-TmuxScopeFailure record also supports retry after acquisition failed before returning a normal scope. The cmdlet accepts only that registered recovery owner; an arbitrary disposable object carries no tmux cleanup authority.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create and own one session, then close its owner twice. Both calls succeed and produce no output.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'close-' + [Guid]::NewGuid().ToString('N')
+$owner = New-TmuxServer | New-TmuxSession -Name $name -Owned
+$owner | Close-TmuxScope
+$owner | Close-TmuxScope
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Close-TmuxScope.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Connect-TmuxControl</command:name>
       <maml:description>
         <maml:para>Attach a native control client to an explicit tmux target.</maml:para>
@@ -232,6 +355,154 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Connect-TmuxServer
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>ConvertTo-TmuxOwnedResource</command:name>
+      <maml:description>
+        <maml:para>Accept destruction responsibility for an existing tmux object.</maml:para>
+      </maml:description>
+      <command:verb>ConvertTo</command:verb>
+      <command:noun>TmuxOwnedResource</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Supply a native Server, Session, Window or Pane. The returned owner captures the endpoint, daemon generation, reserved ownership token and object ID. Dispose it with Close-TmuxScope or Invoke-TmuxScope. Session cleanup destroys its windows and panes. Window cleanup destroys all links to that window and its panes. Pane cleanup follows its ID after a move. Server cleanup destroys the accepted daemon and waits for its process to exit. Give whole-server adoption a disposable endpoint.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>ConvertTo-TmuxOwnedResource</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>Borrowed native Server, Session, Window or Pane whose destruction responsibility you accept. An existing lookup alone grants no ownership.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedServerScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedSessionScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedWindowScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedPaneScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create a session on the normal endpoint, accept ownership, then destroy it. The returned owner retains its captured session handle after disposal.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'adopt-' + [Guid]::NewGuid().ToString('N')
+$session = New-TmuxServer | New-TmuxSession -Name $name
+$owner = $session | ConvertTo-TmuxOwnedResource
+$owner | Close-TmuxScope
+$owner
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/ConvertTo-TmuxOwnedResource.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -626,6 +897,218 @@ $session | LibTmux\Enter-TmuxSession -ReadOnly
       <maml:navigationLink>
         <maml:linkText>Invoke-TmuxWorkspace</maml:linkText>
         <maml:uri>../LibTmux.Workspace/Invoke-TmuxWorkspace.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Find-TmuxServer</command:name>
+      <maml:description>
+        <maml:para>Discover responsive tmux sockets within explicit roots and bounds.</maml:para>
+      </maml:description>
+      <command:verb>Find</command:verb>
+      <command:noun>TmuxServer</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Inspect immediate children of the supplied roots and, unless NoConfiguredRoots is present, the current user's captured configured socket directories. The core skips symlink roots and entries, probes sockets owned by the current user, and uses no-start probes. Read Servers, Diagnostics, Truncated, EntriesVisited and ProbesAttempted on the single result. Discovery is a bounded search, not a complete machine inventory. Filesystem calls may outlast the deadline; later work stops at the next boundary.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Find-TmuxServer</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Root</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string[]</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String[]</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>NoConfiguredRoots</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Connection</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">ServerConnectionOptions</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.ServerConnectionOptions</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaximumRoots</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaximumEntries</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>MaximumProbes</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>TimeoutMilliseconds</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ProbeTimeoutMilliseconds</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">int</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Int32</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Connection</maml:name>
+        <maml:description>
+          <maml:para>Native ServerConnectionOptions for probe executable and copied child environment. Defaults use the ordinary captured endpoint rules.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.ServerConnectionOptions</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.ServerConnectionOptions</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaximumEntries</maml:name>
+        <maml:description>
+          <maml:para>Maximum directory entries visited across roots. The default is 256.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaximumProbes</maml:name>
+        <maml:description>
+          <maml:para>Maximum socket probes. The default is 64.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>MaximumRoots</maml:name>
+        <maml:description>
+          <maml:para>Maximum root inputs, including duplicates. The default is 16.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>NoConfiguredRoots</maml:name>
+        <maml:description>
+          <maml:para>Search only Root entries; omit the configured and selected socket directories.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ProbeTimeoutMilliseconds</maml:name>
+        <maml:description>
+          <maml:para>Deadline for one socket probe in milliseconds. The default is 250.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Root</maml:name>
+        <maml:description>
+          <maml:para>Additional absolute directories whose immediate children are socket candidates. Omit for configured roots. Discovery does not recurse.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String[]</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String[]</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>TimeoutMilliseconds</maml:name>
+        <maml:description>
+          <maml:para>Total discovery deadline in milliseconds. The default is 5000.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Int32</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Supply the named discovery settings.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.ServerDiscoveryResult</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para />
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Search the configured roots with at most 32 socket probes and a two-second total deadline. Read the result's diagnostics and truncation flag as well as its servers.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+Find-TmuxServer -MaximumProbes 32 -TimeoutMilliseconds 2000
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Find-TmuxServer.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2593,6 +3076,116 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Get-TmuxScopeFailure</command:name>
+      <maml:description>
+        <maml:para>Inspect the latest failed cleanup retained on an owned scope.</maml:para>
+      </maml:description>
+      <command:verb>Get</command:verb>
+      <command:noun>TmuxScopeFailure</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return the latest TmuxScopeFailure from a failed cmdlet cleanup on the supplied owner. Use -Pending to list unresolved cleanup failures across runspaces in this PowerShell process, including core acquisition rollback failures and failed output handoffs that did not reach a caller variable. The record contains BodyFailure, CleanupFailure and the same Owner for retry. It remains available after a successful retry. No result means that these cmdlets have not recorded a cleanup failure on this owner. This diagnostic survives PowerShell replacing its pipeline cancellation exception.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxScopeFailure</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Get-TmuxScopeFailure</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Pending</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>The native owned resource or created-versus-reused result. Pipeline binding uses the object itself, not a property.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Pending</maml:name>
+        <maml:description>
+          <maml:para>List unresolved cmdlet cleanup failures across runspaces in this process. A successful cmdlet cleanup removes its pending entry. Each entry retains its owner so a canceled handoff cannot discard retry authority.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.PowerShell.TmuxScopeFailure</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The original body error, cleanup error and retry owner from the latest failed cmdlet cleanup.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Pending records keep their owners reachable until a cmdlet cleanup succeeds. The per-owner history uses a weak table and remains readable after that retry while the caller retains the owner. Calling the core DisposeAsync method outside these cmdlets does not populate or retire PowerShell records. Use Close-TmuxScope to retry, ErrorAction and ErrorVariable for normal pipeline errors, and -Pending to recover an owner lost during canceled output handoff. Process termination loses these in-memory records; an external harness must own cleanup after a worker crash. Acquisition can fail before a cmdlet receives an owner. If the core accepted cleanup authority and rollback fails, the cmdlet registers each owner from OwnedScope.CleanupOwners before PowerShell replaces the error. Close-TmuxScope accepts those registered owners, including raw creation receipts that expose only IAsyncDisposable. Unknown creation effects without accepted authority have no pending owner.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create and close a session, then inspect the owner. A successful close has no failure record, so this example produces no output.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'inspect-' + [Guid]::NewGuid().ToString('N')
+$owner = New-TmuxServer | New-TmuxSession -Name $name -Owned
+$owner | Close-TmuxScope
+$owner | Get-TmuxScopeFailure
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Get-TmuxScopeFailure.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Get-TmuxServer</command:name>
       <maml:description>
         <maml:para>Inspect an existing tmux daemon's identity and version.</maml:para>
@@ -4470,6 +5063,119 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
   </command:command>
   <command:command>
     <command:details>
+      <command:name>Invoke-TmuxScope</command:name>
+      <maml:description>
+        <maml:para>Run a script block and clean up its owned tmux resource.</maml:para>
+      </maml:description>
+      <command:verb>Invoke</command:verb>
+      <command:noun>TmuxScope</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Pass an owner from an Owned creation, ConvertTo-TmuxOwnedResource or a Resolve-Tmux command. The Body receives its borrowed Value as the first argument. The cmdlet disposes the owner after normal return, a terminating body error or a stopped pipeline. It buffers success output until cleanup succeeds. Nonterminating PowerShell errors retain normal ErrorAction behavior; use ErrorAction Stop when they should stop the body.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Invoke-TmuxScope</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Body</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">scriptblock</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Management.Automation.ScriptBlock</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>InputObject</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Object</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Object</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+        <maml:name>Body</maml:name>
+        <maml:description>
+          <maml:para>The script block to run in a local scope. Declare param($resource) to receive the borrowed Value. Cleanup runs after body cancellation with its own core deadline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Management.Automation.ScriptBlock</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Management.Automation.ScriptBlock</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="Named" aliases="none">
+        <maml:name>InputObject</maml:name>
+        <maml:description>
+          <maml:para>The native owned resource or created-versus-reused result. Pipeline binding uses the object itself, not a property.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Object</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>System.Object</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.
+
+If body and cleanup both fail, the original PowerShell body exception retains the cleanup exception. Inspect [LibTmux.OwnedScope]::CleanupFailure($error) and $error.Data['LibTmux.PowerShell.Owner']; PowerShell may wrap the exception, so inspect InnerException as needed. A stopped pipeline can replace it; retain the owner and read Get-TmuxScopeFailure for BodyFailure, CleanupFailure and retry authority. Failed cleanup emits no buffered success output. Abrupt process death requires an outer process supervisor.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create a session with normal tmux defaults, return its captured initial window, and destroy the session before emitting that window.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'example-' + [Guid]::NewGuid().ToString('N')
+New-TmuxServer | New-TmuxSession -Name $name -Owned |
+    Invoke-TmuxScope {
+        param($session)
+        $session | Get-TmuxWindow
+    }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Invoke-TmuxScope.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
       <command:name>Move-TmuxWindow</command:name>
       <maml:description>
         <maml:para>Move one session placement of a window.</maml:para>
@@ -4993,7 +5699,17 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
       <command:noun>TmuxServer</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Choose a socket name or absolute socket path. Construction performs no tmux I/O and does not start or own a daemon. A later command explicitly acquires data or changes tmux. Omitting both socket selectors uses the core default endpoint.</maml:para>
+      <maml:para>With Owned, return OwnedServerScope and accept destruction responsibility for the new server. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
+
+Construct a borrowed handle without starting or owning a daemon. A later command reads data or changes tmux. The constructor captures the endpoint, effective child environment and executable lookup for later commands and cleanup.
+
+Select an endpoint with this precedence: an explicit SocketPath or SocketName, nonempty LIBTMUX_SOCKET_PATH, nonempty LIBTMUX_SOCKET_NAME, nonempty TMUX, then tmux's named default. ChildEnvironment overrides the host values for this selection. Empty selector variables count as absent. An invalid selected value raises an argument error; ignored lower-precedence values do not affect the choice.
+
+Use an absolute SocketPath or a nonempty leaf SocketName. Names cannot contain path separators or be '.' or '..'. A selected TMUX value must contain an absolute socket path, positive decimal PID and nonnegative decimal session ID (with an optional '$') or '-1', separated by its last two commas. Commas in the path remain part of the path.
+
+Named endpoints use the captured TMUX_TMPDIR or /tmp and the current user's tmux directory. The root must exist and be absolute. Commands create the per-user directory with mode 0700 when needed; they reject missing roots and unsafe existing directories without falling back to another socket. Explicit socket paths require an existing parent directory.
+
+Later host-environment changes cannot redirect the handle. Launched clients omit TMUX and TMUX_PANE. Creating or looking up a handle grants no responsibility for destroying remote resources.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -5020,6 +5736,35 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
           <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
           <dev:type>
             <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ChildEnvironment</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
           </dev:type>
         </command:parameter>
       </command:syntaxItem>
@@ -5049,9 +5794,48 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
             <maml:name>System.String</maml:name>
           </dev:type>
         </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>ChildEnvironment</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
+          <dev:type>
+            <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
       </command:syntaxItem>
     </command:syntax>
     <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>ChildEnvironment</maml:name>
+        <maml:description>
+          <maml:para>A copied dictionary of child-process environment overrides. Names and non-null values must be strings; null removes an inherited variable. The handle snapshots the effective environment at construction, including PATH for executable lookup. These overrides leave the PowerShell host and tmux server/session environment tables unchanged. Use Set-TmuxEnvironment to change a tmux environment table.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Collections.IDictionary</command:parameterValue>
+        <dev:type>
+          <maml:name>System.Collections.IDictionary</maml:name>
+        </dev:type>
+      </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>ConfigurationFile</maml:name>
         <maml:description>
@@ -5062,10 +5846,28 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
           <maml:name>System.String</maml:name>
         </dev:type>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Owned</maml:name>
+        <maml:description>
+          <maml:para>Return the native owner of the created server. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Server creation fails if a daemon already owns the endpoint; use a disposable endpoint for whole-server ownership.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SocketName</maml:name>
         <maml:description>
-          <maml:para>The tmux socket name.</maml:para>
+          <maml:para>The tmux socket leaf name. An explicit name takes precedence over environment selectors. Supply either SocketName or SocketPath.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>
@@ -5075,7 +5877,7 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SocketPath</maml:name>
         <maml:description>
-          <maml:para>The absolute socket path.</maml:para>
+          <maml:para>The absolute socket path. Preserve spaces and commas as part of the path. An explicit path takes precedence over environment selectors. Supply either SocketPath or SocketName.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>
@@ -5092,9 +5894,26 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
           <maml:name>System.String</maml:name>
         </dev:type>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
     </command:parameters>
     <command:inputTypes />
     <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedServerScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Returned with Owned; disposal destroys the created resource.</maml:para>
+        </maml:description>
+      </command:returnValue>
       <command:returnValue>
         <dev:type>
           <maml:name>LibTmux.Server</maml:name>
@@ -5144,7 +5963,9 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath
       <command:noun>TmuxSession</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Create a session and its initial window and pane, then return the captured
+      <maml:para>With Owned, return OwnedSessionScope and accept destruction responsibility for the new session. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
+
+Create a session and its initial window and pane, then return the captured
 native LibTmux.Session. The Server parameter accepts a native endpoint handle
 directly or through the pipeline. The core can start the daemon when that
 endpoint has no server. Existing session names remain errors; the command does
@@ -5215,6 +6036,13 @@ not replace or attach to an existing session.</maml:para>
           <command:parameterValue required="true" variableLength="false">IDictionary</command:parameterValue>
           <dev:type>
             <maml:name>System.Collections.IDictionary</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
           </dev:type>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
@@ -5291,6 +6119,15 @@ tmux's name and format rules apply.</maml:para>
           <maml:name>System.String</maml:name>
         </dev:type>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Owned</maml:name>
+        <maml:description>
+          <maml:para>Return the native owner of the created session. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
         <maml:name>Server</maml:name>
         <maml:description>
@@ -5359,6 +6196,14 @@ dimensions.</maml:para>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
+          <maml:name>LibTmux.OwnedSessionScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Returned with Owned; disposal destroys the created resource.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
           <maml:name>LibTmux.Session</maml:name>
         </dev:type>
         <maml:description>
@@ -5420,7 +6265,9 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
       <command:noun>TmuxWindow</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Create a window and its initial pane, then return the captured native
+      <maml:para>With Owned, return OwnedWindowScope and accept destruction responsibility for the new window. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
+
+Create a window and its initial pane, then return the captured native
 LibTmux.Window. Supply a native Session directly or through the pipeline. The
 new window remains unselected unless Activate is present. The existing session
 object is not refreshed in place.</maml:para>
@@ -5478,6 +6325,13 @@ object is not refreshed in place.</maml:para>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>Activate</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
           <maml:description />
           <dev:type>
             <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -5568,6 +6422,15 @@ expansion rules apply.</maml:para>
           <maml:name>System.String</maml:name>
         </dev:type>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Owned</maml:name>
+        <maml:description>
+          <maml:para>Return the native owner of the created window. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
         <maml:name>Session</maml:name>
         <maml:description>
@@ -5612,6 +6475,14 @@ PowerShell provider paths or change the host's current directory.</maml:para>
       </command:inputType>
     </command:inputTypes>
     <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.OwnedWindowScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Returned with Owned; disposal destroys the created resource.</maml:para>
+        </maml:description>
+      </command:returnValue>
       <command:returnValue>
         <dev:type>
           <maml:name>LibTmux.Window</maml:name>
@@ -7492,6 +8363,622 @@ $window | LibTmux\Remove-TmuxWindowLink -Confirm:$false
       <maml:navigationLink>
         <maml:linkText>Link a window into another session</maml:linkText>
         <maml:uri>New-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Resolve-TmuxPane</command:name>
+      <maml:description>
+        <maml:para>Find an application pane identity or split and own a pane.</maml:para>
+      </maml:description>
+      <command:verb>Resolve</command:verb>
+      <command:noun>TmuxPane</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Match the exact local pane option @libtmux-identity within the supplied Window. Titles and commands do not determine identity. Multiple matches raise TmuxAmbiguousMatchException. If no match exists, split the active pane, set the identity and return its owner. Request may configure the split but cannot supply a different target or parent window. Closing a created result destroys its pane; closing a reused result leaves it alive.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxPane</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Identity</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Request</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">SplitPaneRequest</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.SplitPaneRequest</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Identity</maml:name>
+        <maml:description>
+          <maml:para>Nonempty application identity to compare against the local pane option @libtmux-identity.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Request</maml:name>
+        <maml:description>
+          <maml:para>Native creation options used when no match exists. Reused resources retain their current settings.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.SplitPaneRequest</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.SplitPaneRequest</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native parent window to search. The cmdlet accepts it through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.FoundOrCreated`1[[LibTmux.Pane, LibTmux, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Library find-or-create calls serialize within this process for the captured socket path spelling. Other clients can change resources; window names and pane identities require application coordination across processes. Reused results grant no destruction responsibility.
+
+Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create a scoped session and resolve an editor pane by application identity. Closing the created result removes that pane, and scope exit removes the session.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'panes-' + [Guid]::NewGuid().ToString('N')
+New-TmuxServer | New-TmuxSession -Name $name -Owned |
+    Invoke-TmuxScope {
+        param($session)
+        $window = $session | Get-TmuxWindow | Select-Object -First 1
+        $result = $window | Resolve-TmuxPane -Identity 'editor'
+        $result | Close-TmuxScope
+        $result
+    }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Resolve-TmuxPane.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Resolve-TmuxServer</command:name>
+      <maml:description>
+        <maml:para>Find a daemon at the captured endpoint or create and own one.</maml:para>
+      </maml:description>
+      <command:verb>Resolve</command:verb>
+      <command:noun>TmuxServer</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return FoundOrCreated&lt;Server&gt; with Value, Created and Owner. Existing daemons remain borrowed; a new daemon carries an owner that destroys it on close. The core proves startup using a per-call nonce before claiming ownership. Created daemons stay alive without sessions until their owner closes. This cmdlet preserves captured endpoint and child-environment defaults.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxServer</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The captured server endpoint to search. The cmdlet accepts a native Server through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.FoundOrCreated`1[[LibTmux.Server, LibTmux, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Library find-or-create calls serialize within this process for the captured socket path spelling. Other clients can change resources; window names and pane identities require application coordination across processes. Reused results grant no destruction responsibility.
+
+Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Resolve the normal endpoint and close the result. A daemon already running remains alive. A daemon created by this call is destroyed; the result still describes which case occurred.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$result = New-TmuxServer | Resolve-TmuxServer
+$result | Close-TmuxScope
+$result
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Resolve-TmuxServer.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Resolve-TmuxSession</command:name>
+      <maml:description>
+        <maml:para>Find an exact session name or create and own that session.</maml:para>
+      </maml:description>
+      <command:verb>Resolve</command:verb>
+      <command:noun>TmuxSession</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Match the literal session name in full. A result contains Value, Created and nullable Owner. Existing sessions remain borrowed. A newly created session carries cleanup responsibility. Request supplies native creation options; a conflicting name or ReplaceExisting request fails. If another client wins the same session name, the cmdlet returns the matching session as borrowed.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Request</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">NewSessionRequest</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.NewSessionRequest</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>Literal name to match in full. Window names may be duplicated by other clients; ambiguity fails.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Request</maml:name>
+        <maml:description>
+          <maml:para>Native creation options used when no match exists. Reused resources retain their current settings.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.NewSessionRequest</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.NewSessionRequest</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The captured server endpoint to search. The cmdlet accepts a native Server through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.FoundOrCreated`1[[LibTmux.Session, LibTmux, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Library find-or-create calls serialize within this process for the captured socket path spelling. Other clients can change resources; window names and pane identities require application coordination across processes. Reused results grant no destruction responsibility.
+
+Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Resolve a unique name on the normal endpoint, close its result and inspect whether it was created.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'resolve-' + [Guid]::NewGuid().ToString('N')
+$result = New-TmuxServer | Resolve-TmuxSession -Name $name
+$result | Close-TmuxScope
+$result
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Resolve-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Resolve-TmuxWindow</command:name>
+      <maml:description>
+        <maml:para>Find one exact window name in a session or create and own it.</maml:para>
+      </maml:description>
+      <command:verb>Resolve</command:verb>
+      <command:noun>TmuxWindow</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Match a literal name within the supplied Session. Multiple matching windows raise TmuxAmbiguousMatchException. Return Value, Created and nullable Owner. Request supplies native creation options, but replacement and select-existing behavior are refused. Closing a created result destroys that window and its links; closing a reused result leaves it alive.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Resolve-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Request</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">NewWindowRequest</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.NewWindowRequest</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>Literal name to match in full. Window names may be duplicated by other clients; ambiguity fails.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Request</maml:name>
+        <maml:description>
+          <maml:para>Native creation options used when no match exists. Reused resources retain their current settings.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.NewWindowRequest</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.NewWindowRequest</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native parent session to search. The cmdlet accepts it through the pipeline.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.FoundOrCreated`1[[LibTmux.Window, LibTmux, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]]</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Library find-or-create calls serialize within this process for the captured socket path spelling. Other clients can change resources; window names and pane identities require application coordination across processes. Reused results grant no destruction responsibility.
+
+Owned cleanup uses a separate five-second core deadline. Acquisition and cleanup preserve the accepted endpoint, object ID and daemon token. The reserved server option @libtmux_owner_generation contains 32 hexadecimal characters; callers must not shadow or change it. A failed cleanup keeps its owner available for another Close-TmuxScope attempt.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Create a scoped session, resolve its editor window and close both created resources. The returned result contains the captured window.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+$name = 'windows-' + [Guid]::NewGuid().ToString('N')
+New-TmuxServer | New-TmuxSession -Name $name -Owned |
+    Invoke-TmuxScope {
+        param($session)
+        $result = $session | Resolve-TmuxWindow -Name 'editor'
+        $result | Close-TmuxScope
+        $result
+    }
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Resolve-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -10581,7 +12068,9 @@ $window | LibTmux\Set-TmuxWindowSize -Width 120 -Height 40 -PassThru
       <command:noun>TmuxPane</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Split a native Pane directly or through the pipeline. By default the new pane is
+      <maml:para>With Owned, return OwnedPaneScope and accept destruction responsibility for the new pane. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
+
+Split a native Pane directly or through the pipeline. By default the new pane is
 below its target and remains unselected. Horizontal chooses a left/right split;
 Before places the new pane above or left of the target. Success returns the
 captured native LibTmux.Pane for the new pane and does not refresh the original
@@ -10660,6 +12149,13 @@ handle in place.</maml:para>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>Zoom</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
           <maml:description />
           <dev:type>
             <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -10758,6 +12254,13 @@ handle in place.</maml:para>
           </dev:type>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Owned</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description />
           <dev:type>
@@ -10847,6 +12350,15 @@ the right.</maml:para>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
         </dev:type>
       </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Owned</maml:name>
+        <maml:description>
+          <maml:para>Return the native owner of the created pane. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
         <maml:name>Pane</maml:name>
         <maml:description>
@@ -10925,6 +12437,14 @@ PowerShell provider paths or change the host's current directory.</maml:para>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
+          <maml:name>LibTmux.OwnedPaneScope</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>Returned with Owned; disposal destroys the created resource.</maml:para>
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
           <maml:name>LibTmux.Pane</maml:name>
         </dev:type>
         <maml:description>
@@ -10969,6 +12489,134 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../create.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Start-TmuxServer</command:name>
+      <maml:description>
+        <maml:para>Start a missing daemon or return the existing server.</maml:para>
+      </maml:description>
+      <command:verb>Start</command:verb>
+      <command:noun>TmuxServer</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Return an ordinary LibTmux.Server at the selected endpoint. With no Server argument, capture the same environment defaults as New-TmuxServer. Pipe a New-TmuxServer handle to select explicit socket, configuration or child-environment options.
+
+Reusing a daemon preserves its sessions, windows, panes and configuration. Starting a daemon reads the selected tmux configuration, creates a temporary session, sets exit-empty to off, then removes the temporary session. The returned daemon stays available without a bootstrap session. Any resources created by your tmux configuration remain.
+
+A successful call leaves the daemon running without requiring a cleanup owner. After the shared core returns its acquisition result, the cmdlet retains it until output handoff completes. If cancellation or a downstream pipeline error prevents handoff, the cmdlet attempts to destroy only a daemon started by this call. A reused daemon remains alive. Failed handoff cleanup retains a retry owner through Get-TmuxScopeFailure.
+
+The current core has a recovery gap before it returns an acquisition result. If startup and its rollback both fail, the exception retains both errors but exposes no retry owner. The daemon can remain alive. The external test supervisor handles final cleanup for this case; the public API needs a shared-core repair.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Start-TmuxServer</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Ask for confirmation before the operation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The captured endpoint to make available. Omit this parameter for normal environment defaults, or pipe a native Server constructed with New-TmuxServer.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Describe the operation without discovery, ownership acquisition or remote mutation.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The native pipeline input.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>The result described above.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Calls serialize within this process for the captured socket path spelling. Other clients can change resources after selection. New-TmuxServer still constructs a handle without contacting tmux; Connect-TmuxServer still requires an existing daemon. Resolve-TmuxServer returns the separate created-or-reused ownership result.
+
+Endpoint precedence is explicit arguments captured by New-TmuxServer, nonempty LIBTMUX_SOCKET_PATH, nonempty LIBTMUX_SOCKET_NAME, selected TMUX context, then tmux's named default. TMUX_TMPDIR controls the named socket root. Later host environment changes do not redirect a captured handle.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Return a usable server at the normal endpoint. The same code works with or without a running daemon.</maml:para>
+          <maml:para>&#x80;</maml:para>
+          <maml:para>```powershell
+Import-Module LibTmux
+Start-TmuxServer
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Start-TmuxServer.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Ownership and cleanup</maml:linkText>
+        <maml:uri>../../lifecycle.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

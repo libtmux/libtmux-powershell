@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Lifecycle', 'Ownership', 'OrdinaryExamples', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
+    [string] $ExampleRunner,
+    [string] $TmuxBinary,
     [string] $McpCommand,
     [string] $McpVersion,
     [ValidateSet('1.1.1', '1.2.0')]
@@ -17,6 +19,7 @@ $records = [Collections.Generic.List[object]]::new()
 $passed = $false
 $runProduct = $Suite -in @('Product', 'All')
 $runDocumentation = $Suite -in @('Documentation', 'All')
+$runOrdinaryExamples = $Suite -eq 'OrdinaryExamples'
 $parallelTests = $false
 $activeTests = [Collections.Generic.List[object]]::new()
 $workerFailures = [Collections.Generic.List[Management.Automation.ErrorRecord]]::new()
@@ -137,6 +140,9 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
 }
 
 try {
+    if ($runOrdinaryExamples -and !$ExampleRunner) {
+        throw '-ExampleRunner must identify the pinned shared example supervisor for OrdinaryExamples.'
+    }
     if ($Suite -eq 'Mcp') {
         if (!$McpCommand -or !$McpVersion) { throw '-McpCommand and -McpVersion must identify the independently installed tool.' }
         Invoke-TestScript 'tests/Mcp.Tests.ps1' @('-McpCommand', $McpCommand, '-McpVersion', $McpVersion)
@@ -147,7 +153,7 @@ try {
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -eq 'Fixture' -or $runProduct) { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
+    if ($Suite -in @('Package', 'Lifecycle', 'Ownership', 'OrdinaryExamples', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -156,6 +162,31 @@ try {
                 $package = Join-Path $PackageRoot "$name.0.1.0.nupkg"
                 $destination = Join-Path $installed "$name/0.1.0"
                 [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
+            }
+            if ($runOrdinaryExamples) {
+                $python = (Get-Command python3 -CommandType Application | Select-Object -First 1).Source
+                if (!$TmuxBinary) { $TmuxBinary = (Get-Command tmux -CommandType Application | Select-Object -First 1).Source }
+                $output = Join-Path $root ('build/ordinary-example-checks/' + [Guid]::NewGuid().ToString('N'))
+                $script = 'eng/ci/check_example_lifecycle.py'
+                $arguments = @('--runner', (Resolve-Path $ExampleRunner).Path, '--pwsh', $pwsh,
+                    '--module-root', $installed, '--tmux', (Resolve-Path $TmuxBinary).Path, '--output', $output)
+                $watch = [Diagnostics.Stopwatch]::StartNew()
+                $exitCode = $null
+                $cleanupConfirmed = $false
+                try {
+                    & $python (Join-Path $root $script) @arguments
+                    $exitCode = $LASTEXITCODE
+                    $receipt = Get-Content -LiteralPath "$output/summary.json" -Raw | ConvertFrom-Json
+                    $cleanupConfirmed = $receipt.cleanupComplete -eq $true
+                    if ($exitCode -or !$receipt.passed -or @($receipt.verified).Count -ne 18) {
+                        throw "Ordinary examples or recovery failed; inspect $output/summary.json."
+                    }
+                    if ($watch.Elapsed.TotalSeconds -ge 60) { throw 'OrdinaryExamples exceeded its 60-second budget.' }
+                } finally {
+                    if (!$cleanupConfirmed) { $retainedModule = $installed }
+                    $records.Add(@{ script = $script; arguments = $arguments; exit = $exitCode;
+                        seconds = $watch.Elapsed.TotalSeconds; receipt = "$output/summary.json" })
+                }
             }
             if ($Suite -eq 'Package' -or $runProduct) {
                 foreach ($order in @('CoreFirst', 'WorkspaceFirst')) {
@@ -170,6 +201,24 @@ try {
             }
             # Package checks mutate shared bytes; later scripts own their fixtures.
             $parallelTests = $runProduct
+            if ($Suite -eq 'Lifecycle' -or $runProduct) {
+                Invoke-TestScript 'tests/EndpointDefaults.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                Invoke-TestScript 'tests/EndpointLive.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed, '-NamedSocket') $installed
+                Invoke-TestScript 'tests/CreateStartup.Tests.ps1' @('-ModuleRoot', $installed, '-NamedSocket', '-FailAfterCreation') $installed
+            }
+            if ($Suite -eq 'Ownership' -or $runProduct) {
+                foreach ($selector in @('path', 'name')) {
+                    foreach ($case in @('OwnedLifecycle', 'ScopeCancellation', 'ScopeIdentity', 'ScopeExample')) {
+                        Invoke-TestScript 'tests/OwnedRunner.Tests.ps1' @('-ModuleRoot', $installed,
+                            '-Case', $case, '-Selector', $selector) $installed
+                    }
+                }
+                foreach ($fault in @('body', 'cleanup', 'both', 'timeout', 'crash', 'no-cleanup')) {
+                    Invoke-TestScript 'tests/OwnedRunner.Tests.ps1' @('-ModuleRoot', $installed,
+                        '-Case', 'ScopeExample', '-Fault', $fault) $installed
+                }
+            }
             if ($Suite -eq 'Read' -or $runProduct) {
                 Invoke-TestScript 'tests/Read.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
@@ -284,8 +333,11 @@ try {
                     Invoke-TestScript 'tests/Help.Tests.ps1' $arguments $installed
                 }
             }
-            if ($Suite -eq 'Guides' -or $runDocumentation) {
+            if ($Suite -in @('Lifecycle', 'Guides') -or $runDocumentation) {
+                Invoke-TestScript 'tests/SessionCleanup.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 Invoke-TestScript 'tests/ReadmeWorkflow.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            if ($Suite -eq 'Guides' -or $runDocumentation) {
                 foreach ($group in @('Lifecycle', 'OperationsConfiguration', 'OperationsInteraction', 'Planning')) {
                     $arguments = @('-ModuleRoot', $installed, '-RunExamples', '-ExampleGroup', $group)
                     if ($runDocumentation) { $arguments += '-Phase', 'Examples', '-AdmissionPath', $guideAdmission }
@@ -310,10 +362,13 @@ try {
             try {
                 while ($activeTests.Count) { Wait-TestScript }
             } finally {
-                if ($unreapedChildren.Count) { $retainedModule = $installed }
+                if ($unreapedChildren.Count -or $retainedModule) { $retainedModule = $installed }
                 elseif (Test-Path $installed) { Remove-Item $installed -Recurse -Force }
             }
         }
+    }
+    if ($Suite -eq 'OrdinaryExamples' -and $timer.Elapsed.TotalSeconds -ge 60) {
+        throw 'OrdinaryExamples exceeded its 60-second budget including package extraction.'
     }
     $passed = $true
 } finally {

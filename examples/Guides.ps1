@@ -56,10 +56,9 @@ $server | Invoke-TmuxQuery -Plan $queryPlan -AsResult -ErrorAction Stop
 $captured.Sessions |
     Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
     } }
-    'read.endpoint' = @{ Requires = @(); Code = {
-$server = LibTmux\New-TmuxServer `
-    -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
-    -ConfigurationFile /dev/null
+    'readme.endpoint' = @{ Requires = @(); Code = {
+if (!(Get-Module LibTmux)) { Import-Module LibTmux -ErrorAction Stop }
+$server = LibTmux\New-TmuxServer
     } }
     'readme.install.import' = @{ Requires = @(); Code = {
 $modules = $env:LIBTMUX_REVIEW_MODULE_ROOT
@@ -69,7 +68,7 @@ Import-Module -Name @(
 ) -ErrorAction Stop
     } }
     'readme.quickstart' = @{ Requires = @(); Code = {
-(./examples/QuickStart.ps1).Windows | Select-Object Name, @{
+(./examples/SessionCleanup.ps1).Windows | Select-Object Name, @{
     Name = 'PaneIds'
     Expression = { $_.Panes.Id -join ', ' }
 }
@@ -77,15 +76,34 @@ Import-Module -Name @(
     'readme.create' = @{ Requires = @('server'); Code = {
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server |
-        New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
+    $command = 'exec /bin/cat'
+    $session = $null
+    $bodyError = $null
     try {
+        $session = $server |
+            New-TmuxSession -Name demo -WindowName editor -Command $command
         $pane = $session | Get-TmuxPane
-        $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
-        $null = $session | New-TmuxWindow -Name logs -Command 'exec /bin/cat'
-        ($server | Get-TmuxSnapshot).Sessions | Where-Object Name -CEQ demo
+        $null = $pane | Split-TmuxPane -Horizontal -Command $command
+        $null = $session | New-TmuxWindow -Name logs -Command $command
+
+        $captured = ($server | Get-TmuxSnapshot).Sessions |
+            Select-TmuxSession -Criteria @{ Name = 'demo' } -ExactlyOne
+        $captured
+    } catch {
+        $bodyError = $_
+        throw
     } finally {
-        $session | Remove-TmuxSession -Confirm:$false
+        if ($session) {
+            try { $session | Remove-TmuxSession -Confirm:$false }
+            catch {
+                if ($bodyError) {
+                    throw [AggregateException]::new(
+                        'Session body and cleanup failed.',
+                        [Exception[]] @($bodyError.Exception, $_.Exception))
+                }
+                throw
+            }
+        }
     }
 }
     } }

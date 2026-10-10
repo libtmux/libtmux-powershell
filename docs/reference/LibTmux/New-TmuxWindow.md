@@ -21,7 +21,7 @@ Create a window in an explicit session.
 
 ```text
 New-TmuxWindow [-Session] <Session> [-Name <string>] [-Index <int>] [-StartDirectory <string>]
- [-Command <string>] [-Environment <IDictionary>] [-Activate] [-WhatIf] [-Confirm]
+ [-Command <string>] [-Environment <IDictionary>] [-Activate] [-Owned] [-WhatIf] [-Confirm]
 ```
 
 ## ALIASES
@@ -29,6 +29,8 @@ New-TmuxWindow [-Session] <Session> [-Name <string>] [-Index <int>] [-StartDirec
 None.
 
 ## DESCRIPTION
+
+With Owned, return OwnedWindowScope and accept destruction responsibility for the new window. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
 
 Create a window and its initial pane, then return the captured native
 LibTmux.Window. Supply a native Session directly or through the pipeline. The
@@ -50,6 +52,27 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
 ```
 
 ## PARAMETERS
+
+### -Owned
+
+Return the native owner of the created window. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
 
 ### -Activate
 
@@ -269,6 +292,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 Native pipeline type for this command.
 
 ## OUTPUTS
+
+### LibTmux.OwnedWindowScope
+
+Returned with Owned; disposal destroys the created resource.
 
 ### LibTmux.Window
 

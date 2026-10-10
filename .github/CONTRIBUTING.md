@@ -46,9 +46,10 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-Both modules consume published .NET alpha.20 packages, pinned in
-[Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
-the optional `build/nuget` feed, and an isolated `build/packages` cache.
+Both modules consume exact .NET package versions, pinned in
+[Directory.Packages.props](../Directory.Packages.props). Published versions
+restore from NuGet.org; local review versions require their matching archives
+in `build/nuget`. Restore uses an isolated `build/packages` cache.
 Restore checks the committed lockfiles and stages both modules:
 
 ```console
@@ -80,6 +81,17 @@ paths of the `Package` and `Install` check receipts. Use its printed paths for
 further tests. It leaves this checkout's pins and lockfiles unchanged and
 publishes nothing. If a run fails, keep its partial output for inspection and
 retry with a new output directory after resolving the error.
+
+Linux CI builds that source revision once under a version unique to its run
+and attempt. CI and bootstrap use `0.0.0-ci.<run-id>.<attempt>`, capped at 39
+characters, without appending to the original dependency pin. Their lock
+baseline saves the original pins and lockfiles with hashes; verification
+rejects edits to those saved inputs. The package recipe inspects the archives
+before the port consumes them. CI updates shared dependency pins and locks only
+in its disposable checkout, then rejects changes to other dependencies. Every matrix lane tests
+the same PowerShell module archives; the MCP lanes use the corresponding
+inspected .NET tool archive. Downloaded dependency feeds must match their
+recorded revision, version, package hashes and API-inventory hash.
 
 To reuse those review archives, work in the bootstrap's disposable `port/`
 checkout. Its pins and locks identify the exact inspected bytes. Set
@@ -178,6 +190,75 @@ Execute the owned real-tmux fixture's lifecycle checks:
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 -Suite Fixture
 ```
+
+Check endpoint defaults, copied child overrides, environment snapshots and
+the unchanged quick start against installed artifacts:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Lifecycle \
+    -PackageRoot artifacts/local-build
+```
+
+The harness redirects example children through `LIBTMUX_SOCKET_PATH` and
+`LIBTMUX_SOCKET_NAME`. It checks native effects, body and cleanup failures,
+renamed-session cleanup by ID and a deliberate session leak. Fixture
+teardown confirms daemon and registered-process exit before removing its
+directory. A failed exit check retains that directory and process handles
+for another cleanup attempt.
+
+The ordinary quick start keeps its workspace alive. Its separate [example runner](../docs/ordinary-examples.md#test-the-displayed-source) uses the shared documentation supervisor and tests both absent and running daemons. Supply the supervisor path and extracted modules explicitly; these checks do not run through the session-cleanup fixture above. Keep their version-matrix and fault receipts alongside the native lifecycle results.
+
+Run the continuing ordinary-example gate from the same module archives used
+by Product and Documentation. Set `EXAMPLE_RUNNER` to the shared supervisor
+from the [pinned docs revision](https://github.com/libtmux/docs/blob/6fee7735451460dca98cf4dcca99a5d70995038b/scripts/example_environment.py):
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite OrdinaryExamples \
+    -PackageRoot artifacts/local-build \
+    -ExampleRunner "$EXAMPLE_RUNNER"
+```
+
+`OrdinaryExamples` has a separate 60-second outer budget. It extracts the
+existing archives and runs the imported quick start, startup and output
+handoff tests, and focused pre-result recovery checks. Both socket defaults
+run in separate supervisor endpoints; ordinary and startup tests cover
+absent and running daemons. Recovery covers startup, session readback,
+cancellation, aggregate errors and action-stop errors. The three groups run
+concurrently. The gate checks the supervisor digest, required invocation
+counts, native assertions, installed module hashes and process exits before
+root removal. It retains logs and receipts under
+`build/ordinary-example-checks`, including on failure.
+
+CI runs this gate in each tmux/PowerShell matrix lane and uploads its receipts
+even when another suite fails. Product, Documentation and All retain their
+existing selections and budgets. Use `-TmuxBinary` to choose another
+installed tmux executable.
+The complete fault and version sweeps remain separate checks below.
+
+Run the acquisition-recovery checks with the same shared supervisor and extracted module archives. Set `EXAMPLE_RUNNER` to its path, `MODULE_ROOT` to the extracted module directory, and `TMUX_BINARY` to an installed tmux binary:
+
+```console
+$ python3 tests/support/run_acquisition_recovery.py \
+    --runner "$EXAMPLE_RUNNER" \
+    --pwsh "$(command -v pwsh)" \
+    --module-root "$MODULE_ROOT" \
+    --tmux "$TMUX_BINARY" \
+    --output build/acquisition-recovery
+```
+
+The output directory must be new. Repeat `--tmux` to test another installed version. These checks cover failed startup and child readback, rollback retry, cancellation, unknown receipts, wrapped errors, multiple owners and replacement-daemon refusal. The supervisor observes accepted process exits before removing each private endpoint. This separate runner does not change the Product or Documentation suite budgets.
+
+Run the ownership, adoption, find-or-create, discovery and pipeline-cancellation checks against installed artifacts:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Ownership \
+    -PackageRoot artifacts/local-build
+```
+
+This Linux outer suite uses Python 3 with pidfd support as its separate process supervisor. It preserves per-run receipts under `build/ownership-checks`, verifies the displayed lifecycle example against its source, and observes accepted process exit before deleting its own root. It covers path/name defaults, body and cleanup errors, timeout, forced worker termination and an omitted-cleanup negative control. A failed inventory or exit check retains its root. Use the receipt paths printed by the runner; do not sweep stale roots.
 
 Execute the read cmdlets against installed artifacts and an owned tmux server:
 

@@ -1,4 +1,4 @@
-# Restore the published .NET dependencies with the committed package locks.
+# Build one inspected .NET dependency feed for the PowerShell test matrix.
 name: powershell
 
 on:
@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
-  CORE_PACKAGE_VERSION: '0.0.0-alpha.20'
+  CORE_REVISION: 38cd043d007bc7743880cfd3b3e9c72e38485ca0
+  EXAMPLE_SUPERVISOR_REVISION: 6fee7735451460dca98cf4dcca99a5d70995038b
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -27,12 +27,25 @@ jobs:
     name: build and pack PowerShell modules
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      core-package-version: ${{ steps.core.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: libtmux/libtmux-dotnet
+          ref: ${{ env.CORE_REVISION }}
+          path: core
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: core/global.json
 
       - name: Install official PowerShell 7.4.20
         run: |
@@ -48,14 +61,36 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
             "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
 
-      - name: Test optional review dependency helpers
+      - name: Test review dependency checks
         run: python3 -m unittest discover -s eng/ci -p 'test_*.py'
 
-      - name: Build from locked NuGet dependencies
+      - name: Build and inspect source-pinned .NET dependencies
+        id: core
+        env:
+          NUGET_PACKAGES: ${{ runner.temp }}/core-nuget-cache
         run: |
+          version="$(python3 eng/ci/review_dependencies.py version \
+            --run-id "${GITHUB_RUN_ID}" --attempt "${GITHUB_RUN_ATTEMPT}")"
+          python3 core/eng/package_review.py \
+            --version "${version}" --revision "${CORE_REVISION}" \
+            --output "${RUNNER_TEMP}/core-review-feed"
+          python3 eng/ci/review_dependencies.py verify-feed \
+            --feed "${RUNNER_TEMP}/core-review-feed" \
+            --version "${version}" --revision "${CORE_REVISION}"
+          printf 'version=%s\n' "${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build with the inspected dependency feed
+        env:
+          REVIEW_VERSION: ${{ steps.core.outputs.version }}
+        run: |
+          python3 eng/ci/review_dependencies.py prepare \
+            --version "${REVIEW_VERSION}" --baseline "${RUNNER_TEMP}/lock-baseline"
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
-            -Restore \
+            -Restore -UpdateLock \
+            -CorePackageDirectory "${RUNNER_TEMP}/core-review-feed" \
             -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
+          python3 eng/ci/review_dependencies.py verify \
+            --version "${REVIEW_VERSION}" --baseline "${RUNNER_TEMP}/lock-baseline"
 
       - name: Check source, examples, and generated help
         run: |
@@ -83,6 +118,32 @@ jobs:
           name: port-package
           path: ${{ runner.temp }}/port-package/
           if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: core-review-feed
+          path: |
+            ${{ runner.temp }}/core-review-feed/*.nupkg
+            ${{ runner.temp }}/core-review-feed/*.snupkg
+            ${{ runner.temp }}/core-review-feed/provenance.json
+            ${{ runner.temp }}/core-review-feed/api-inventory.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: dependency-build-evidence
+          path: |
+            ${{ runner.temp }}/core-review-feed/commands.json
+            ${{ runner.temp }}/core-review-feed/review-state.json
+            ${{ runner.temp }}/core-review-feed/provenance.json
+            ${{ runner.temp }}/lock-baseline/
+            build/build-evidence.json
+            src/LibTmux.PowerShell/packages.lock.json
+            src/LibTmux.Workspace.PowerShell/packages.lock.json
+          if-no-files-found: warn
           retention-days: 7
 
   matrix:
@@ -125,6 +186,15 @@ jobs:
           repository: libtmux/libtmux-dotnet
           ref: ${{ env.CORE_REVISION }}
           path: core
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: libtmux/docs
+          ref: ${{ env.EXAMPLE_SUPERVISOR_REVISION }}
+          path: example-harness
+          sparse-checkout: scripts/example_environment.py
+          sparse-checkout-cone-mode: false
           persist-credentials: false
 
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -195,14 +265,33 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
+      - name: Run copied examples, startup, and acquisition recovery
+        if: ${{ !cancelled() }}
+        run: |
+          test "$(git -C example-harness rev-parse HEAD)" = "${EXAMPLE_SUPERVISOR_REVISION}"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+            -Suite OrdinaryExamples -PackageRoot "${RUNNER_TEMP}/port-package" \
+            -ExampleRunner "${GITHUB_WORKSPACE}/example-harness/scripts/example_environment.py" \
+            -TmuxBinary "${TMUX_BINARY}"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.2a' || matrix.tmux == '3.7c')
+        with:
+          name: core-review-feed
+          path: ${{ runner.temp }}/core-review-feed
+
       - name: Discover the separate MCP tool
         if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.2a' || matrix.tmux == '3.7c')
         env:
-          MCP_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
+          MCP_VERSION: ${{ needs.port.outputs.core-package-version }}
         run: |
+          python3 eng/ci/review_dependencies.py verify-feed \
+            --feed "${RUNNER_TEMP}/core-review-feed" \
+            --version "${MCP_VERSION}" --revision "${CORE_REVISION}"
           dotnet tool install LibTmux.Mcp \
             --tool-path "${RUNNER_TEMP}/mcp-tool" \
             --version "${MCP_VERSION}" \
+            --add-source "${RUNNER_TEMP}/core-review-feed" \
             --framework net8.0
           dotnet restore tests/support/McpDiscovery/McpDiscovery.csproj --locked-mode
           dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
@@ -219,6 +308,8 @@ jobs:
           path: |
             build/test-Product.json
             build/test-Documentation.json
+            build/test-OrdinaryExamples.json
+            build/ordinary-example-checks/
             build/guide-skips-*.json
             build/test-Mcp.json
             ${{ runner.temp }}/port-package/package-evidence.json

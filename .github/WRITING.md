@@ -29,7 +29,9 @@ Explain the reader's task before APIs or flags. State prerequisites,
 defaults, errors, side effects, ownership, ordering, and concurrency when
 they affect the contract. Do not repeat signatures or language basics.
 
-Examples must match available APIs and include required setup and cleanup.
+Ordinary examples include imports and use public APIs with normal tmux defaults.
+Keep test setup, endpoint overrides and cleanup in the external harness.
+Show cleanup in examples that demonstrate ownership or destruction.
 When executable examples exist, prefer quoting their tested source over
 maintaining a second copy. A performance claim needs a measurement and a
 reproduction command. Link to the source of a rule instead of copying it
