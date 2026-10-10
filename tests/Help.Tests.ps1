@@ -121,6 +121,13 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
         if (($help | Out-String) -match '\{\{.*\}\}') {
             throw "$($command.Name) contains help authoring placeholders."
         }
+        if ($command.Name -ceq 'Send-TmuxKey') {
+            $prose = @($help.description.Text) + @($help.alertSet.alert.Text) -join "`n"
+            if ($prose -match '<kbd>|\]\(' -or !$prose.Contains('Tmux.KeySendFailed') -or
+                !$prose.Contains('-ErrorAction Stop')) {
+                throw 'Send-TmuxKey native help lost readable key and error descriptions.'
+            }
+        }
         $expected = @($command.Parameters.Values | Where-Object {
             $_.Name -notin [Management.Automation.PSCmdlet]::CommonParameters
         })

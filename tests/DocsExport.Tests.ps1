@@ -77,6 +77,12 @@ function Assert-DocsApi($Artifact) {
         throw 'The control command lost errors, ownership notes or native examples.'
     }
     $invoke = $Artifact.commands | Where-Object name -CEQ 'Invoke-TmuxPaneCommand'
+    $keys = $Artifact.commands | Where-Object name -CEQ 'Send-TmuxKey'
+    if (!$keys.description.Contains('<kbd>C-a</kbd>') -or
+        !$keys.notes.Contains('[`Tmux.KeySendFailed`](') -or
+        !$keys.notes.Contains('[`-ErrorAction Stop`](')) {
+        throw 'Send-TmuxKey lost authored key markup or error documentation links.'
+    }
     $timeout = $invoke.parameterSets[0].parameters | Where-Object name -CEQ 'Timeout'
     $history = $invoke.parameterSets[0].parameters | Where-Object name -CEQ 'SuppressHistory'
     if ($timeout.documentedDefault -cne '30' -or $history.documentedDefault -cne 'True') {
@@ -106,7 +112,7 @@ catch {
     $rejected = $true
 }
 if (!$rejected) { throw 'The parameter-set negative control did not fail.' }
-foreach ($defect in @('example', 'default', 'build')) {
+foreach ($defect in @('example', 'default', 'build', 'markup')) {
     $broken = $text | ConvertFrom-Json -Depth 40
     switch ($defect) {
         'example' {
@@ -121,6 +127,11 @@ foreach ($defect in @('example', 'default', 'build')) {
         'build' {
             $broken.source.files = @($broken.source.files | Where-Object path -CNE 'eng/Build.ps1')
             $expected = 'The executed build script is missing from source provenance.'
+        }
+        'markup' {
+            $keys = $broken.commands | Where-Object name -CEQ 'Send-TmuxKey'
+            $keys.description = $keys.description.Replace('<kbd>C-a</kbd>', 'C-a')
+            $expected = 'Send-TmuxKey lost authored key markup or error documentation links.'
         }
     }
     $rejected = $false

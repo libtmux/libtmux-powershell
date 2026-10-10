@@ -2354,7 +2354,7 @@ native bindings. Discovery is local and requires no server or tmux executable.
 Client descriptors are available for inspection; the PowerShell structured
 selectors accept Session, Window and Pane targets. Operators use the native
 wire vocabulary: greaterThanOrEqual corresponds to the PowerShell criteria
-key Ge. See the [criteria keys](../../query.md#criteria-vocabulary) for the full mapping.</maml:para>
+key Ge. See the criteria keys for the full mapping.</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -3972,21 +3972,21 @@ $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
     </command:details>
     <maml:description>
       <maml:para>Run Command in a subshell in the selected pane and return a native
-`LibTmux.PaneRunResult`. The result records the pane ID, authenticated shell
+LibTmux.PaneRunResult. The result records the pane ID, authenticated shell
 exit status, whether the wait timed out, elapsed time and effective timeout. A
 nonzero exit status is a result, not a cmdlet error. The command does not change
 the parent shell's working directory or environment.
 
-A timeout returns `TimedOut = True` and a null `ExitStatus`; the command may
+A timeout returns TimedOut = True and a null ExitStatus; the command may
 still be running. Cancellation after dispatch can leave it running too. Inspect
-the pane before retrying either case. `Output` contains bounded rendered command
+the pane before retrying either case. Output contains bounded rendered command
 output, which may include stdout and stderr together. It is not a byte-exact
-process stream. Inspect `LinesMissed`, `AnchorLost` and omission counts before
-treating it as complete. `Started = False` means no start marker was confirmed;
+process stream. Inspect LinesMissed, AnchorLost and omission counts before
+treating it as complete. Started = False means no start marker was confirmed;
 it does not prove the command never ran. The default view omits output text.
-[Get-TmuxPaneContent](Get-TmuxPaneContent.md) reads the current screen separately.
+Get-TmuxPaneContent reads the current screen separately.
 
-The pane must be a live, writable POSIX-compatible shell. `-WhatIf` performs
+The pane must be a live, writable POSIX-compatible shell. -WhatIf performs
 no tmux I/O or input operation. Confirmation identifies the endpoint and pane
 without displaying Command. A leading space is added to shell input by default;
 shells configured to ignore space-prefixed history entries may omit it from
@@ -4846,7 +4846,7 @@ support serialization, field discovery and explicit source planning.
 Map keys use native property names or catalog wire names. Bare values mean
 equality; fields in a map are combined with And. Use operator maps such as
 @{ Width = @{ Ge = 80 } }. Get-TmuxQueryField lists native catalog fields and operator names. The
-[criteria reference](../../query.md#criteria-vocabulary) maps those names to accepted
+criteria reference maps those names to accepted
 PowerShell keys such as Ge, Some and Is.
 Unknown fields, duplicate aliases, unsupported operators, ScriptBlocks, cycles
 and oversized data are rejected before evaluation.</maml:para>
@@ -8054,16 +8054,17 @@ $snapshot.Windows |
       <command:noun>TmuxKey</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Each array element is interpreted by tmux as a key token, such as C-a or
-Enter. Unrecognized key names follow tmux's character-sending behavior. No
-additional Enter is appended. Null, empty and NUL-containing tokens are
-rejected before I/O. The command owns a snapshot of the supplied array.
+      <maml:para>Each array element is interpreted by tmux as a key token, such as C-a
+or Enter. Unrecognized key names follow tmux's character-sending
+behavior. No additional Enter is appended. Null, empty and
+NUL-containing tokens are rejected before I/O. The command owns a snapshot
+of the supplied array.
 
 Keys run in input order through one core command chain. A failure can leave
 earlier keys delivered and prevent later keys from running.
 
 The endpoint and daemon generation come from the supplied native pane.
-WhatIf performs no acquisition or sending. Confirmation names the endpoint
+-WhatIf performs no acquisition or sending. Confirmation names the endpoint
 and pane without displaying the supplied text or keys. Successful sending
 confirms tmux accepted input; use an explicit application readiness signal
 before checking that a command has finished.</maml:para>
@@ -8166,10 +8167,13 @@ such as 'C-a'. This command does not split one string on whitespace.</maml:para>
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Failures use Tmux.KeySendFailed and retain the original core exception,
-its dispatch information and the failed pane. ErrorAction Continue permits
-later owners to be processed; ErrorAction Stop stops on the first failure.
-NUL and invalid key-token content use Tmux.InvalidInput before dispatch;
+        <maml:para>Failures use Tmux.KeySendFailed
+and retain the original core exception, its dispatch information and the failed pane.
+-ErrorAction Continue
+permits later owners to be processed;
+-ErrorAction Stop
+stops on the first failure. NUL and invalid key-token content use
+Tmux.InvalidInput before dispatch;
 PowerShell handles parameter binding errors. Cancellation stops pending work
 but cannot undo delivered input. Nothing is retried.</maml:para>
       </maml:alert>
@@ -8200,6 +8204,10 @@ $pane | LibTmux\Send-TmuxKey -Key @('C-a', 'Enter') -Confirm:$false
       <maml:navigationLink>
         <maml:linkText>Capture pane output</maml:linkText>
         <maml:uri>../../capture.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>PowerShell common parameters</maml:linkText>
+        <maml:uri>https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -11307,33 +11315,33 @@ $server | LibTmux\Wait-TmuxChannel -Channel 'build-finished' -Timeout 10
     </command:details>
     <maml:description>
       <maml:para>Watch the selected pane until one pattern matches rendered text. A match
-already visible when observation begins returns `PresentAtEntry`. With no
-pattern, the command waits for any new rendered output and returns `AnyOutput`.
-Stop patterns return `Stopped`; the deadline and a pane exit return `TimedOut`
-and `PaneExited`. These are native `LibTmux.PaneWaitResult` outcomes, not cmdlet
-errors. Inspect `Outcome` before treating a wait as readiness.
+already visible when observation begins returns PresentAtEntry. With no
+pattern, the command waits for any new rendered output and returns AnyOutput.
+Stop patterns return Stopped; the deadline and a pane exit return TimedOut
+and PaneExited. These are native LibTmux.PaneWaitResult outcomes, not cmdlet
+errors. Inspect Outcome before treating a wait as readiness.
 
 The observer attaches a temporary control client before its first capture.
 Control events wake a grid-aware reader; matching uses captured rendered rows,
 not individual output fragments. Results include a bounded final screen tail,
 elapsed and effective timeout, dropped-event count, polling fallback, and
-missed-line or lost-anchor indicators. The default view shows `Missed` and
-omits the tail; inspect `Tail` explicitly if you need its text. A lost event
+missed-line or lost-anchor indicators. The default view shows Missed and
+omits the tail; inspect Tail explicitly if you need its text. A lost event
 or anchor means the observer may have missed transient output.
 
-Control observation is required by default. `-AllowPollingFallback` permits
+Control observation is required by default. -AllowPollingFallback permits
 bounded polling if control observation fails, and the result discloses whether
 it ran. The wait borrows the pane and server; it disposes only its own observer
-and client on completion or Ctrl+C. `-WhatIf` attaches no client and captures
+and client on completion or Ctrl+C. -WhatIf attaches no client and captures
 no text. Confirmation identifies the endpoint and pane without displaying
 patterns or pane content.
 
 This command recognizes text; it does not authenticate command completion or
-an exit status. Use [Invoke-TmuxPaneCommand](Invoke-TmuxPaneCommand.md) for a
-shell command you start or [Wait-TmuxChannel](Wait-TmuxChannel.md) for a
+an exit status. Use Invoke-TmuxPaneCommand for a
+shell command you start or Wait-TmuxChannel for a
 cooperative application signal. Visible text can include input echoed by a
-shell or application. `Get-TmuxPaneContent -History` reads retained rendered
-scrollback, while `-Raw` joins rendered rows; neither is a byte-exact process
+shell or application. Get-TmuxPaneContent -History reads retained rendered
+scrollback, while -Raw joins rendered rows; neither is a byte-exact process
 stream.</maml:para>
     </maml:description>
     <command:syntax>
@@ -11429,7 +11437,7 @@ stream.</maml:para>
         <maml:name>AllowPollingFallback</maml:name>
         <maml:description>
           <maml:para>Allow bounded capture polling if the control client cannot observe the pane.
-The default is to report the control failure. `PollingFallback` discloses use.</maml:para>
+The default is to report the control failure. PollingFallback discloses use.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -11493,7 +11501,7 @@ rejected before attaching a client.</maml:para>
         <maml:name>SimpleMatch</maml:name>
         <maml:description>
           <maml:para>Treat each pattern and stop pattern as literal text instead of a regular
-expression. `-CaseSensitive` still controls case matching.</maml:para>
+expression. -CaseSensitive still controls case matching.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -11502,7 +11510,7 @@ expression. `-CaseSensitive` still controls case matching.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>StopPattern</maml:name>
         <maml:description>
-          <maml:para>Regular expressions that end the wait with `Outcome = Stopped`. Stop patterns
+          <maml:para>Regular expressions that end the wait with Outcome = Stopped. Stop patterns
 take precedence over wanted patterns, including text visible at entry. Across both
 pattern lists, at most 32 entries, 999 UTF-8 bytes per entry and 16384 bytes
 in total are accepted.</maml:para>
@@ -11568,11 +11576,11 @@ observation metadata. No result is emitted for `-WhatIf` or an empty pipeline.</
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>`Tmux.PaneTextWaitFailed` retains the native pane as its error target for
-transport and capture failures. `Tmux.InvalidTimeout` and
-`Tmux.InvalidPaneTextRequest` fail before attaching a client. `-ErrorAction
+        <maml:para>Tmux.PaneTextWaitFailed retains the native pane as its error target for
+transport and capture failures. Tmux.InvalidTimeout and
+Tmux.InvalidPaneTextRequest fail before attaching a client. `-ErrorAction
 Continue` can advance to the next pane after an operation error;
-`-ErrorAction Stop` stops the pipeline.</maml:para>
+-ErrorAction Stop stops the pipeline.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>

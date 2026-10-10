@@ -29,16 +29,17 @@ None.
 
 ## DESCRIPTION
 
-Each array element is interpreted by tmux as a key token, such as C-a or
-Enter. Unrecognized key names follow tmux's character-sending behavior. No
-additional Enter is appended. Null, empty and NUL-containing tokens are
-rejected before I/O. The command owns a snapshot of the supplied array.
+Each array element is interpreted by tmux as a key token, such as <kbd>C-a</kbd>
+or <kbd>Enter</kbd>. Unrecognized key names follow tmux's character-sending
+behavior. No additional <kbd>Enter</kbd> is appended. Null, empty and
+NUL-containing tokens are rejected before I/O. The command owns a snapshot
+of the supplied array.
 
 Keys run in input order through one core command chain. A failure can leave
 earlier keys delivered and prevent later keys from running.
 
 The endpoint and daemon generation come from the supplied native pane.
-WhatIf performs no acquisition or sending. Confirmation names the endpoint
+`-WhatIf` performs no acquisition or sending. Confirmation names the endpoint
 and pane without displaying the supplied text or keys. Successful sending
 confirms tmux accepted input; use an explicit application readiness signal
 before checking that a command has finished.
@@ -163,10 +164,13 @@ No success objects are emitted. An empty owner pipeline performs no work.
 
 ## NOTES
 
-Failures use Tmux.KeySendFailed and retain the original core exception,
-its dispatch information and the failed pane. ErrorAction Continue permits
-later owners to be processed; ErrorAction Stop stops on the first failure.
-NUL and invalid key-token content use Tmux.InvalidInput before dispatch;
+Failures use [`Tmux.KeySendFailed`](../../../src/LibTmux.PowerShell/SendTmuxKeyCommand.cs)
+and retain the original core exception, its dispatch information and the failed pane.
+[`-ErrorAction Continue`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4#-erroraction)
+permits later owners to be processed;
+[`-ErrorAction Stop`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4#-erroraction)
+stops on the first failure. NUL and invalid key-token content use
+[`Tmux.InvalidInput`](../../../src/LibTmux.PowerShell/SendTmuxKeyCommand.cs) before dispatch;
 PowerShell handles parameter binding errors. Cancellation stops pending work
 but cannot undo delivered input. Nothing is retried.
 
@@ -175,3 +179,5 @@ but cannot undo delivered input. Nothing is retried.
 [Choose endpoints and owners](../../read.md)
 
 [Capture pane output](../../capture.md)
+
+[PowerShell common parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)

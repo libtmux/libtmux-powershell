@@ -8,6 +8,14 @@ $tool = "$root/build/tool-modules/Microsoft.PowerShell.PlatyPS/1.0.3/Microsoft.P
 if (!(Test-Path $tool)) { throw 'Run eng/Setup.ps1 before generating native help.' }
 # The authoring tool has its own YAML dependency; keep product imports out of this process.
 Import-Module $tool
+
+function ConvertTo-MamlText([string] $Text) {
+    # MAML prose is plain text; the website export retains authored Markdown.
+    $plain = [regex]::Replace($Text, '<kbd>([^<\r\n]+)</kbd>', '$1')
+    $plain = [regex]::Replace($plain, '\[([^\]\r\n]+)\]\(([^\s)]+)\)', '$1')
+    return [regex]::Replace($plain, '`([^`\r\n]+)`', '$1')
+}
+
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-help-' + [Guid]::NewGuid().ToString('N'))
 try {
     foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
@@ -22,6 +30,14 @@ try {
             }
         }
         $models = @(Import-MarkdownCommandHelp -LiteralPath $files.FullName)
+        foreach ($model in $models) {
+            foreach ($property in @('Synopsis', 'Description', 'Notes')) {
+                $model.$property = ConvertTo-MamlText $model.$property
+            }
+            foreach ($parameter in $model.Parameters) {
+                $parameter.Description = ConvertTo-MamlText $parameter.Description
+            }
+        }
         $output = Join-Path $temporary $module
         $null = $models | Export-MamlCommandHelp -OutputFolder $output -Encoding ([Text.UTF8Encoding]::new($false))
         $name = "$module.PowerShell.dll-Help.xml"

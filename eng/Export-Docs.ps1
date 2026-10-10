@@ -288,9 +288,9 @@ try {
                 source = $source
                 implementation = $implementation
                 xmlDocumentation = if ($null -ne $typeDocs) { $typeDocs.OuterXml } else { $null }
-                synopsis = Get-XmlText $help '*[local-name()="details"]/*[local-name()="description"]/*'
-                description = Get-XmlText $help '*[local-name()="description"]/*'
-                notes = Get-XmlText $help '*[local-name()="alertSet"]/*/*'
+                synopsis = $authored.synopsis
+                description = $authored.description
+                notes = $authored.notes
                 help = [ordered]@{ file = $markdownPath; markdown = [IO.File]::ReadAllText((Join-Path $root $markdownPath)) }
                 aliases = @($aliases | Where-Object target -EQ $command.Name | ForEach-Object name)
                 defaultParameterSet = $metadata.DefaultParameterSetName

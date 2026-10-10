@@ -287,8 +287,11 @@ The complete platform, example and API suites are not established yet.
 ## Documentation API export
 
 Run `eng/Setup.ps1` to install the pinned PlatyPS tool before exporting.
-The exporter reads authored defaults and examples with PlatyPS in a separate
-process, then combines them with packaged help and native command metadata.
+The exporter reads authored prose, links, defaults, and examples with PlatyPS
+in a separate process, then combines them with packaged help and native
+command metadata. Website exports retain inline code, Markdown links, and
+keyboard-key markup. Packaged MAML uses plain prose for `Get-Help` and keeps
+its related links; it does not change the displayed executable examples.
 
 Export the public command surface from a committed source checkout:
 

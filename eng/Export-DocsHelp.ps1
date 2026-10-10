@@ -38,7 +38,13 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
                 default = $parameter.DefaultValue
             }
         }
-        $commands["$module\$($file.BaseName)"] = [ordered]@{ parameters = $parameters; examples = $examples }
+        $commands["$module\$($file.BaseName)"] = [ordered]@{
+            synopsis = $help.Synopsis
+            description = $help.Description
+            notes = $help.Notes
+            parameters = $parameters
+            examples = $examples
+        }
     }
 }
 $artifact = [ordered]@{
