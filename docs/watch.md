@@ -150,7 +150,10 @@ decoded UTF-8 payload. `ServerConnectionOptions.ControlModeEventBufferCapacity`
 and `ControlModeEventBufferMaxBytes` configure those positive limits before
 connecting. Its byte accounting includes output data, notification names and
 arguments, and exit reasons; it excludes pane IDs and object overhead.
-The oldest events are discarded until both queue limits hold. An oversized
+Under count pressure, the queue discards the oldest output from the pane with
+the most queued output events. Under byte pressure, it selects the pane with
+the most queued output bytes. If no output remains, it discards the oldest
+notification. An oversized
 event is dropped; an oversized exit reason is omitted while the exit event
 is retained. `TmuxEventsDroppedEvent` reports each loss without blocking
 command replies. Use a fresh snapshot when current topology matters after

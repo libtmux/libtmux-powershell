@@ -57,6 +57,11 @@ status. A nonzero status remains a result; a timeout returns `TimedOut = True`
 and a null status because the command may still be running. The command runs
 in a subshell, so `cd` and `export` do not change the pane's parent shell.
 
+Completion uses a cooperative tmux `wait-for` channel. While waiting, the
+runner also checks authenticated run status and pane liveness, starting after
+250 ms and backing off to five seconds. These checks detect a pane that exits
+without signalling; they are separate from event-backed pane text waits.
+
 With an endpoint in `$server`, create a shell pane and check the status rather
 than guessing from a prompt or screen capture. The example removes only its
 session:

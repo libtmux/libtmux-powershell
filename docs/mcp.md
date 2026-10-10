@@ -76,6 +76,11 @@ completion result of `run_shell_command` for a command you start; cancellation
 or timeout can leave that command running in its pane. For a program already
 running, wait for its output rather than repeatedly capturing the screen.
 
+`run_shell_command` uses a cooperative completion channel and also probes
+authenticated run status and pane liveness, starting after 250 ms and backing
+off to five seconds. This run watchdog is separate from pane text observation
+and its optional polling fallback.
+
 Pane text waits require control observation by default in alpha.20.
 Explicitly enabling `LIBTMUX_MCP_ALLOW_POLLING_FALLBACK=true`
 allows repeated captures if control observation fails; capabilities disclose
