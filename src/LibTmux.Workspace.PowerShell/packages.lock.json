@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.20, 0.0.0-alpha.20]",
-        "resolved": "0.0.0-alpha.20",
-        "contentHash": "Q0M/vP77I6KSzqAQwK1Rzv3j87DWhSAsL5gF7nkllBFH3PfzBrQ8yvt8lvsguMisu4jXDinIvccgrRkDjriXsg==",
+        "requested": "[0.0.0-ci.1791642867347.1994485671, 0.0.0-ci.1791642867347.1994485671]",
+        "resolved": "0.0.0-ci.1791642867347.1994485671",
+        "contentHash": "muR0lGP2BXYnnURSYXzqnCrr/fG79nZDS3iRaYB8AaCZRmIWfWhN7LZ83TUYM7Zjifukwuo6WLJelSTvJ5j4jA==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Workspace": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.20, 0.0.0-alpha.20]",
-        "resolved": "0.0.0-alpha.20",
-        "contentHash": "OsrRdwgNI6yoPefAd7KUNSb5C19RKaKatn/yjQgySodIpa60b7JxvABDomhCWJkphlHhkwbWdWIFHZ0jRChawg==",
+        "requested": "[0.0.0-ci.1791642867347.1994485671, 0.0.0-ci.1791642867347.1994485671]",
+        "resolved": "0.0.0-ci.1791642867347.1994485671",
+        "contentHash": "/0xYdcSJ1faqLwvMggRoqG2X6aTxIOGP+psSuCsFNalRSFo5PlSKFP5uCDt6jUDrPb0s6uSQ+3BU+rtDR6jI1g==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.20",
+          "LibTmux": "0.0.0-ci.1791642867347.1994485671",
           "YamlDotNet": "18.1.0"
         }
       },
@@ -198,17 +198,17 @@
       "libtmux.powershell": {
         "type": "Project",
         "dependencies": {
-          "LibTmux": "[0.0.0-alpha.20, 0.0.0-alpha.20]",
-          "LibTmux.Query.Json": "[0.0.0-alpha.20, 0.0.0-alpha.20]"
+          "LibTmux": "[0.0.0-ci.1791642867347.1994485671, 0.0.0-ci.1791642867347.1994485671]",
+          "LibTmux.Query.Json": "[0.0.0-ci.1791642867347.1994485671, 0.0.0-ci.1791642867347.1994485671]"
         }
       },
       "LibTmux.Query.Json": {
         "type": "CentralTransitive",
-        "requested": "[0.0.0-alpha.20, 0.0.0-alpha.20]",
-        "resolved": "0.0.0-alpha.20",
-        "contentHash": "Zx7s0qz/CryyiT/bE28SwLKGuSorMAFk2C2nfTvG+HCQaskHheadlHq5Jx0IygAXv015cTM5msSqc/EO077udA==",
+        "requested": "[0.0.0-ci.1791642867347.1994485671, 0.0.0-ci.1791642867347.1994485671]",
+        "resolved": "0.0.0-ci.1791642867347.1994485671",
+        "contentHash": "Nr6pzFsgbeK86gXqUM0lgRW8HQfwziI9tjdo4WX0RRpGGyKUyRtD9yMs5mYMbT3EoExSftxKyZRhUMt7GLxh5w==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.20"
+          "LibTmux": "0.0.0-ci.1791642867347.1994485671"
         }
       }
     }

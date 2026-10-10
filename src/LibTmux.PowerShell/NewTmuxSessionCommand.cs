@@ -7,7 +7,7 @@ namespace LibTmux.PowerShell;
 
 /// <summary>Creates a detached session and returns its captured core object.</summary>
 [Cmdlet(VerbsCommon.New, "TmuxSession", SupportsShouldProcess = true)]
-[OutputType(typeof(Session))]
+[OutputType(typeof(Session), typeof(OwnedSessionScope))]
 [UnsupportedOSPlatform("windows")]
 public sealed class NewTmuxSessionCommand : TmuxCmdlet
 {
@@ -53,6 +53,10 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
     [ValidateNotNull]
     public IDictionary? Environment { get; set; }
 
+    /// <summary>Gets or sets whether to return an owner whose disposal destroys the created resource.</summary>
+    [Parameter]
+    public SwitchParameter Owned { get; set; }
+
     /// <inheritdoc />
     protected override void BeginProcessing()
     {
@@ -81,7 +85,14 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
     {
         if (ShouldProcess(CreationEnvironment.Endpoint(Server), "Create detached tmux session"))
         {
-            ReadResult(token => Server.CreateSessionAsync(request, token), "Tmux.SessionCreateFailed", Server);
+            if (Owned)
+            {
+                ReadScopedResult(token => Server.CreateOwnedSessionAsync(request, token), "Tmux.SessionCreateFailed", Server);
+            }
+            else
+            {
+                ReadResult(token => Server.CreateSessionAsync(request, token), "Tmux.SessionCreateFailed", Server);
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory)] [string] $ModuleRoot,
     [switch] $RunExamples,
-    [ValidateSet('All', 'CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')]
+    [ValidateSet('All', 'Lifecycle', 'CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')]
     [string] $ExampleGroup = 'All',
     [ValidateSet('Full', 'Metadata', 'Examples')] [string] $Phase = 'Full',
     [string] $AdmissionPath
@@ -34,6 +34,12 @@ function Get-HelpGroupId([string[]] $Ids, [string] $Group) {
     })
     $cut = [int] [Math]::Ceiling($core.Count / 5)
     switch ($Group) {
+        'Lifecycle' {
+            $commands = @('ConvertTo-TmuxOwnedResource', 'Invoke-TmuxScope',
+                'Close-TmuxScope', 'Get-TmuxScopeFailure', 'Find-TmuxServer',
+                'Start-TmuxServer', 'Resolve-TmuxServer', 'Resolve-TmuxSession', 'Resolve-TmuxWindow', 'Resolve-TmuxPane')
+            $core | Where-Object { $_.Split('\')[1].Split('#')[0] -in $commands }
+        }
         'CoreFirst' { $core | Select-Object -First $cut }
         'CoreSecond' { $core | Select-Object -Skip $cut -First $cut }
         'CoreThird' { $core | Select-Object -Skip (2 * $cut) -First $cut }
@@ -81,8 +87,14 @@ function Invoke-HelpExample($Example, $Assertion, $Context) {
             $matchingTypes = @($types | Where-Object { $null -ne $_ -and $item -is $_ })
             if (!$matchingTypes.Count) { throw "$($Example.Id) returned the wrong native type." }
             $nativeEntity = $item -is [LibTmux.Session] -or $item -is [LibTmux.Window] -or $item -is [LibTmux.Pane]
-            if ($Assertion.Isolated -and $nativeEntity -and $item.Server.ConnectionOptions.SocketPath -cne $SocketPath) {
-                throw "$($Example.Id) returned an object from the wrong server."
+            if ($Assertion.Isolated -and $nativeEntity) {
+                $actualSocket = $item.Server.ConnectionOptions.SocketPath
+                if (!$actualSocket) {
+                    # Environment-selected handles retain input options; probe their captured endpoint.
+                    $reply = $item.Server | Invoke-TmuxCommand -Arguments @('display-message', '-p', '#{socket_path}')
+                    $actualSocket = $reply.StandardOutputLines -join ''
+                }
+                if ($actualSocket -cne $SocketPath) { throw "$($Example.Id) returned an object from the wrong server." }
             }
         }
         # Zero-output examples still require their registered state-change assertion.

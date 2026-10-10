@@ -23,7 +23,7 @@ same [libtmux organization](https://github.com/libtmux) and with the same main
 author. The cmdlets return its native objects and add PowerShell parameter
 binding, help, formatting and `-WhatIf` / `-Confirm`.
 
-[Install](#install) · [Object graph](#create-and-read-an-object-graph) ·
+[Install](#install) · [Object graph](#create-capture-and-clean-up-an-object-graph) ·
 [Run to completion](#run-a-command-to-completion) ·
 [Service readiness](#wait-for-service-readiness) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
@@ -35,6 +35,10 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 **Alpha.** APIs may change. Both modules are available on PowerShell Gallery:
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
+
+## Owned resource scopes
+
+Use `-Owned` on creation and `Invoke-TmuxScope` to clean up the created resource after a PowerShell script block. `ConvertTo-TmuxOwnedResource` accepts responsibility for an existing object. The [ownership and cleanup guide](docs/lifecycle.md) covers all four object kinds, bounded socket discovery, created/reused results, pipeline cancellation and retryable failures.
 
 ## Install
 
@@ -67,7 +71,7 @@ $ Install-PSResource -Name LibTmux.Workspace `
     -TrustRepository
 ```
 
-Import both modules to run all the examples on this page:
+Import the released modules:
 
 ```console
 $ Import-Module -Name LibTmux, LibTmux.Workspace `
@@ -81,39 +85,81 @@ carry the `alpha2` prerelease label. Browse cmdlets with
 `Get-Help LibTmux\New-TmuxSession -Examples`. The MCP server is a separate
 .NET tool; see [MCP setup](docs/mcp.md#install-and-select-a-server).
 
-[Build from source](#install-from-source) for development. The walkthrough
-below runs directly from the installed modules.
+The lifecycle APIs on this branch are unreleased. To run the workspace and
+ownership examples below, [build and import the modules from this checkout](#install-from-source).
+The Gallery alpha2 packages do not include those APIs.
 
-## Create and read an object graph
+## Start or reuse a workspace
 
-Choose a unique socket and a clean tmux configuration. `New-TmuxServer`
-creates a handle without contacting tmux. The example does not touch your
-default server.
+Copy this program into PowerShell after importing `LibTmux` from the [source build](#install-from-source). It starts a missing daemon or reuses the selected one, then finds or creates `libtmux-demo` and its `logs` window. The workspace stays available after the program returns. Repeating the program reuses those names.
 
-<!-- example: read.endpoint -->
+<!-- example: readme.ordinary -->
 ```powershell
-$server = LibTmux\New-TmuxServer `
-    -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
-    -ConfigurationFile /dev/null
+Import-Module LibTmux
+
+$server = Start-TmuxServer -ErrorAction Stop
+$session = ($server | Resolve-TmuxSession -Name libtmux-demo `
+    -Request @{ WindowName = 'editor' } -ErrorAction Stop).Value
+$null = $session | Resolve-TmuxWindow -Name logs -ErrorAction Stop
+
+($server | Get-TmuxSnapshot -ErrorAction Stop).Sessions |
+    Select-TmuxSession -Criteria @{ Name = 'libtmux-demo' } -ExactlyOne
 ```
 
-Create a session with an editor window, split it, add a logs window, and take
-one snapshot. `cat` keeps the three panes open without shell setup. The
-`finally` block removes only the session this example created.
+`Start-TmuxServer` returns an ordinary `LibTmux.Server`. It uses normal tmux defaults; an existing server keeps its sessions and configuration. For a new daemon, startup creates and removes a temporary session and sets the server's `exit-empty` option to `off`, so it remains available before you create your first session. Startup still reads the normal tmux configuration. The program has no cleanup owner to close.
+
+`LIBTMUX_SOCKET_PATH` or `LIBTMUX_SOCKET_NAME` can redirect this unchanged program. The test harness supplies these variables only to its children and cleans up its own daemon afterward. See [ordinary example testing](docs/ordinary-examples.md) for cold-start, reuse and interruption checks, and [ownership and cleanup](docs/lifecycle.md) for explicit destruction scopes.
+
+
+## Create, capture and clean up an object graph
+
+`New-TmuxServer` captures the selected endpoint and child process environment
+without contacting tmux. Later host-environment changes cannot redirect the
+handle. It borrows the endpoint; creating a handle gives no responsibility
+for destroying a daemon.
+
+<!-- example: readme.endpoint -->
+```powershell
+if (!(Get-Module LibTmux)) { Import-Module LibTmux -ErrorAction Stop }
+$server = LibTmux\New-TmuxServer
+```
+
+Create the same graph and retain its snapshot. `cat` keeps the
+three panes open without shell setup. The `finally` block removes
+the created session and preserves a cleanup failure alongside a body failure.
 
 <!-- example: readme.create -->
 ```powershell
 $captured = & {
     $ErrorActionPreference = 'Stop'
-    $session = $server |
-        New-TmuxSession -Name demo -WindowName editor -Command 'exec /bin/cat'
+    $command = 'exec /bin/cat'
+    $session = $null
+    $bodyError = $null
     try {
+        $session = $server |
+            New-TmuxSession -Name demo -WindowName editor -Command $command
         $pane = $session | Get-TmuxPane
-        $null = $pane | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
-        $null = $session | New-TmuxWindow -Name logs -Command 'exec /bin/cat'
-        ($server | Get-TmuxSnapshot).Sessions | Where-Object Name -CEQ demo
+        $null = $pane | Split-TmuxPane -Horizontal -Command $command
+        $null = $session | New-TmuxWindow -Name logs -Command $command
+
+        $captured = ($server | Get-TmuxSnapshot).Sessions |
+            Select-TmuxSession -Criteria @{ Name = 'demo' } -ExactlyOne
+        $captured
+    } catch {
+        $bodyError = $_
+        throw
     } finally {
-        $session | Remove-TmuxSession -Confirm:$false
+        if ($session) {
+            try { $session | Remove-TmuxSession -Confirm:$false }
+            catch {
+                if ($bodyError) {
+                    throw [AggregateException]::new(
+                        'Session body and cleanup failed.',
+                        [Exception[]] @($bodyError.Exception, $_.Exception))
+                }
+                throw
+            }
+        }
     }
 }
 ```
@@ -160,7 +206,7 @@ queries.
 ## Run a command to completion
 
 When the shell's exit status matters, run the command in a pane and inspect its
-native result. This example uses the private `$server` above and removes only
+native result. This example uses the selected `$server` above and removes only
 the session it creates:
 
 <!-- example: input.run -->
@@ -187,7 +233,7 @@ for concurrency and output behavior.
 ## Wait for service readiness
 
 With Python 3 on `PATH`, start an HTTP server on an available loopback port.
-Use the private `$server` above, wait for the application's readiness line,
+Use the selected `$server` above, wait for the application's readiness line,
 then make an HTTP request to check that it responds. The session's cleanup
 also stops the server process:
 
@@ -242,7 +288,7 @@ when the application can signal completion itself.
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
 Connect once to send a command through tmux control mode. This example uses
-the private endpoint from above, reads a session name, then disconnects and
+the endpoint from above, reads a session name, then disconnects and
 removes the session it created:
 
 <!-- example: readme.control -->
@@ -302,7 +348,7 @@ windows:
 '@
 ```
 
-Plan on the same private endpoint. Planning may read tmux state; it does not
+Plan on the same endpoint. Planning may read tmux state; it does not
 create the workspace:
 
 <!-- example: readme.workspace.02-plan -->
@@ -399,9 +445,9 @@ is on `PATH`:
 $ tmux -V
 ```
 
-From the checkout root, restore the published
-[.NET alpha.20 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.20)
-and build both PowerShell modules:
+From the checkout root, restore the exact .NET versions in
+[Directory.Packages.props](Directory.Packages.props) and build both PowerShell
+modules. Local review versions require their matching archives in `build/nuget`:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
@@ -432,19 +478,23 @@ Import-Module -Name @(
 ) -ErrorAction Stop
 ```
 
-Run the [quick start](examples/QuickStart.ps1) from the checkout root. It
-creates a private server, splits the `editor` window, adds `logs`, and returns
+## Capture a graph and clean up its session
+
+This example demonstrates explicit cleanup after success and failure.
+
+Run the [session-cleanup example](examples/SessionCleanup.ps1) from the checkout root. It
+creates a session, splits the `editor` window, adds `logs`, and returns
 a captured native `LibTmux.Session`. Show each window's pane IDs:
 
 <!-- example: readme.quickstart -->
 ```powershell
-(./examples/QuickStart.ps1).Windows | Select-Object Name, @{
+(./examples/SessionCleanup.ps1).Windows | Select-Object Name, @{
     Name = 'PaneIds'
     Expression = { $_.Panes.Id -join ', ' }
 }
 ```
 
-Output from the private server:
+Example output (pane IDs depend on the selected server):
 
 ```text
 Name   PaneIds
@@ -453,9 +503,17 @@ editor %0, %1
 logs   %2
 ```
 
-Assign `./examples/QuickStart.ps1` to a variable to keep the session object.
+Assign `./examples/SessionCleanup.ps1` to a variable to keep the session object.
 Its `Windows` and `Panes` remain readable after the script removes its session.
-The script uses a unique socket and leaves your default tmux server alone.
+The script imports `LibTmux` and uses `New-TmuxServer` with ordinary defaults.
+The constructor selects an explicit socket argument first, then
+`LIBTMUX_SOCKET_PATH`, `LIBTMUX_SOCKET_NAME`, `TMUX`, or tmux's named default.
+An empty selector variable counts as absent. The script takes no socket
+arguments; its caller can redirect it through those environment variables.
+The script removes the session it created by ID, including after a body
+failure. If the body and cleanup fail, it throws an `AggregateException` with
+both errors. An existing `demo` session causes creation to fail without
+removing that session.
 
 ## License
 

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)] [string] $ModuleRoot,
-    [switch] $FailAfterCreation
+    [switch] $FailAfterCreation,
+    [switch] $NamedSocket
 )
 
 # Integration: a fresh process owns and reaps a daemon created by the cmdlet.
@@ -36,6 +37,11 @@ try {
     $null = New-Item -ItemType Directory -Path $directory
     [IO.File]::SetUnixFileMode($directory, [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    if ($NamedSocket) {
+        $userId = & id -u
+        if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^[0-9]+$') { throw 'Cannot read the test user ID.' }
+        $fixture.SocketPath = Join-Path $directory "tmux-$userId/first"
+    }
     $trace = Join-Path $directory 'calls'
     $wrapper = Join-Path $directory 'tmux'
     $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
@@ -48,7 +54,13 @@ exec $quotedTmux "`$@"
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor
         [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     Assert-True (-not (Test-Path -LiteralPath $fixture.SocketPath)) 'Startup socket already exists.'
-    $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper -ConfigurationFile '/dev/null'
+    $options = @{ TmuxBinaryPath = $wrapper; ConfigurationFile = '/dev/null' }
+    if ($NamedSocket) {
+        $options.ChildEnvironment = @{
+            LIBTMUX_SOCKET_PATH = ''; LIBTMUX_SOCKET_NAME = 'first'; TMUX_TMPDIR = $directory
+        }
+    } else { $options.SocketPath = $fixture.SocketPath }
+    $server = LibTmux\New-TmuxServer @options
     Assert-True (-not (Test-Path -LiteralPath $fixture.SocketPath)) 'Endpoint construction started a daemon.'
     $preview = @($server | LibTmux\New-TmuxSession -Name 'never' -WhatIf)
     Assert-True ($preview.Count -eq 0 -and -not (Test-Path $fixture.SocketPath) -and -not (Test-Path $trace)) 'Session WhatIf acquired or started tmux, or emitted a result.'
@@ -61,6 +73,9 @@ exec $quotedTmux "`$@"
     $null = $fixture.OwnedProcessIds.Add($daemon.Id)
     $null = $fixture.OwnedProcessIds.Add($paneProcess.Id)
     Assert-True ($created[0].Generation.ProcessId -eq $daemon.Id) 'Created session carries another daemon generation.'
+    if ($NamedSocket) {
+        Assert-True ([int] [IO.File]::GetUnixFileMode((Split-Path $fixture.SocketPath)) -eq 448) 'Fresh named endpoint directory did not use mode 0700.'
+    }
     Assert-True (-not $created[0].Attached) 'New session unexpectedly attached a client.'
     if ($FailAfterCreation) { throw 'deliberate startup consumer failure' }
 } catch {
@@ -95,7 +110,9 @@ exec $quotedTmux "`$@"
             foreach ($process in @($daemon, $paneProcess) + $fixture.ClientProcesses.ToArray()) {
                 if ($process) { $process.Dispose() }
             }
-            if (Test-Path -LiteralPath $directory) { Remove-Item -LiteralPath $directory -Recurse -Force }
+            if ($cleanupErrors.Count -eq 0 -and (Test-Path -LiteralPath $directory)) {
+                Remove-Item -LiteralPath $directory -Recurse -Force
+            }
         }
     }
 }

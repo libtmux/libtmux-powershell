@@ -13,9 +13,9 @@ public sealed class SocketCreatedSignal : IDisposable
     private int createdEvents;
     private int errorEvents;
 
-    public SocketCreatedSignal(string directory)
+    public SocketCreatedSignal(string directory, string socketName = "socket")
     {
-        watcher = new FileSystemWatcher(directory, "socket");
+        watcher = new FileSystemWatcher(directory, socketName);
         watcher.Created += (_, _) =>
         {
             Interlocked.Increment(ref createdEvents);
