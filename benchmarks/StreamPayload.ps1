@@ -39,8 +39,8 @@ function Stop-StreamPayloadPipeline {
     $Pipeline.Dispose()
 }
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0.nupkg'
-if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0.nupkg.' }
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
+if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0-alpha1.nupkg.' }
 $binary = (Resolve-Path -LiteralPath $TmuxBinaryPath).Path
 $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $destination) { throw 'OutputPath already exists; choose a new report path.' }

@@ -9,7 +9,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $names = @('LibTmux', 'LibTmux.Workspace')
-$version = '0.1.0'
+$moduleVersion = '0.1.0'
+$prerelease = 'alpha1'
+$version = '0.1.0-alpha1'
 $root = (Resolve-Path -LiteralPath $PackageRoot).Path
 $owned = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-publish-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $owned
@@ -61,8 +63,12 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
         $metadata = $spec.SelectSingleNode('/*[local-name()="package"]/*[local-name()="metadata"]')
         $id = $metadata.SelectSingleNode('*[local-name()="id"]').InnerText
         $packageVersion = $metadata.SelectSingleNode('*[local-name()="version"]').InnerText
-        if ($id -cne $Name -or $packageVersion -cne $version -or $data.ModuleVersion -cne $version) {
+        if ($id -cne $Name -or $packageVersion -cne $version -or $data.ModuleVersion -cne $moduleVersion) {
             throw 'Release package name or version differs from the approved release.'
+        }
+        if (!$data.PrivateData.PSData.ContainsKey('Prerelease') -or
+            $data.PrivateData.PSData.Prerelease -cne $prerelease) {
+            throw 'Release package prerelease differs from the approved alpha release.'
         }
         if ($data.PrivateData.PSData.LicenseUri -cne
             'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE' -or
@@ -73,8 +79,8 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
         $required = @(if ($data.ContainsKey('RequiredModules')) { $data.RequiredModules })
         if ($Name -ceq 'LibTmux.Workspace') {
             if ($dependencies.Count -ne 1 -or $dependencies[0].id -cne 'LibTmux' -or
-                $dependencies[0].version -cne '[0.1.0]' -or $required.Count -ne 1 -or
-                $required[0].ModuleName -cne 'LibTmux' -or $required[0].RequiredVersion -cne $version) {
+                $dependencies[0].version -cne '[0.1.0-alpha1]' -or $required.Count -ne 1 -or
+                $required[0].ModuleName -cne 'LibTmux' -or $required[0].RequiredVersion -cne $moduleVersion) {
                 throw 'Workspace does not require the exact approved core dependency.'
             }
         } elseif ($dependencies.Count -or $required.Count) {

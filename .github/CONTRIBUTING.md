@@ -28,9 +28,15 @@ support. Keep module, folder, and manifest casing consistent. Export cmdlets
 explicitly and do not export aliases that could shadow the `tmux` executable.
 Pin the bundled LibTmux dependency to an exact version when a project is added.
 
-Module versions will use plain three-part `0.x` versions without prerelease
-labels, independently of the LibTmux NuGet version. Describe the module as
-alpha in prose and record the bundled dependency version in release notes.
+Gallery releases use `0.1.0-alphaN`, starting at `0.1.0-alpha1` and
+incrementing N for each release, until the maintainer explicitly chooses a
+different release line or a stable release. This is independent of the
+LibTmux NuGet version. Keep `ModuleVersion = '0.1.0'` and set
+`PrivateData.PSData.Prerelease` to the release's `alphaN` suffix in both
+manifests. Workspace's package dependency requires the exact core prerelease;
+its runtime manifest uses numeric `RequiredVersion = '0.1.0'`. The first
+release uses `alpha1` and requires `LibTmux` `0.1.0-alpha1`. Record the bundled
+.NET dependency version in release notes.
 Local package artifacts do not establish publication or platform support.
 
 ## Setup

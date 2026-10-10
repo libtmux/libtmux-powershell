@@ -100,8 +100,8 @@ function Get-StandaloneSummary([long[]] $Values, [string] $Metric) {
             } else { $null }) }
 }
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0.nupkg'
-if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0.nupkg.' }
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
+if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0-alpha1.nupkg.' }
 $prepared = (Resolve-Path -LiteralPath $PreparedRoot).Path
 $manifest = Get-Content -LiteralPath (Join-Path $prepared 'manifest.json') -Raw | ConvertFrom-Json
 $app = Join-Path $prepared 'bin/LibTmux.StandaloneCoreBenchmark.dll'

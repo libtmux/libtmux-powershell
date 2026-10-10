@@ -18,7 +18,7 @@ notification from leaving the watcher active indefinitely.
 
 Build and package the PowerShell module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). The supplied
-`LibTmux.0.1.0.nupkg` must contain a complete, internally consistent core
+`LibTmux.0.1.0-alpha1.nupkg` must contain a complete, internally consistent core
 dependency. Run the negative controls and two-round installed-package smoke
 first:
 
