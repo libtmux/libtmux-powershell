@@ -66,6 +66,7 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Help.ps1 -Check
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/GuideExamples.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/BootstrapReview.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/Publish.Tests.ps1
           dotnet format src/LibTmux.PowerShell/LibTmux.PowerShell.csproj \
             --verify-no-changes --no-restore
           dotnet format src/LibTmux.Workspace.PowerShell/LibTmux.Workspace.PowerShell.csproj \

@@ -278,6 +278,41 @@ both import orders, module-qualified calls, native types, reimport, no-tmux
 imports and assembly conflicts. Fixture checks are integration tests.
 The complete platform, example and API suites are not established yet.
 
+## Gallery releases
+
+The [release workflow](workflows/release.yml) publishes the two module
+archives already tested by Linux CI. It does not build or repackage them.
+Use the successful `powershell` push run for the current `master` commit;
+pull request runs and older source commits are rejected.
+
+Set `CI_RUN_ID` to that run's numeric ID. Validate its archives without
+uploading:
+
+```console
+$ gh workflow run release.yml \
+    --repo libtmux/libtmux-powershell \
+    --ref master \
+    --field ci_run_id="$CI_RUN_ID" \
+    --field publish=false
+```
+
+After reviewing the successful validation, use the same command with
+`publish=true` to publish. This uploads `LibTmux` first, verifies its public
+package, then uploads `LibTmux.Workspace`. The workflow uses the repository
+Actions secret `PSGALLERY_API_KEY` only in that step. macOS is advisory;
+the build, four Linux endpoint combinations and aggregate gate must pass.
+
+Publication is separate for each module. A failed second upload leaves
+the first module published. Rerun the same release only after checking
+the receipt: existing packages must match the tested payload, and only
+missing packages are uploaded. A differing payload under the same version
+is rejected. Release artifacts retain the source, CI run and package hashes.
+
+The publisher's local entrypoint is `eng/Publish.ps1`; omitting `-Publish`
+validates an artifact directory without network access or credentials.
+After publication, `tests/ResourceInstall.Tests.ps1 -Gallery` verifies
+Workspace-only installation from PSGallery and executes installed examples.
+
 ## MCP discovery
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.

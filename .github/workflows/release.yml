@@ -1,0 +1,93 @@
+name: release PowerShell Gallery modules
+
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful master push run of the powershell CI workflow
+        required: true
+        type: string
+      publish:
+        description: Publish the verified packages to PowerShell Gallery
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: powershell-gallery-release
+  cancel-in-progress: false
+
+jobs:
+  gallery:
+    if: github.repository == 'libtmux/libtmux-powershell' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify the source, Linux gates and package artifact
+        id: provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: |
+          python3 eng/ci/release_artifacts.py \
+            --run-id "${CI_RUN_ID}" \
+            --source-commit "${GITHUB_SHA}" \
+            --output "${RUNNER_TEMP}/release-packages/release-provenance.json" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.provenance.outputs.artifact_id }}
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/release-packages
+          merge-multiple: true
+          digest-mismatch: error
+
+      - name: Install official PowerShell 7.4.20
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
+            "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
+
+      - name: Validate the preserved package archives without uploading
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Publish.ps1 \
+            -PackageRoot "${RUNNER_TEMP}/release-packages" \
+            -SourceCommit "${GITHUB_SHA}"
+
+      - name: Publish core, then workspace
+        if: inputs.publish
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Publish.ps1 \
+            -PackageRoot "${RUNNER_TEMP}/release-packages" \
+            -SourceCommit "${GITHUB_SHA}" \
+            -Publish
+
+      - name: Preserve release receipts and package archives
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gallery-release-${{ github.run_id }}
+          path: ${{ runner.temp }}/release-packages/
+          if-no-files-found: warn
+          retention-days: 30
