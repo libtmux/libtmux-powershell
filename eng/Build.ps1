@@ -121,7 +121,7 @@ try {
         foreach ($library in $libraries) { Copy-Item "$binary/$library.dll" "$destination/lib" }
         if ($name -eq 'LibTmux') { Copy-Item "$binary/libtmux-query-v2.schema.json" $destination }
         Copy-Item "$root/LICENSE" $destination
-        Copy-Item "$root/THIRD-PARTY-NOTICES.md" $destination
+        Copy-Item "$root/licenses/THIRD-PARTY-NOTICES.md" $destination
         $null = New-Item "$destination/licenses" -ItemType Directory -Force
         $licenses = if ($name -eq 'LibTmux') { @('LibTmux', 'dotnet') } else { @('LibTmux', 'YamlDotNet') }
         foreach ($license in $licenses) { Copy-Item "$root/licenses/$license.txt" "$destination/licenses" }

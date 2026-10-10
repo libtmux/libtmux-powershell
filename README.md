@@ -416,4 +416,5 @@ workloads, correctness checks, raw samples and reproduction commands.
 
 ## License
 
-[MIT](LICENSE). Bundled dependency notices are in [licenses](licenses/).
+[MIT](LICENSE). See [third-party notices](licenses/THIRD-PARTY-NOTICES.md)
+for bundled dependencies.
