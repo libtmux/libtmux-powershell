@@ -53,7 +53,7 @@ if ($PackageRoot) {
             $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/EventStream.Checks.psm1").Hash.ToLowerInvariant() -or
             $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/PackageIdentity.psm1").Hash.ToLowerInvariant() -or
             !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
-            $report.provenance.packageSha256 -cne (Get-FileHash -LiteralPath (Join-Path $PackageRoot 'LibTmux.0.1.0.nupkg') -Algorithm SHA256).Hash.ToLowerInvariant() -or
+            $report.provenance.packageSha256 -cne (Get-FileHash -LiteralPath (Join-Path $PackageRoot 'LibTmux.0.1.0-alpha1.nupkg') -Algorithm SHA256).Hash.ToLowerInvariant() -or
             $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' })) {
             throw 'The event stream report did not identify exact benchmark source and dependency.'
         }

@@ -25,7 +25,7 @@ $ pwsh -NoLogo -NoProfile -File benchmarks/EndpointPair.ps1 \
     -OutputPath artifacts/benchmarks/endpoint-pair.json
 ```
 
-The runner extracts the exact `LibTmux.0.1.0.nupkg`, validates its embedded
+The runner extracts the exact `LibTmux.0.1.0-alpha1.nupkg`, validates its embedded
 core version and assembly hashes, and records the source checkout,
 runner/check hashes, package and tmux binary hashes, runtime, and assembly
 identities. Package-only runs report `sourceProvenance: unverified`. Pass

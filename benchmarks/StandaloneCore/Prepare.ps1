@@ -8,9 +8,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0.nupkg'
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha1.nupkg'
 if (!(Test-Path -LiteralPath $package -PathType Leaf)) {
-    throw 'PackageRoot must contain the Product-tested LibTmux.0.1.0.nupkg.'
+    throw 'PackageRoot must contain the Product-tested LibTmux.0.1.0-alpha1.nupkg.'
 }
 $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputRoot)
 if (Test-Path -LiteralPath $destination) { throw 'OutputRoot already exists; choose a new preparation directory.' }
@@ -78,7 +78,7 @@ try {
     $manifest = [ordered]@{
         schema = 1
         status = 'PASS'
-        packageArchive = 'LibTmux.0.1.0.nupkg'
+        packageArchive = 'LibTmux.0.1.0-alpha1.nupkg'
         packageSha256 = $packageIdentity.packageSha256
         dependenciesSha256 = (Get-FileHash -LiteralPath $dependenciesPath -Algorithm SHA256).Hash.ToLowerInvariant()
         corePackageVersion = $packageIdentity.corePackageVersion

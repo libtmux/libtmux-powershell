@@ -26,7 +26,7 @@ so the report does not calculate a cross-scope speed ratio.
 
 Build and package the module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). The runner validates
-the supplied `LibTmux.0.1.0.nupkg` against its embedded core version and
+the supplied `LibTmux.0.1.0-alpha1.nupkg` against its embedded core version and
 assembly hashes. Run same-count wrong-identity controls and a two-round
 installed-package smoke:
 

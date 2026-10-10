@@ -154,7 +154,7 @@ try {
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
         try {
             foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-                $package = Join-Path $PackageRoot "$name.0.1.0.nupkg"
+                $package = Join-Path $PackageRoot "$name.0.1.0-alpha1.nupkg"
                 $destination = Join-Path $installed "$name/0.1.0"
                 [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
             }

@@ -28,10 +28,10 @@ if ($Gallery) {
 }
 
 if ($SaveWorker) {
-    Save-PSResource -Name LibTmux.Workspace -Version '0.1.0' `
+    Save-PSResource -Name LibTmux.Workspace -Version '0.1.0-alpha1' -Prerelease `
         -Repository $RepositoryName -Path "$OwnedRoot/modules" `
         -TemporaryPath "$OwnedRoot/download" -TrustRepository -AcceptLicense -Quiet
-    'PASS Save-PSResource requested only LibTmux.Workspace 0.1.0'
+    'PASS Save-PSResource requested only LibTmux.Workspace 0.1.0-alpha1'
     return
 }
 
@@ -42,6 +42,9 @@ $repository = if ($Gallery) { 'PSGallery' } else {
 }
 $before = @(Get-PSResourceRepository)
 $registered = $false
+$feedProcess = $null
+$feedStarted = $false
+$feedErrors = $null
 $passed = $false
 $timer = if ($Gallery) { $galleryTimer } else { [Diagnostics.Stopwatch]::StartNew() }
 
@@ -94,10 +97,10 @@ function Invoke-ResourceChild([string] $Script, [string[]] $Arguments, [string] 
     }
 }
 
-function Assert-GalleryPayload([string] $Name, [string] $Modules) {
+function Assert-ResourcePayload([string] $Name, [string] $Modules) {
     $modulePath = Join-Path $Modules "$Name/0.1.0"
     $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.0.1.0.nupkg")
+    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.0.1.0-alpha1.nupkg")
     try {
         foreach ($entry in $archive.Entries) {
             $relative = $entry.FullName
@@ -116,14 +119,14 @@ function Assert-GalleryPayload([string] $Name, [string] $Modules) {
             }
             $savedPath = Join-Path $modulePath $relative
             if (!(Test-Path -LiteralPath $savedPath -PathType Leaf)) {
-                throw "The Gallery $Name payload is missing $relative."
+                throw "The saved $Name payload is missing $relative."
             }
             $stream = $entry.Open()
             $hasher = [Security.Cryptography.SHA256]::Create()
             try { $hash = [Convert]::ToHexString($hasher.ComputeHash($stream)) }
             finally { $hasher.Dispose(); $stream.Dispose() }
             if ($hash -cne (Get-FileHash -LiteralPath $savedPath -Algorithm SHA256).Hash) {
-                throw "The Gallery $Name payload differs at $relative."
+                throw "The saved $Name payload differs at $relative."
             }
         }
     } finally { $archive.Dispose() }
@@ -133,20 +136,37 @@ function Assert-GalleryPayload([string] $Name, [string] $Modules) {
         # PSResourceGet adds installation metadata outside the package payload.
         if ($relative -ceq 'PSGetModuleInfo.xml') { continue }
         if (!$expected.Contains($relative)) {
-            throw "The Gallery $Name payload has an unexpected file: $relative."
+            throw "The saved $Name payload has an unexpected file: $relative."
         }
     }
-    "PASS Gallery payload identity: $Name ($($expected.Count) files)"
+    "PASS saved payload identity: $Name ($($expected.Count) files)"
 }
 
 try {
     $null = New-Item "$owned/modules", "$owned/download" -ItemType Directory
     if (!$Gallery) {
-        $null = New-Item "$owned/feed" -ItemType Directory
-        foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-            Copy-Item -LiteralPath "$PackageRoot/$name.0.1.0.nupkg" -Destination "$owned/feed"
+        # File feeds read numeric manifest dependencies instead of alpha nuspec pins.
+        $feedStart = [Diagnostics.ProcessStartInfo]::new('python3')
+        $feedStart.UseShellExecute = $false
+        $feedStart.RedirectStandardInput = $true
+        $feedStart.RedirectStandardOutput = $true
+        $feedStart.RedirectStandardError = $true
+        $feedStart.WorkingDirectory = $owned
+        foreach ($argument in @("$PSScriptRoot/support/resource_feed.py", '--package-root', $PackageRoot)) {
+            $feedStart.ArgumentList.Add($argument)
         }
-        Register-PSResourceRepository -Name $repository -Uri "$owned/feed" -Trusted
+        $feedProcess = [Diagnostics.Process]::new()
+        $feedProcess.StartInfo = $feedStart
+        $feedStarted = $feedProcess.Start()
+        if (!$feedStarted) { throw 'The owned package feed did not start.' }
+        $feedErrors = $feedProcess.StandardError.ReadToEndAsync()
+        $ready = $feedProcess.StandardOutput.ReadLineAsync()
+        if (!$ready.Wait(1000)) { throw 'The owned package feed did not report readiness within one second.' }
+        $uri = $ready.GetAwaiter().GetResult()
+        if ($uri -cnotmatch '^http://127\.0\.0\.1:[0-9]+/api/v2$') {
+            throw 'The owned package feed returned an unexpected endpoint.'
+        }
+        Register-PSResourceRepository -Name $repository -Uri $uri -ApiVersion V2 -Trusted
         $registered = $true
     }
     $saveArguments = @('-PackageRoot', $PackageRoot,
@@ -162,12 +182,15 @@ try {
             throw "Native package resolution did not save $name 0.1.0."
         }
         $data = Import-PowerShellDataFile -LiteralPath $manifest
-        if ($data.ModuleVersion -cne '0.1.0') { throw "$name resolved an unexpected version." }
+        if ($data.ModuleVersion -cne '0.1.0' -or
+            $data.PrivateData.PSData.Prerelease -cne 'alpha1') {
+            throw "$name resolved an unexpected prerelease."
+        }
         $versions = @(Get-ChildItem -LiteralPath "$modules/$name" -Directory)
         if ($versions.Count -ne 1 -or $versions[0].Name -cne '0.1.0') {
             throw "$name resolved additional versions."
         }
-        if ($Gallery) { Assert-GalleryPayload $name $modules }
+        Assert-ResourcePayload $name $modules
     }
     $unexpected = @(Get-ChildItem -LiteralPath $modules -Directory | Where-Object {
         $_.Name -cnotin @('LibTmux', 'LibTmux.Workspace')
@@ -181,7 +204,7 @@ try {
     $duplicateCore = @(Get-ChildItem -LiteralPath "$modules/LibTmux.Workspace" -Recurse -File |
         Where-Object Name -CEQ 'LibTmux.dll')
     if ($duplicateCore.Count) { throw 'Workspace bundles a duplicate core assembly.' }
-    'PASS native dependency resolution: LibTmux.Workspace 0.1.0 -> LibTmux 0.1.0'
+    'PASS native dependency resolution: LibTmux.Workspace 0.1.0-alpha1 -> LibTmux 0.1.0-alpha1'
     if ($Gallery) {
         Invoke-ResourceChild "$PSScriptRoot/Package.Tests.ps1" @('-ModuleRoot', $modules,
             '-Order', 'CoreFirst') $modules
@@ -210,8 +233,26 @@ try {
             }
         }
     } finally {
-        if (Test-Path -LiteralPath $owned) { Remove-Item -LiteralPath $owned -Recurse -Force }
-        if (Test-Path -LiteralPath $owned) { throw 'Owned package directories remain after cleanup.' }
+        try {
+            if ($feedProcess) {
+                try {
+                    if ($feedStarted) {
+                        $feedProcess.StandardInput.Close()
+                        if (!$feedProcess.WaitForExit(1000)) {
+                            $feedProcess.Kill($true)
+                            if (!$feedProcess.WaitForExit(1000)) { throw 'The owned package feed did not exit after termination.' }
+                            throw 'The owned package feed did not stop when stdin closed.'
+                        }
+                        if ($feedProcess.ExitCode -ne 0 -or $feedErrors.GetAwaiter().GetResult()) {
+                            throw 'The owned package feed failed or wrote unexpected stderr.'
+                        }
+                    }
+                } finally { $feedProcess.Dispose() }
+            }
+        } finally {
+            if (Test-Path -LiteralPath $owned) { Remove-Item -LiteralPath $owned -Recurse -Force }
+            if (Test-Path -LiteralPath $owned) { throw 'Owned package directories remain after cleanup.' }
+        }
     }
     if ($Gallery) {
         'PASS cleanup: Gallery repositories unchanged, temporary directories removed'

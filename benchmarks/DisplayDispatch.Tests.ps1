@@ -52,7 +52,7 @@ if ($PackageRoot) {
         if ($report.provenance.runnerSha256 -cne (Get-FileHash "$PSScriptRoot/DisplayDispatch.ps1").Hash.ToLowerInvariant() -or
             $report.provenance.checksSha256 -cne (Get-FileHash "$PSScriptRoot/DisplayDispatch.Checks.psm1").Hash.ToLowerInvariant() -or
             $report.provenance.packageIdentitySha256 -cne (Get-FileHash "$PSScriptRoot/PackageIdentity.psm1").Hash.ToLowerInvariant() -or
-            $report.provenance.packageSha256 -cne (Get-FileHash (Join-Path $PackageRoot 'LibTmux.0.1.0.nupkg')).Hash.ToLowerInvariant() -or
+            $report.provenance.packageSha256 -cne (Get-FileHash (Join-Path $PackageRoot 'LibTmux.0.1.0-alpha1.nupkg')).Hash.ToLowerInvariant() -or
             !$report.provenance.corePackageVersion -or !$report.provenance.coreAssemblySha256 -or
             !$report.provenance.cmdletAssemblySha256 -or
             $report.provenance.sourceProvenance -cne $(if ($ReviewRoot) { 'verified' } else { 'unverified' }) -or

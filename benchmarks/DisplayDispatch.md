@@ -18,7 +18,7 @@ may appear in submission order. The chain returns one merged output stream.
 
 Build and package the PowerShell module using the
 [contributor guide](../.github/CONTRIBUTING.md#setup). The runner checks the
-supplied `LibTmux.0.1.0.nupkg` against its embedded core version and assembly
+supplied `LibTmux.0.1.0-alpha1.nupkg` against its embedded core version and assembly
 hashes, extracts it into a temporary directory, imports that installed
 artifact, and owns its tmux socket. Run the negative equality controls and a
 two-round live smoke first:

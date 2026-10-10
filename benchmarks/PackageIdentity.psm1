@@ -67,7 +67,7 @@ function Get-BenchmarkPackageIdentity {
 
     $packageRoot = (Resolve-Path -LiteralPath $PackageRoot).Path
     $moduleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path
-    $packageName = 'LibTmux.0.1.0.nupkg'
+    $packageName = 'LibTmux.0.1.0-alpha1.nupkg'
     $package = Join-Path $packageRoot $packageName
     if (!(Test-Path -LiteralPath $package -PathType Leaf)) {
         throw "PackageRoot must contain $packageName."
