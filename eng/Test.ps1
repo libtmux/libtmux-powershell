@@ -17,7 +17,7 @@ $records = [Collections.Generic.List[object]]::new()
 $passed = $false
 $runProduct = $Suite -in @('Product', 'All')
 $runDocumentation = $Suite -in @('Documentation', 'All')
-$parallelProduct = $false
+$parallelTests = $false
 $activeTests = [Collections.Generic.List[object]]::new()
 $workerFailures = [Collections.Generic.List[Management.Automation.ErrorRecord]]::new()
 $unreapedChildren = [Collections.Generic.List[int]]::new()
@@ -67,7 +67,7 @@ function Wait-TestScript {
 }
 
 function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [string] $ModuleRoot) {
-    if ($parallelProduct) {
+    if ($parallelTests) {
         while ($activeTests.Count -ge 2) { Wait-TestScript }
         if ($workerFailures.Count) { return }
     }
@@ -86,7 +86,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $process = $null
     $timedOut = $false
     $exitCode = $null
-    if ($parallelProduct) {
+    if ($parallelTests) {
         $deadline = [Threading.CancellationTokenSource]::new(30000)
         try {
             $process = [Diagnostics.Process]::Start($start)
@@ -169,7 +169,7 @@ try {
                 }
             }
             # Package checks mutate shared bytes; later scripts own their fixtures.
-            $parallelProduct = $runProduct
+            $parallelTests = $runProduct
             if ($Suite -eq 'Read' -or $runProduct) {
                 Invoke-TestScript 'tests/Read.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
@@ -263,22 +263,47 @@ try {
                 Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
             while ($activeTests.Count) { Wait-TestScript }
-            $parallelProduct = $false
             if ($workerFailures.Count) { throw $workerFailures[0] }
-            if ($Suite -eq 'Help' -or $runDocumentation) {
+            $parallelTests = $false
+            if ($runDocumentation) {
+                $helpAdmission = Join-Path $installed 'help-admission.json'
+                $guideAdmission = Join-Path $installed 'guide-admission.json'
+                Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed,
+                    '-Phase', 'Metadata', '-AdmissionPath', $helpAdmission) $installed
+                Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed,
+                    '-Phase', 'Metadata', '-AdmissionPath', $guideAdmission) $installed
+            }
+            $parallelTests = $runDocumentation
+            if ($Suite -eq 'Help') {
                 Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
             if ($Suite -eq 'Examples' -or $runDocumentation) {
                 foreach ($group in @('CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')) {
-                    Invoke-TestScript 'tests/Help.Tests.ps1' @('-ModuleRoot', $installed,
-                        '-RunExamples', '-ExampleGroup', $group) $installed
+                    $arguments = @('-ModuleRoot', $installed, '-RunExamples', '-ExampleGroup', $group)
+                    if ($runDocumentation) { $arguments += '-Phase', 'Examples', '-AdmissionPath', $helpAdmission }
+                    Invoke-TestScript 'tests/Help.Tests.ps1' $arguments $installed
                 }
             }
             if ($Suite -eq 'Guides' -or $runDocumentation) {
                 Invoke-TestScript 'tests/ReadmeWorkflow.Tests.ps1' @('-ModuleRoot', $installed) $installed
                 foreach ($group in @('Lifecycle', 'OperationsConfiguration', 'OperationsInteraction', 'Planning')) {
-                    Invoke-TestScript 'tests/GuideExamples.Tests.ps1' @('-ModuleRoot', $installed,
-                        '-RunExamples', '-ExampleGroup', $group) $installed
+                    $arguments = @('-ModuleRoot', $installed, '-RunExamples', '-ExampleGroup', $group)
+                    if ($runDocumentation) { $arguments += '-Phase', 'Examples', '-AdmissionPath', $guideAdmission }
+                    Invoke-TestScript 'tests/GuideExamples.Tests.ps1' $arguments $installed
+                }
+            }
+            while ($activeTests.Count) { Wait-TestScript }
+            if ($workerFailures.Count) { throw $workerFailures[0] }
+            if ($runDocumentation) {
+                foreach ($entry in @(@{ Script = 'tests/Help.Tests.ps1'; Admission = $helpAdmission },
+                    @{ Script = 'tests/GuideExamples.Tests.ps1'; Admission = $guideAdmission })) {
+                    $admitted = Get-Content -LiteralPath $entry.Admission -Raw | ConvertFrom-Json -AsHashtable
+                    $executed = @($records | Where-Object {
+                        $_.script -ceq $entry.Script -and $_.arguments -ccontains 'Examples'
+                    } | ForEach-Object { $_.arguments[[array]::IndexOf($_.arguments, '-ExampleGroup') + 1] })
+                    if (Compare-Object @($admitted.Groups | Sort-Object) @($executed | Sort-Object)) {
+                        throw "$($entry.Script) did not execute every admitted example group."
+                    }
                 }
             }
         } finally {

@@ -2,12 +2,31 @@ param(
     [string] $ModuleRoot,
     [switch] $RunExamples,
     [ValidateSet('All', 'Lifecycle', 'Operations', 'OperationsConfiguration', 'OperationsInteraction', 'Planning')]
-    [string] $ExampleGroup = 'All'
+    [string] $ExampleGroup = 'All',
+    [ValidateSet('Full', 'Metadata', 'Examples')] [string] $Phase = 'Full',
+    [string] $AdmissionPath
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot
+
+function Get-GuideAdmissionContext {
+    $files = @(Get-Item $PSCommandPath) + @(Get-Item "$root/README.md") +
+        @(Get-ChildItem "$root/docs" -Filter '*.md' -Recurse | Where-Object {
+            !$_.FullName.StartsWith("$root/docs/reference/", [StringComparison]::Ordinal)
+        }) + @(Get-ChildItem "$root/examples" -Filter '*.ps1' -Recurse) +
+        @(Get-ChildItem "$PSScriptRoot/support" -File) + @(
+            foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
+                Get-ChildItem (Join-Path $ModuleRoot "$module/0.1.0") -File -Recurse
+            }
+        )
+    $hashes = @($files | Sort-Object FullName | ForEach-Object {
+        "$($_.FullName):$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+    })
+    [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+        [Text.Encoding]::UTF8.GetBytes($ModuleRoot + "`n" + ($hashes -join "`n"))))
+}
 
 function Get-GuideDocumentUnit([IO.FileInfo[]] $Files) {
     if (!$Files) {
@@ -861,76 +880,102 @@ function Assert-GuideRejection([scriptblock] $Body, [string] $Message) {
     if (!$rejected) { throw "Guide negative control accepted: $Message" }
 }
 
-# Copied-document controls must reject unregistered fences even when their syntax varies.
-$copied = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-guide-markdown-' + [Guid]::NewGuid().ToString('N'))
-try {
-    $null = New-Item -ItemType Directory -Path $copied
-    $path = Join-Path $copied 'guide-negative.md'
-    $original = [IO.File]::ReadAllText("$root/README.md")
-    foreach ($fence in @('~~~PowerShell', '~~~~pwsh', '````powershell', ' ```powershell', '   ```PS1', '``` powershell', '> ```pwsh', '- ```powershell')) {
-        $closing = [regex]::Match($fence, '[`~]+').Value
-        [IO.File]::WriteAllText($path, $original + "`n$fence`n'not registered'`n$closing`n")
-        Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unsupported guide fence: guide-negative.md'
-    }
-    foreach ($fence in @('```PowerShell', '```pwsh')) {
-        [IO.File]::WriteAllText($path, $original + "`n$fence`n'not registered'`n" + '```' + "`n")
-        Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unregistered guide fence: guide-negative.md'
-    }
-    [IO.File]::WriteAllText($path, $original + "`n" + '```powershell' + "`n'not registered'`n" + '````' + "`n")
-    Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unparsed guide fence: guide-negative.md'
-    $firstCopy = Join-Path $copied 'guide-copy-a.md'
-    $secondCopy = Join-Path $copied 'guide-copy-b.md'
-    $opening = '<!-- example: readme.input -->' + "`n" + '```powershell' + "`n"
-    [IO.File]::WriteAllText($firstCopy, $opening + "'same'`n" + '```' + "`n")
-    [IO.File]::WriteAllText($secondCopy, $opening + "'same'`n" + '```' + "`n")
-    if ((Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))).Count -ne 1) {
-        throw 'Identical guide copies did not share one executable unit.'
-    }
-    [IO.File]::WriteAllText($secondCopy, $opening + "'different'`n" + '```' + "`n")
-    Assert-GuideRejection {
-        $null = Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))
-    } 'Guide copy drift: readme.input'
-} finally {
-    if (Test-Path -LiteralPath $copied) { Remove-Item -LiteralPath $copied -Recurse -Force }
-}
-$documents = Get-GuideDocumentUnit
-$sourceFiles = @(Get-ChildItem "$root/examples" -Filter '*.ps1' -Recurse | ForEach-Object { [IO.Path]::GetRelativePath("$root/examples", $_.FullName) })
-Assert-GuideSourceFile $sourceFiles
 $sources = & "$root/examples/Guides.ps1"
-Assert-GuideRegistration $documents $sources $assertions
-$omitted = $assertions.Clone()
-$omitted.Remove('capture.history')
-Assert-GuideRejection { Assert-GuideRegistration $documents $sources $omitted } 'Guide assertion missing: capture.history'
-$extra = $assertions.Clone()
-$extra['missing.example'] = $assertions['capture.history']
-Assert-GuideRejection { Assert-GuideRegistration $documents $sources $extra } 'Guide assertion has no source: missing.example'
-$missing = $documents.Clone()
-$missing.Remove('capture.history')
-Assert-GuideRejection { Assert-GuideRegistration $missing $sources $assertions } 'Guide source has no document: capture.history'
-$missingSource = $sources.Clone()
-$missingSource.Remove('capture.history')
-Assert-GuideRejection { Assert-GuideRegistration $documents $missingSource $assertions } 'Guide source missing: capture.history'
-$drifted = $documents.Clone()
-$drifted['capture.history'] += ' -WhatIf'
-Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions } 'Guide source drift: capture.history'
-Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
 $executionGroups = @{
     Lifecycle = @('Pure', 'Capture', 'Create', 'Remove', 'Readme')
     OperationsConfiguration = @('Settings', 'Clients')
     OperationsInteraction = @('Commands', 'Watch', 'Placement')
     Planning = @('Query', 'Workspace')
 }
-Assert-GuideExecutionGroup $executionGroups $assertions
-$missingChild = $executionGroups.Clone()
-$missingChild.Remove('OperationsInteraction')
-Assert-GuideRejection { Assert-GuideExecutionGroup $missingChild $assertions } 'Guide execution child registration differs.'
-$missingGroup = $executionGroups.Clone()
-$missingGroup['Planning'] = @('Query')
-Assert-GuideRejection { Assert-GuideExecutionGroup $missingGroup $assertions } 'Guide execution group missing: Workspace'
-$duplicateGroup = $executionGroups.Clone()
-$duplicateGroup['Planning'] += 'Capture'
-Assert-GuideRejection { Assert-GuideExecutionGroup $duplicateGroup $assertions } 'Guide execution group repeated: Capture'
-"PASS $($sources.Count) guide units: source/document/assertion discovery, drift and negative controls"
+if ($Phase -ne 'Full') {
+    if (!$ModuleRoot -or !$AdmissionPath) { throw '-ModuleRoot and -AdmissionPath are required with -Phase.' }
+    $ModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path
+}
+if ($Phase -eq 'Examples') {
+    $admission = Get-Content -LiteralPath $AdmissionPath -Raw | ConvertFrom-Json -AsHashtable
+    if ($admission.Kind -cne 'Guides' -or $admission.Context -cne (Get-GuideAdmissionContext)) {
+        throw 'Guide metadata admission does not match the source and installed modules.'
+    }
+    if (Compare-Object @($sources.Keys | Sort-Object) @($admission.Ids | Sort-Object)) {
+        throw 'Guide metadata admission has incomplete source registration.'
+    }
+    if (Compare-Object @($sources.Keys | Sort-Object) @($assertions.Keys | Sort-Object)) {
+        throw 'Guide assertion registration differs from its metadata admission.'
+    }
+    Assert-GuideExecutionGroup $executionGroups $assertions
+    $RunExamples = $true
+} else {
+    # Copied-document controls must reject unregistered fences even when their syntax varies.
+    $copied = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-guide-markdown-' + [Guid]::NewGuid().ToString('N'))
+    try {
+        $null = New-Item -ItemType Directory -Path $copied
+        $path = Join-Path $copied 'guide-negative.md'
+        $original = [IO.File]::ReadAllText("$root/README.md")
+        foreach ($fence in @('~~~PowerShell', '~~~~pwsh', '````powershell', ' ```powershell', '   ```PS1', '``` powershell', '> ```pwsh', '- ```powershell')) {
+            $closing = [regex]::Match($fence, '[`~]+').Value
+            [IO.File]::WriteAllText($path, $original + "`n$fence`n'not registered'`n$closing`n")
+            Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unsupported guide fence: guide-negative.md'
+        }
+        foreach ($fence in @('```PowerShell', '```pwsh')) {
+            [IO.File]::WriteAllText($path, $original + "`n$fence`n'not registered'`n" + '```' + "`n")
+            Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unregistered guide fence: guide-negative.md'
+        }
+        [IO.File]::WriteAllText($path, $original + "`n" + '```powershell' + "`n'not registered'`n" + '````' + "`n")
+        Assert-GuideRejection { $null = Get-GuideDocumentUnit @(Get-Item $path) } 'Unparsed guide fence: guide-negative.md'
+        $firstCopy = Join-Path $copied 'guide-copy-a.md'
+        $secondCopy = Join-Path $copied 'guide-copy-b.md'
+        $opening = '<!-- example: readme.input -->' + "`n" + '```powershell' + "`n"
+        [IO.File]::WriteAllText($firstCopy, $opening + "'same'`n" + '```' + "`n")
+        [IO.File]::WriteAllText($secondCopy, $opening + "'same'`n" + '```' + "`n")
+        if ((Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))).Count -ne 1) {
+            throw 'Identical guide copies did not share one executable unit.'
+        }
+        [IO.File]::WriteAllText($secondCopy, $opening + "'different'`n" + '```' + "`n")
+        Assert-GuideRejection {
+            $null = Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))
+        } 'Guide copy drift: readme.input'
+    } finally {
+        if (Test-Path -LiteralPath $copied) { Remove-Item -LiteralPath $copied -Recurse -Force }
+    }
+    $documents = Get-GuideDocumentUnit
+    $sourceFiles = @(Get-ChildItem "$root/examples" -Filter '*.ps1' -Recurse | ForEach-Object { [IO.Path]::GetRelativePath("$root/examples", $_.FullName) })
+    Assert-GuideSourceFile $sourceFiles
+    Assert-GuideRegistration $documents $sources $assertions
+    $omitted = $assertions.Clone()
+    $omitted.Remove('capture.history')
+    Assert-GuideRejection { Assert-GuideRegistration $documents $sources $omitted } 'Guide assertion missing: capture.history'
+    $extra = $assertions.Clone()
+    $extra['missing.example'] = $assertions['capture.history']
+    Assert-GuideRejection { Assert-GuideRegistration $documents $sources $extra } 'Guide assertion has no source: missing.example'
+    $missing = $documents.Clone()
+    $missing.Remove('capture.history')
+    Assert-GuideRejection { Assert-GuideRegistration $missing $sources $assertions } 'Guide source has no document: capture.history'
+    $missingSource = $sources.Clone()
+    $missingSource.Remove('capture.history')
+    Assert-GuideRejection { Assert-GuideRegistration $documents $missingSource $assertions } 'Guide source missing: capture.history'
+    $drifted = $documents.Clone()
+    $drifted['capture.history'] += ' -WhatIf'
+    Assert-GuideRejection { Assert-GuideRegistration $drifted $sources $assertions } 'Guide source drift: capture.history'
+    Assert-GuideRejection { Assert-GuideSourceFile @('Guides.ps1', 'unregistered.ps1') } 'Guide source file registration differs.'
+    Assert-GuideExecutionGroup $executionGroups $assertions
+    $missingChild = $executionGroups.Clone()
+    $missingChild.Remove('OperationsInteraction')
+    Assert-GuideRejection { Assert-GuideExecutionGroup $missingChild $assertions } 'Guide execution child registration differs.'
+    $missingGroup = $executionGroups.Clone()
+    $missingGroup['Planning'] = @('Query')
+    Assert-GuideRejection { Assert-GuideExecutionGroup $missingGroup $assertions } 'Guide execution group missing: Workspace'
+    $duplicateGroup = $executionGroups.Clone()
+    $duplicateGroup['Planning'] += 'Capture'
+    Assert-GuideRejection { Assert-GuideExecutionGroup $duplicateGroup $assertions } 'Guide execution group repeated: Capture'
+    "PASS $($sources.Count) guide units: source/document/assertion discovery, drift and negative controls"
+}
+if ($Phase -eq 'Metadata') {
+    @{ Kind = 'Guides'; Context = Get-GuideAdmissionContext; Groups = @($executionGroups.Keys | Sort-Object);
+        Ids = @($sources.Keys | Sort-Object) } |
+        ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $AdmissionPath
+    'PASS guide metadata admission'
+    return
+}
 if (!$RunExamples) { return }
 if (!$ModuleRoot) { throw '-ModuleRoot is required with -RunExamples.' }
 $ModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path

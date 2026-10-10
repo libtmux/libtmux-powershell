@@ -2,7 +2,9 @@ param(
     [Parameter(Mandatory)] [string] $ModuleRoot,
     [switch] $RunExamples,
     [ValidateSet('All', 'CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')]
-    [string] $ExampleGroup = 'All'
+    [string] $ExampleGroup = 'All',
+    [ValidateSet('Full', 'Metadata', 'Examples')] [string] $Phase = 'Full',
+    [string] $AdmissionPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +14,53 @@ $ModuleRoot = (Resolve-Path -LiteralPath $ModuleRoot).Path
 # The registry is independent of discovered help; new examples cannot inherit a fallback assertion.
 . "$PSScriptRoot/support/HelpExampleAssertions.ps1"
 $assertions = Get-HelpExampleAssertion
+
+function Get-HelpAdmissionContext {
+    $files = @(Get-Item $PSCommandPath) + @(Get-ChildItem "$PSScriptRoot/support" -File) + @(
+        foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
+            Get-ChildItem (Join-Path $ModuleRoot "$module/0.1.0") -File -Recurse
+        }
+    )
+    $hashes = @($files | Sort-Object FullName | ForEach-Object {
+        "$($_.FullName):$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+    })
+    [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+        [Text.Encoding]::UTF8.GetBytes($ModuleRoot + "`n" + ($hashes -join "`n"))))
+}
+
+function Get-HelpGroupId([string[]] $Ids, [string] $Group) {
+    $core = @($Ids | Where-Object {
+        $_.StartsWith('LibTmux\', [StringComparison]::Ordinal) -and !$assertions[$_].ContainsKey('TerminalMode')
+    })
+    $cut = [int] [Math]::Ceiling($core.Count / 5)
+    switch ($Group) {
+        'CoreFirst' { $core | Select-Object -First $cut }
+        'CoreSecond' { $core | Select-Object -Skip $cut -First $cut }
+        'CoreThird' { $core | Select-Object -Skip (2 * $cut) -First $cut }
+        'CoreFourth' { $core | Select-Object -Skip (3 * $cut) -First $cut }
+        'CoreFifth' { $core | Select-Object -Skip (4 * $cut) }
+        'Workspace' { $Ids | Where-Object { $_.StartsWith('LibTmux.Workspace\', [StringComparison]::Ordinal) } }
+        'Terminal' { $Ids | Where-Object { $assertions[$_].ContainsKey('TerminalMode') } }
+        default { $Ids }
+    }
+}
+
+$omittedId = 'LibTmux\New-TmuxSession#1'
+$requiredCommands = $null
+if ($Phase -ne 'Full' -and !$AdmissionPath) { throw '-AdmissionPath is required with -Phase.' }
+if ($Phase -eq 'Examples') {
+    $admission = Get-Content -LiteralPath $AdmissionPath -Raw | ConvertFrom-Json -AsHashtable
+    if ($admission.Kind -cne 'Help' -or $admission.Context -cne (Get-HelpAdmissionContext)) {
+        throw 'Help metadata admission does not match the source and installed modules.'
+    }
+    Assert-HelpExampleRegistration $admission.Examples $assertions
+    $selectedIds = @(Get-HelpGroupId @($admission.Examples.Id) $ExampleGroup)
+    $requiredIds = @($selectedIds)
+    if ($ExampleGroup -in @('All', 'CoreFirst')) { $requiredIds += $omittedId, 'LibTmux\Get-TmuxClient#1' }
+    $requiredCommands = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($id in $requiredIds) { $null = $requiredCommands.Add($id.Split('#')[0]) }
+    $RunExamples = $true
+}
 
 function Invoke-HelpExample($Example, $Assertion, $Context) {
     try {
@@ -61,6 +110,7 @@ $examples = [Collections.Generic.List[object]]::new()
 foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
     Import-Module (Join-Path $ModuleRoot "$module/0.1.0/$module.psd1")
     foreach ($command in Get-Command -Module $module) {
+        if ($requiredCommands -and !$requiredCommands.Contains("$module\$($command.Name)")) { continue }
         $help = Get-Help "$module\$($command.Name)" -Full
         if ($help.PSTypeNames -notcontains 'MamlCommandHelpInfo') {
             throw "$($command.Name) has no packaged native help."
@@ -91,59 +141,64 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
         foreach ($example in $help.examples.example) {
             $ordinal++
             $code = Get-HelpExampleCode $example $command.Name
-            $examples.Add(@{ Id = "$module\$($command.Name)#$ordinal"; Command = $command; Code = $code })
+            $id = "$module\$($command.Name)#$ordinal"
+            if ($Phase -eq 'Examples') {
+                $registered = @($admission.Examples | Where-Object Id -CEQ $id)
+                $digest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($code)))
+                if ($registered.Count -ne 1 -or $registered[0].CodeSha256 -cne $digest) {
+                    throw "Help example differs from its metadata admission: $id"
+                }
+            }
+            $examples.Add(@{ Id = $id; Command = $command; Code = $code })
         }
     }
 }
 
-Assert-HelpExampleRegistration $examples $assertions
-# These controls run before any tmux fixture or example execution.
-$omittedId = 'LibTmux\New-TmuxSession#1'
-$omitted = $assertions.Clone()
-$omitted.Remove($omittedId)
-$rejected = $false
-try { Assert-HelpExampleRegistration $examples $omitted } catch {
-    if ($_.Exception.Message -cne "Missing help example assertion: $omittedId") { throw }
-    $rejected = $true
+if ($Phase -ne 'Examples') {
+    Assert-HelpExampleRegistration $examples $assertions
+    # These controls run before any tmux fixture or example execution.
+    $omitted = $assertions.Clone()
+    $omitted.Remove($omittedId)
+    $rejected = $false
+    try { Assert-HelpExampleRegistration $examples $omitted } catch {
+        if ($_.Exception.Message -cne "Missing help example assertion: $omittedId") { throw }
+        $rejected = $true
+    }
+    if (!$rejected) { throw 'Missing-registration control was accepted.' }
+    $extra = $assertions.Clone()
+    $extraId = 'LibTmux\New-TmuxSession#999'
+    $extra[$extraId] = $assertions[$omittedId]
+    $rejected = $false
+    try { Assert-HelpExampleRegistration $examples $extra } catch {
+        if ($_.Exception.Message -cne "Help example assertion has no packaged example: $extraId") { throw }
+        $rejected = $true
+    }
+    if (!$rejected) { throw 'Extra-registration control was accepted.' }
+    Assert-HelpExampleRegistration $examples $assertions
+    'PASS missing and extra help assertion registrations rejected before fixture setup'
 }
-if (!$rejected) { throw 'Missing-registration control was accepted.' }
-$extra = $assertions.Clone()
-$extraId = 'LibTmux\New-TmuxSession#999'
-$extra[$extraId] = $assertions[$omittedId]
-$rejected = $false
-try { Assert-HelpExampleRegistration $examples $extra } catch {
-    if ($_.Exception.Message -cne "Help example assertion has no packaged example: $extraId") { throw }
-    $rejected = $true
+if ($Phase -eq 'Metadata') {
+    $groups = @('CoreFirst', 'CoreSecond', 'CoreThird', 'CoreFourth', 'CoreFifth', 'Workspace', 'Terminal')
+    $groupIds = @(foreach ($group in $groups) { Get-HelpGroupId @($examples.Id) $group })
+    if ($groupIds.Count -ne $examples.Count -or (Compare-Object @($examples.Id) $groupIds)) {
+        throw 'Help execution group registration differs from the packaged examples.'
+    }
+    @{ Kind = 'Help'; Context = Get-HelpAdmissionContext; Groups = $groups; Examples = @($examples | ForEach-Object {
+        @{ Id = $_.Id; CodeSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+            [Text.Encoding]::UTF8.GetBytes($_.Code))) }
+    }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $AdmissionPath
+    'PASS native help metadata admission'
+    return
 }
-if (!$rejected) { throw 'Extra-registration control was accepted.' }
-Assert-HelpExampleRegistration $examples $assertions
-'PASS missing and extra help assertion registrations rejected before fixture setup'
 
 if ($RunExamples) {
     # Outer integration: packaged examples execute against owned sockets with native outcome checks.
     . "$PSScriptRoot/support/OwnedTmux.ps1"
     . "$PSScriptRoot/support/InputReceiver.ps1"
     $owned = [Collections.Generic.List[object]]::new()
-    $coreExamples = @($examples | Where-Object {
-        $_.Id.StartsWith('LibTmux\', [StringComparison]::Ordinal) -and
-        !$assertions[$_.Id].ContainsKey('TerminalMode')
-    })
-    $coreCut = [int] [Math]::Ceiling($coreExamples.Count / 5)
-    $selectedExamples = switch ($ExampleGroup) {
-        'CoreFirst' { $coreExamples | Select-Object -First $coreCut }
-        'CoreSecond' { $coreExamples | Select-Object -Skip $coreCut -First $coreCut }
-        'CoreThird' { $coreExamples | Select-Object -Skip (2 * $coreCut) -First $coreCut }
-        'CoreFourth' { $coreExamples | Select-Object -Skip (3 * $coreCut) -First $coreCut }
-        'CoreFifth' { $coreExamples | Select-Object -Skip (4 * $coreCut) }
-        'Workspace' {
-            $examples | Where-Object {
-                $_.Id.StartsWith('LibTmux.Workspace\', [StringComparison]::Ordinal)
-            }
-        }
-        'Terminal' { $examples | Where-Object { $assertions[$_.Id].ContainsKey('TerminalMode') } }
-        default { $examples }
-    }
-    $selectedExamples = @($selectedExamples)
+    if ($Phase -ne 'Examples') { $selectedIds = @(Get-HelpGroupId @($examples.Id) $ExampleGroup) }
+    $selectedExamples = @($examples | Where-Object { $_.Id -cin $selectedIds })
+    if (Compare-Object $selectedIds @($selectedExamples.Id)) { throw 'Admitted help example selection is incomplete.' }
     if ($ExampleGroup -in @('All', 'CoreFirst')) {
         $negative = @{ Executed = $false; Fixture = $null }
         $wrong = $assertions[$omittedId].Clone()
