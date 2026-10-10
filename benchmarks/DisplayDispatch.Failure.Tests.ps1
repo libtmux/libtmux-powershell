@@ -73,6 +73,31 @@ function Invoke-SerialFailure([string] $Lane, $Server, $Control, [object[]] $Arg
     $status
 }
 
+function Invoke-NativeSerialFailure($Fixture, [object[]] $ArgumentSets) {
+    $status = [string[]]::new(8)
+    for ($index = 0; $index -lt 4; $index++) {
+        $native = Invoke-OwnedTmux $Fixture -Arguments $ArgumentSets[$index] -AllowFailure
+        if ($index -eq 3) {
+            Assert-FailureDispatch ($native.ExitCode -ne 0 -and $native.StdOut.Length -eq 0 -and
+                $native.StdErr.Length -gt 0) 'native-serial did not retain the failed command'
+            $status[$index] = 'failure'
+            break
+        }
+        Assert-FailureDispatch ($native.ExitCode -eq 0 -and $native.StdErr.Length -eq 0) `
+            "native-serial/$index was not successful"
+        if ($index -eq 0) {
+            Assert-FailureDispatch ($native.StdOut.Length -eq 0) `
+                'native-serial/0 emitted output from set-option'
+        } else {
+            Assert-FailureDispatch ($native.StdOut.TrimEnd("`r", "`n") -ceq $expected[$index]) `
+                "native-serial/$index lost its indexed display reply"
+        }
+        $status[$index] = 'success'
+    }
+    for ($index = 4; $index -lt 8; $index++) { $status[$index] = 'skipped' }
+    $status
+}
+
 function Invoke-ConcurrentFailure([string] $Lane, $Server, $Control, [object[]] $ArgumentSets,
     [object[]] $Commands) {
     $status = [string[]]::new(8)
@@ -175,13 +200,17 @@ try {
 
     $control = $server | LibTmux\Connect-TmuxControl -Target 'fixture' -ErrorAction Stop
     Assert-FailureDispatch $control.IsRunning 'control client did not connect'
-    foreach ($lane in @('direct-serial', 'direct-concurrent', 'control-serial', 'control-concurrent', 'chained')) {
+    foreach ($lane in @('native-serial', 'direct-serial', 'direct-concurrent',
+        'control-serial', 'control-concurrent', 'chained')) {
         foreach ($marker in @('@dispatch-prefix', '@dispatch-tail')) {
             $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-u', '-t', 'fixture', $marker)
             Assert-FailureDispatch ((Get-OptionValue $fixture $marker) -ceq '') "$lane began with $marker set"
         }
         Assert-FailureDispatch ((Get-OwnedPaneState $fixture) -ceq $state) "$lane changed the fixture before dispatch"
         switch ($lane) {
+            'native-serial' {
+                $status = @(Invoke-NativeSerialFailure $fixture $argumentSets.ToArray())
+            }
             'direct-serial' {
                 $status = @(Invoke-SerialFailure $lane $server $control $argumentSets.ToArray() $commands.ToArray())
             }
@@ -208,6 +237,7 @@ try {
                     $merged[1] -ceq $expected[2]) 'chain did not preserve successful prefix output'
                 # The merged result cannot identify per-command errors; only effects and output prove the prefix and tail.
             }
+            default { throw "Display dispatch failure: missing invalid-target control for $lane" }
         }
         if ($lane -cne 'chained') {
             $expectedStatus = if ($lane.EndsWith('serial')) {
@@ -244,4 +274,4 @@ try {
 }
 Assert-FailureDispatch ($fixture.Closed -and !(Test-Path -LiteralPath $fixture.DirectoryPath) -and
     !(Test-Path -LiteralPath $temporary)) 'owned fixture or package extraction remained after cleanup'
-'PASS display dispatch failure: four per-command lanes, aggregate chain, borrowed state and cleanup'
+'PASS display dispatch failure: five per-command lanes, aggregate chain, borrowed state and cleanup'

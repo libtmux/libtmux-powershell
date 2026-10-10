@@ -34,6 +34,15 @@ function Get-OwnedPaneState($Fixture) {
         '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}')).StdOut.TrimEnd("`r", "`n")
 }
 
+function Invoke-NativeSerial($Fixture, [object[]] $ArgumentSets) {
+    $observed = for ($index = 0; $index -lt $ArgumentSets.Count; $index++) {
+        $reply = (Invoke-OwnedTmux $Fixture -Arguments $ArgumentSets[$index]).StdOut.TrimEnd("`r", "`n")
+        [pscustomobject]@{ index = [int] $index; reply = $reply }
+    }
+    [pscustomobject]@{ replies = @($observed); submissionOrder = @(0..($ArgumentSets.Count - 1));
+        observedCompletionOrder = @(0..($ArgumentSets.Count - 1)) }
+}
+
 function Invoke-DirectSerial($Server, [object[]] $ArgumentSets) {
     $observed = for ($index = 0; $index -lt $ArgumentSets.Count; $index++) {
         $result = $Server | LibTmux\Invoke-TmuxCommand -Arguments $ArgumentSets[$index] -ErrorAction Stop
@@ -142,8 +151,10 @@ try {
     $connectWatch.Stop()
     if (!$control.IsRunning) { throw 'The benchmark control client did not start.' }
 
-    $lanes = @('direct-serial', 'direct-concurrent', 'control-serial', 'control-concurrent', 'chained')
+    $lanes = @('direct-serial', 'direct-concurrent', 'control-serial', 'control-concurrent', 'chained',
+        'native-serial')
     $operations = @{
+        'native-serial' = { Invoke-NativeSerial $fixture $argumentSets.ToArray() }
         'direct-serial' = { Invoke-DirectSerial $server $argumentSets.ToArray() }
         'direct-concurrent' = { Invoke-BoundedReplyBatch $argumentSets.Count $MaxConcurrency {
                 param($index, $token)
@@ -178,7 +189,7 @@ try {
                 $watch.Stop()
                 $after = Get-OwnedPaneState $fixture
                 if ($after -cne $before) { throw "$phase/$round/$lane changed the owned topology." }
-                $ordered = $lane -in @('direct-serial', 'control-serial', 'chained')
+                $ordered = $lane -in @('native-serial', 'direct-serial', 'control-serial', 'chained')
                 Assert-BenchmarkDisplayReplySet -Expected $expected.ToArray() -Observed $actual.replies `
                     -Lane "$phase/$round/$lane" -RequireOrder:$ordered
                 $record = @{ round = $round; position = $position; lane = $lane;
@@ -225,6 +236,7 @@ try {
         workload = 'eight distinct display-message replies on one owned session/window/pane'
         lanes = $lanes
         operations = @(
+            @{ lane = 'native-serial'; path = 'Invoke-OwnedTmux <argv>; one native tmux client process per command' }
             @{ lane = 'direct-serial'; path = 'Server | LibTmux\Invoke-TmuxCommand -Arguments <argv>; one process-backed command at a time' }
             @{ lane = 'direct-concurrent'; path = 'Server.ExecuteCommandAsync(<argv>); process-backed, bounded waves' }
             @{ lane = 'control-serial'; path = 'Control | LibTmux\Invoke-TmuxControlCommand -Command <command>; one reused client' }
