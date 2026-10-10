@@ -72,18 +72,33 @@ function Invoke-OwnedTmux {
     }
 }
 
+function ConvertTo-OwnedTmuxDiagnosticText {
+    param([string] $Text)
+
+    if ($Text.Length -gt 512) { $Text = $Text.Substring(0, 512) }
+    $text = ($Text -replace '[\x00-\x1f\x7f]+', ' ' -replace
+        '(?<![\w])(?:[A-Za-z]:[\\/]|/)[^\s''";,]+', '<path>').Trim()
+    if ($text.Length -gt 160) { $text = $text.Substring(0, 160) + '...' }
+    $text
+}
+
 function Get-OwnedTmuxReadinessDiagnostic {
-    param($Fixture, [LibTmux.Testing.SocketCreatedSignal] $Signal)
+    param($Fixture, [LibTmux.Testing.SocketCreatedSignal] $Signal, [switch] $NoClientProbe)
 
     $socketExists = [bool] (Test-Path -LiteralPath $Fixture.SocketPath)
     $daemonExited = $Fixture.ServerProcess.HasExited
     $daemonExitCode = if ($daemonExited) { [string] $Fixture.ServerProcess.ExitCode } else { 'pending' }
     $daemonStderr = if ($Fixture.ServerError.IsCompletedSuccessfully) {
-        ($Fixture.ServerError.Result -replace '[\r\n]+', ' ').Trim()
+        ConvertTo-OwnedTmuxDiagnosticText $Fixture.ServerError.Result
     } else { 'pending' }
-    if ($daemonStderr.Length -gt 160) { $daemonStderr = $daemonStderr.Substring(0, 160) + '...' }
+    $runningClients = 0
+    foreach ($client in $Fixture.ClientProcesses) {
+        if (-not $client.HasExited) { $runningClients++ }
+    }
 
-    $clientProbe = if (-not $socketExists) {
+    $clientProbe = if ($NoClientProbe) {
+        'skipped (failure capture)'
+    } elseif (-not $socketExists) {
         'skipped (socket absent)'
     } elseif ($daemonExited) {
         'skipped (daemon exited)'
@@ -93,19 +108,20 @@ function Get-OwnedTmuxReadinessDiagnostic {
             $result = Invoke-OwnedTmux $Fixture -Arguments @('-N', 'list-sessions') -AllowFailure `
                 -CancellationToken ([System.Threading.CancellationToken]::None) `
                 -WaitTimeout ([TimeSpan]::FromMilliseconds(250)) -KillWaitMilliseconds 100 -KillProcessOnly
-            $stderr = ($result.StdErr -replace '[\r\n]+', ' ').Trim()
-            if ($stderr.Length -gt 160) { $stderr = $stderr.Substring(0, 160) + '...' }
+            $stderr = ConvertTo-OwnedTmuxDiagnosticText $result.StdErr
             "exitCode=$($result.ExitCode), stderr=$stderr"
         } catch {
-            $clientError = ($_.Exception.Message -replace '[\r\n]+', ' ').Trim()
-            if ($clientError.Length -gt 160) { $clientError = $clientError.Substring(0, 160) + '...' }
+            $clientError = ConvertTo-OwnedTmuxDiagnosticText $_.Exception.Message
             "error=$($_.Exception.GetType().Name): $clientError"
         }
     }
 
+    $watcher = if ($Signal) {
+        "watcherCreated=$($Signal.CreatedEvents); watcherErrors=$($Signal.ErrorEvents); "
+    } else { '' }
     "socketExists=$socketExists; daemonExited=$daemonExited; daemonExitCode=$daemonExitCode; " +
-        "daemonStderr=$daemonStderr; watcherCreated=$($Signal.CreatedEvents); " +
-        "watcherErrors=$($Signal.ErrorEvents); clientProbe=$clientProbe"
+        "daemonStderr=$daemonStderr; ownedClients=$($Fixture.ClientProcesses.Count); " +
+        "runningClients=$runningClients; ${watcher}clientProbe=$clientProbe"
 }
 
 function Test-OwnedTmuxSocketReady {
@@ -349,10 +365,25 @@ function Invoke-WithOwnedTmux {
     )
 
     $fixture = New-OwnedTmuxFixture -CancellationToken $CancellationToken
+    $failure = $null
     try {
         if ($Setup) { & $Setup $fixture }
         & $Body $fixture
+    } catch {
+        $failure = $_.Exception
+        try {
+            $failure.Data['OwnedTmuxDiagnostic'] = Get-OwnedTmuxReadinessDiagnostic $fixture -NoClientProbe
+            [Console]::Error.WriteLine("Owned tmux fixture failure: $($failure.Data['OwnedTmuxDiagnostic'])")
+        } catch {
+            $failure.Data['OwnedTmuxDiagnosticFailure'] = $_.Exception
+        }
+        throw
     } finally {
-        Remove-OwnedTmuxFixture $fixture
+        try {
+            Remove-OwnedTmuxFixture $fixture
+        } catch {
+            if (-not $failure) { throw }
+            $failure.Data['OwnedTmuxCleanupFailure'] = $_.Exception
+        }
     }
 }

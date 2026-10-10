@@ -145,23 +145,70 @@ Assert-True ($setupFailure.Exception.Data['OwnedTmuxCleanupFailure'].Message -eq
 Assert-CleanedUp $setupFailure.Exception.Data['OwnedTmuxFixture']
 
 $borrowed = New-OwnedTmuxFixture
+$originalDiagnostic = (Get-Command Get-OwnedTmuxReadinessDiagnostic).ScriptBlock
+$script:OriginalRemoveFixture = (Get-Command Remove-OwnedTmuxFixture).ScriptBlock
 try {
-    $failed = $false
-    $state = @{ Fixture = $null }
-    try {
-        Invoke-WithOwnedTmux {
-            param($owned)
-            $state.Fixture = $owned
-            throw 'deliberate test failure'
+    foreach ($secondaryFailure in @($false, $true)) {
+        $failure = $null
+        $state = @{ Fixture = $null; Cause = [InvalidOperationException]::new('deliberate test failure');
+            SocketExists = $null; ClientCount = 0 }
+        try {
+            if ($secondaryFailure) {
+                Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value { throw 'injected body diagnostic failure' }
+                Set-Item Function:\Remove-OwnedTmuxFixture -Value {
+                    param($Fixture)
+                    & $script:OriginalRemoveFixture $Fixture
+                    throw 'injected body cleanup failure'
+                }
+            }
+            try {
+                Invoke-WithOwnedTmux {
+                    param($owned)
+                    $state.Fixture = $owned
+                    if (-not $secondaryFailure) {
+                        $exited = $owned.ServerProcess.WaitForExitAsync()
+                        $null = Invoke-OwnedTmux $owned -Arguments @('kill-server')
+                        $null = $exited.WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
+                        $null = $owned.ServerError.GetAwaiter().GetResult()
+                        $text = "daemon failed at $($owned.DirectoryPath)/private-file " + ('x' * 600)
+                        $owned.ServerError = [Threading.Tasks.Task]::FromResult($text)
+                        $state.SocketExists = [bool] (Test-Path -LiteralPath $owned.SocketPath)
+                        $state.ClientCount = $owned.ClientProcesses.Count
+                    }
+                    throw $state.Cause
+                }
+            } catch {
+                $failure = $_.Exception
+            }
+        } finally {
+            Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value $originalDiagnostic
+            Set-Item Function:\Remove-OwnedTmuxFixture -Value $script:OriginalRemoveFixture
         }
-    } catch {
-        $failed = $_.Exception.Message -eq 'deliberate test failure'
+        Assert-CleanedUp $state.Fixture
+        Assert-True ([object]::ReferenceEquals($failure, $state.Cause)) 'Scoped fixture replaced the original test failure.'
+        if ($secondaryFailure) {
+            Assert-True ($failure.Data['OwnedTmuxDiagnosticFailure'].Message -eq
+                'injected body diagnostic failure') 'Scoped fixture lost the diagnostic failure.'
+            Assert-True ($failure.Data['OwnedTmuxCleanupFailure'].Message -eq
+                'injected body cleanup failure') 'Scoped fixture lost the cleanup failure.'
+        } else {
+            $diagnostic = $failure.Data['OwnedTmuxDiagnostic']
+            Assert-True ($diagnostic -is [string]) 'Scoped fixture discarded daemon diagnostics before disposal.'
+            Assert-True ($diagnostic -match 'daemonExited=True; daemonExitCode=0') 'Body failure omitted the completed daemon exit.'
+            Assert-True ($diagnostic -match 'daemonStderr=daemon failed at <path>') 'Body failure lost or exposed the completed daemon stderr.'
+            Assert-True ($diagnostic -notmatch [regex]::Escape($state.Fixture.DirectoryPath) -and
+                $diagnostic.Length -le 512) 'Body diagnostics exposed a local path or exceeded their bound.'
+            Assert-True ($diagnostic.Contains("socketExists=$($state.SocketExists)") -and
+                $diagnostic.Contains("ownedClients=$($state.ClientCount); runningClients=0") -and
+                $diagnostic -match 'clientProbe=skipped \(failure capture\)') 'Body failure omitted socket/client facts or ran a new probe.'
+        }
     }
-    Assert-True $failed 'Scoped fixture swallowed the test failure.'
-    Assert-CleanedUp $state.Fixture
     $result = Invoke-OwnedTmux $borrowed -Arguments @('has-session', '-t', 'fixture')
     Assert-True ($result.ExitCode -eq 0) 'Cleanup affected a borrowed server.'
 } finally {
+    Set-Item Function:\Get-OwnedTmuxReadinessDiagnostic -Value $originalDiagnostic
+    Set-Item Function:\Remove-OwnedTmuxFixture -Value $script:OriginalRemoveFixture
+    Remove-Variable OriginalRemoveFixture -Scope Script
     Remove-OwnedTmuxFixture $borrowed
 }
 Assert-CleanedUp $borrowed
