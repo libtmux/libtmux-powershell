@@ -30,6 +30,30 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         }, errorId, target);
     }
 
+    /// <summary>Publishes an owned result, cleaning it up if cancellation or output stops the handoff.</summary>
+    /// <typeparam name="T">The owner or created-versus-reused result.</typeparam>
+    /// <param name="operation">Acquires the result with the pipeline's cancellation token.</param>
+    /// <param name="errorId">The stable identifier for an operation failure.</param>
+    /// <param name="target">The object whose operation failed.</param>
+    private protected void ReadScopedResult<T>(Func<CancellationToken, Task<T>> operation, string errorId, object target)
+        where T : IAsyncDisposable
+    {
+        RunOperation(token =>
+        {
+            T result = operation(token).GetAwaiter().GetResult();
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                WriteObject(result);
+            }
+            catch (Exception failure)
+            {
+                ScopeCleanup.Dispose(result, failure);
+                throw;
+            }
+        }, errorId, target);
+    }
+
     /// <summary>Waits for a core operation without emitting a success object.</summary>
     /// <param name="operation">The cancellable core operation.</param>
     /// <param name="errorId">The stable identifier for an operation failure.</param>
@@ -64,9 +88,16 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         {
             operation(cancellation.Token);
         }
-        catch (Exception exception) when (
-            exception is not PipelineStoppedException and not ActionPreferenceStopException)
+        catch (Exception exception)
         {
+            // Acquisition may fail before returning an owner, and PowerShell may
+            // replace its exception. Retain the core's accepted retry authority first.
+            ScopeCleanup.Retain(exception);
+            if (exception is PipelineStoppedException or ActionPreferenceStopException)
+            {
+                throw;
+            }
+
             if (exception is OperationCanceledException && Stopping)
             {
                 throw new PipelineStoppedException();

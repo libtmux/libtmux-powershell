@@ -22,7 +22,7 @@ Create a detached session on an explicit server.
 ```text
 New-TmuxSession [-Server] <Server> [-Name <string>] [-WindowName <string>]
  [-StartDirectory <string>] [-Command <string>] [-Width <int>] [-Height <int>]
- [-Environment <IDictionary>] [-WhatIf] [-Confirm]
+ [-Environment <IDictionary>] [-Owned] [-WhatIf] [-Confirm]
 ```
 
 ## ALIASES
@@ -30,6 +30,8 @@ New-TmuxSession [-Server] <Server> [-Name <string>] [-WindowName <string>]
 None.
 
 ## DESCRIPTION
+
+With Owned, return OwnedSessionScope and accept destruction responsibility for the new session. Invoke-TmuxScope and Close-TmuxScope run cleanup through the captured identity. Without Owned, the existing behavior below applies.
 
 Create a session and its initial window and pane, then return the captured
 native LibTmux.Session. The Server parameter accepts a native endpoint handle
@@ -56,6 +58,27 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
 ```
 
 ## PARAMETERS
+
+### -Owned
+
+Return the native owner of the created session. Close it with Close-TmuxScope or run its body with Invoke-TmuxScope. Omission preserves the existing borrowed-handle output.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
 
 ### -Command
 
@@ -296,6 +319,10 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 Native pipeline type for this command.
 
 ## OUTPUTS
+
+### LibTmux.OwnedSessionScope
+
+Returned with Owned; disposal destroys the created resource.
 
 ### LibTmux.Session
 

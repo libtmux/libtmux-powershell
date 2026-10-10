@@ -75,7 +75,8 @@ try {
             }
             $revision = (& git rev-parse HEAD).Trim()
             if ($LASTEXITCODE) { throw 'Cannot determine dependency source revision.' }
-            $branch = (& git branch --show-current).Trim()
+            $branch = [string] (& git branch --show-current)
+            if ($LASTEXITCODE) { throw 'Cannot determine dependency source branch.' }
             $sourceFiles = @(& git ls-files --cached --others --exclude-standard | Sort-Object -Unique | ForEach-Object {
                 if (Test-Path -LiteralPath $_ -PathType Leaf) {
                     @{ file = $_; sha256 = (Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant() }

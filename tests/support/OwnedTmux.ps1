@@ -153,7 +153,9 @@ function New-OwnedTmuxFixture {
     param(
         [System.Threading.CancellationToken] $CancellationToken = [System.Threading.CancellationToken]::None,
         [string] $TmuxPath = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source,
-        [System.Threading.Tasks.Task] $SocketReadyTask
+        [System.Threading.Tasks.Task] $SocketReadyTask,
+        [switch] $NamedSocket,
+        [ValidateSet('socket', 'default')] [string] $SocketName = 'socket'
     )
 
     if ($CancellationToken.IsCancellationRequested) {
@@ -176,14 +178,24 @@ function New-OwnedTmuxFixture {
         OwnedProcessIds = [System.Collections.Generic.HashSet[int]]::new()
         CancellationToken = $CancellationToken
         Closed = $false
+        ExitConfirmedBeforeDirectoryRemoval = $false
     }
     $signal = $null
     $setupStage = 'directory permissions'
     try {
         [System.IO.File]::SetUnixFileMode($directory, [System.IO.UnixFileMode]::UserRead -bor
             [System.IO.UnixFileMode]::UserWrite -bor [System.IO.UnixFileMode]::UserExecute)
+        $socketDirectory = $directory
+        if ($NamedSocket) {
+            $userId = & id -u
+            if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^[0-9]+$') { throw 'Cannot read the test user ID.' }
+            $socketDirectory = Join-Path $directory "tmux-$userId"
+            $null = New-Item -ItemType Directory -Path $socketDirectory
+            [IO.File]::SetUnixFileMode($socketDirectory, [IO.UnixFileMode] 448)
+            $fixture.SocketPath = Join-Path $socketDirectory $SocketName
+        }
         $setupStage = 'socket watcher registration'
-        $signal = [LibTmux.Testing.SocketCreatedSignal]::new($directory)
+        $signal = [LibTmux.Testing.SocketCreatedSignal]::new($socketDirectory, $SocketName)
         $fixture.ServerProcess.StartInfo = New-OwnedTmuxStartInfo $fixture @('-D')
         $setupStage = 'foreground daemon startup'
         $fixture.ServerStarted = $fixture.ServerProcess.Start()
@@ -346,12 +358,22 @@ function Remove-OwnedTmuxFixture {
             if (-not $client.HasExited) { throw 'Owned tmux client remains alive after teardown.' }
         }
     } finally {
+        # Keep the directory and process handles if teardown cannot prove exit.
+        if ($Fixture.ServerStarted -and !$Fixture.ServerProcess.HasExited) {
+            throw "Owned daemon is still alive; retained $($Fixture.DirectoryPath)."
+        }
+        foreach ($process in $Fixture.PaneProcesses.ToArray() + $Fixture.ClientProcesses.ToArray()) {
+            if (!$process.WaitForExit(1000)) {
+                throw "Owned process is still alive; retained $($Fixture.DirectoryPath)."
+            }
+        }
+        $Fixture.ExitConfirmedBeforeDirectoryRemoval = $true
+        if (Test-Path -LiteralPath $Fixture.DirectoryPath) {
+            Remove-Item -LiteralPath $Fixture.DirectoryPath -Recurse -Force
+        }
         $Fixture.Closed = $true
         foreach ($process in @($Fixture.ServerProcess) + $Fixture.ClientProcesses.ToArray() + $Fixture.PaneProcesses.ToArray()) {
             $process.Dispose()
-        }
-        if (Test-Path -LiteralPath $Fixture.DirectoryPath) {
-            Remove-Item -LiteralPath $Fixture.DirectoryPath -Recurse -Force
         }
     }
 }

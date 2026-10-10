@@ -81,6 +81,11 @@ function Get-GuideField($Context, [string] $Target, [string] $Format) {
 }
 
 $assertions = @{
+    'lifecycle.scope' = @{ Group = 'Readme'; Count = 0; Assert = {
+            param($o)
+            Assert-Guide $o.Context.LifecycleExecuted 'standalone lifecycle source passed its native outcome and cleanup assertions'
+        } }
+
     'query.01-capture' = @{ Group = 'Query'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Captured -is [LibTmux.Server] -and $o.Captured.Panes.Count -eq 2 -and
@@ -161,10 +166,9 @@ $assertions = @{
             Assert-Guide ([object]::ReferenceEquals($o.Result[0], $o.Captured.Sessions[0]) -and
                 $o.Result[0].Name -ceq 'development') 'exact native session selection'
         } }
-    'read.endpoint' = @{ Group = 'Pure'; Count = 0; Assert = {
+    'readme.endpoint' = @{ Group = 'Pure'; Count = 0; Assert = {
             param($o)
-            Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized -and
-                $o.Server.ConnectionOptions.SocketName -cmatch '^libtmux-readme-[a-f0-9]{32}$') 'endpoint identity'
+            Assert-Guide ($o.Server -is [LibTmux.Server] -and !$o.Server.IsMaterialized) 'default endpoint is unmaterialized'
         } }
     'readme.install.import' = @{ Group = 'Pure'; Count = 0; Prepare = {
             param($c)
@@ -180,12 +184,23 @@ $assertions = @{
                 }
             } finally { $env:LIBTMUX_REVIEW_MODULE_ROOT = $o.Context.PriorReviewModuleRoot }
         } }
+    'readme.ordinary' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0].Name -ceq 'libtmux-demo' -and
+                ($o.Result[0].WindowNames -join ',') -ceq 'editor,logs' -and
+                $o.Result[0].PaneIds.Count -eq 2) 'ordinary native workspace'
+            $live = $o.Context.Server | Get-TmuxSession -Id $o.Result[0].SessionId
+            Assert-Guide ($live.Name -ceq 'libtmux-demo') 'ordinary workspace remains available'
+            Register-OwnedTmuxPane $o.Context.Fixture
+            # Guide-group teardown removes the selected test session outside its source.
+            $null = Invoke-OwnedTmux $o.Context.Fixture -Arguments @('kill-session', '-t', $o.Result[0].SessionId)
+        } }
     'readme.quickstart' = @{ Group = 'Readme'; Count = 2; Assert = {
             param($o)
             Assert-Guide ($o.Result[0].Name -ceq 'editor' -and
-                $o.Result[0].PaneIds -ceq '%0, %1' -and
+                $o.Result[0].PaneIds -cmatch '^%[0-9]+, %[0-9]+$' -and
                 $o.Result[1].Name -ceq 'logs' -and
-                $o.Result[1].PaneIds -ceq '%2') 'README quick start window and pane IDs'
+                $o.Result[1].PaneIds -cmatch '^%[0-9]+$') 'README quick start window and pane IDs'
         } }
     'readme.create' = @{ Group = 'Readme'; Count = 0; Assert = {
             param($o)
@@ -856,7 +871,7 @@ function Assert-GuideRegistration($Documents, $Sources, $Assertions) {
 }
 
 function Assert-GuideSourceFile([string[]] $Files) {
-    if (Compare-Object @('ConcurrentCommands.ps1', 'Guides.ps1', 'QuickStart.ps1') $Files) { throw 'Guide source file registration differs.' }
+    if (Compare-Object @('ConcurrentCommands.ps1', 'Guides.ps1', 'Lifecycle.ps1', 'QuickStart.ps1', 'SessionCleanup.ps1') $Files) { throw 'Guide source file registration differs.' }
 }
 
 function Assert-GuideExecutionGroup($Groups, $Assertions) {
@@ -887,6 +902,12 @@ function Assert-GuideRejection([scriptblock] $Body, [string] $Message) {
 }
 
 $sources = & "$root/examples/Guides.ps1"
+$sources['readme.ordinary'] = @{
+    Requires = @(); Code = [scriptblock]::Create([IO.File]::ReadAllText("$root/examples/QuickStart.ps1"))
+}
+$sources['lifecycle.scope'] = @{
+    Requires = @(); Code = [scriptblock]::Create([IO.File]::ReadAllText("$root/examples/Lifecycle.ps1"))
+}
 $executionGroups = @{
     Lifecycle = @('Pure', 'Capture', 'Create', 'Remove', 'Readme')
     OperationsConfiguration = @('Settings', 'Clients')
@@ -1067,6 +1088,46 @@ exec /bin/cat
     }
 }
 
+function Invoke-GuideQuickStart($Context, [scriptblock] $Code, [switch] $Ordinary) {
+    $start = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
+    $start.UseShellExecute = $false
+    $start.WorkingDirectory = $root
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    $start.Environment['LIBTMUX_SOCKET_PATH'] = $Context.Fixture.SocketPath
+    $start.Environment['LIBTMUX_SOCKET_NAME'] = '../ignored'
+    $start.Environment['PSModulePath'] = $ModuleRoot
+    $null = $start.Environment.Remove('TMUX')
+    $null = $start.Environment.Remove('TMUX_PANE')
+    $command = "& { $($Code.ToString()) } | ConvertTo-Json -Depth 5 -Compress"
+    if ($Ordinary) {
+        $command = '$value = & { ' + $Code.ToString() + @'
+}
+if ($value -isnot [LibTmux.Session]) { throw 'Ordinary guide returned a non-native session.' }
+[pscustomobject] @{
+    Name = $value.Name; SessionId = [string] $value.Id
+    WindowNames = @($value.Windows.Name)
+    PaneIds = @($value.Panes.Id | ForEach-Object { [string] $_ })
+} | ConvertTo-Json -Depth 5 -Compress
+'@
+    }
+    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command', $command)) { $start.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($start)
+    try {
+        $output = $process.StandardOutput.ReadToEndAsync()
+        $errors = $process.StandardError.ReadToEndAsync()
+        if (!$process.WaitForExit(10000)) { throw 'Guide quick start exceeded its deadline.' }
+        if ($process.ExitCode) { throw "Guide quick start failed: $($errors.GetAwaiter().GetResult())" }
+        ConvertFrom-Json -InputObject $output.GetAwaiter().GetResult()
+    } finally {
+        if (!$process.HasExited) {
+            $process.Kill($true)
+            if (!$process.WaitForExit(1000)) { throw 'Guide quick start survived termination.' }
+        }
+        $process.Dispose()
+    }
+}
+
 function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     $entry = $assertions[$Id]
     if ($entry.ContainsKey('Prepare')) { & $entry.Prepare $Context }
@@ -1091,7 +1152,14 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
         $PSNativeCommandUseErrorActionPreference = $true
     }
     $before = if ($entry.Group -ne 'Pure') { Get-GuideTraceCount $Context } else { 0 }
-    $result = @(. $sources[$Id].Code)
+    if ($Id -cin @('readme.quickstart', 'readme.ordinary')) {
+        $result = @(Invoke-GuideQuickStart $Context $sources[$Id].Code -Ordinary:($Id -ceq 'readme.ordinary'))
+    } elseif ($Id -ceq 'lifecycle.scope') {
+        # The standalone source needs a supervisor that survives worker termination.
+        & "$PSScriptRoot/OwnedRunner.Tests.ps1" -ModuleRoot $ModuleRoot -Case ScopeExample | Out-Null
+        $Context.LifecycleExecuted = $true
+        $result = @()
+    } else { $result = @(. $sources[$Id].Code) }
     $Context.Executed.Add($Id)
     if ($entry.Group -eq 'Create' -or $Id -ceq 'workspace.06-apply') { Register-OwnedTmuxPane $Context.Fixture }
     Assert-Guide ($entry.Count -lt 0 -or $result.Count -eq $entry.Count) "$Id output cardinality"
