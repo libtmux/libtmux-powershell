@@ -219,6 +219,7 @@ jobs:
           path: |
             build/test-Product.json
             build/test-Documentation.json
+            build/guide-skips-*.json
             build/test-Mcp.json
             ${{ runner.temp }}/port-package/package-evidence.json
           if-no-files-found: warn

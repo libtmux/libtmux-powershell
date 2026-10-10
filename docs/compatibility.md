@@ -13,6 +13,11 @@ them together from the [install guide](../README.md#install-from-source).
 | macOS | Intel and Apple Silicon have an advisory [eight-cell trial](../.github/workflows/macos-trial.yml). Suite failures appear in its job summaries and artifacts without failing the trial check; they do not establish support. |
 | Native Windows and psmux | Outside this port's scope. |
 
+The Linux PowerShell 7.4.20 / tmux 3.3a cell skips the parallel control guide
+while [a daemon crash](https://github.com/libtmux/libtmux-powershell/issues/5)
+is investigated. Other tests in that cell still run; skipped operations appear
+separately in the workflow log and `guide-skips-*.json` artifacts.
+
 Choose the tmux executable and socket explicitly with
 [New-TmuxServer](read.md). A handle alone starts no daemon. The module does
 not change `TMUX` or `TMUX_PANE` in the calling process, and it does not

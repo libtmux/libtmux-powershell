@@ -70,6 +70,12 @@ function Assert-Guide([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Guide assertion: $Message" }
 }
 
+function Test-GuideDeferral([string] $Id, [bool] $Linux,
+    [string] $PowerShellVersion, [string] $TmuxVersion) {
+    $Id -ceq 'watch.parallel' -and $Linux -and
+        $PowerShellVersion -ceq '7.4.20' -and $TmuxVersion -ceq '3.3a'
+}
+
 function Get-GuideField($Context, [string] $Target, [string] $Format) {
     (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Target, $Format)).StdOut.TrimEnd("`n")
 }
@@ -1026,6 +1032,7 @@ exec $quotedTmux "`$@"
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     # Only 3.2a needs manual detached sizing; global manual sizing crashes tmux 3.4 on new-session.
     $version = (Invoke-OwnedTmux $Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
+    $Context.TmuxVersion = $version
     if ($version -ceq '3.2a') {
         $null = Invoke-OwnedTmux $Fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
     }
@@ -1141,6 +1148,7 @@ if ($ExampleGroup -in @('All', 'Lifecycle')) {
     'PASS guide setup failure, in-flight client cancellation and wrong live outcome; owned resources removed'
 }
 $completed = [Collections.Generic.List[string]]::new()
+$skipped = [Collections.Generic.List[object]]::new()
 $selectedGroups = if ($ExampleGroup -eq 'All') {
     @('Lifecycle', 'OperationsConfiguration', 'OperationsInteraction', 'Planning') | ForEach-Object { $executionGroups[$_] }
 } elseif ($ExampleGroup -eq 'Operations') {
@@ -1158,7 +1166,16 @@ foreach ($group in $selectedGroups) {
                 $null = $context.Fixture.OwnedProcessIds.Add([int] $context.Client.RawFormatFields['client_pid'])
             }
             foreach ($id in $sources.Keys | Sort-Object) {
-                if ($assertions[$id].Group -ceq $group) { Invoke-GuideUnit $id $context }
+                if ($assertions[$id].Group -cne $group) { continue }
+                if ($context.ContainsKey('TmuxVersion') -and
+                    (Test-GuideDeferral $id $IsLinux $PSVersionTable.PSVersion.ToString() $context.TmuxVersion)) {
+                    $skipped.Add(@{ id = $id; reason = 'tmux daemon exit 139 during control attachment';
+                        issue = 'https://github.com/libtmux/libtmux-powershell/issues/5'; powershell = $PSVersionTable.PSVersion.ToString();
+                        tmux = $context.TmuxVersion })
+                    "SKIP $id on Linux / PowerShell 7.4.20 / tmux 3.3a: https://github.com/libtmux/libtmux-powershell/issues/5"
+                    continue
+                }
+                Invoke-GuideUnit $id $context
             }
             if ($group -eq 'Readme') {
                 $wrapper = $context.Server.ConnectionOptions.TmuxBinaryPath
@@ -1196,6 +1213,11 @@ done
         Invoke-GuideFixture -Setup { param($fixture) Initialize-GuideContext $fixture $context $group } -Body $run
     }
 }
-Assert-Guide ($completed.Count -eq $expected.Count -and
-    !(Compare-Object $expected @($completed | Sort-Object))) 'selected guide execution differs from its registration'
-"PASS $($completed.Count) $ExampleGroup guide operations, assigned results, native outcomes and owned cleanup"
+$accounted = @($completed) + @($skipped | ForEach-Object { $_.id })
+Assert-Guide ($accounted.Count -eq $expected.Count -and
+    !(Compare-Object $expected @($accounted | Sort-Object))) 'selected guide execution differs from its registration'
+$null = New-Item "$root/build" -ItemType Directory -Force
+@{ group = $ExampleGroup; registered = $expected.Count; executed = $completed.Count;
+    skipped = @($skipped.ToArray()) } | ConvertTo-Json -Depth 4 |
+    Set-Content "$root/build/guide-skips-$ExampleGroup.json"
+"PASS $($completed.Count) $ExampleGroup guide operations, assigned results, native outcomes and owned cleanup; $($skipped.Count) SKIP"
