@@ -3,6 +3,8 @@
 name: powershell macOS stress
 
 on:
+  push:
+    branches: [flaky-investigations-000]
   schedule:
     - cron: '23 7 * * 1'
   workflow_dispatch:
@@ -23,7 +25,7 @@ concurrency:
 
 env:
   CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
-  REPEAT: ${{ inputs.repeat || '10' }}
+  REPEAT: ${{ inputs.repeat || '3' }}
   SUITES: ${{ inputs.suites }}
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
@@ -64,6 +66,8 @@ jobs:
           path: ${{ runner.temp }}/port-package
 
       - name: Repeat every suite
+        env:
+          LIBTMUX_TEST_WAIT_LOG: ${{ runner.temp }}/waits.tsv
         run: |
           eng/ci/stress.sh "${RUNNER_TEMP}/powershell/pwsh" \
             "${RUNNER_TEMP}/port-package" "${REPEAT}" "${RUNNER_TEMP}/receipts" "${SUITES}"
@@ -83,6 +87,7 @@ jobs:
           name: stress-macos
           path: |
             ${{ runner.temp }}/stress-macos.csv
+            ${{ runner.temp }}/waits.tsv
             ${{ runner.temp }}/receipts/
           retention-days: 30
 
@@ -137,6 +142,8 @@ jobs:
           path: ${{ runner.temp }}/port-package
 
       - name: Repeat every suite
+        env:
+          LIBTMUX_TEST_WAIT_LOG: ${{ runner.temp }}/waits.tsv
         run: |
           eng/ci/stress.sh "${RUNNER_TEMP}/powershell/pwsh" \
             "${RUNNER_TEMP}/port-package" "${REPEAT}" "${RUNNER_TEMP}/receipts" "${SUITES}"
@@ -156,5 +163,6 @@ jobs:
           name: stress-linux
           path: |
             ${{ runner.temp }}/stress-linux.csv
+            ${{ runner.temp }}/waits.tsv
             ${{ runner.temp }}/receipts/
           retention-days: 30

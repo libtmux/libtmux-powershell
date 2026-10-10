@@ -62,12 +62,22 @@ function Invoke-OwnedTmux {
         $output = $process.StandardOutput.ReadToEndAsync()
         $errorOutput = $process.StandardError.ReadToEndAsync()
         if ($OnStarted) { & $OnStarted $process }
+        $waitClock = [Diagnostics.Stopwatch]::StartNew()
         try {
             $null = $process.WaitForExitAsync($CancellationToken).WaitAsync(
                 $WaitTimeout).GetAwaiter().GetResult()
         } catch {
             if ($_.Exception.InnerException) { throw $_.Exception.InnerException }
             throw
+        } finally {
+            if ($env:LIBTMUX_TEST_WAIT_LOG) {
+                $caller = (Get-PSCallStack)[1]
+                $text = ($Arguments -join ' ') -replace '\s+', ' '
+                if ($text.Length -gt 120) { $text = $text.Substring(0, 120) }
+                $line = "{0:F1}`t{1}`t{2}:{3}`t{4}" -f $waitClock.Elapsed.TotalMilliseconds,
+                    $Arguments[0], [IO.Path]::GetFileName($caller.ScriptName), $caller.ScriptLineNumber, $text
+                [IO.File]::AppendAllText($env:LIBTMUX_TEST_WAIT_LOG, $line + "`n")
+            }
         }
         $result = [pscustomobject]@{
             ExitCode = $process.ExitCode
@@ -172,13 +182,19 @@ function Wait-OwnedTmuxSocketReady {
         [TimeSpan] $HangGuard = [TimeSpan]::FromSeconds(1)
     )
 
+    $socketClock = [Diagnostics.Stopwatch]::StartNew()
     $ready = [System.Threading.Tasks.Task]::WhenAny([System.Threading.Tasks.Task[]] @(
         $Signal, $Fixture.ServerProcess.WaitForExitAsync()))
     $null = $ready.WaitAsync($HangGuard, $CancellationToken).GetAwaiter().GetResult()
+    $signalled = $socketClock.Elapsed.TotalMilliseconds
     if ($Fixture.ServerProcess.HasExited) { return }
     if (-not [LibTmux.Testing.SocketCreatedSignal]::WaitListening($Fixture.SocketPath, $Fixture.ServerProcess) -or
         -not (Test-OwnedTmuxSocketReady $Fixture)) {
         throw [System.TimeoutException]::new('The owned tmux socket did not accept the owned daemon.')
+    }
+    if ($env:LIBTMUX_TEST_WAIT_LOG) {
+        [IO.File]::AppendAllText($env:LIBTMUX_TEST_WAIT_LOG, ("{0:F1}`tsocket-ready`tsignal {1:F1} ms`t-`n" -f
+            $socketClock.Elapsed.TotalMilliseconds, $signalled))
     }
 }
 
