@@ -1,8 +1,8 @@
 <!-- libtmux-logo -->
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/libtmux/libtmux-powershell/master/assets/logo.svg" type="image/svg+xml">
-    <img src="https://raw.githubusercontent.com/libtmux/libtmux-powershell/master/assets/logo.png" width="128" height="128" alt="libtmux for PowerShell">
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for PowerShell">
   </picture>
 </p>
 <!-- /libtmux-logo -->
@@ -27,10 +27,10 @@ binding, help, formatting and `-WhatIf` / `-Confirm`.
 [Run to completion](#run-a-command-to-completion) ·
 [Service readiness](#wait-for-service-readiness) ·
 [Execution modes](#choose-how-to-run) · [Guides](#guides) ·
-[MCP](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#discover-before-calling) ·
-[Compatibility](https://github.com/libtmux/libtmux-powershell/blob/master/docs/compatibility.md) ·
-[Troubleshooting](https://github.com/libtmux/libtmux-powershell/blob/master/docs/troubleshooting.md) ·
-[Cmdlet reference](https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/README.md) · [License](#license)
+[MCP](docs/mcp.md#discover-before-calling) ·
+[Compatibility](docs/compatibility.md) ·
+[Troubleshooting](docs/troubleshooting.md) ·
+[Cmdlet reference](docs/reference/README.md) · [License](#license)
 
 **Alpha.** APIs may change. Both modules are available on PowerShell Gallery:
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
@@ -40,7 +40,7 @@ and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Works
 
 Use PowerShell 7.4 or later with tmux on the same Linux host. On Windows,
 run both inside WSL. PowerShell 7.4 includes the PSResourceGet commands below;
-see [compatibility](https://github.com/libtmux/libtmux-powershell/blob/master/docs/compatibility.md) for the support contract.
+see [compatibility](docs/compatibility.md) for the support contract.
 
 Run these commands in PowerShell. Install the core module for sessions,
 windows, panes, snapshots, input and capture:
@@ -79,7 +79,7 @@ PowerShell imports use the numeric module version, `0.1.0`; Gallery packages
 carry the `alpha2` prerelease label. Browse cmdlets with
 `Get-Command -Module LibTmux` and examples with
 `Get-Help LibTmux\New-TmuxSession -Examples`. The MCP server is a separate
-.NET tool; see [MCP setup](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#install-and-select-a-server).
+.NET tool; see [MCP setup](docs/mcp.md#install-and-select-a-server).
 
 [Build from source](#install-from-source) for development. The walkthrough
 below runs directly from the installed modules.
@@ -141,7 +141,7 @@ The result is `editor` with two panes; `logs` has one. `Where-Object`,
 navigation, formatting, and property access use captured data and start no
 tmux client. `Get-TmuxSnapshot` explicitly reads fresh state. A linked window
 can have several session placements; its index belongs to the placement.
-See [snapshots and linked windows](https://github.com/libtmux/libtmux-powershell/blob/master/docs/read.md) for IDs, active children and
+See [snapshots and linked windows](docs/read.md) for IDs, active children and
 captured versus unavailable fields.
 
 The structured equivalent selects the one window with at least two captured
@@ -153,7 +153,7 @@ $captured.Windows |
     Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
 ```
 
-This query also performs no I/O. [The query guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/query.md) shows native
+This query also performs no I/O. [The query guide](docs/query.md) shows native
 predicates, Boolean and relationship criteria, and explicit fresh source
 queries.
 
@@ -181,7 +181,7 @@ the session it creates:
 
 The result has `ExitStatus = 7` and `TimedOut = False`. A nonzero shell exit is
 a result, not a tmux error. On timeout, the command may still be running, so
-the result has no exit status. See [command completion](https://github.com/libtmux/libtmux-powershell/blob/master/docs/input.md#run-a-command-to-completion)
+the result has no exit status. See [command completion](docs/input.md#run-a-command-to-completion)
 for concurrency and output behavior.
 
 ## Wait for service readiness
@@ -222,24 +222,24 @@ The native `PaneWaitResult` has outcome `PresentAtEntry` or `Matched`,
 followed by HTTP status 200. The wait closes its temporary control client;
 the example removes only its session. A text match proves the readiness
 condition, and the HTTP request checks service behavior separately.
-See [pane-text waits](https://github.com/libtmux/libtmux-powershell/blob/master/docs/input.md#wait-for-an-applications-readiness-line)
+See [pane-text waits](docs/input.md#wait-for-an-applications-readiness-line)
 for stop patterns, bounded tails, cancellation and disclosed event loss.
-Use [a cooperative channel](https://github.com/libtmux/libtmux-powershell/blob/master/docs/input.md#send-a-command-and-wait-for-its-output)
+Use [a cooperative channel](docs/input.md#send-a-command-and-wait-for-its-output)
 when the application can signal completion itself.
 
 ## Choose how to run
 
 | Task | Use | Example |
 | --- | --- | --- |
-| Read or change tmux state | Typed cmdlets and pipelines | [Create sessions and panes](https://github.com/libtmux/libtmux-powershell/blob/master/docs/create.md) |
-| Run a shell command and check its exit status | `Invoke-TmuxPaneCommand` | [Run to completion](https://github.com/libtmux/libtmux-powershell/blob/master/docs/input.md#run-a-command-to-completion) |
+| Read or change tmux state | Typed cmdlets and pipelines | [Create sessions and panes](docs/create.md) |
+| Run a shell command and check its exit status | `Invoke-TmuxPaneCommand` | [Run to completion](docs/input.md#run-a-command-to-completion) |
 | Wait for a running application's readiness line | `Wait-TmuxPaneText` | [Readiness and an HTTP health check](#wait-for-service-readiness) |
-| Enter a session interactively | `Enter-TmuxSession` | [Attach your foreground terminal](https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Enter-TmuxSession.md) |
-| Run an ordered batch | `New-TmuxCommand` → `Invoke-TmuxChain` | [Compose commands](https://github.com/libtmux/libtmux-powershell/blob/master/docs/commands.md) |
-| Reuse a connected client | `Connect-TmuxControl` → `Invoke-TmuxControlCommand` | [Control commands and cleanup](https://github.com/libtmux/libtmux-powershell/blob/master/docs/commands.md) |
-| React to output and notifications | `Watch-TmuxEvent` | [Bounded event streams](https://github.com/libtmux/libtmux-powershell/blob/master/docs/watch.md) |
-| Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](https://github.com/libtmux/libtmux-powershell/blob/master/docs/watch.md#bound-background-output) |
-| Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](https://github.com/libtmux/libtmux-powershell/blob/master/docs/watch.md#run-independent-commands-concurrently) |
+| Enter a session interactively | `Enter-TmuxSession` | [Attach your foreground terminal](docs/reference/LibTmux/Enter-TmuxSession.md) |
+| Run an ordered batch | `New-TmuxCommand` → `Invoke-TmuxChain` | [Compose commands](docs/commands.md) |
+| Reuse a connected client | `Connect-TmuxControl` → `Invoke-TmuxControlCommand` | [Control commands and cleanup](docs/commands.md) |
+| React to output and notifications | `Watch-TmuxEvent` | [Bounded event streams](docs/watch.md) |
+| Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
+| Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
 Connect once to send a command through tmux control mode. This example uses
 the private endpoint from above, reads a session name, then disconnects and
@@ -270,22 +270,22 @@ removes the session it created:
 ```
 
 The reply is `control-demo`. The client stays connected across commands inside
-the inner `try` block; use the [control guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/commands.md#reuse-a-control-client)
+the inner `try` block; use the [control guide](docs/commands.md#reuse-a-control-client)
 for multiple commands and cancellation behavior.
 
 Foreground cmdlets and `ForEach-Object -Parallel` occupy their calling pipeline.
 Thread jobs return the prompt while they run; control mode keeps one client
 connected for repeated commands. Watchers accept event-count and text-byte
 limits. Choose a mode by its ownership and failure behavior, not a timing claim;
-the [mode guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/commands.md) explains when chains merge failure attribution.
+the [mode guide](docs/commands.md) explains when chains merge failure attribution.
 
 ## Modules and MCP
 
 | Product | Use it for |
 | --- | --- |
-| [LibTmux](https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
-| [LibTmux.Workspace](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
-| [LibTmux.Mcp](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
+| [LibTmux](docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
+| [LibTmux.Workspace](docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
+| [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
 Describe a two-pane workspace. Importing it parses YAML without contacting
 tmux or running its commands:
@@ -348,44 +348,44 @@ $workspaceResult.Windows |
 ```
 
 This returns `editor` with two panes. The
-[workspace guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#apply-the-reviewed-plan) covers failure
+[workspace guide](docs/workspace.md#apply-the-reviewed-plan) covers failure
 recovery, attaching and exporting a declaration. For an MCP client, start with
-the [client configuration](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#install-and-select-a-server), then read
+the [client configuration](docs/mcp.md#install-and-select-a-server), then read
 `tools/list` and `tmux://capabilities` before calling
-[`list_sessions` or `capture_pane`](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md#discover-before-calling).
+[`list_sessions` or `capture_pane`](docs/mcp.md#discover-before-calling).
 
 Install both PowerShell modules at the same version. The MCP server is an
 independent .NET tool and does not require PowerShell.
 
 ## Guides
 
-- **Read:** [snapshots and filtering](https://github.com/libtmux/libtmux-powershell/blob/master/docs/read.md), [structured queries](https://github.com/libtmux/libtmux-powershell/blob/master/docs/query.md),
-  [pane contents and scrollback](https://github.com/libtmux/libtmux-powershell/blob/master/docs/capture.md), [attached clients](https://github.com/libtmux/libtmux-powershell/blob/master/docs/clients.md).
-- **Automate:** [create](https://github.com/libtmux/libtmux-powershell/blob/master/docs/create.md), [send text and keys](https://github.com/libtmux/libtmux-powershell/blob/master/docs/input.md),
-  [arrange and resize](https://github.com/libtmux/libtmux-powershell/blob/master/docs/layout.md), [link and move windows](https://github.com/libtmux/libtmux-powershell/blob/master/docs/placement.md),
-  [remove](https://github.com/libtmux/libtmux-powershell/blob/master/docs/remove.md).
-- **Configure:** [options](https://github.com/libtmux/libtmux-powershell/blob/master/docs/options.md), [hooks](https://github.com/libtmux/libtmux-powershell/blob/master/docs/hooks.md),
-  [environment for new panes](https://github.com/libtmux/libtmux-powershell/blob/master/docs/environment.md).
-- **Coordinate:** [chains and control clients](https://github.com/libtmux/libtmux-powershell/blob/master/docs/commands.md),
-  [event streams, jobs and parallel workers](https://github.com/libtmux/libtmux-powershell/blob/master/docs/watch.md).
-- **Assistants:** [install and configure the MCP server](https://github.com/libtmux/libtmux-powershell/blob/master/docs/mcp.md).
-- **Workspaces:** [load, review and apply](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md),
-  [export a starting declaration](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#export-a-starting-declaration),
-  [edit a declaration](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#edit-the-declaration).
+- **Read:** [snapshots and filtering](docs/read.md), [structured queries](docs/query.md),
+  [pane contents and scrollback](docs/capture.md), [attached clients](docs/clients.md).
+- **Automate:** [create](docs/create.md), [send text and keys](docs/input.md),
+  [arrange and resize](docs/layout.md), [link and move windows](docs/placement.md),
+  [remove](docs/remove.md).
+- **Configure:** [options](docs/options.md), [hooks](docs/hooks.md),
+  [environment for new panes](docs/environment.md).
+- **Coordinate:** [chains and control clients](docs/commands.md),
+  [event streams, jobs and parallel workers](docs/watch.md).
+- **Assistants:** [install and configure the MCP server](docs/mcp.md).
+- **Workspaces:** [load, review and apply](docs/workspace.md),
+  [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
+  [edit a declaration](docs/workspace.md#edit-the-declaration).
 
 The marked README blocks run together in the
-[installed workflow test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/ReadmeWorkflow.Tests.ps1). The
-[executable guides](https://github.com/libtmux/libtmux-powershell/blob/master/examples/Guides.ps1) run against real tmux through the
-installed modules. See [contributing](https://github.com/libtmux/libtmux-powershell/blob/master/.github/CONTRIBUTING.md) for the runners
+[installed workflow test](tests/ReadmeWorkflow.Tests.ps1). The
+[executable guides](examples/Guides.ps1) run against real tmux through the
+installed modules. See [contributing](.github/CONTRIBUTING.md) for the runners
 and development checks.
 
-The [benchmark guide](https://github.com/libtmux/libtmux-powershell/blob/master/benchmarks/README.md) explains installed-package
+The [benchmark guide](benchmarks/README.md) explains installed-package
 workloads, correctness checks, raw samples and reproduction commands.
 
 ## Install from source
 
 For development, install the pinned PowerShell and .NET SDK from
-[.tool-versions](https://github.com/libtmux/libtmux-powershell/blob/master/.tool-versions) with
+[.tool-versions](.tool-versions) with
 [mise](https://mise.jdx.dev/):
 
 ```console
@@ -410,7 +410,7 @@ $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
 
 Restore checks the committed lockfiles and stages both modules under
 `build/Modules`. Developing shared .NET changes uses the optional
-[review-package workflow](https://github.com/libtmux/libtmux-powershell/blob/master/.github/CONTRIBUTING.md#review-package-builds).
+[review-package workflow](.github/CONTRIBUTING.md#review-package-builds).
 Start PowerShell with the staged module path:
 
 ```console
@@ -432,7 +432,7 @@ Import-Module -Name @(
 ) -ErrorAction Stop
 ```
 
-Run the [quick start](https://github.com/libtmux/libtmux-powershell/blob/master/examples/QuickStart.ps1) from the checkout root. It
+Run the [quick start](examples/QuickStart.ps1) from the checkout root. It
 creates a private server, splits the `editor` window, adds `logs`, and returns
 a captured native `LibTmux.Session`. Show each window's pane IDs:
 
@@ -459,5 +459,5 @@ The script uses a unique socket and leaves your default tmux server alone.
 
 ## License
 
-[MIT](https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE). See [third-party notices](https://github.com/libtmux/libtmux-powershell/blob/master/licenses/THIRD-PARTY-NOTICES.md)
+[MIT](LICENSE). See [third-party notices](licenses/THIRD-PARTY-NOTICES.md)
 for bundled dependencies.
