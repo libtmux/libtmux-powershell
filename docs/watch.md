@@ -166,11 +166,6 @@ client in the worker that uses it. This finite example emits two short replies,
 and `-ThrottleLimit 2` bounds concurrent workers. Results arrive in completion
 order; include an identifier in your real workload if input order matters.
 
-On Linux with PowerShell 7.4.20 and tmux 3.3a, concurrent control attachment
-has caused the tmux daemon to exit. The cause remains unresolved; this example
-is skipped only for that combination. See the
-[follow-up issue](https://github.com/libtmux/libtmux-powershell/issues/5).
-
 <!-- example: watch.parallel -->
 ```powershell
 & {
