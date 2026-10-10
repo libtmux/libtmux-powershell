@@ -630,6 +630,49 @@ $assertions = @{
             Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('has-session', '-t', 'option-staging') -AllowFailure).ExitCode -ne 0 -and
                 (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'planning changed the owned topology'
         } }
+    'workspace.12-cooperative' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            $ready = $o.Result[0]
+            $actions = @($ready.Plan.Actions)
+            $open = @($actions | Where-Object Kind -eq OpenReadinessChannel)
+            $wait = @($actions | Where-Object Kind -eq WaitForReadiness)
+            $close = @($actions | Where-Object Kind -eq CloseReadinessChannel)
+            $send = @($actions | Where-Object Kind -eq SendText)
+            Assert-Guide ($open.Count -eq 1 -and $wait.Count -eq 1 -and
+                $close.Count -eq 1 -and $send.Count -eq 1 -and
+                [array]::IndexOf($actions, $open[0]) -lt [array]::IndexOf($actions, $wait[0]) -and
+                [array]::IndexOf($actions, $wait[0]) -lt [array]::IndexOf($actions, $send[0]) -and
+                [array]::IndexOf($actions, $close[0]) -lt [array]::IndexOf($actions, $send[0])) 'cooperative plan sent text before readiness'
+            $opened = @($ready.Result.Journal | Where-Object { $_.Action.Kind -eq 'OpenReadinessChannel' })
+            $waited = @($ready.Result.Journal | Where-Object { $_.Action.Kind -eq 'WaitForReadiness' })
+            $sent = @($ready.Result.Journal | Where-Object { $_.Action.Kind -eq 'SendText' })
+            Assert-Guide ($opened.Count -eq 1 -and $waited.Count -eq 1 -and
+                $sent.Count -eq 1 -and $opened[0].State -eq 'Completed' -and
+                $waited[0].State -eq 'Completed' -and $sent[0].State -eq 'Completed' -and
+                $ready.Completion.Outcome -in 'PresentAtEntry', 'Matched' -and
+                $ready.Completion.Tail -ccontains 'workspace-ready-input') 'cooperative startup did not accept the sent text'
+            Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('has-session', '-t', $ready.Plan.SessionName) -AllowFailure).ExitCode -ne 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'cooperative example did not clean its session or preserve the anchor'
+        } }
+    'workspace.13-cooperative-timeout' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            $timeout = $o.Result[0]
+            $failure = $timeout.Failure
+            $waited = @($failure.Journal | Where-Object { $_.Action.Kind -eq 'WaitForReadiness' })
+            $sent = @($failure.Journal | Where-Object { $_.Action.Kind -eq 'SendText' })
+            $closed = @($failure.CompensationJournal | Where-Object { $_.Action.Kind -eq 'CloseReadinessChannel' })
+            $unlinked = @($failure.CompensationJournal | Where-Object { $_.Action.Kind -eq 'UnlinkWindow' -and $_.State -eq 'Completed' })
+            Assert-Guide ($failure -is [LibTmux.Workspace.WorkspaceBuildException] -and
+                $failure.InnerException -is [LibTmux.TmuxWaitTimeoutException] -and
+                $failure.Journal.Count -eq $timeout.Plan.Actions.Count -and
+                $waited.Count -eq 1 -and $waited[0].State -in 'Failed', 'Unknown' -and
+                $sent.Count -eq 1 -and $sent[0].State -eq 'NotStarted' -and
+                $sent[0].Dispatch -eq [LibTmux.TmuxDispatchState]::NotDispatched) 'cooperative timeout sent input or lost its cause'
+            Assert-Guide ($closed.Count -eq 1 -and $closed[0].State -eq 'Completed' -and
+                $unlinked.Count -gt 0 -and
+                @($timeout.Current.Sessions | Where-Object Name -eq $timeout.Plan.SessionName).Count -eq 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'cooperative timeout did not clean owned state or preserve the anchor'
+        } }
     'readme.workspace.01-import' = @{ Group = 'Workspace'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Workspace -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -1105,7 +1148,12 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover', 'workspace.10-pending', 'workspace.11-options')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @(
+        'readme.workspace.02-plan', 'readme.workspace.05-apply',
+        'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export',
+        'workspace.09-recover', 'workspace.10-pending',
+        'workspace.11-options', 'workspace.12-cooperative',
+        'workspace.13-cooperative-timeout')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {
@@ -1176,6 +1224,32 @@ foreach ($group in $selectedGroups) {
                     continue
                 }
                 Invoke-GuideUnit $id $context
+            }
+            if ($group -eq 'Workspace') {
+                $server = $context.Server
+                $unread = $sources['workspace.12-cooperative'].Code.ToString().Replace(
+                    'exec /bin/cat', '${TMUX_BIN} wait-for guide-unread-input')
+                $rejected = $false
+                # Exercise the receiver example's bounded output deadline.
+                try { $null = & ([scriptblock]::Create($unread)) } catch {
+                    if ($_.Exception.Message -notlike '*Ready input wait ended with TimedOut*') { throw }
+                    $rejected = $true
+                }
+                Assert-Guide $rejected 'terminal echo satisfied the unread receiver control'
+                $immediate = $sources['workspace.13-cooperative-timeout'].Code.ToString().Replace(
+                    '-Readiness Cooperative -ReadinessTimeout 0.25',
+                    '-Readiness Immediate -ReadinessTimeout 0.25')
+                $rejected = $false
+                try { $null = & ([scriptblock]::Create($immediate)) } catch {
+                    if ($_.Exception.Message -cne 'Startup without a readiness signal was accepted.') { throw }
+                    $rejected = $true
+                }
+                Assert-Guide $rejected 'unexpected success control did not apply'
+                $left = @($server | Get-TmuxSession | Where-Object {
+                    $_.Name -like 'cooperative-*'
+                })
+                Assert-Guide ($left.Count -eq 0 -and
+                    (Get-GuideField $context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $context.Anchor) 'workspace negative controls leaked sessions or changed the anchor'
             }
             if ($group -eq 'Readme') {
                 $wrapper = $context.Server.ConnectionOptions.TmuxBinaryPath

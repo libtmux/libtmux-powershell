@@ -551,6 +551,92 @@ windows:
     $declaration | Get-TmuxWorkspacePlan -Server $server
 }
     } }
+    'workspace.12-cooperative' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $name = 'cooperative-' + [Guid]::NewGuid().ToString('N')
+    $tmuxPath = $server.ConnectionOptions.TmuxBinaryPath
+    $tmux = "'" + $tmuxPath.Replace("'", "'\''") + "'"
+    $yaml = @'
+session_name: SESSION_NAME
+options:
+  default-command: >-
+    stty -echo && ${TMUX_BIN} wait-for -S "$LIBTMUX_WORKSPACE_READY" &&
+    exec /bin/cat
+windows:
+  - window_name: receiver
+    panes:
+      - shell_command: workspace-ready-input
+'@
+    $yaml = $yaml.Replace('SESSION_NAME', $name)
+    $declaration = Import-TmuxWorkspace -Yaml $yaml -ErrorAction Stop |
+        Resolve-TmuxWorkspace -BaseDirectory (Get-Location).Path `
+            -Variables @{ TMUX_BIN = $tmux } -ErrorAction Stop
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server `
+        -Readiness Cooperative -ReadinessTimeout 2 `
+        -CompensateOnFailure -ErrorAction Stop
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false `
+            -ErrorAction Stop
+        $pane = $result.Windows[0].Panes[0]
+        $completion = $pane | Wait-TmuxPaneText `
+            -Pattern 'workspace-ready-input' -SimpleMatch `
+            -Timeout 3 -Confirm:$false -ErrorAction Stop
+        if ($completion.Outcome -notin 'PresentAtEntry', 'Matched') {
+            throw "Ready input wait ended with $($completion.Outcome)."
+        }
+        [pscustomobject]@{
+            Plan = $plan
+            Result = $result
+            Completion = $completion
+        }
+    } finally {
+        if ($result) {
+            $result.Session | Remove-TmuxSession -Confirm:$false
+        }
+    }
+}
+    } }
+    'workspace.13-cooperative-timeout' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $name = 'cooperative-timeout-' + [Guid]::NewGuid().ToString('N')
+    $yaml = @'
+session_name: SESSION_NAME
+options:
+  default-command: exec /bin/cat
+windows:
+  - window_name: receiver
+    panes:
+      - shell_command: never-sent-input
+'@
+    $yaml = $yaml.Replace('SESSION_NAME', $name)
+    $declaration = Import-TmuxWorkspace -Yaml $yaml -ErrorAction Stop
+    $plan = $declaration | Get-TmuxWorkspacePlan -Server $server `
+        -Readiness Cooperative -ReadinessTimeout 0.25 `
+        -CompensateOnFailure -ErrorAction Stop
+    $result = $null
+    try {
+        $result = $plan | Invoke-TmuxWorkspace -Confirm:$false `
+            -ErrorAction Stop
+        throw 'Startup without a readiness signal was accepted.'
+    } catch {
+        $type = [LibTmux.Workspace.WorkspaceBuildException]
+        if ($_.Exception -isnot $type) { throw }
+        $failure = $_.Exception
+    } finally {
+        if ($result) {
+            $result.Session | Remove-TmuxSession -Confirm:$false
+        }
+    }
+    [pscustomobject]@{
+        Plan = $plan
+        Failure = $failure
+        Current = ($server | Get-TmuxSnapshot -Depth Panes -ErrorAction Stop)
+    }
+}
+    } }
     'readme.workspace.01-import' = @{ Requires = @(); Code = {
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
