@@ -22,8 +22,11 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
         ServerConnectionOptions endpoint = plan.Endpoint.ConnectionOptions;
         string socket = endpoint.SocketPath ?? endpoint.SocketName ?? "default tmux endpoint";
         bool hostScript = plan.Actions.Any(action => action.Kind == WorkspaceActionKind.RunHostScript);
+        bool globalOptions = plan.Actions.OfType<WorkspaceAction<SetOptionRequest>>()
+            .Any(action => action.Request.Global);
         string action = $"Apply workspace (existing session: {plan.ExistingSessionPolicy}; startup: {plan.ServerStartup}; "
             + $"readiness: {plan.Readiness}; compensation: {plan.CompensateOnFailure}; host script: {hostScript}; "
+            + $"global options: {globalOptions}; "
             + $"request values redacted){Environment.NewLine}"
             + $"Actions ({plan.Actions.Count}, in order):{Environment.NewLine}{DescribeActions(plan.Actions)}{Environment.NewLine}"
             + $"Conditional cleanup ({plan.CompensationActions.Count}, only after failure):{Environment.NewLine}"
@@ -39,5 +42,8 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
         ? "  (none)"
         : string.Join(Environment.NewLine, actions.Select((step, index) =>
             $"  {index + 1}. {step.Kind} {step.Target}"
-            + (step.SourceTarget is null ? string.Empty : $" <= {step.SourceTarget}")));
+            + (step.SourceTarget is null ? string.Empty : $" <= {step.SourceTarget}")
+            + (step is WorkspaceAction<SetOptionRequest> option
+                ? $" (scope={option.Request.Scope?.ToString() ?? "Owner"}; global={option.Request.Global})"
+                : string.Empty)));
 }

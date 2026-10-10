@@ -303,6 +303,7 @@ windows:
     $nativePanes = @($nativeWindows[0] | LibTmux\Get-TmuxPane)
     $mainPaneHeight = $nativeWindows[0] | LibTmux\Get-TmuxOption -Name 'main-pane-height' -ErrorAction Stop
     Assert-WorkspaceCorpus ($nativePanes.Count -eq 3 -and
+        $nativePanes[0].Height -eq 5 -and
         @($nativePanes | Where-Object CurrentPath -CNE $fixture.DirectoryPath).Count -eq 0 -and
         $mainPaneHeight.Value.Raw -ceq '5' -and !$mainPaneHeight.Inherited) 'upstream window option, pane graph or inherited HOME was not applied'
     $indexed = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $corpusFixtures 'tmuxp-v1.74.0-window_index.yaml') -ErrorAction Stop

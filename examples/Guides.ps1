@@ -531,6 +531,26 @@ windows:
     }
 }
     } }
+    'workspace.11-options' = @{ Requires = @('server'); Code = {
+& {
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: option-staging
+global_options:
+  default-shell: /bin/sh
+windows:
+  - window_name: workers
+    layout: main-horizontal
+    options:
+      main-pane-height: '5'
+    options_after:
+      synchronize-panes: 'on'
+    panes:
+      - shell_command: printf first
+      - shell_command: printf second
+'@
+    $declaration | Get-TmuxWorkspacePlan -Server $server
+}
+    } }
     'readme.workspace.01-import' = @{ Requires = @(); Code = {
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview

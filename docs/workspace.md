@@ -53,7 +53,8 @@ Only the supplied string variables participate in `$NAME` or `${NAME}`
 expansion; the resolver does not copy the process environment. Supply `HOME`
 explicitly when the declaration uses `~`. `$$` preserves a literal dollar
 sign. Resolution expands inherited directories and session, window and pane
-option values. Unknown variables in option values remain literal; unresolved
+option values, including global and post-construction options. Unknown
+variables in option values remain literal; unresolved
 directory variables are errors. Option names, commands, the host script,
 session and window names, and environment values remain literal. The base
 directory also records the origin for an allowed `before_script`.
@@ -89,6 +90,51 @@ directories, while `-SearchIn Window` parses declared window names. Search
 never executes declaration commands.
 See the [discovery reference](reference/LibTmux.Workspace/Get-TmuxWorkspace.md)
 for precedence, ambiguity and traversal limits.
+
+## Choose when options apply
+
+Window `options` take effect before startup input, additional panes and the
+final layout. Put options such as `main-pane-height` there so the selected
+layout uses them. Window `options_after` apply after startup commands have
+been sent and the final layout is selected. This lets each pane receive its
+own setup text before `synchronize-panes` starts broadcasting later input.
+It does not wait for those setup commands to finish.
+
+Root `options` affect this session. Root `global_options` affect the server's
+global session defaults before the declared windows start. Global changes
+can affect inherited settings in existing sessions and survive creation
+cleanup after a later failure. Review their explicit scope before applying.
+
+This declaration chooses a shell for new windows, sizes the main pane, and
+defers synchronized input. The example returns a native plan and changes
+nothing; review its actions, then apply it using the workflow below.
+
+<!-- example: workspace.11-options -->
+```powershell
+& {
+    $declaration = Import-TmuxWorkspace -Yaml @'
+session_name: option-staging
+global_options:
+  default-shell: /bin/sh
+windows:
+  - window_name: workers
+    layout: main-horizontal
+    options:
+      main-pane-height: '5'
+    options_after:
+      synchronize-panes: 'on'
+    panes:
+      - shell_command: printf first
+      - shell_command: printf second
+'@
+    $declaration | Get-TmuxWorkspacePlan -Server $server
+}
+```
+
+The option actions retain native `SetOptionRequest` values. Their default
+view shows `scope=Session global=True` for the global setting and hides
+option values. `scope=Owner` follows the action's session, window or pane
+target. The confirmation preview also identifies global effects.
 
 ## Validate before contacting tmux
 
@@ -147,7 +193,8 @@ options before starting the described panes. It also includes the final
 
 Preview the endpoint, session, policies and ordered actions through PowerShell's
 confirmation mechanism. Each action and conditional cleanup step shows its kind
-and symbolic target; request values remain hidden. Preview emits no result and
+and symbolic target; option actions also show scope and global effects.
+Request values remain hidden. Preview emits no result and
 dispatches nothing.
 
 <!-- example: workspace.05-preview -->
@@ -188,8 +235,9 @@ undo workspace effects if the terminal client is cancelled or fails.
 
 For an existing session, choose `Reuse`, `Append` or `Replace` explicitly
 when planning. Reuse returns the inspected session without declaration
-effects; Append adds windows while retaining existing session options;
-Replace removes the inspected session before creating its replacement.
+effects; Append adds windows while retaining local session options and applies
+declared global defaults. Replace removes the inspected session before
+creating its replacement.
 Review those actions before approving them.
 
 ## Export a starting declaration
@@ -391,8 +439,9 @@ whose ownership is proven by that application. Review
 it cannot undo shell or host side effects. The module never owns a borrowed
 daemon and never guesses cleanup targets from names.
 
-The declaration format covers session/window/pane options, layouts, focus,
-environment, directory inheritance and command lists. Unsupported keys are
+The declaration format covers session/window/pane options, global session
+defaults, post-construction window options, layouts, focus, environment,
+directory inheritance and command lists. Unsupported keys are
 errors. For complete policy parameters, see
 [Get-TmuxWorkspacePlan](reference/LibTmux.Workspace/Get-TmuxWorkspacePlan.md)
 and [Invoke-TmuxWorkspace](reference/LibTmux.Workspace/Invoke-TmuxWorkspace.md).

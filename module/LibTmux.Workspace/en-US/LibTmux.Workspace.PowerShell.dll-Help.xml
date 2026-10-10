@@ -146,12 +146,14 @@ $capturedSession | LibTmux.Workspace\ConvertTo-TmuxWorkspace
       <maml:para>Return one string for each native WorkspaceFile received from the pipeline.
 The text uses the snake_case keys accepted by Import-TmuxWorkspace and the
 native parser. Conversion preserves pane and command order, empty strings,
-nullable fields, local options, environment and commands at every declaration
-level. It does not expand command text or inherit local defaults into children.
+nullable fields, global and local options, post-construction options,
+environment and commands at every declaration level. It does not expand
+command text or inherit local defaults into children.
 
-Resolved directories contain literal paths. Conversion escapes their dollar
-signs as `$$` so export, import and a later explicit Resolve-TmuxWorkspace keep
-the same paths. Unresolved variable expressions remain unchanged.
+Resolved directories and option values contain literal text. Conversion
+escapes their dollar signs as `$$` so export, import and a later explicit
+Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
+remain unchanged.
 DocumentDirectory is resolution provenance and is omitted from the text;
 provide an explicit base when resolving the imported declaration.
 
@@ -266,12 +268,14 @@ windows:
       <maml:para>Return one string for each native WorkspaceFile received from the pipeline.
 The text uses the snake_case keys accepted by Import-TmuxWorkspace and the
 native parser. Conversion preserves pane and command order, empty strings,
-nullable fields, local options, environment and commands at every declaration
-level. It does not expand command text or inherit local defaults into children.
+nullable fields, global and local options, post-construction options,
+environment and commands at every declaration level. It does not expand
+command text or inherit local defaults into children.
 
-Resolved directories contain literal paths. Conversion escapes their dollar
-signs as `$$` so export, import and a later explicit Resolve-TmuxWorkspace keep
-the same paths. Unresolved variable expressions remain unchanged.
+Resolved directories and option values contain literal text. Conversion
+escapes their dollar signs as `$$` so export, import and a later explicit
+Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
+remain unchanged.
 DocumentDirectory is resolution provenance and is omitted from the text;
 provide an explicit base when resolving the imported declaration.
 
@@ -719,9 +723,11 @@ Invoke-TmuxWorkspace. Changing a source file does not change an existing plan.
 
 Error refuses a conflicting session. Reuse plans only reuse when that session
 exists, skipping declaration effects and host execution. Append creates declared
-windows while preserving existing session settings. Replace selects the exact
-observed session for replacement. A stale plan fails at application; it is not
-automatically regenerated.
+windows while preserving local session settings and applying declared global
+defaults. Global options can affect other sessions that inherit them and are
+not restored by compensation. Replace selects the exact observed session for
+replacement. A stale plan fails at application; it is not automatically
+regenerated.
 
 Observation spans tmux operations and is not a transaction. Native options,
 layouts, hooks and configuration can still cause application failures.</maml:para>
@@ -1187,9 +1193,11 @@ retries mutations automatically.
 
 One PowerShell ShouldProcess decision covers the whole plan. Its target names
 the executable, socket and literal session name. Its action describes conflict,
-startup, readiness and compensation policy, then lists every action and
-conditional cleanup step in order by kind and symbolic target. Request values
-are omitted. Inspect the original plan for full request and host-command values.
+startup, readiness and compensation policy, global option effects, then lists
+every action and conditional cleanup step in order by kind and symbolic target.
+Option actions disclose scope and whether they change global defaults;
+request values are omitted. Inspect the original plan for full request and
+host-command values.
 WhatIf and declined confirmation perform no application I/O or cleanup and
 emit no WorkspaceResult.
 

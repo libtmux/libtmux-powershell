@@ -582,6 +582,29 @@ $assertions = @{
             Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('has-session', '-t', 'review-command') -AllowFailure).ExitCode -ne 0 -and
                 (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'pending-input session cleanup and borrowed anchor'
         } }
+    'workspace.11-options' = @{ Group = 'Workspace'; Count = 1; Assert = {
+            param($o)
+            $plan = $o.Result[0]
+            $actions = @($plan.Actions)
+            $global = @($actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Global })
+            $height = @($actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -ceq 'main-pane-height' })
+            $after = @($actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -ceq 'synchronize-panes' })
+            $window = @($actions | Where-Object Kind -eq CreateWindow)
+            $layout = @($actions | Where-Object Kind -eq SelectLayout)
+            $sends = @($actions | Where-Object Kind -eq SendText)
+            Assert-Guide ($plan -is [LibTmux.Workspace.WorkspacePlan] -and
+                $global.Count -eq 1 -and $global[0].Request.Scope -eq [LibTmux.OptionScope]::Session -and
+                $height.Count -eq 1 -and $height[0].Request.Value -ceq '5' -and
+                $after.Count -eq 1 -and !$after[0].Request.Global -and
+                $window.Count -eq 1 -and $layout.Count -eq 1 -and $sends.Count -eq 2) 'option-staging plan lost native requests or scope'
+            Assert-Guide ([array]::IndexOf($actions, $global[0]) -lt [array]::IndexOf($actions, $window[0]) -and
+                [array]::IndexOf($actions, $height[0]) -lt [array]::IndexOf($actions, $sends[0]) -and
+                [array]::IndexOf($actions, $height[0]) -lt [array]::IndexOf($actions, $layout[0]) -and
+                [array]::IndexOf($actions, $after[0]) -gt [array]::IndexOf($actions, $sends[-1]) -and
+                [array]::IndexOf($actions, $after[0]) -gt [array]::IndexOf($actions, $layout[0])) 'option-staging guide reordered startup effects'
+            Assert-Guide ((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('has-session', '-t', 'option-staging') -AllowFailure).ExitCode -ne 0 -and
+                (Get-GuideField $o.Context 'fixture:0.0' '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}') -ceq $o.Context.Anchor) 'planning changed the owned topology'
+        } }
     'readme.workspace.01-import' = @{ Group = 'Workspace'; Count = 0; Assert = {
             param($o)
             Assert-Guide ($o.Workspace -is [LibTmux.Workspace.WorkspaceFile] -and
@@ -1030,7 +1053,7 @@ function Invoke-GuideUnit([string] $Id, [hashtable] $Context) {
     if ($entry.Group -eq 'Query' -and $Id -cnotin @('query.01-capture', 'query.11-execute')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local operation dispatched tmux"
     }
-    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover', 'workspace.10-pending')) {
+    if ($entry.Group -eq 'Workspace' -and $Id -cnotin @('readme.workspace.02-plan', 'readme.workspace.05-apply', 'workspace.03-plan', 'workspace.06-apply', 'workspace.07-export', 'workspace.09-recover', 'workspace.10-pending', 'workspace.11-options')) {
         Assert-Guide ((Get-GuideTraceCount $Context) -eq $before) "$Id local or preview operation dispatched tmux"
     }
     if ($entry.Group -eq 'Remove') {

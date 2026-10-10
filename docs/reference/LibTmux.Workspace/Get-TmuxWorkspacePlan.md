@@ -42,9 +42,11 @@ Invoke-TmuxWorkspace. Changing a source file does not change an existing plan.
 
 Error refuses a conflicting session. Reuse plans only reuse when that session
 exists, skipping declaration effects and host execution. Append creates declared
-windows while preserving existing session settings. Replace selects the exact
-observed session for replacement. A stale plan fails at application; it is not
-automatically regenerated.
+windows while preserving local session settings and applying declared global
+defaults. Global options can affect other sessions that inherit them and are
+not restored by compensation. Replace selects the exact observed session for
+replacement. A stale plan fails at application; it is not automatically
+regenerated.
 
 Observation spans tmux operations and is not a transaction. Native options,
 layouts, hooks and configuration can still cause application failures.

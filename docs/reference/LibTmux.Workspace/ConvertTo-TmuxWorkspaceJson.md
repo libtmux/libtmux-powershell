@@ -30,12 +30,14 @@ None.
 Return one string for each native WorkspaceFile received from the pipeline.
 The text uses the snake_case keys accepted by Import-TmuxWorkspace and the
 native parser. Conversion preserves pane and command order, empty strings,
-nullable fields, local options, environment and commands at every declaration
-level. It does not expand command text or inherit local defaults into children.
+nullable fields, global and local options, post-construction options,
+environment and commands at every declaration level. It does not expand
+command text or inherit local defaults into children.
 
-Resolved directories contain literal paths. Conversion escapes their dollar
-signs as `$$` so export, import and a later explicit Resolve-TmuxWorkspace keep
-the same paths. Unresolved variable expressions remain unchanged.
+Resolved directories and option values contain literal text. Conversion
+escapes their dollar signs as `$$` so export, import and a later explicit
+Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
+remain unchanged.
 DocumentDirectory is resolution provenance and is omitted from the text;
 provide an explicit base when resolving the imported declaration.
 

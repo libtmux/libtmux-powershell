@@ -44,7 +44,11 @@
                       $parts -join ' '
                       break
                     }
-                    'SetOption' { "option=$($request.Name) value=[redacted]"; break }
+                    'SetOption' {
+                      $scope = if ($null -eq $request.Scope) { 'Owner' } else { $request.Scope }
+                      "option=$($request.Name) scope=$scope global=$($request.Global) value=[redacted]"
+                      break
+                    }
                     'SendText' { "text=[redacted] enter=$($request.Enter)"; break }
                     { $_ -in 'SelectLayout', 'ArrangePanes' } { "layout=$($request.Layout)"; break }
                     'WaitForReadiness' { "timeout=$($request.TotalSeconds)s"; break }

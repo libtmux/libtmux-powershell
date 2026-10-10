@@ -77,10 +77,14 @@ environment:
 options:
   default-command: exec /bin/cat
   base-index: '4'
+global_options:
+  '@workspace-global': '$sensitive'
 windows:
   - window_name: editor
     focus: true
     layout: even-horizontal
+    options_after:
+      '@workspace-after': '$sensitive'
     panes:
       - options:
           '@role': '$sensitive'
@@ -111,6 +115,9 @@ windows:
         $hostAction[0].Request.MaxOutputBytes -eq 256 -and $hostAction[0].Request.WorkingDirectory -ceq $sessionDirectory) 'host action lost reviewed bounds or session directory'
     $paneText = @($plan.Actions | Where-Object Kind -eq SendText)
     $paneOption = @($plan.Actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Name -eq '@role' })
+    $globalOption = @($plan.Actions | Where-Object { $_.Kind -eq 'SetOption' -and $_.Request.Global })
+    Assert-WorkspaceApply ($globalOption.Count -eq 1 -and
+        $globalOption[0].Request.Scope -eq [LibTmux.OptionScope]::Session) 'global option lost its explicit native scope'
     Assert-WorkspaceApply ($hostAction[0].Request.Script.Contains($sensitive) -and
         $hostAction[0].Request.Environment['REVIEW_TOKEN'] -ceq $sensitive -and
         $paneText.Count -eq 1 -and $paneText[0].Request.Text.Contains($sensitive) -and
@@ -122,6 +129,8 @@ windows:
         $review.Contains('output=256B') -and $review.Contains('env=1') -and
         $review.Contains('path=[redacted]') -and $review.Contains('@role') -and
         $review.Contains('script=[redacted]') -and $review.Contains('text=[redacted]') -and
+        $review.Contains('scope=Session') -and $review.Contains('global=True') -and
+        $review.Contains('scope=Owner') -and $review.Contains('global=False') -and
         $review.Contains('value=[redacted]')) 'default plan review leaked values or omitted safe context'
     $narrowReview = $plan.Actions | Out-String -Width 80
     Assert-WorkspaceApply (!$narrowReview.Contains($sensitive) -and
@@ -167,6 +176,9 @@ windows:
             $lastPosition = $position
         }
         Assert-WorkspaceApply ($preview.Contains('request values redacted', [StringComparison]::Ordinal)) 'WhatIf did not identify redacted requests'
+        Assert-WorkspaceApply ($preview.Contains('global options: True', [StringComparison]::Ordinal) -and
+            $preview.Contains('scope=Session; global=True', [StringComparison]::Ordinal) -and
+            $preview.Contains('scope=Owner; global=False', [StringComparison]::Ordinal)) 'WhatIf hid option scope or server-global effects'
         $lastPosition = $preview.IndexOf('Conditional cleanup (', [StringComparison]::Ordinal)
         Assert-WorkspaceApply ($lastPosition -ge 0) 'WhatIf omitted conditional cleanup section'
         for ($index = 0; $index -lt $case.Plan.CompensationActions.Count; $index++) {
