@@ -50,10 +50,11 @@ when finished. The server leaves a borrowed tmux daemon running.
 
 ## Discover before calling
 
-After initialization, read the server instructions, call `tools/list`, and
-read `tmux://capabilities`. The resource identifies the selected socket,
-effective tools and observation policy. Tool discovery supplies schemas,
-descriptions and annotations. Each advertised tool also carries its capability row in
+After protocol discovery or legacy initialization, read the server
+instructions, call `tools/list`, and read `tmux://capabilities`. The resource
+identifies the selected socket, effective tools and observation policy. Tool
+discovery supplies schemas, descriptions and annotations. Each advertised
+tool also carries its capability row in
 `_meta["com.git-pull.libtmux-mcp/capability"]`.
 
 The example selects `inspect`. Add `manage`, `execute` or `teardown` only for
@@ -90,9 +91,11 @@ finite timeout; the server bounds their returned tail. For captures, select
 observed output as complete.
 
 A `capture_since` cursor tracks observation between calls; it is not a
-background job. Progress notifications and optional MCP Tasks are separate
-protocol features, available only where the discovered tool declares them.
-Read the installed server's schemas and capability rows for those contracts.
+background job. Progress notifications and MCP Tasks are separate features.
+If your client declares the Tasks extension, alpha.20 may return a Task for
+`wait_for_text` or `wait_for_channel`. Listings and `run_shell_command` return
+ordinary results. Server discovery advertises the extension, but tool schemas
+and capability rows do not name eligible tools.
 
 ## Inspect a pane and wait for readiness
 
@@ -110,9 +113,11 @@ List the selected session's panes:
 }
 ```
 
-The response's `structuredContent.result` contains pane records with
-`paneId`, `windowId`, `sessionId`, dimensions and the current command. Select
-one pane and read its rendered screen:
+The response contains pane records with `paneId`, `windowId`, `sessionId`,
+dimensions and the current command. With MCP `2026-07-28`, `structuredContent`
+is the array. With `2025-06-18`, read `structuredContent.result`. Check the
+tool's `outputSchema` and negotiated protocol when handling other results.
+Select one pane and read its rendered screen:
 
 <!-- mcp-example: capture_pane -->
 ```json
@@ -124,8 +129,8 @@ one pane and read its rendered screen:
 
 For this object result, read `structuredContent.content.lines` directly.
 `content.truncated`, `content.droppedLines` and `content.droppedBytes` disclose
-output omitted to fit the budget. A list result has the `result` wrapper;
-object results do not. Check `isError` before interpreting either shape.
+output omitted to fit the budget. Check `isError` before interpreting
+`structuredContent`.
 
 If the application prints `Service ready`, wait for that whole line:
 
@@ -148,11 +153,9 @@ and `tail` contains bounded rendered text. Stop-pattern, timeout and pane-death
 outcomes remain distinct. A ready-line match is an application-specific
 condition; it does not establish shell exit status or continuing health.
 
-The [official SDK client](../tests/support/McpDiscovery/Program.cs) reads these
-three request examples, substitutes discovered IDs and executes them against
-an installed tool. Its owned fixture prints the ready line before the calls,
-then checks capture, `PresentAtEntry`, an untruncated tail, no polling or event
-drops, stdio shutdown and preservation of the borrowed tmux state.
+The [installed-tool SDK check](../tests/support/McpDiscovery/Program.cs) runs
+these requests over stdio using MCP `2025-06-18` and verifies the ready line,
+complete capture, event-backed wait and owned cleanup.
 
 Use a finite server timeout even when your client can cancel. With the pinned
 SDK 2.2.0, cancelling a local token does not reliably send
