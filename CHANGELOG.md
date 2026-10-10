@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.1.0 - 2026-10-10
+## 0.1.0-alpha1 - 2026-10-10
 
 First alpha release of `LibTmux` and `LibTmux.Workspace`. APIs may change before
 a stable release. Both modules build on
 [libtmux for .NET 0.0.0-alpha.20](https://github.com/libtmux/libtmux-dotnet/releases/tag/v0.0.0-alpha.20).
-Workspace requires `LibTmux` exactly `0.1.0`.
+Workspace requires `LibTmux` exactly `0.1.0-alpha1`.
 
 ### What's new
 
@@ -41,3 +41,7 @@ journals, export captured sessions and convert workspace declarations. (#1)
 - Build both modules over published libtmux for .NET packages with locked
   dependencies. Linux CI checks installed modules and executable documentation
   on PowerShell 7.4 and 7.6; macOS checks are optional. (#1)
+
+- Install both modules as explicit Gallery prereleases, with Workspace pinned
+  to the matching core alpha. Future releases default to the alpha line.
+  (#11)
