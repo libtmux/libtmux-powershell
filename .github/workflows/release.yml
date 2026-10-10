@@ -7,6 +7,11 @@ on:
         description: Successful master push run of the powershell CI workflow
         required: true
         type: string
+      release_tag:
+        description: Optional annotated release tag for the tested package source
+        required: false
+        type: string
+        default: ''
       publish:
         description: Publish the verified packages to PowerShell Gallery
         required: true
@@ -30,17 +35,44 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve the tested package source
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="${GITHUB_SHA}"
+          if [[ -n "${RELEASE_TAG}" ]]; then
+            if [[ ! "${RELEASE_TAG}" =~ ^v0\.1\.0-alpha[1-9][0-9]*$ ]]; then
+              echo 'Release tag must use v0.1.0-alphaN.' >&2
+              exit 1
+            fi
+            tag_ref="refs/tags/${RELEASE_TAG}"
+            git show-ref --verify --quiet "${tag_ref}"
+            if [[ "$(git cat-file -t "${tag_ref}")" != tag ]]; then
+              echo 'Release tag must be annotated.' >&2
+              exit 1
+            fi
+            source_commit="$(git rev-parse --verify "${tag_ref}^{commit}")"
+            git merge-base --is-ancestor "${source_commit}" "${GITHUB_SHA}"
+          fi
+          [[ "${source_commit}" =~ ^[0-9a-f]{40}$ ]]
+          echo "commit=${source_commit}" >> "${GITHUB_OUTPUT}"
 
       - name: Verify the source, Linux gates and package artifact
         id: provenance
         env:
           GH_TOKEN: ${{ github.token }}
           CI_RUN_ID: ${{ inputs.ci_run_id }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           python3 eng/ci/release_artifacts.py \
             --run-id "${CI_RUN_ID}" \
-            --source-commit "${GITHUB_SHA}" \
+            --source-commit "${SOURCE_COMMIT}" \
             --output "${RUNNER_TEMP}/release-packages/release-provenance.json" \
             --github-output "${GITHUB_OUTPUT}"
 
@@ -68,19 +100,22 @@ jobs:
             "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
 
       - name: Validate the preserved package archives without uploading
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Publish.ps1 \
             -PackageRoot "${RUNNER_TEMP}/release-packages" \
-            -SourceCommit "${GITHUB_SHA}"
+            -SourceCommit "${SOURCE_COMMIT}"
 
       - name: Publish core, then workspace
         if: inputs.publish
         env:
           PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Publish.ps1 \
             -PackageRoot "${RUNNER_TEMP}/release-packages" \
-            -SourceCommit "${GITHUB_SHA}" \
+            -SourceCommit "${SOURCE_COMMIT}" \
             -Publish
 
       - name: Preserve release receipts and package archives

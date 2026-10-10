@@ -78,7 +78,11 @@ function Assert-PublishFailure([string] $Reason, [switch] $Upload, [string] $Rev
 
 function Invoke-WebRequest {
     param([string] $Uri, [string] $OutFile, [int] $TimeoutSec, [string] $ErrorAction)
-    $name = if ($Uri -cmatch '/package/(LibTmux(?:\.Workspace)?)/0\.1\.0-alpha1$') { $Matches[1] } else { throw 'Unexpected Gallery endpoint.' }
+    if ($Uri -cmatch '^https://cdn\.powershellgallery\.com/packages/(libtmux(?:\.workspace)?)\.0\.1\.0-alpha1\.nupkg$') {
+        $name = if ($Matches[1] -ceq 'libtmux.workspace') { 'LibTmux.Workspace' } else { 'LibTmux' }
+    } else {
+        throw 'Expected the exact Gallery CDN package URL.'
+    }
     if ($TimeoutSec -le 0 -or $TimeoutSec -gt 20) { throw 'Unbounded Gallery request.' }
     $reads.Add($name)
     $code = if ($failureCode) { $failureCode } elseif (!$public.ContainsKey($name)) { 404 } else { 0 }

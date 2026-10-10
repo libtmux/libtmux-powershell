@@ -102,7 +102,9 @@ function Assert-ReleasePayload($Expected, $Actual) {
 function Get-GalleryPayload([string] $Name) {
     $download = Join-Path $owned "$Name.gallery.nupkg"
     try {
-        $null = Invoke-WebRequest -Uri "https://www.powershellgallery.com/api/v2/package/$Name/$version" `
+        # The Gallery API can return the latest package for an absent version.
+        $uri = "https://cdn.powershellgallery.com/packages/$($Name.ToLowerInvariant()).$version.nupkg"
+        $null = Invoke-WebRequest -Uri $uri `
             -OutFile $download -TimeoutSec 20 -ErrorAction Stop
     } catch {
         $exception = $_.Exception

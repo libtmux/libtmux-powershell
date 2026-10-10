@@ -289,7 +289,8 @@ The complete platform, example and API suites are not established yet.
 The [release workflow](workflows/release.yml) publishes the two module
 archives already tested by Linux CI. It does not build or repackage them.
 Use the successful `powershell` push run for the current `master` commit;
-pull request runs and older source commits are rejected.
+pull request runs are rejected. The workflow validates that the run and
+archives belong to the selected source commit.
 
 Set `CI_RUN_ID` to that run's numeric ID. Validate its archives without
 uploading:
@@ -299,6 +300,22 @@ $ gh workflow run release.yml \
     --repo libtmux/libtmux-powershell \
     --ref master \
     --field ci_run_id="$CI_RUN_ID" \
+    --field publish=false
+```
+
+After a publishing-workflow repair, set `release_tag` to the existing
+annotated `v0.1.0-alphaN` tag and use that source commit's successful CI run.
+The tag must point to an ancestor of the workflow's `master` commit. This
+uses the repaired publishing code with the original tested archives; it
+does not rebuild packages or move the release tag. For example, validate
+the alpha2 archives:
+
+```console
+$ gh workflow run release.yml \
+    --repo libtmux/libtmux-powershell \
+    --ref master \
+    --field ci_run_id="$CI_RUN_ID" \
+    --field release_tag=v0.1.0-alpha2 \
     --field publish=false
 ```
 
