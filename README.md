@@ -46,7 +46,7 @@ Run these commands in PowerShell. Install the core module for sessions,
 windows, panes, snapshots, input and capture:
 
 ```console
-$ Install-PSResource -Name LibTmux `
+PS> Install-PSResource -Name LibTmux `
     -Version 0.1.0-alpha2 `
     -Prerelease `
     -Repository PSGallery `
@@ -59,7 +59,7 @@ It also installs its exact core dependency, so this command alone installs
 both modules:
 
 ```console
-$ Install-PSResource -Name LibTmux.Workspace `
+PS> Install-PSResource -Name LibTmux.Workspace `
     -Version 0.1.0-alpha2 `
     -Prerelease `
     -Repository PSGallery `
@@ -70,7 +70,7 @@ $ Install-PSResource -Name LibTmux.Workspace `
 Import both modules to run all the examples on this page:
 
 ```console
-$ Import-Module -Name LibTmux, LibTmux.Workspace `
+PS> Import-Module -Name LibTmux, LibTmux.Workspace `
     -RequiredVersion 0.1.0 `
     -ErrorAction Stop
 ```
