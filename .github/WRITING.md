@@ -70,11 +70,12 @@ bare commit hashes, and counts that duplicate source state.
 
 Code blocks are paste-and-run units:
 
-- Put one command in each block. An explicit `&&`, `;`, or `\` continuation
-  counts as one command.
+- Put one command in each block. An explicit `&&`, `;`, `\` or backtick
+  continuation counts as one command.
 - Put explanations in prose above the block, not comments inside it.
-- Mark shell commands as `console` and prefix them with `$ `.
-- Split long commands with `\`, one flag per continuation line.
+- Mark shell commands as `console`. Prefix a POSIX command with `$ ` and
+  continue it with `\`; prefix a PowerShell command with `PS> ` and continue
+  it with a backtick, one flag per continuation line.
 - Use the actual language tag for source examples. Keep executed examples
   valid for their runner.
 
@@ -150,6 +151,9 @@ Change it in all of them together.
   Edit `examples/Guides.ps1`, then copy the region into every fence with its
   ID; `pwsh -NoLogo -NoProfile -File tests/GuideExamples.Tests.ps1` fails on
   drift. Edit `docs/reference/` and run `eng/Help.ps1` to rebuild the MAML.
+
+To name a value in a PowerShell command, wrap the block in `PS> & {` … `}`
+so it stays one command.
 
 Bad, over 80:
 
