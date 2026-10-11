@@ -139,7 +139,7 @@ Change it in all of them together.
   braces and whitespace but never wraps, and `dotnet format` never wraps
   either. The example files and pages are held to 80 columns by the width
   check, `python3 eng/check_example_width.py`.
-- **Not formatted:** every example: README and `docs/` fences,
+- **Not formatted:** every example: fences in every Markdown file,
   `examples/*.ps1`, and the `docs/reference/` help examples. Hold them to
   80 by hand.
 - **Runs, compiles, exempt:** `<!-- example: ID -->` over a fence copies the
