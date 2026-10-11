@@ -55,34 +55,37 @@ Get-TmuxQueryField -Target Pane | Where-Object WireName -CEQ 'pane_width'
 ```
 
 Criteria accept a field's catalog wire name or native property path. For
-example, `Width` and `pane_width` address the same field. Field and operator
-keys ignore case; specifying both aliases in one map is an error. A bare
-value means equality. Entries in a map are combined with `And`.
+example, [`Width`][criteria-parser] and `pane_width` address the same field.
+Field and operator keys ignore case; specifying both aliases in one map is an
+error. A bare value means equality. Entries in a map are combined with
+[`And`][criteria-parser].
 
 The catalog's `Operators` use JSON wire names. Use these PowerShell keys in
 criteria maps; unsupported field/operator combinations fail at construction.
 
 | Criteria key | Native wire operation | Value |
 | --- | --- | --- |
-| Bare value or `Eq`; `Ne` | `equal`; `notEqual` | Native scalar value |
-| `Lt`, `Le`, `Gt`, `Ge` | `lessThan`, `lessThanOrEqual`, `greaterThan`, `greaterThanOrEqual` | Int64-representable integer |
-| `StartsWith`, `EndsWith`, `Contains` | `startsWithOrdinal`, `endsWithOrdinal`, `containsOrdinal` | String |
-| `EqualIgnoreCase` | `stringEqualOrdinalIgnoreCase` | String |
-| `StartsWithIgnoreCase`, `EndsWithIgnoreCase`, `ContainsIgnoreCase` | `startsWithOrdinalIgnoreCase`, `endsWithOrdinalIgnoreCase`, `containsOrdinalIgnoreCase` | String |
-| `In`, `NotIn` | `or` of `equal`, optionally `not` | Array or list of scalar values |
-| `IsNull`, `IsNotNull` | `equal` or `notEqual` with null | `$true` only |
-| `Regex` | `regex` | Map with `Pattern` and optional `Options` list |
-| `Some`, `Every`, `None` | `any`, `all`, or negated `any` | Child criteria for a collection relation |
-| `Is`, `IsNot` | `related`, optionally negated | Child criteria for a to-one relation |
-| `And`, `Or`, `Not` | `and`, `or`, `not` | Criteria lists for And/Or; one criteria map for Not |
+| Bare value or [`Eq`][criteria-parser]; [`Ne`][criteria-parser] | `equal`; `notEqual` | Native scalar value |
+| [`Lt`][criteria-parser], [`Le`][criteria-parser], [`Gt`][criteria-parser], [`Ge`][criteria-parser] | `lessThan`, `lessThanOrEqual`, `greaterThan`, `greaterThanOrEqual` | Int64-representable integer |
+| [`StartsWith`][criteria-parser], [`EndsWith`][criteria-parser], [`Contains`][criteria-parser] | `startsWithOrdinal`, `endsWithOrdinal`, `containsOrdinal` | String |
+| [`EqualIgnoreCase`][criteria-parser] | `stringEqualOrdinalIgnoreCase` | String |
+| [`StartsWithIgnoreCase`][criteria-parser], [`EndsWithIgnoreCase`][criteria-parser], [`ContainsIgnoreCase`][criteria-parser] | `startsWithOrdinalIgnoreCase`, `endsWithOrdinalIgnoreCase`, `containsOrdinalIgnoreCase` | String |
+| [`In`][criteria-parser], [`NotIn`][criteria-parser] | `or` of `equal`, optionally `not` | Array or list of scalar values |
+| [`IsNull`][criteria-parser], [`IsNotNull`][criteria-parser] | `equal` or `notEqual` with null | `$true` only |
+| [`Regex`][criteria-parser] | `regex` | Map with [`Pattern`][criteria-parser] and optional [`Options`][criteria-parser] list |
+| [`Some`][criteria-parser], [`Every`][criteria-parser], [`None`][criteria-parser] | `any`, `all`, or negated `any` | Child criteria for a collection relation |
+| [`Is`][criteria-parser], [`IsNot`][criteria-parser] | `related`, optionally negated | Child criteria for a to-one relation |
+| [`And`][criteria-parser], [`Or`][criteria-parser], [`Not`][criteria-parser] | `and`, `or`, `not` | Criteria lists for And/Or; one criteria map for Not |
 
 Ordinary string equality, membership and substring matching are ordinal and
 case-sensitive. Compare with PowerShell `-ceq` or `-cin`, not its normally
-case-insensitive `-eq` or `-in`. `EqualIgnoreCase`, `StartsWithIgnoreCase`,
-`EndsWithIgnoreCase` and `ContainsIgnoreCase` explicitly request ordinal
+case-insensitive `-eq` or `-in`. [`EqualIgnoreCase`][criteria-parser],
+[`StartsWithIgnoreCase`][criteria-parser],
+[`EndsWithIgnoreCase`][criteria-parser] and
+[`ContainsIgnoreCase`][criteria-parser] explicitly request ordinal
 case-insensitive matching. No wildcard expansion or string normalization is
-implicit. The catalog also exposes `stringEqualOrdinal`; the criteria form
-uses bare string equality or `Eq` for that behavior.
+implicit. The catalog also exposes `stringEqualOrdinal`; the criteria form uses
+bare string equality or [`Eq`][criteria-parser] for that behavior.
 
 Integers are not coerced from strings, Booleans, enums, floating-point or
 decimal values. IDs accept the matching native ID type or a correctly prefixed
@@ -91,9 +94,12 @@ while an omitted field is unconstrained. An empty string remains a value.
 ScriptBlocks belong in `Where-Object`; they are not translated into criteria.
 
 Collection properties have separate scalar and relation paths: use
-`'Windows.Count'` for a numeric comparison and `Windows` for `Some`/`Every`/`None`.
-Use explicit `And` with separate maps when a condition needs both paths.
-`ActivePane` and `ActivePane.Value` are aliases for the same captured to-one
+`'Windows.Count'` for a numeric comparison and [`Windows`][criteria-parser] for
+[`Some`][criteria-parser], [`Every`][criteria-parser] or
+[`None`][criteria-parser].
+Use explicit [`And`][criteria-parser] with separate maps when a condition needs
+both paths. [`ActivePane`][criteria-parser] and
+[`ActivePane.Value`][criteria-parser] are aliases for the same captured to-one
 relation. Uncaptured relations raise an error; they never become empty data.
 
 These construction limits include nodes introduced when membership and
@@ -124,11 +130,13 @@ $captured.Windows | Select-TmuxWindow -Criteria @{
 }
 ```
 
-Both conditions apply to the same pane. Two separate `Some` clauses may match
-different panes. `Every` is true for an empty captured collection; `Some` is
-false and `None` is true. `Is` and `IsNot` traverse one captured related object.
-Linked windows retain their session/index placement; a pane ID can therefore
-appear in several input placements. Selection does not deduplicate them.
+Both conditions apply to the same pane. Two separate [`Some`][criteria-parser]
+clauses may match different panes. [`Every`][criteria-parser] is true for an
+empty captured collection; [`Some`][criteria-parser] is false and
+[`None`][criteria-parser] is true. [`Is`][criteria-parser] and
+[`IsNot`][criteria-parser] traverse one captured related object. Linked windows
+retain their session/index placement; a pane ID can therefore appear in several
+input placements. Selection does not deduplicate them.
 
 Combine alternatives and exclusions to select API or log windows while
 excluding scratch windows:
@@ -150,12 +158,17 @@ $captured.Windows | Select-TmuxWindow -Criteria @{
 }
 ```
 
-Regex uses the .NET dialect with `CultureInvariant` always enabled. Options
-accept `IgnoreCase`, `Multiline`, `ExplicitCapture`, `Singleline`,
-`IgnorePatternWhitespace` and `CultureInvariant`; execution-only flags such as
-`Compiled` are rejected. A running match has the native one-second timeout.
-This is the shared .NET query contract, not a claim of cross-language regex
-compatibility.
+Regex uses the .NET dialect with
+[`CultureInvariant`][regexoptions-cultureinvariant] always enabled. Options
+accept [`IgnoreCase`][regexoptions-ignorecase],
+[`Multiline`][regexoptions-multiline],
+[`ExplicitCapture`][regexoptions-explicitcapture],
+[`Singleline`][regexoptions-singleline],
+[`IgnorePatternWhitespace`][regexoptions-ignorepatternwhitespace] and
+[`CultureInvariant`][regexoptions-cultureinvariant]; execution-only flags such
+as [`Compiled`][regexoptions-compiled] are rejected. A running match has the
+native one-second timeout. This is the shared .NET query contract, not a claim
+of cross-language regex compatibility.
 
 ## Store a query or acquire a fresh result
 
@@ -176,9 +189,10 @@ $queryPlan = $query | Get-TmuxQueryPlan -DaemonVersion $captured.DaemonVersion
 ```
 
 `PushedPredicate`, `ResidualPredicate`, `RequiredFields`,
-`RequiredSnapshotDepth` and `FallbackReasons` explain its execution.
-`-Pushdown Auto` uses exact supported source evaluation; `Never` evaluates
-locally; `Require` rejects any local residual. A plan does not acquire data.
+[`RequiredSnapshotDepth`][query-queryplan-requiredsnapshotdepth] and
+`FallbackReasons` explain its execution. `-Pushdown Auto` uses exact supported
+source evaluation; `Never` evaluates locally; `Require` rejects any local
+residual. A plan does not acquire data.
 
 Execute it against the selected endpoint when a fresh result is needed:
 
@@ -209,9 +223,10 @@ $captured.Sessions |
 ```
 
 `-ExactlyOne` holds the match until finite input completes. Zero or multiple
-matches terminate with `Tmux.NoMatch` or `Tmux.MultipleMatches`. Invalid inputs,
-unavailable relations, evaluation errors and pipeline stop suppress the
-retained object. An infinite stream cannot establish exact cardinality.
+matches terminate with [`Tmux.NoMatch`][queryselection] or
+[`Tmux.MultipleMatches`][queryselection]. Invalid inputs, unavailable relations,
+evaluation errors and pipeline stop suppress the retained object. An infinite
+stream cannot establish exact cardinality.
 
 The guarantee concerns successful objects received by the selector. An
 upstream nonterminating error can skip a requested source while still leaving
@@ -219,3 +234,14 @@ one match. Use `-ErrorAction Stop` on every upstream acquisition when complete
 input is required before mutation. It does not roll back changes already
 made by another command. Local selection never refreshes captured objects;
 use an explicit acquisition to observe changes.
+
+[criteria-parser]: ../src/LibTmux.PowerShell/QueryCriteria.cs
+[regexoptions-cultureinvariant]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-cultureinvariant
+[regexoptions-multiline]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-multiline
+[regexoptions-explicitcapture]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-explicitcapture
+[regexoptions-singleline]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-singleline
+[regexoptions-ignorepatternwhitespace]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-ignorepatternwhitespace
+[regexoptions-compiled]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-compiled
+[query-queryplan-requiredsnapshotdepth]: https://libtmux.org/en/csharp/latest/reference/libtmux-query-queryplan-requiredsnapshotdepth/
+[queryselection]: ../src/LibTmux.PowerShell/QuerySelection.cs
+[regexoptions-ignorecase]: https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regexoptions#system-text-regularexpressions-regexoptions-ignorecase

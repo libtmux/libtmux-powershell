@@ -30,9 +30,9 @@ Other presets include `even-vertical`, `main-horizontal`, `main-vertical` and
 before dispatch. Use `-Mode Next`, `Previous` or `Spread` instead of `-Layout`
 to cycle layouts or spread panes.
 
-A captured `$window.Layout` can be passed back as `-Layout`. On tmux 3.7 and
-earlier, restoring its sizes can rotate which pane occupies a position; it
-does not guarantee pane identity at each position.
+A captured [`$window.Layout`][window-layout] can be passed back as `-Layout`. On
+tmux 3.7 and earlier, restoring its sizes can rotate which pane occupies a
+position; it does not guarantee pane identity at each position.
 
 Set a pane's width in a window with a horizontal split:
 
@@ -56,3 +56,5 @@ Repeating the command turns zoom off. `-Zoom` cannot be combined with a size
 or direction. A stale or disappeared target writes a per-target error;
 `-ErrorAction Stop` terminates the pipeline. Cancellation does not roll back
 an already dispatched change.
+
+[window-layout]: https://libtmux.org/en/csharp/latest/reference/libtmux-window-layout/

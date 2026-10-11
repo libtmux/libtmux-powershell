@@ -12,9 +12,10 @@ Read a stored value from a previously selected `$session`:
 $session | Get-TmuxEnvironment -Name 'APP_MODE'
 ```
 
-Omit `-Name` to list visible entries. Results are native
-`TmuxEnvironmentEntry` objects with `Name`, `Value` and `IsRemoved`.
-A missing variable produces no object.
+Omit `-Name` to list visible entries. Results are native `TmuxEnvironmentEntry`
+objects with [`Name`][tmuxenvironmententry-name],
+[`Value`][tmuxenvironmententry-value] and `IsRemoved`. A missing variable
+produces no object.
 
 Set a value for future panes and inspect the stored result:
 
@@ -52,5 +53,9 @@ means readback is unavailable, not that the variable is empty or removed.
 
 Set and Remove support `-WhatIf` and `-Confirm`; previews contact no server.
 Errors retain the original core exception and owner. `-ErrorAction Continue`
-permits later owners; `Stop` terminates the pipeline. Cancellation cannot
-undo a dispatched mutation.
+permits later owners; [`Stop`][erroraction-stop] terminates the pipeline.
+Cancellation cannot undo a dispatched mutation.
+
+[tmuxenvironmententry-name]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxenvironmententry-name/
+[tmuxenvironmententry-value]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxenvironmententry-value/
+[erroraction-stop]: https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.actionpreference#system-management-automation-actionpreference-stop

@@ -155,10 +155,12 @@ writes an error and then `$false`; later pipeline records can continue.
 ## Plan and review
 
 Planning observes only the selected endpoint and freezes the actions and
-policies. The default conflict policy refuses an existing session with the
-same name. `CreateOrJoin` permits application to start an absent daemon or
-join one that appeared since planning; it grants no ownership of the daemon.
-Use `RequireExisting` when planning must find one already running.
+policies. The default conflict policy refuses an existing session with the same
+name. [`CreateOrJoin`][workspaceserverstartup-createorjoin] permits application
+to start an absent daemon or join one that appeared since planning; it grants no
+ownership of the daemon. Use
+[`RequireExisting`][workspaceserverstartup-requireexisting] when planning must
+find one already running.
 
 <!-- example: workspace.03-plan -->
 ```powershell
@@ -183,15 +185,17 @@ $workspacePlan.Actions
 ```
 
 To inspect exact arguments in a trusted terminal, read an action's typed
-`Request` property. It contains the script, command, option value and other
-values that the default view hides. If planning used `-CompensateOnFailure`,
-inspect `$workspacePlan.CompensationActions` separately; those actions run only
-after a failed application. Targets are plan symbols bound to created tmux
-identities during application.
+[`Request`][workspaceaction-request] property. It contains the script, command,
+option value and other values that the default view hides. If planning used
+`-CompensateOnFailure`, inspect
+[`$workspacePlan.CompensationActions`][workspaceplan-compensationactions]
+separately; those actions run only after a failed application. Targets are plan
+symbols bound to created tmux identities during application.
 
-The plan includes the transient bootstrap window used to install session
-options before starting the described panes. It also includes the final
-`CaptureResult` observation. tmux hooks can observe that bootstrap lifecycle.
+The plan includes the transient bootstrap window used to install session options
+before starting the described panes. It also includes the final
+[`CaptureResult`][workspaceactionkind-captureresult] observation. tmux hooks can
+observe that bootstrap lifecycle.
 
 Preview the endpoint, session, policies and ordered actions through PowerShell's
 confirmation mechanism. Each action and conditional cleanup step shows its kind
@@ -216,10 +220,11 @@ $workspaceResult = $workspacePlan |
     Invoke-TmuxWorkspace -Confirm:$false -ErrorAction Stop
 ```
 
-`$workspaceResult.Session` and `.Windows` are native objects from the final
-captured graph. `.Journal` records action outcomes; `.Unsupported` lists
-requested final layouts tmux rejected while leaving their windows usable.
-The observation spans an interval, so concurrent changes can make it fail.
+[`$workspaceResult.Session`][workspaceresult-session] and `.Windows` are native
+objects from the final captured graph. `.Journal` records action outcomes;
+`.Unsupported` lists requested final layouts tmux rejected while leaving their
+windows usable. The observation spans an interval, so concurrent changes can
+make it fail.
 
 To load the workspace into your foreground terminal, run
 `$workspaceResult.Session | LibTmux\Enter-TmuxSession -ErrorAction Stop`
@@ -235,12 +240,13 @@ for its own PowerShell confirmation when requested. `-WhatIf` on
 `-ErrorAction Stop` emits no result for this step. Entering a session does not
 undo workspace effects if the terminal client is cancelled or fails.
 
-For an existing session, choose `Reuse`, `Append` or `Replace` explicitly
-when planning. Reuse returns the inspected session without declaration
-effects; Append adds windows while retaining local session options and applies
-declared global defaults. Replace removes the inspected session before
-creating its replacement.
-Review those actions before approving them.
+For an existing session, choose [`Reuse`][workspaceexistingsession-reuse],
+[`Append`][workspaceexistingsession-append] or
+[`Replace`][workspaceexistingsession-replace] explicitly when planning. Reuse
+returns the inspected session without declaration effects; Append adds windows
+while retaining local session options and applies declared global defaults.
+Replace removes the inspected session before creating its replacement. Review
+those actions before approving them.
 
 ## Export a starting declaration
 
@@ -383,13 +389,15 @@ Invocation uses those frozen settings. Validation, planning and `-WhatIf`
 never run the script. Review both host scripts and pane commands before
 applying files from another source.
 
-Application failures write `Tmux.WorkspaceApplyFailed` with a native
-`WorkspaceBuildException`; they do not emit a partial success object. With
-`-ErrorAction Stop`, a `catch` block can inspect `$_.Exception` through its
+Application failures write
+[`Tmux.WorkspaceApplyFailed`][invoketmuxworkspacecommand] with a native
+[`WorkspaceBuildException`][workspacebuildexception]; they do not emit a partial
+success object. With `-ErrorAction Stop`, a `catch` block can inspect
+[`$_.Exception`][system-management-automation-errorrecord-exception] through its
 `.PartialResult`, `.Journal`, `.CompensationJournal`, `.Dispatch` and
-`.InnerException` properties. With normal error handling, later plans can continue.
-A stopped PowerShell pipeline may suppress error delivery, so do not rely
-on receiving a journal after stopping it.
+`.InnerException` properties. With normal error handling, later plans can
+continue. A stopped PowerShell pipeline may suppress error delivery, so do not
+rely on receiving a journal after stopping it.
 
 This example deliberately appends a window to the `development` session built
 above, then asks tmux to set an invalid pane option. It requests compensation
@@ -426,20 +434,23 @@ windows:
 }
 ```
 
-Inspect `$workspaceRecovery.Failure.Journal` for the failed action and its
-dispatch state, then `$workspaceRecovery.Failure.CompensationJournal` for
-attempted cleanup. The fresh `$workspaceRecovery.Current.Sessions` observation
-shows what remains. A completed cleanup entry records a tmux operation; the
-fresh observation proves whether `recovery-demo` is gone and `editor` remains.
-If dispatch is `Unknown` or cleanup failed, the action may have taken effect.
-Inspect the server and reconcile it before making another plan; do not retry
-the same plan blindly.
+Inspect [`$workspaceRecovery.Failure.Journal`][workspacebuildexception-journal]
+for the failed action and its dispatch state, then
+[`$workspaceRecovery.Failure.CompensationJournal`][workspacebuildexception-compensationjournal]
+for attempted cleanup. The fresh
+[`$workspaceRecovery.Current.Sessions`][server-sessions] observation shows what
+remains. A completed cleanup entry records a tmux operation; the fresh
+observation proves whether `recovery-demo` is gone and `editor` remains. If
+dispatch is `Unknown` or cleanup failed, the action may have taken effect.
+Inspect the server and reconcile it before making another plan; do not retry the
+same plan blindly.
 
-`-CompensateOnFailure` at planning requests bounded cleanup of creations
-whose ownership is proven by that application. Review
-`$workspacePlan.CompensationActions` too. `-CleanupTimeout` bounds cleanup;
-it cannot undo shell or host side effects. The module never owns a borrowed
-daemon and never guesses cleanup targets from names.
+`-CompensateOnFailure` at planning requests bounded cleanup of creations whose
+ownership is proven by that application. Review
+[`$workspacePlan.CompensationActions`][workspaceplan-compensationactions] too.
+`-CleanupTimeout` bounds cleanup; it cannot undo shell or host side effects. The
+module never owns a borrowed daemon and never guesses cleanup targets from
+names.
 
 The declaration format covers session/window/pane options, global session
 defaults, post-construction window options, layouts, focus, environment,
@@ -447,3 +458,19 @@ directory inheritance and command lists. Unsupported keys are
 errors. For complete policy parameters, see
 [Get-TmuxWorkspacePlan](reference/LibTmux.Workspace/Get-TmuxWorkspacePlan.md)
 and [Invoke-TmuxWorkspace](reference/LibTmux.Workspace/Invoke-TmuxWorkspace.md).
+
+[workspaceserverstartup-createorjoin]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceserverstartup-createorjoin/
+[workspaceserverstartup-requireexisting]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceserverstartup-requireexisting/
+[workspaceaction-request]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceaction-request/
+[workspaceplan-compensationactions]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceplan-compensationactions/
+[workspaceactionkind-captureresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-captureresult/
+[workspaceresult-session]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceresult-session/
+[workspaceexistingsession-reuse]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceexistingsession-reuse/
+[workspaceexistingsession-append]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceexistingsession-append/
+[workspaceexistingsession-replace]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceexistingsession-replace/
+[invoketmuxworkspacecommand]: ../src/LibTmux.Workspace.PowerShell/InvokeTmuxWorkspaceCommand.cs
+[workspacebuildexception]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacebuildexception/
+[system-management-automation-errorrecord-exception]: https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.errorrecord.exception?view=powershellsdk-7.4.0
+[workspacebuildexception-journal]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacebuildexception-journal/
+[workspacebuildexception-compensationjournal]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacebuildexception-compensationjournal/
+[server-sessions]: https://libtmux.org/en/csharp/latest/reference/libtmux-server-sessions/

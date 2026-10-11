@@ -138,15 +138,16 @@ $captured = & {
 }
 ```
 
-`$captured` is a native `LibTmux.Session`. Its `Windows` contain native
-`LibTmux.Window` objects; each window's `Panes` contain native `LibTmux.Pane`
-objects. The graph is still readable after cleanup:
+`$captured` is a native `LibTmux.Session`. Its [`Windows`][session-windows]
+contain native `LibTmux.Window` objects; each window's [`Panes`][window-panes]
+contain native `LibTmux.Pane` objects. The graph is still readable after
+cleanup:
 
 | Expression | Captured result |
 | --- | --- |
 | `$captured` | A `Session` named `demo` |
-| `$captured.Windows` | Two `Window` objects: `editor` and `logs` |
-| `$captured.Windows[0].Panes` | Two `Pane` objects in `editor`; `logs` has one |
+| [`$captured.Windows`][session-windows] | Two `Window` objects: `editor` and `logs` |
+| [`$captured.Windows[0].Panes`][window-panes] | Two `Pane` objects in `editor`; `logs` has one |
 
 Walk it and filter locally:
 
@@ -331,9 +332,9 @@ $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
     -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
 ```
 
-Review the actions. Their default view keeps command text, option values,
-paths and environment values hidden; inspect an action's `Request` only in a
-trusted terminal:
+Review the actions. Their default view keeps command text, option values, paths
+and environment values hidden; inspect an action's
+[`Request`][workspaceaction-request] only in a trusted terminal:
 
 <!-- example: readme.workspace.03-review -->
 ```powershell
@@ -473,11 +474,17 @@ editor %0, %1
 logs   %2
 ```
 
-Assign `./examples/QuickStart.ps1` to a variable to keep the session object.
-Its `Windows` and `Panes` remain readable after the script removes its session.
-The script uses a unique socket and leaves your default tmux server alone.
+Assign `./examples/QuickStart.ps1` to a variable to keep the session object. Its
+[`Windows`][session-windows] and [`Panes`][session-panes] remain readable after
+the script removes its session. The script uses a unique socket and leaves your
+default tmux server alone.
 
 ## License
 
 [MIT](LICENSE). See [third-party notices](licenses/THIRD-PARTY-NOTICES.md)
 for bundled dependencies.
+
+[session-windows]: https://libtmux.org/en/csharp/latest/reference/libtmux-session-windows/
+[window-panes]: https://libtmux.org/en/csharp/latest/reference/libtmux-window-panes/
+[workspaceaction-request]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceaction-request/
+[session-panes]: https://libtmux.org/en/csharp/latest/reference/libtmux-session-panes/

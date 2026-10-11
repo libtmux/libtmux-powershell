@@ -13,11 +13,11 @@ Read the effective key mode from a previously selected `$session`:
 $session | Get-TmuxOption -Name 'status-keys' -IncludeInherited
 ```
 
-Each result is a native `TmuxOption`. Its `Name`, `Index`, `Inherited` and
-`Value` describe what tmux reported. Omit `-Name` to list a table. A normal
-read lists local values; `-IncludeInherited` adds inherited values.
-`-Quiet` makes a missing option produce no rows. `Where-Object` filters
-returned rows locally.
+Each result is a native `TmuxOption`. Its [`Name`][tmuxoption-name],
+[`Index`][tmuxoption-index], `Inherited` and [`Value`][tmuxoption-value]
+describe what tmux reported. Omit `-Name` to list a table. A normal read lists
+local values; `-IncludeInherited` adds inherited values. `-Quiet` makes a
+missing option produce no rows. `Where-Object` filters returned rows locally.
 
 Store a user option and return the value tmux actually stored:
 
@@ -26,11 +26,11 @@ Store a user option and return the value tmux actually stored:
 $session | Set-TmuxOption -Name '@project' -Value 'api' -PassThru
 ```
 
-`-PassThru` emits a native `TmuxOptionValue`; its `Raw`, `Boolean`,
-`Integer` and `State` fields preserve tmux's interpretation. Without it,
-setting emits no success output. `-Append` and `-ExpandFormat` return the
-stored result, not just the supplied argument. `-PreventOverwrite` asks
-tmux to refuse replacement and can produce an error.
+`-PassThru` emits a native `TmuxOptionValue`; its [`Raw`][tmuxoptionvalue-raw],
+[`Boolean`][tmuxoptionvalue-boolean], `Integer` and `State` fields preserve
+tmux's interpretation. Without it, setting emits no success output. `-Append`
+and `-ExpandFormat` return the stored result, not just the supplied argument.
+`-PreventOverwrite` asks tmux to refuse replacement and can produce an error.
 
 Remove a previously stored user option:
 
@@ -47,6 +47,13 @@ option names, so `#` is not guaranteed literal.
 
 Set and Remove support `-WhatIf` and `-Confirm`; previews contact no server.
 Errors retain the original core exception and owner. `-ErrorAction Continue`
-permits later owners; `Stop` terminates the pipeline. Cancellation cannot
-undo a dispatched mutation. Readback does not make a mutation atomic with
-other clients.
+permits later owners; [`Stop`][erroraction-stop] terminates the pipeline.
+Cancellation cannot undo a dispatched mutation. Readback does not make a
+mutation atomic with other clients.
+
+[tmuxoption-name]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxoption-name/
+[tmuxoption-index]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxoption-index/
+[tmuxoption-value]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxoption-value/
+[tmuxoptionvalue-raw]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxoptionvalue-raw/
+[tmuxoptionvalue-boolean]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxoptionvalue-boolean/
+[erroraction-stop]: https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.actionpreference#system-management-automation-actionpreference-stop

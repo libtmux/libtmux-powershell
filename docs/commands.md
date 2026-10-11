@@ -82,10 +82,10 @@ root after importing `LibTmux`. It accepts native command values, preserves
 their identity guards and starts at most `-MaxPending` calls at once.
 
 By default, each bounded wave finishes before its results are emitted in input
-order. The next wave then starts. This bounds reordering storage but can leave
-a slot idle while another command in the wave finishes. Each result carries
-its zero-based `Index`, `Name`, `ExitCode`, output lines, error lines and
-`Utf8Bytes`.
+order. The next wave then starts. This bounds reordering storage but can leave a
+slot idle while another command in the wave finishes. Each result carries its
+zero-based [`Index`][command-example], [`Name`][command-example], `ExitCode`,
+output lines, error lines and [`Utf8Bytes`][command-example].
 
 <!-- example: commands.concurrent -->
 ```powershell
@@ -96,9 +96,9 @@ $commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
     -MaxPending 2 -MaxResultBytes 4096 -Timeout 1
 ```
 
-Pass a borrowed control client to reuse its connection. `-CompletionOrder`
-emits each result as the caller harvests a completed task; simultaneous
-completions have no guaranteed order. `Index` still identifies its input.
+Pass a borrowed control client to reuse its connection. `-CompletionOrder` emits
+each result as the caller harvests a completed task; simultaneous completions
+have no guaranteed order. [`Index`][command-example] still identifies its input.
 The recipe leaves the client open; its owner closes it here.
 
 <!-- example: commands.concurrent-control -->
@@ -141,3 +141,5 @@ may extend beyond the deadline. Previously emitted results and dispatched
 mutations remain. Command failures retain the native exception and identify
 their input with `Exception.Data['LibTmux.ConcurrentCommandIndex']`. Do not
 automatically retry canceled mutations.
+
+[command-example]: ../examples/ConcurrentCommands.ps1

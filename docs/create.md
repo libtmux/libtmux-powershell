@@ -80,14 +80,14 @@ Use an absolute path for predictable behavior. The core expands `~` and
 `~/`; the adapter does not resolve PowerShell provider paths or change the
 caller's current directory. tmux may expand formats within the path.
 
-`-Environment` accepts a dictionary of string keys and string values.
-Empty values are retained; numeric and null values are rejected before
-dispatch with `Tmux.InvalidCreation`. Names cannot be empty or contain `=`
-or NUL; values cannot contain NUL. Validation also applies to `-WhatIf`.
-Entries are copied before processing
-owners. They become tmux's per-session or per-process environment entries;
-the PowerShell host environment remains unchanged. Spaces, quotes and
-semicolons in each value remain part of that argument.
+`-Environment` accepts a dictionary of string keys and string values. Empty
+values are retained; numeric and null values are rejected before dispatch with
+[`Tmux.InvalidCreation`][newtmuxsessioncommand]. Names cannot be empty or
+contain `=` or NUL; values cannot contain NUL. Validation also applies to
+`-WhatIf`. Entries are copied before processing owners. They become tmux's
+per-session or per-process environment entries; the PowerShell host environment
+remains unchanged. Spaces, quotes and semicolons in each value remain part of
+that argument.
 
 <!-- example: create.environment -->
 ```powershell
@@ -99,14 +99,15 @@ $window = $session | New-TmuxWindow -Environment @{
 
 ## Failures and results
 
-Success emits the core's captured created object. Keep that returned handle
-when later work needs its current metadata; an existing owner handle is not
-refreshed in place. An empty owner pipeline emits nothing. Wrap a pipeline in
-`@(...)` when the caller needs an array for zero, one or many results.
-Creation errors use `Tmux.SessionCreateFailed`,
-`Tmux.WindowCreateFailed` and `Tmux.PaneSplitFailed`, retain the original core
-exception and failed owner, and allow later pipeline owners to continue
-under `-ErrorAction Continue`. `-ErrorAction Stop` stops at the first error.
+Success emits the core's captured created object. Keep that returned handle when
+later work needs its current metadata; an existing owner handle is not refreshed
+in place. An empty owner pipeline emits nothing. Wrap a pipeline in `@(...)`
+when the caller needs an array for zero, one or many results. Creation errors
+use [`Tmux.SessionCreateFailed`][newtmuxsessioncommand],
+[`Tmux.WindowCreateFailed`][newtmuxwindowcommand] and
+[`Tmux.PaneSplitFailed`][splittmuxpanecommand], retain the original core
+exception and failed owner, and allow later pipeline owners to continue under
+`-ErrorAction Continue`. `-ErrorAction Stop` stops at the first error.
 Cancellation reaches the core operation; it does not roll back creation or
 terminate a command already started in a pane. No mutation is retried.
 
@@ -116,3 +117,7 @@ requests, zero-dispatch previews and per-owner failures on an owned server.
 The [startup integration test](../tests/CreateStartup.Tests.ps1) separately
 verifies first-session daemon creation and owned process teardown. Its Linux
 child-reaper setting is confined to that disposable test process.
+
+[newtmuxsessioncommand]: ../src/LibTmux.PowerShell/NewTmuxSessionCommand.cs
+[newtmuxwindowcommand]: ../src/LibTmux.PowerShell/NewTmuxWindowCommand.cs
+[splittmuxpanecommand]: ../src/LibTmux.PowerShell/SplitTmuxPaneCommand.cs
