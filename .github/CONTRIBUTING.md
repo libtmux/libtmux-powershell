@@ -322,6 +322,11 @@ This checks extraction fidelity, including a missing-parameter-set negative
 control. It does not execute the documented examples or establish that the
 website has rendered or published the artifact.
 
+The Linux build job runs the exporter and contract check after native help
+validation. It saves `powershell-docs-api` as a separate CI artifact before
+packing the modules. Website previews and publication use the shared
+documentation workflow and retain their own source and tooling provenance.
+
 ## Gallery releases
 
 The [release workflow](workflows/release.yml) publishes the two module
