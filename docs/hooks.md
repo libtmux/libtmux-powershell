@@ -12,10 +12,12 @@ Inspect a configured hook on a previously selected `$session`:
 $session | Get-TmuxHook -Name 'alert-bell'
 ```
 
-Each native `TmuxHook` has a base `Name` and `Values`, an ordered collection
-of `TmuxHookEntry` objects with `Index` and `Command`. Get accepts base names
-only; inspect `Values` for individual entries. Omit `-Name` to list the
-selected table. Missing local hooks produce no objects.
+Each native `TmuxHook` has a base [`Name`][tmuxhook-name] and
+[`Values`][tmuxhook-values], an ordered collection of `TmuxHookEntry` objects
+with [`Index`][tmuxhookentry-index] and [`Command`][tmuxhookentry-command]. Get
+accepts base names only; inspect [`Values`][tmuxhook-values] for individual
+entries. Omit `-Name` to list the selected table. Missing local hooks produce no
+objects.
 
 Set one indexed command and inspect the complete grouped hook:
 
@@ -52,5 +54,12 @@ $session | Remove-TmuxHook -Name 'alert-bell[7]'
 
 Use the base name to remove the local hook. Mutations support `-WhatIf` and
 `-Confirm`; previews perform no tmux I/O. Errors retain the native owner and
-core exception. `-ErrorAction Continue` permits later owners; `Stop`
-terminates the pipeline. Cancellation cannot undo a dispatched command.
+core exception. `-ErrorAction Continue` permits later owners;
+[`Stop`][erroraction-stop] terminates the pipeline. Cancellation cannot undo a
+dispatched command.
+
+[tmuxhook-name]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxhook-name/
+[tmuxhook-values]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxhook-values/
+[tmuxhookentry-index]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxhookentry-index/
+[tmuxhookentry-command]: https://libtmux.org/en/csharp/latest/reference/libtmux-tmuxhookentry-command/
+[erroraction-stop]: https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.actionpreference#system-management-automation-actionpreference-stop

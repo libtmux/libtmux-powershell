@@ -110,7 +110,7 @@ List the selected session's panes:
 }
 ```
 
-The response's `structuredContent.result` contains pane records with
+The response's [`structuredContent.result`][result] contains pane records with
 `paneId`, `windowId`, `sessionId`, dimensions and the current command. Select
 one pane and read its rendered screen:
 
@@ -122,10 +122,12 @@ one pane and read its rendered screen:
 }
 ```
 
-For this object result, read `structuredContent.content.lines` directly.
-`content.truncated`, `content.droppedLines` and `content.droppedBytes` disclose
-output omitted to fit the budget. A list result has the `result` wrapper;
-object results do not. Check `isError` before interpreting either shape.
+For this object result, read [`structuredContent.content.lines`][lines]
+directly. [`content.truncated`][truncated],
+[`content.droppedLines`][droppedlines] and
+[`content.droppedBytes`][droppedbytes] disclose output omitted to fit the
+budget. A list result has the `result` wrapper; object results do not. Check
+`isError` before interpreting either shape.
 
 If the application prints `Service ready`, wait for that whole line:
 
@@ -182,3 +184,9 @@ checks that the session and pane survive MCP shutdown, then removes the owned
 fixture. It neither imports the PowerShell modules nor builds, installs or
 downloads anything during the test. Broader task, cancellation, loss and
 concurrent-wait acceptance belongs to the .NET protocol suite.
+
+[result]: https://libtmux.org/en/csharp/latest/mcp/tools/list_panes/#mcp.tool.list_panes.output/properties/result
+[lines]: https://libtmux.org/en/csharp/latest/mcp/tools/capture_pane/#mcp.tool.capture_pane.output/properties/content/properties/lines
+[truncated]: https://libtmux.org/en/csharp/latest/mcp/tools/capture_pane/#mcp.tool.capture_pane.output/properties/content/properties/truncated
+[droppedlines]: https://libtmux.org/en/csharp/latest/mcp/tools/capture_pane/#mcp.tool.capture_pane.output/properties/content/properties/droppedLines
+[droppedbytes]: https://libtmux.org/en/csharp/latest/mcp/tools/capture_pane/#mcp.tool.capture_pane.output/properties/content/properties/droppedBytes

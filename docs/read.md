@@ -30,8 +30,8 @@ does not contact tmux, refresh a handle or guess an endpoint. An uncaptured
 owner offers no tmux values. The suggestion comes from the earlier observation;
 the read command still checks current tmux state when you run it.
 
-Owners bind by their native type. An arbitrary object's `Server`, `Session`,
-or `Window` property does not bind automatically. Use `Where-Object` after
+Owners bind by their native type. Property names on an arbitrary object do
+not provide pipeline binding. Use `Where-Object` after
 acquisition for further local filtering. For reusable criteria, use
 [New-TmuxQuery](reference/LibTmux/New-TmuxQuery.md) and the local
 [Select-TmuxPane](reference/LibTmux/Select-TmuxPane.md),
@@ -49,12 +49,14 @@ version to inspect source evaluation, local residuals and fallback reasons
 before execution. Planning performs no I/O. The [query guide](query.md) walks
 through native filtering, reusable criteria, relationships and source plans.
 
-`Get-TmuxSnapshot` defaults to `-Depth Panes`. Shallower depths are `Server`,
-`Sessions`, and `Windows`. It returns a replacement graph and leaves the
-input handle and earlier snapshots unchanged. `SnapshotMetadata` records the
-depth, daemon generation, UTC start/end readings and monotonic `Elapsed` time.
-UTC can move backwards if the clock is adjusted; use `Elapsed` for duration.
-Even `-Depth Server` performs a fresh generation-guarded read.
+`Get-TmuxSnapshot` defaults to `-Depth Panes`. Shallower depths are
+[`Server`][snapshotdepth-server], [`Sessions`][snapshotdepth-sessions], and
+[`Windows`][snapshotdepth-windows]. It returns a replacement graph and leaves
+the input handle and earlier snapshots unchanged. `SnapshotMetadata` records the
+depth, daemon generation, UTC start/end readings and monotonic
+[`Elapsed`][snapshotmetadata-elapsed] time. UTC can move backwards if the clock
+is adjusted; use [`Elapsed`][snapshotmetadata-elapsed] for duration. Even
+`-Depth Server` performs a fresh generation-guarded read.
 
 Snapshot acquisition spans several tmux commands; it does not promise an
 atomic view. Contradictory parent, child-count or active-child observations
@@ -67,16 +69,18 @@ not captured raises `IncompleteSnapshotException`; a captured empty string
 or null retains that value.
 
 Captured children retain their root through `Server`. Parent properties return
-the captured instances when that depth is available. `ActiveWindow` and
-`ActivePane` return `CapturedValue<T>`: inspect `IsCaptured`, then read `Value`
-for the captured object. Reading an unavailable `Value` raises
-`IncompleteSnapshotException`; `OrNull()` explicitly opts into null instead.
-A pane's `Window` retains its session/index placement, including repeated
-links to the same window. `Window.LinkedSessions` contains each related session once.
-Filtering a collection changes only selected membership; traversing its
-parents still reaches their complete captured children. Active properties use
-the IDs from their own parent's row, so separate reads can record different
-selection states.
+the captured instances when that depth is available. `Session.ActiveWindow`,
+[`Session.ActivePane`][session-activepane] and
+[`Window.ActivePane`][window-activepane] return `CapturedValue<T>`: inspect
+[`IsCaptured`][capturedvalue-iscaptured], then read
+[`Value`][capturedvalue-value] for the captured object. Reading an unavailable
+[`Value`][capturedvalue-value] raises `IncompleteSnapshotException`; `OrNull()`
+explicitly opts into null instead. A pane's `Window` retains its session/index
+placement, including repeated links to the same window. `Window.LinkedSessions`
+contains each related session once. Filtering a collection changes only selected
+membership; traversing its parents still reaches their complete captured
+children. Active properties use the IDs from their own parent's row, so separate
+reads can record different selection states.
 
 `Update-TmuxPane` refreshes one pane's fields. Its parent navigation does not
 borrow captured data from an older graph, even when its `Server` names an older
@@ -88,14 +92,17 @@ they have not captured. The views distinguish that specific missing-field
 condition from other failures. Formatting and `Get-Member` use local data and
 remain usable after the daemon exits. They do not refresh objects.
 
-Read failures write an error for the affected owner, including an endpoint
-with no running server, then allow later pipeline owners to continue.
-Use `-ErrorAction Stop` to terminate instead. Error IDs are
-`Tmux.ConnectFailed`, `Tmux.SnapshotFailed`,
-`Tmux.SessionReadFailed`, `Tmux.WindowReadFailed`, and `Tmux.PaneReadFailed`.
-The error record retains the core exception and its dispatch metadata when
-the exception supplies it. Pipeline cancellation cancels the pending core
-operation; borrowed server handles do not own daemon lifetime.
+Read failures write an error for the affected owner, including an endpoint with
+no running server, then allow later pipeline owners to continue. Use
+`-ErrorAction Stop` to terminate instead. Error IDs are
+[`Tmux.ConnectFailed`][connecttmuxservercommand],
+[`Tmux.SnapshotFailed`][gettmuxsnapshotcommand],
+[`Tmux.SessionReadFailed`][gettmuxsessioncommand],
+[`Tmux.WindowReadFailed`][gettmuxwindowcommand], and
+[`Tmux.PaneReadFailed`][gettmuxpanecommand]. The error record retains the core
+exception and its dispatch metadata when the exception supplies it. Pipeline
+cancellation cancels the pending core operation; borrowed server handles do not
+own daemon lifetime.
 
 The [installed-module integration test](../tests/Read.Tests.ps1) executes
 typed pipelines, exact selection, shallow and replacement snapshots, and
@@ -107,3 +114,18 @@ captured objects and identity-only handles after daemon shutdown, including
 that formatting and member discovery start no tmux processes.
 The [completion integration test](../tests/Completion.Tests.ps1) checks Tab
 suggestions after teardown and verifies that completion starts no tmux client.
+
+[snapshotdepth-sessions]: https://libtmux.org/en/csharp/latest/reference/libtmux-snapshotdepth-sessions/
+[snapshotdepth-windows]: https://libtmux.org/en/csharp/latest/reference/libtmux-snapshotdepth-windows/
+[snapshotmetadata-elapsed]: https://libtmux.org/en/csharp/latest/reference/libtmux-snapshotmetadata-elapsed/
+[capturedvalue-iscaptured]: https://libtmux.org/en/csharp/latest/reference/libtmux-capturedvalue-iscaptured/
+[capturedvalue-value]: https://libtmux.org/en/csharp/latest/reference/libtmux-capturedvalue-value/
+[connecttmuxservercommand]: ../src/LibTmux.PowerShell/ConnectTmuxServerCommand.cs
+[gettmuxsnapshotcommand]: ../src/LibTmux.PowerShell/GetTmuxSnapshotCommand.cs
+[gettmuxsessioncommand]: ../src/LibTmux.PowerShell/GetTmuxSessionCommand.cs
+[gettmuxwindowcommand]: ../src/LibTmux.PowerShell/GetTmuxWindowCommand.cs
+[gettmuxpanecommand]: ../src/LibTmux.PowerShell/GetTmuxPaneCommand.cs
+
+[snapshotdepth-server]: https://libtmux.org/en/csharp/latest/reference/libtmux-snapshotdepth-server/
+[session-activepane]: https://libtmux.org/en/csharp/latest/reference/libtmux-session-activepane/
+[window-activepane]: https://libtmux.org/en/csharp/latest/reference/libtmux-window-activepane/

@@ -58,10 +58,12 @@ $pane | Remove-TmuxPane -Confirm:$false
 
 ## Errors and cancellation
 
-Failures retain the native owner and original core exception in the
-PowerShell error record. The stable error IDs are `Tmux.SessionRemoveFailed`,
-`Tmux.WindowRemoveFailed` and `Tmux.PaneRemoveFailed`. Core exceptions retain
-their available dispatch metadata. A missing target remains an error;
+Failures retain the native owner and original core exception in the PowerShell
+error record. The stable error IDs are
+[`Tmux.SessionRemoveFailed`][removetmuxsessioncommand],
+[`Tmux.WindowRemoveFailed`][removetmuxwindowcommand] and
+[`Tmux.PaneRemoveFailed`][removetmuxpanecommand]. Core exceptions retain their
+available dispatch metadata. A missing target remains an error;
 `-ErrorAction Continue` permits later pipeline targets to run, while
 `-ErrorAction Stop` stops before the next target.
 
@@ -75,3 +77,7 @@ The [installed removal test](../tests/Remove.Tests.ps1) checks previews,
 zero-output pipelines, per-owner errors, linked-window destruction, session
 sharing, last-pane cascades, isolated endpoints and real daemon replacement
 on owned tmux servers.
+
+[removetmuxsessioncommand]: ../src/LibTmux.PowerShell/RemoveTmuxSessionCommand.cs
+[removetmuxwindowcommand]: ../src/LibTmux.PowerShell/RemoveTmuxWindowCommand.cs
+[removetmuxpanecommand]: ../src/LibTmux.PowerShell/RemoveTmuxPaneCommand.cs

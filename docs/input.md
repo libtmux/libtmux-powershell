@@ -2,7 +2,8 @@
 
 Select a native pane using `Get-TmuxPane` on the endpoint you intend to
 change. Input commands use that pane's endpoint and daemon generation.
-An arbitrary object's `Id` or `Pane` property does not bind as an owner.
+Pipeline input must be a native `LibTmux.Pane`; an object with similarly
+named properties does not bind as an owner.
 
 | Command | Input | Enter behavior |
 | --- | --- | --- |
@@ -82,13 +83,15 @@ session:
 }
 ```
 
-The result's `ExitStatus` is 7 and `TimedOut` is False. `Output` contains
-bounded rendered command output, which can include both stdout and stderr.
-It is not a byte-exact stream. The default view omits output text; inspect
-`Output`, `LinesMissed`, `AnchorLost` and omission counts when needed.
-`Get-TmuxPaneContent` reads the current pane screen separately. On timeout or cancellation after dispatch, inspect the pane
-before retrying. The [cmdlet reference](reference/LibTmux/Invoke-TmuxPaneCommand.md)
-describes history suppression, validation and confirmation.
+The result's `ExitStatus` is 7 and [`TimedOut`][panerunresult-timedout] is
+False. `Output` contains bounded rendered command output, which can include both
+stdout and stderr. It is not a byte-exact stream. The default view omits output
+text; inspect `Output`, [`LinesMissed`][panerunresult-linesmissed],
+[`AnchorLost`][panerunresult-anchorlost] and omission counts when needed.
+`Get-TmuxPaneContent` reads the current pane screen separately. On timeout or
+cancellation after dispatch, inspect the pane before retrying. The
+[cmdlet reference](reference/LibTmux/Invoke-TmuxPaneCommand.md) describes
+history suppression, validation and confirmation.
 
 ## Wait for an application's readiness line
 
@@ -134,22 +137,24 @@ The observation is `PresentAtEntry` or `Matched`, followed by HTTP status 200.
 The wait owns and closes its control client; it leaves the pane and daemon
 running. The example separately owns its session and removes it.
 
-Patterns use bounded .NET regular expressions and ignore case by default.
-Use `-SimpleMatch` for literal text, `-CaseSensitive` for case-sensitive
-matching, and `-StopPattern` for a terminal failure line. Stop patterns take
-priority over wanted patterns. Without `-Pattern`, the wait returns on new
-output. `TimedOut` and `PaneExited` are result outcomes; transport failures
-and invalid patterns are errors. Ctrl+C cancels observation, not the
+Patterns use bounded .NET regular expressions and ignore case by default. Use
+`-SimpleMatch` for literal text, `-CaseSensitive` for case-sensitive matching,
+and `-StopPattern` for a terminal failure line. Stop patterns take priority over
+wanted patterns. Without `-Pattern`, the wait returns on new output.
+[`TimedOut`][panewaitoutcome-timedout] and
+[`PaneExited`][panewaitoutcome-paneexited] are result outcomes; transport
+failures and invalid patterns are errors. Ctrl+C cancels observation, not the
 application. `-AllowPollingFallback` explicitly permits polling if control
 observation fails; `PollingFallback` and `EventsDropped` disclose degradation.
 
 Rendered text can include echoed input and can disappear on repaint or
-scrollback eviction. A match proves the text condition, not an exit status
-or continuing service health. The HTTP request above checks service behavior
-separately. Inspect `LinesMissed`, `AnchorLost`, `OmittedTailLines` and
-`OmittedTailBytes` before treating the bounded tail as complete output.
-Use [command completion](#run-a-command-to-completion) for an authenticated
-exit status and [event streams](watch.md) for individual notifications.
+scrollback eviction. A match proves the text condition, not an exit status or
+continuing service health. The HTTP request above checks service behavior
+separately. Inspect [`LinesMissed`][panewaitresult-linesmissed],
+[`AnchorLost`][panewaitresult-anchorlost], `OmittedTailLines` and
+`OmittedTailBytes` before treating the bounded tail as complete output. Use
+[command completion](#run-a-command-to-completion) for an authenticated exit
+status and [event streams](watch.md) for individual notifications.
 
 ## Send a command and wait for its output
 
@@ -197,3 +202,11 @@ The example removes its `input-demo` session in `finally`.
 `Send-TmuxKey` sends key tokens such as `C-c` or `Enter`; `Send-TmuxText`
 sends those characters literally. Mutation commands also support `-WhatIf`
 and `-Confirm`. See [capturing output](capture.md).
+
+[panerunresult-timedout]: https://libtmux.org/en/csharp/latest/reference/libtmux-panerunresult-timedout/
+[panerunresult-linesmissed]: https://libtmux.org/en/csharp/latest/reference/libtmux-panerunresult-linesmissed/
+[panerunresult-anchorlost]: https://libtmux.org/en/csharp/latest/reference/libtmux-panerunresult-anchorlost/
+[panewaitoutcome-timedout]: https://libtmux.org/en/csharp/latest/reference/libtmux-panewaitoutcome-timedout/
+[panewaitoutcome-paneexited]: https://libtmux.org/en/csharp/latest/reference/libtmux-panewaitoutcome-paneexited/
+[panewaitresult-linesmissed]: https://libtmux.org/en/csharp/latest/reference/libtmux-panewaitresult-linesmissed/
+[panewaitresult-anchorlost]: https://libtmux.org/en/csharp/latest/reference/libtmux-panewaitresult-anchorlost/

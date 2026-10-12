@@ -284,6 +284,74 @@ both import orders, module-qualified calls, native types, reimport, no-tmux
 imports and assembly conflicts. Fixture checks are integration tests.
 The complete platform, example and API suites are not established yet.
 
+## Documentation API export
+
+Run `eng/Setup.ps1` to install the pinned PlatyPS tool before exporting.
+The exporter reads authored prose, links, defaults, and examples with PlatyPS
+in a separate process, then combines them with packaged help and native
+command metadata. Website exports retain inline code, Markdown links, and
+keyboard-key markup. Packaged MAML uses plain prose for `Get-Help` and keeps
+its related links; it does not change the displayed executable examples.
+
+Export the public command surface from a committed source checkout:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Export-Docs.ps1 \
+    -Restore
+```
+
+The exporter rebuilds both modules and writes `build/docs/api.json`. It
+compares the manifest exports with native command discovery and packaged
+MAML help. Each command retains its parameter sets, pipeline binding,
+validation, confirmation behavior, input/output types, examples and source
+locations. Roslyn reads declarations and initializers without executing
+them. The artifact records the source revision, input hashes and tool
+versions; changed API or help sources fail extraction.
+
+Omit `-Restore` after the locked dependencies have been restored. Use
+`-SourceRoot` to extract another committed checkout with this exporter,
+and `-OutputPath` to select another artifact destination. The exporter hash
+identifies the tooling independently of the selected API source.
+Run the contract check:
+
+```console
+$ pwsh -NoLogo -NoProfile -File tests/DocsExport.Tests.ps1
+```
+
+This checks extraction fidelity, including a missing-parameter-set negative
+control. It does not execute the documented examples or establish that the
+website has rendered or published the artifact.
+
+The Linux build job runs the exporter and contract check after native help
+validation. It saves `powershell-docs-api` as a separate CI artifact before
+packing the modules. Website previews and publication use the shared
+documentation workflow and retain their own source and tooling provenance.
+
+## Website publication
+
+The [docs workflow](workflows/docs.yml) builds the selected source with the
+shared libtmux.org workflow. Keep its build and publisher references pinned
+to the same full commit in `libtmux/docs`. The native exporter comes from the
+calling workflow's tested commit; its provenance stays separate from the
+selected source revision.
+
+A `master` push publishes `/en/powershell/latest/`. A `v*` release tag
+publishes its version plus `next` for prereleases or `stable` for releases.
+Same-repository pull requests publish `/en/powershell/pr-N/` from the tested
+merge commit. Before publishing, the workflow checks that the PR is still
+open in this repository and its current head and merge match the tested
+revision. Fork pull requests build without publishing. Closing a pull
+request deletes only its preview prefix, after confirming it is still
+closed. Cleanup shares the build and publication queue; rerunning an old
+closed event cannot delete a reopened PR's preview.
+
+To rebuild an existing revision, dispatch `docs.yml` from `master`. Set
+`source-ref`, `version`, `version-kind`, `is-default`, `resolves-to`, and
+`publish`. Use `resolves-to` only for an alias. Leave `publish` false for a
+build-only check. An immutable version must still identify its original
+source and package version. Inspect the build provenance and hosted page
+after publishing; a successful native export alone is not publication proof.
+
 ## Gallery releases
 
 The [release workflow](workflows/release.yml) publishes the two module

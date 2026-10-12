@@ -73,6 +73,19 @@ jobs:
             --verify-no-changes --no-restore
           git diff --check
 
+      - name: Verify native documentation export
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Export-Docs.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/DocsExport.Tests.ps1
+
+      - name: Preserve native documentation artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: powershell-docs-api
+          path: build/docs/api.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Pack the modules once for every test lane
         run: |
           PSModulePath="${GITHUB_WORKSPACE}/build/Modules" \

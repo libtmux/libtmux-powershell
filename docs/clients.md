@@ -8,8 +8,9 @@ Read the terminal and control clients already attached to a selected native
 $server | Get-TmuxClient
 ```
 
-Results are native `Client` objects with `Name`, `Tty`, `IsControlClient`,
-`AttachedSessionId` and `Generation`. `-Name` selects an exact, case-sensitive
+Results are native `Client` objects with [`Name`][client-name],
+[`Tty`][client-tty], `IsControlClient`, `AttachedSessionId` and
+[`Generation`][client-generation]. `-Name` selects an exact, case-sensitive
 name; it does not interpret wildcards. No clients or no match produces no
 objects. An unavailable server produces an error.
 
@@ -39,3 +40,7 @@ Transport failures remain errors, not empty results.
 These commands only inspect clients. Detachment, locking and suspension
 remain available through explicit raw tmux commands. Closing or removing a
 client must not be confused with removing its session or daemon.
+
+[client-name]: https://libtmux.org/en/csharp/latest/reference/libtmux-client-name/
+[client-tty]: https://libtmux.org/en/csharp/latest/reference/libtmux-client-tty/
+[client-generation]: https://libtmux.org/en/csharp/latest/reference/libtmux-client-generation/

@@ -47,23 +47,23 @@ wait channel or control event before asserting captured results.
 
 | Switch | Effect |
 | --- | --- |
-| `JoinWrappedLines` | Join lines that wrapped on screen; tmux applies this in place of trailing-space handling. |
-| `EscapeSequences` | Include terminal escape sequences representing captured attributes. |
-| `EscapeNonPrintable` | Represent nonprintable bytes with octal escapes. |
-| `PreserveTrailingSpaces` | Retain trailing spaces. |
-| `TrimTrailingSpaces` | Request tmux's trailing-space trimming behavior. |
-| `AlternateScreen` | Capture the alternate screen. |
-| `Quiet` | Return empty content when an alternate screen is absent; other failures remain errors. |
-| `ModeScreen` | Capture a mode screen, such as copy mode. |
-| `Pending` | Capture an incomplete pending escape sequence. |
-| `Hyperlinks` | Include supported hyperlink capture metadata. |
-| `LineNumbers` | Include supported line-number metadata. |
-| `LineFlags` | Include supported line-flag metadata. |
+| [`JoinWrappedLines`][-joinwrappedlines] | Join lines that wrapped on screen; tmux applies this in place of trailing-space handling. |
+| [`EscapeSequences`][-escapesequences] | Include terminal escape sequences representing captured attributes. |
+| [`EscapeNonPrintable`][-escapenonprintable] | Represent nonprintable bytes with octal escapes. |
+| [`PreserveTrailingSpaces`][-preservetrailingspaces] | Retain trailing spaces. |
+| [`TrimTrailingSpaces`][-trimtrailingspaces] | Request tmux's trailing-space trimming behavior. |
+| [`AlternateScreen`][-alternatescreen] | Capture the alternate screen. |
+| [`Quiet`][-quiet] | Return empty content when an alternate screen is absent; other failures remain errors. |
+| [`ModeScreen`][-modescreen] | Capture a mode screen, such as copy mode. |
+| [`Pending`][-pending] | Capture an incomplete pending escape sequence. |
+| [`Hyperlinks`][-hyperlinks] | Include supported hyperlink capture metadata. |
+| [`LineNumbers`][-linenumbers] | Include supported line-number metadata. |
+| [`LineFlags`][-lineflags] | Include supported line-flag metadata. |
 
 `-PreserveTrailingSpaces` and `-TrimTrailingSpaces` together terminate with
-`Tmux.InvalidCapture` before dispatch. Version-dependent switches retain the
-core's capability policy; availability depends on the tmux version and the
-core connection's configuration.
+[`Tmux.InvalidCapture`][gettmuxpanecontentcommand] before dispatch.
+Version-dependent switches retain the core's capability policy; availability
+depends on the tmux version and the core connection's configuration.
 
 ## Refresh captured metadata
 
@@ -127,10 +127,11 @@ commands change the pane's mode, so leave it explicitly with
 
 Empty non-command arguments are preserved. The first argument must name a
 command or alias. An empty, whitespace or leading-option argument terminates
-with `Tmux.InvalidCommand` before confirmation or dispatch. Select the socket
-on the server handle; global options such as `-S`, `-L` and `-f` cannot replace
-the command name. Arbitrary `Id` or `Server` object properties do not bind as
-an endpoint.
+with [`Tmux.InvalidCommand`][invoketmuxcommandcommand] before confirmation or
+dispatch. Select the socket on the server handle; global options such as `-S`,
+`-L` and `-f` cannot replace the command name. Pipeline input must be a native
+`LibTmux.Server`; an object with similarly named properties does not bind as an
+endpoint.
 
 Raw commands can mutate tmux or execute shell work. They always support
 `-WhatIf` and `-Confirm`, including for commands the caller knows are reads.
@@ -143,19 +144,36 @@ $server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf
 ```
 
 Successful execution emits a native `LibTmux.TmuxCommandResult` with exit code,
-logical arguments, stdout/stderr bytes and projected lines. A nonzero exit
-emits no success result and writes `Tmux.CommandFailed`. Its original
-`TmuxCommandException.Result` retains those diagnostics, and its `Dispatch`
-is `Dispatched`. Transport failures preserve their original exception and
-dispatch uncertainty. No mutation is automatically retried.
+logical arguments, stdout/stderr bytes and projected lines. A nonzero exit emits
+no success result and writes [`Tmux.CommandFailed`][invoketmuxcommandcommand].
+Its original `TmuxCommandException.Result` retains those diagnostics, and its
+`Dispatch` is `Dispatched`. Transport failures preserve their original exception
+and dispatch uncertainty. No mutation is automatically retried.
 
-Capture and refresh failures use `Tmux.PaneCaptureFailed` and
-`Tmux.PaneRefreshFailed`. Each error retains the failed owner, allowing later
-pipeline owners to continue unless `-ErrorAction Stop` is selected.
-Cancellation uses the same core token and pipeline lifecycle as the read
-cmdlets; it does not imply rollback or termination of shell work.
+Capture and refresh failures use
+[`Tmux.PaneCaptureFailed`][gettmuxpanecontentcommand] and
+[`Tmux.PaneRefreshFailed`][updatetmuxpanecommand]. Each error retains the failed
+owner, allowing later pipeline owners to continue unless `-ErrorAction Stop` is
+selected. Cancellation uses the same core token and pipeline lifecycle as the
+read cmdlets; it does not imply rollback or termination of shell work.
 
 The [capture integration test](../tests/Capture.Tests.ps1) exercises these
 contracts against an owned daemon with explicit output readiness, literal
 argument round trips, error results, refresh replacement and zero-dispatch
 `-WhatIf`. It owns its sockets, child processes and temporary files.
+
+[-joinwrappedlines]: reference/LibTmux/Get-TmuxPaneContent.md#-joinwrappedlines
+[-escapesequences]: reference/LibTmux/Get-TmuxPaneContent.md#-escapesequences
+[-alternatescreen]: reference/LibTmux/Get-TmuxPaneContent.md#-alternatescreen
+[-quiet]: reference/LibTmux/Get-TmuxPaneContent.md#-quiet
+[gettmuxpanecontentcommand]: ../src/LibTmux.PowerShell/GetTmuxPaneContentCommand.cs
+[invoketmuxcommandcommand]: ../src/LibTmux.PowerShell/InvokeTmuxCommandCommand.cs
+[updatetmuxpanecommand]: ../src/LibTmux.PowerShell/UpdateTmuxPaneCommand.cs
+[-escapenonprintable]: reference/LibTmux/Get-TmuxPaneContent.md#-escapenonprintable
+[-preservetrailingspaces]: reference/LibTmux/Get-TmuxPaneContent.md#-preservetrailingspaces
+[-trimtrailingspaces]: reference/LibTmux/Get-TmuxPaneContent.md#-trimtrailingspaces
+[-modescreen]: reference/LibTmux/Get-TmuxPaneContent.md#-modescreen
+[-pending]: reference/LibTmux/Get-TmuxPaneContent.md#-pending
+[-hyperlinks]: reference/LibTmux/Get-TmuxPaneContent.md#-hyperlinks
+[-linenumbers]: reference/LibTmux/Get-TmuxPaneContent.md#-linenumbers
+[-lineflags]: reference/LibTmux/Get-TmuxPaneContent.md#-lineflags

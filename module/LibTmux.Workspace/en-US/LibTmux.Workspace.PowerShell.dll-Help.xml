@@ -22,7 +22,7 @@ a captured null pane directory remains unspecified rather than using the host's
 current directory.
 
 Captured directories become unresolved declaration values with literal dollars
-escaped as `$$`. DocumentDirectory remains null. Use Resolve-TmuxWorkspace with
+escaped as $$. DocumentDirectory remains null. Use Resolve-TmuxWorkspace with
 an explicit BaseDirectory before planning, or convert the declaration to YAML
 or JSON and resolve it after importing. Do not interpret those escaped values
 as already resolved filesystem paths.
@@ -151,7 +151,7 @@ environment and commands at every declaration level. It does not expand
 command text or inherit local defaults into children.
 
 Resolved directories and option values contain literal text. Conversion
-escapes their dollar signs as `$$` so export, import and a later explicit
+escapes their dollar signs as $$ so export, import and a later explicit
 Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
 remain unchanged.
 DocumentDirectory is resolution provenance and is omitted from the text;
@@ -273,7 +273,7 @@ environment and commands at every declaration level. It does not expand
 command text or inherit local defaults into children.
 
 Resolved directories and option values contain literal text. Conversion
-escapes their dollar signs as `$$` so export, import and a later explicit
+escapes their dollar signs as $$ so export, import and a later explicit
 Resolve-TmuxWorkspace keep the same values. Unresolved variable expressions
 remain unchanged.
 DocumentDirectory is resolution provenance and is omitted from the text;
@@ -1044,7 +1044,7 @@ Parsing does not start tmux, execute host scripts or expand paths and variables.
 Resolve-TmuxWorkspace supplies an explicit document base and allowed variables.
 Test-TmuxWorkspace checks declaration completeness and execution policy.
 
-A window can set `window_index` to a nonnegative session-relative index. Omit
+A window can set window_index to a nonnegative session-relative index. Omit
 it for tmux's next free index. Duplicate requested indexes fail validation;
 an index already occupied in the session fails during application.</maml:para>
     </maml:description>
