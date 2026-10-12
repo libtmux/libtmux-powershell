@@ -126,8 +126,9 @@ Change it in all of them together.
 ### What never breaks
 
 - **Output a test compares.** Wrapping it changes what the test expects.
-- **A block copied from a source file.** Fix the width in the source and run
-  the sync command; never edit the copy.
+- **A block copied from a source file.** Fix the width in the source, then
+  refresh the copy with the sync command the port block names, or by hand
+  where it names none; never fix the copy alone.
 - **Marker lines and URLs,** which tools and readers take whole.
 
 <!-- /shared:examples -->
