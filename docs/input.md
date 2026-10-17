@@ -99,8 +99,9 @@ history suppression, validation and confirmation.
 ## Wait for an application's readiness line
 
 Use [Wait-TmuxPaneText](reference/LibTmux/Wait-TmuxPaneText.md) when an
-application reports readiness in its terminal output. It needs tmux 3.7 or
-newer and is refused on an older daemon before a control client attaches. It observes rendered
+application reports readiness in its terminal output. On tmux 3.7 or newer it observes through a control client; on an older
+daemon it polls `capture-pane`, which can miss text that scrolls past
+between polls. It observes rendered
 text through a temporary control client, checks text already visible at entry,
 then wakes on output or layout changes. It returns a native
 `LibTmux.PaneWaitResult`; it does not require a cooperative tmux channel.

@@ -264,8 +264,8 @@ when the application can signal completion itself.
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
 `Invoke-TmuxPaneCommand` needs tmux 3.4 or newer. `Connect-TmuxControl`,
-`Watch-TmuxEvent` with a server and `Wait-TmuxPaneText` need tmux 3.7 or
-newer. Each is refused on an older daemon before it changes anything; see
+`Watch-TmuxEvent` with a server need tmux 3.7 or newer; `Wait-TmuxPaneText`
+polls below 3.7. Each is refused on an older daemon before it changes anything; see
 [optional features](docs/compatibility.md#optional-features).
 
 Connect once to send a command through tmux control mode. This example uses

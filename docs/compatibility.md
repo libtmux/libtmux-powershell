@@ -78,7 +78,8 @@ reads, writes, raw commands and workspaces stays tmux 3.3a.
 
 | Feature | Needs | Below that release |
 | --- | --- | --- |
-| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server, `Wait-TmuxPaneText` | 3.7 | Refused before a control client attaches. Short-lived control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. `Wait-TmuxPaneText` has no polling path here. |
+| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. Control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. |
+| `Wait-TmuxPaneText` | 3.3a (control from 3.7) | Below 3.7 it polls `capture-pane` every 100 ms and attaches nothing. It sees rendered rows, so text that scrolls past between polls can be missed, and its result carries the outcome, pattern and elapsed time only. |
 | `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a temporary named buffer. Before 3.4, deleting a missing buffer by name removes an unrelated one. |
 | Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. |
 | Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
