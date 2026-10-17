@@ -69,8 +69,13 @@ internal static class TmuxFeatures
 
     private static readonly TimeSpan BinaryTimeout = TimeSpan.FromSeconds(10);
 
+    // The daemon version a connection was acquired under. A connection another caller opened has none:
+    // tmux offers no hook-free probe over control mode, so such a connection is not checked.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IControlModeSession, object> ConnectionVersions = new();
+
     /// <summary>Refuses a control client below 3.7 before any attach.</summary>
-    internal static async Task RequireControlAsync(Server server, string operation, CancellationToken cancellationToken)
+    /// <returns>The version the client will attach to.</returns>
+    internal static async Task<TmuxVersion> RequireControlAsync(Server server, string operation, CancellationToken cancellationToken)
     {
         TmuxVersion version = await VersionAsync(server, cancellationToken).ConfigureAwait(false);
         if (version >= LibTmuxInfo.MinimumTmuxVersion && version < Control)
@@ -81,7 +86,19 @@ internal static class TmuxFeatures
                 Control,
                 version);
         }
+
+        return version;
     }
+
+    /// <summary>Records the daemon version a control connection was acquired under.</summary>
+    internal static void Remember(IControlModeSession connection, TmuxVersion version) =>
+        ConnectionVersions.AddOrUpdate(connection, version);
+
+    /// <summary>Checks a literal command about to be sent over a connection whose daemon version is known.</summary>
+    internal static Task CheckConnectionCommandAsync(IControlModeSession connection, TmuxCommand command, CancellationToken cancellationToken) =>
+        ConnectionVersions.TryGetValue(connection, out object? version)
+            ? CheckCommandsAsync(_ => Task.FromResult((TmuxVersion)version), [command], cancellationToken)
+            : Task.CompletedTask;
 
     /// <summary>Refuses an operation that stages a named buffer it must delete again below 3.4.</summary>
     internal static async Task RequireNamedBuffersAsync(Server server, string operation, CancellationToken cancellationToken)
