@@ -128,6 +128,15 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
                 throw 'Send-TmuxKey native help lost readable key and error descriptions.'
             }
         }
+        if ($module -ceq 'LibTmux' -and $command.Name -ceq 'New-TmuxServer') {
+            # The server overview is the module's map: it names every cmdlet as plain text.
+            $prose = @($help.description.Text) -join "`n"
+            $unlisted = @(Get-Command -Module $module | Where-Object {
+                $prose -cnotmatch "(?<![\w-])$([regex]::Escape($_.Name))(?![\w-])"
+            } | ForEach-Object Name)
+            if ($prose -match '\*\*|`') { throw 'New-TmuxServer native help kept Markdown markers.' }
+            if ($unlisted.Count) { throw "New-TmuxServer native help omits: $($unlisted -join ', ')." }
+        }
         $expected = @($command.Parameters.Values | Where-Object {
             $_.Name -notin [Management.Automation.PSCmdlet]::CommonParameters
         })
