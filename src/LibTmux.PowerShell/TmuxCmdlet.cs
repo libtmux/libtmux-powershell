@@ -10,6 +10,16 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     private bool cancellationInProgress;
     private bool stopped;
 
+    /// <summary>Refuses a session or window name that the endpoint's daemon rejects.</summary>
+    /// <param name="server">The endpoint that would receive the name.</param>
+    /// <param name="kind">The kind of object named, for the error text.</param>
+    /// <param name="name">The name an operation is about to send.</param>
+    /// <param name="cancellationToken">Cancels the version read.</param>
+    /// <returns>A task that completes when the name is acceptable.</returns>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    protected static Task RejectUnsendableNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken) =>
+        TmuxFeatures.RequireNameAsync(server, kind, name, cancellationToken);
+
     /// <summary>Waits for a core operation and writes its completed result.</summary>
     /// <typeparam name="T">The core result type.</typeparam>
     /// <param name="operation">The cancellable core operation.</param>

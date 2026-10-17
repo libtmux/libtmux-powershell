@@ -33,8 +33,23 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
             + DescribeActions(plan.CompensationActions);
         if (ShouldProcess($"{endpoint.TmuxBinaryPath} at {socket} session '{plan.SessionName}'", action))
         {
-            ReadResult(token => new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token),
-                "Tmux.WorkspaceApplyFailed", plan);
+            ReadResult(async token =>
+            {
+                // Refuse before the first action creates anything. The package refuses a
+                // session name with ':' or '.' itself, so only window names are left to check.
+                foreach (WorkspaceAction step in plan.Actions)
+                {
+                    string? window = step switch
+                    {
+                        WorkspaceAction<NewSessionRequest> session => session.Request.WindowName,
+                        WorkspaceAction<NewWindowRequest> created => created.Request.Name,
+                        _ => null,
+                    };
+                    await RejectUnsendableNameAsync(plan.Endpoint, "window", window, token).ConfigureAwait(false);
+                }
+
+                return await new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token).ConfigureAwait(false);
+            }, "Tmux.WorkspaceApplyFailed", plan);
         }
     }
 
