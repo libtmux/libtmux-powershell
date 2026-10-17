@@ -32,6 +32,8 @@ public sealed class RuntimeProbeState : IDisposable
     }
 }
 
+// The fenced case runs no tmux; the native case names its server through Server.
+[TmuxVersionCheckExempt("the fenced case dispatches nothing")]
 [Cmdlet(VerbsDiagnostic.Test, "TmuxRuntimeProbe")]
 public sealed class RuntimeProbeCommand : TmuxCmdlet
 {
@@ -40,6 +42,8 @@ public sealed class RuntimeProbeCommand : TmuxCmdlet
 
     [Parameter]
     public Server Server { get; set; }
+
+    protected override Server ResolveServer(object target) => target as Server;
 
     protected override void BeginProcessing()
     {
