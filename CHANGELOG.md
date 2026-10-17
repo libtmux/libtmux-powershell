@@ -15,6 +15,19 @@ connection opened elsewhere is checked before it carries a command, and
 `Invoke-TmuxCommand kill-server` against an endpoint with no daemon is a
 no-op. (#21)
 
+### Optional features
+
+- Refuse features that need a newer tmux release for that cmdlet alone,
+  before anything is sent, with `TmuxVersionTooLowException`: control clients
+  (`Connect-TmuxControl`, `Watch-TmuxEvent` with a server and
+  `Wait-TmuxPaneText`) need tmux 3.7, because short-lived control attaches
+  crash older servers;
+  `Invoke-TmuxPaneCommand` and literal `delete-buffer -b` and
+  `set-buffer -b -n` items need 3.4. Exactly 3.7 refuses `break-pane`
+  without a name and `:` or `.` in session and window names, and exactly
+  3.4 refuses `split-window -p`. Everything else stays available from
+  3.3a. (#18)
+
 ## 0.1.0-alpha2 - 2026-10-10
 
 ### Documentation
