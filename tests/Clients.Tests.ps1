@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1')
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-Client([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Clients: $Message" }
@@ -24,6 +25,12 @@ Invoke-WithOwnedTmux {
     $session = $server | LibTmux\Get-TmuxSession -Name 'fixture'
     $other = $server | LibTmux\New-TmuxSession -Name 'other' -Command 'exec /bin/cat'
     Register-OwnedTmuxPane $fixture
+    if (-not (Test-TmuxFeature Control)) {
+        # The only client this suite can create is a control client; Features.Tests.ps1 asserts the refusal.
+        Write-FeatureSkip 'clients live discovery' Control
+        return
+    }
+
     $control = $server.EnterControlModeAsync($session.Id.ToString()).GetAwaiter().GetResult()
     try {
         $rows = @($server | LibTmux\Get-TmuxClient)
@@ -50,4 +57,8 @@ Invoke-WithOwnedTmux {
         [object]::ReferenceEquals($errors[0].TargetObject, $client)) 'disappeared client lost native error or target'
     Assert-Client (@($server | LibTmux\Get-TmuxSession).Count -eq 2) 'client cleanup removed the daemon or sessions'
 }
-'PASS clients: typed discovery, literal names, live attachment, captured replacement, disappearance and cleanup'
+if (Test-TmuxFeature Control) {
+    'PASS clients: typed discovery, literal names, live attachment, captured replacement, disappearance and cleanup'
+} else {
+    'PASS clients: empty pipelines and no-client discovery (live client discovery SKIPPED)'
+}

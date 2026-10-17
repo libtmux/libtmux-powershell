@@ -150,6 +150,13 @@ try {
 }
 
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
+if (-not (Test-TmuxFeature Control)) {
+    # Features.Tests.ps1 asserts that Watch-TmuxEvent is refused here before any control client attaches.
+    Write-FeatureSkip 'watch live daemon sections' Control
+    return
+}
+
 Invoke-WithOwnedTmux {
     param($fixture)
     $byteOptions = [LibTmux.ServerConnectionOptions] @{
