@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 namespace LibTmux.PowerShell;
 
 /// <summary>Runs one native command on an explicit control connection.</summary>
+[TmuxVersionCheckExempt("sends over a connection the caller already acquired")]
 [Cmdlet(VerbsLifecycle.Invoke, "TmuxControlCommand", SupportsShouldProcess = true)]
 [OutputType(typeof(string))]
 [UnsupportedOSPlatform("windows")]
@@ -18,6 +19,11 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
     [Parameter(Mandatory = true, Position = 1)]
     [ValidateNotNull]
     public TmuxCommand Command { get; set; } = null!;
+
+    /// <summary>Gets or sets the endpoint of a connection that was not opened by Connect-TmuxControl.</summary>
+    [Parameter]
+    [ValidateNotNull]
+    public Server? Server { get; set; }
 
     /// <inheritdoc />
     protected override void BeginProcessing()
@@ -37,7 +43,11 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
     {
         if (ShouldProcess("supplied tmux control connection", $"Run tmux command {Command.Name}"))
         {
-            ReadResult(token => Connection.SendAsync(Command, token), "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
+            ReadResult(token =>
+            {
+                CheckConnection(Connection, Server, token);
+                return Connection.SendAsync(Command, token);
+            }, "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
         }
     }
 }

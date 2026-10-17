@@ -5,6 +5,7 @@ using LibTmux.PowerShell;
 namespace LibTmux.Workspace.PowerShell;
 
 /// <summary>Discovers declaration files without loading tmux sessions.</summary>
+[TmuxVersionCheckExempt("discovers declaration files")]
 [Cmdlet(VerbsCommon.Get, "TmuxWorkspace", DefaultParameterSetName = "Discover")]
 [OutputType(typeof(FileInfo))]
 public sealed class GetTmuxWorkspaceCommand : TmuxCmdlet

@@ -6,6 +6,7 @@ using LibTmux.PowerShell;
 namespace LibTmux.Workspace.PowerShell;
 
 /// <summary>Resolves workspace directories against an explicit base and variable map.</summary>
+[TmuxVersionCheckExempt("resolves a declaration in memory")]
 [Cmdlet(VerbsDiagnostic.Resolve, "TmuxWorkspace", DefaultParameterSetName = "Workspace")]
 [OutputType(typeof(WorkspaceFile))]
 public sealed class ResolveTmuxWorkspaceCommand : TmuxCmdlet

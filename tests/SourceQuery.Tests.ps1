@@ -195,7 +195,7 @@ exec $quotedTmux "`$@"
         $errors[0].Exception -is [LibTmux.UnsupportedQueryExpressionException] -and
         $dispatch.Contains('display-message') -and !$dispatch.Contains('list-')) 'document Require did not stop after explicit inspection and before capture'
 
-    $wrongVersion = [LibTmux.TmuxVersion]::Parse($(if ($version.Raw -ceq '3.2a') { '3.7c' } else { '3.2a' }))
+    $wrongVersion = [LibTmux.TmuxVersion]::Parse($(if ($version.Raw -ceq '3.3a') { '3.7c' } else { '3.3a' }))
     $wrongPlan = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $wrongVersion
     $errors = @()
     $failedRows = @($server | Invoke-TmuxQuery -Plan $wrongPlan -ErrorAction Continue -ErrorVariable errors 2>$null)

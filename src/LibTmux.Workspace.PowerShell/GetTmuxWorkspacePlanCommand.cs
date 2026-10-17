@@ -79,6 +79,9 @@ public sealed class GetTmuxWorkspacePlanCommand : TmuxCmdlet
     }
 
     /// <inheritdoc />
+    protected override Server? ResolveServer(object target) => Server;
+
+    /// <inheritdoc />
     protected override void ProcessRecord() =>
         ReadResult(token => new WorkspaceBuilder(Server).PlanAsync(Workspace, policy, token),
             "Tmux.WorkspacePlanFailed", Workspace);

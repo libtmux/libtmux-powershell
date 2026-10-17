@@ -504,6 +504,16 @@ default tmux server or sweep another port's temporary files.
 Record the actual tmux version when behavior depends on it. A passing subset
 does not establish support for an entire version range.
 
+The supported matrix starts at tmux 3.3a. The version check suite also runs on
+releases below it, where it asserts refusal with no effects. Run it against
+the tmux first on `PATH`:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite VersionCheck \
+    -PackageRoot "$PACKAGE_ROOT"
+```
+
 ## Pull requests
 
 Keep one subject per pull request and one logical change per commit. Review

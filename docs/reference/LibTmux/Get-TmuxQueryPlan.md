@@ -43,11 +43,11 @@ source evaluation does not reduce the captured rows.
 
 ### Example 1
 
-Prepare an exact pane-ID query for tmux 3.2a without opening a connection.
+Prepare an exact pane-ID query for tmux 3.3a without opening a connection.
 Use the observed daemon version when preparing a plan for execution.
 
 ```powershell
-$version = [LibTmux.TmuxVersion]::Parse('3.2a')
+$version = [LibTmux.TmuxVersion]::Parse('3.3a')
 LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
     LibTmux\Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
 ```

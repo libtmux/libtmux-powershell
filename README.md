@@ -38,9 +38,10 @@ and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Works
 
 ## Install
 
-Use PowerShell 7.4 or later with tmux on the same Linux host. On Windows,
-run both inside WSL. PowerShell 7.4 includes the PSResourceGet commands below;
-see [compatibility](docs/compatibility.md) for the support contract.
+Use PowerShell 7.4 or later with tmux 3.3a or newer on the same Linux host.
+On Windows, run both inside WSL. PowerShell 7.4 includes the PSResourceGet
+commands below; see [compatibility](docs/compatibility.md) for the support
+contract.
 
 Run these commands in PowerShell. Install the core module for sessions,
 windows, panes, snapshots, input and capture:

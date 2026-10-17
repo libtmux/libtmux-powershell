@@ -5,6 +5,7 @@ using LibTmux.Query;
 namespace LibTmux.PowerShell;
 
 /// <summary>Filters captured native window placements without contacting tmux.</summary>
+[TmuxVersionCheckExempt("selects from objects already in memory")]
 [Cmdlet(VerbsCommon.Select, "TmuxWindow", DefaultParameterSetName = "Criteria")]
 [OutputType(typeof(Window))]
 public sealed class SelectTmuxWindowCommand : TmuxCmdlet

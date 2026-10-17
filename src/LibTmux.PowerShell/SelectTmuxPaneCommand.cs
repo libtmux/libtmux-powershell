@@ -5,6 +5,7 @@ using LibTmux.Query;
 namespace LibTmux.PowerShell;
 
 /// <summary>Filters captured native panes without contacting tmux.</summary>
+[TmuxVersionCheckExempt("selects from objects already in memory")]
 [Cmdlet(VerbsCommon.Select, "TmuxPane", DefaultParameterSetName = "Criteria")]
 [OutputType(typeof(Pane))]
 public sealed class SelectTmuxPaneCommand : TmuxCmdlet

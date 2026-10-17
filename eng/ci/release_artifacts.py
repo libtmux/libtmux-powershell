@@ -13,10 +13,26 @@ REPOSITORY = "libtmux/libtmux-powershell"
 WORKFLOW = ".github/workflows/ci.yml"
 JOBS = {
     "build and pack PowerShell modules",
-    "PowerShell 7.4.20 / tmux 3.2a",
+    "PowerShell 7.4.20 / tmux 3.3a",
+    "PowerShell 7.4.20 / tmux 3.4",
+    "PowerShell 7.4.20 / tmux 3.5",
+    "PowerShell 7.4.20 / tmux 3.6",
+    "PowerShell 7.4.20 / tmux 3.7a",
+    "PowerShell 7.4.20 / tmux 3.7b",
     "PowerShell 7.4.20 / tmux 3.7c",
-    "PowerShell 7.6.6 / tmux 3.2a",
+    "PowerShell 7.4.20 / tmux 3.8",
+    "PowerShell 7.4.20 / tmux master",
+    "PowerShell 7.6.6 / tmux 3.3a",
+    "PowerShell 7.6.6 / tmux 3.4",
+    "PowerShell 7.6.6 / tmux 3.5",
+    "PowerShell 7.6.6 / tmux 3.6",
+    "PowerShell 7.6.6 / tmux 3.7a",
+    "PowerShell 7.6.6 / tmux 3.7b",
     "PowerShell 7.6.6 / tmux 3.7c",
+    "PowerShell 7.6.6 / tmux 3.8",
+    "PowerShell 7.6.6 / tmux master",
+    "PowerShell 7.4.20 / tmux 3.2a rejected",
+    "PowerShell 7.4.20 / tmux 3.3 rejected",
     "powershell gate",
 }
 
@@ -62,7 +78,7 @@ def validate(run, jobs, artifacts, source_commit, run_id):
             for job in rows
         )
     ):
-        raise ValueError("Linux jobs must include the successful build, four endpoint cells and gate from this CI attempt")
+        raise ValueError("Linux jobs must include the successful build, the supported cells, two rejection cells and gate from this CI attempt")
 
     all_artifacts = artifacts.get("artifacts", [])
     matches = [item for item in all_artifacts if item.get("name") == "port-package"]

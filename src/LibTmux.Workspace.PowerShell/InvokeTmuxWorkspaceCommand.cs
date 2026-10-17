@@ -16,6 +16,9 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
     public WorkspacePlan Plan { get; set; } = null!;
 
     /// <inheritdoc />
+    protected override Server? ResolveServer(object target) => Plan.Endpoint;
+
+    /// <inheritdoc />
     protected override void ProcessRecord()
     {
         WorkspacePlan plan = Plan;

@@ -5,6 +5,7 @@ using LibTmux.PowerShell;
 namespace LibTmux.Workspace.PowerShell;
 
 /// <summary>Parses a tmuxp declaration without running it.</summary>
+[TmuxVersionCheckExempt("reads a declaration file")]
 [Cmdlet(VerbsData.Import, "TmuxWorkspace", DefaultParameterSetName = "Path")]
 [OutputType(typeof(WorkspaceFile))]
 public sealed class ImportTmuxWorkspaceCommand : TmuxCmdlet

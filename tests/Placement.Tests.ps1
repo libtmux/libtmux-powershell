@@ -23,7 +23,10 @@ Invoke-WithOwnedTmux {
     $quotedTrace = "'" + $trace.Replace("'", "'\''") + "'"
     @"
 #!/bin/sh
-printf '%s\n' dispatch >> $quotedTrace
+case "`$*" in
+*"run-shell -C libtmux-version-"*|"-V") ;;
+*) printf '%s\n' dispatch >> $quotedTrace ;;
+esac
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor
