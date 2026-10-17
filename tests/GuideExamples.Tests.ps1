@@ -1049,12 +1049,7 @@ printf '%s\n' dispatch >> $quotedTrace
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
-    # Only 3.2a needs manual detached sizing; global manual sizing crashes tmux 3.4 on new-session.
-    $version = (Invoke-OwnedTmux $Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
-    $Context.TmuxVersion = $version
-    if ($version -ceq '3.2a') {
-        $null = Invoke-OwnedTmux $Fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
-    }
+    $Context.TmuxVersion = (Invoke-OwnedTmux $Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
     if ($Group -eq 'Capture') {
         $program = Join-Path $Fixture.DirectoryPath 'capture.sh'
         $quotedSocket = ConvertTo-GuideShellLiteral $Fixture.SocketPath

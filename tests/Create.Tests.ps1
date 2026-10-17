@@ -31,11 +31,7 @@ foreach ($name in @('New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane')) {
 Invoke-WithOwnedTmux {
     param($fixture)
 
-    # tmux 3.2a otherwise sizes detached windows from the command client.
     $version = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
-    if ($version -ceq '3.2a') {
-        $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gw', 'window-size', 'manual')
-    }
     $trace = Join-Path $fixture.DirectoryPath 'calls'
     $wrapper = Join-Path $fixture.DirectoryPath 'tmux'
     $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
