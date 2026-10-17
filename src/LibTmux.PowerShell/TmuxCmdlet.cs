@@ -80,10 +80,11 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             activeCancellation = cancellation = new CancellationTokenSource();
         }
 
+        Server? server = null;
         try
         {
             VersionCheck = null;
-            Server? server = target is null ? null : ResolveServer(target);
+            server = target is null ? null : ResolveServer(target);
             if (server is null && !GetType().IsDefined(typeof(TmuxVersionCheckExemptAttribute), inherit: false))
             {
                 // Fail closed: a cmdlet that resolves no server must say why it needs none.
@@ -91,8 +92,13 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
                     $"{GetType().Name} resolved no tmux server for its operation and is not marked TmuxVersionCheckExempt, so nothing was dispatched.");
             }
 
-            if (!OperatingSystem.IsWindows() && server is not null)
+            if (server is not null)
             {
+                if (OperatingSystem.IsWindows())
+                {
+                    throw new PlatformNotSupportedException("libtmux for PowerShell drives tmux on Linux, macOS and WSL, not native Windows.");
+                }
+
                 VersionCheck = TmuxVersionCheck.CheckAsync(server, cancellation.Token).GetAwaiter().GetResult();
             }
 
@@ -104,6 +110,12 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             if (exception is OperationCanceledException && Stopping)
             {
                 throw new PipelineStoppedException();
+            }
+
+            if (server is not null && exception is TmuxTransportException or StaleServerGenerationException)
+            {
+                // The daemon may have gone or been replaced; the next operation checks it afresh.
+                TmuxVersionCheck.Forget(server);
             }
 
             ErrorCategory category = GetErrorCategory(exception);

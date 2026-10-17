@@ -66,10 +66,57 @@ internal static class TmuxVersionCheck
         _ => null,
     };
 
+    // A live endpoint's checked version, keyed by the endpoint. The fence of the next raw batch
+    // invalidates it when the daemon changed; an absent or refused endpoint is never cached.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CheckedVersion> Endpoints =
+        new(StringComparer.Ordinal);
+
+    /// <summary>Forgets the checked version of the server's endpoint so the next operation probes again.</summary>
+    internal static void Forget(Server server)
+    {
+        if (EndpointKey(server) is { } key)
+        {
+            Endpoints.TryRemove(key, out _);
+        }
+    }
+
+    private static string? EndpointKey(Server server)
+    {
+        ServerConnectionOptions options = server.ConnectionOptions;
+        if (options.SocketNameFactory is not null)
+        {
+            // The name is chosen per call, so the endpoint cannot be named ahead of time.
+            return null;
+        }
+
+        string? tmpdir = options.ChildEnvironment is { } environment && environment.TryGetValue("TMUX_TMPDIR", out string? value)
+            ? value
+            : System.Environment.GetEnvironmentVariable("TMUX_TMPDIR");
+        return string.Join('\0', options.TmuxBinaryPath, options.SocketPath, options.SocketName, options.ConfigurationFile, tmpdir);
+    }
+
     [UnsupportedOSPlatform("windows")]
     internal static async Task<CheckedVersion> CheckAsync(Server server, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(server);
+        string? key = EndpointKey(server);
+        if (key is not null && Endpoints.TryGetValue(key, out CheckedVersion cached))
+        {
+            return cached;
+        }
+
+        CheckedVersion daemon = await ProbeAsync(server, cancellationToken).ConfigureAwait(false);
+        if (key is not null && daemon.Live)
+        {
+            Endpoints[key] = daemon;
+        }
+
+        return daemon;
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    private static async Task<CheckedVersion> ProbeAsync(Server server, CancellationToken cancellationToken)
+    {
         string marker = NewMarker() + "-";
         TmuxCommandResult probe = await server
             .ExecuteCommandAsync(["-N", "run-shell", "-C", marker + "#{version}"], cancellationToken)
@@ -120,11 +167,14 @@ internal static class TmuxVersionCheck
         {
             TmuxCommandResult result = await server.Chain().Then(fence).Then(commands)
                 .ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            ForgetIfReplaced(server, result, marker, daemon);
             return Unfence(result, [.. fence.ToArguments(), ";"]);
         }
         catch (TmuxCommandException failure)
         {
-            ThrowIfReplaced(failure.Result, marker, daemon);
+            // A failed batch may mean the daemon went away, so the next operation checks it again.
+            Forget(server);
+            ForgetIfReplaced(server, failure.Result, marker, daemon);
             // The caller never sent the fence, so the error must not carry it.
             throw new TmuxCommandException(
                 failure.Message, Unfence(failure.Result, [.. fence.ToArguments(), ";"]), failure);
@@ -137,6 +187,19 @@ internal static class TmuxVersionCheck
 
     internal static string NewMarker() =>
         "libtmux-version-" + RandomNumberGenerator.GetHexString(16, lowercase: true);
+
+    private static void ForgetIfReplaced(Server server, TmuxCommandResult result, string marker, CheckedVersion daemon)
+    {
+        try
+        {
+            ThrowIfReplaced(result, marker, daemon);
+        }
+        catch (TmuxVersionTooLowException)
+        {
+            Forget(server);
+            throw;
+        }
+    }
 
     internal static void ThrowIfReplaced(TmuxCommandResult result, string marker, CheckedVersion daemon)
     {
