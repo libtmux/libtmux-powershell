@@ -59,9 +59,20 @@ for these modules it is 0.1.0-alpha2.
 The Linux workflow also runs real 3.0a and 3.1c daemons behind a 3.3a client
 and requires the refusal to come back promptly.
 
+A refusal is a non-terminating error, like every other operation failure in
+the module, so it follows `-ErrorAction`. Use `-ErrorAction Stop` where a
+refused daemon must not fall through as no output, as in
+`Get-TmuxSession -ErrorAction SilentlyContinue`, which hides it.
+
 `Connect-TmuxControl` attaches only after the same check, so
 `Invoke-TmuxControlCommand` and `Watch-TmuxEvent` need no check of their own on
 the connection it returns.
+
+`Invoke-TmuxCommand kill-server` against an endpoint where no daemon answers
+returns an empty successful result without dispatching anything.
+
+The separate [MCP tool](mcp.md) is built on the same package and refuses the
+same daemons.
 
 Optional features can need a newer release than this floor. Their
 requirements belong to the cmdlet that needs them and are listed with the
