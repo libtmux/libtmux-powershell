@@ -66,7 +66,11 @@ public sealed class InvokeTmuxPaneCommandCommand : TmuxCmdlet
         if (ShouldProcess($"{endpoint} pane {Pane.Id}", "Run shell command"))
         {
             ReadResult(
-                token => Pane.RunAsync(request, token),
+                token =>
+                {
+                    TmuxFeatures.RequireNamedBuffers(VersionCheck!.Value, "Invoke-TmuxPaneCommand");
+                    return Pane.RunAsync(request, token);
+                },
                 "Tmux.PaneCommandFailed",
                 Pane);
         }

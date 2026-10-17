@@ -81,7 +81,12 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
     {
         if (ShouldProcess(CreationEnvironment.Endpoint(Server), "Create detached tmux session"))
         {
-            ReadResult(token => Server.CreateSessionAsync(request, token), "Tmux.SessionCreateFailed", Server);
+            ReadResult(token =>
+            {
+                TmuxFeatures.RequireName(VersionCheck!.Value, "session", request.Name);
+                TmuxFeatures.RequireName(VersionCheck!.Value, "window", request.WindowName);
+                return Server.CreateSessionAsync(request, token);
+            }, "Tmux.SessionCreateFailed", Server);
         }
     }
 }

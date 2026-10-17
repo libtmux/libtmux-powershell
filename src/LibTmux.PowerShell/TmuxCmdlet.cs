@@ -25,6 +25,17 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         }
     }
 
+    /// <summary>Refuses a session or window name that the checked daemon rejects.</summary>
+    /// <param name="kind">The kind of object named, for the error text.</param>
+    /// <param name="name">The name an operation is about to send.</param>
+    protected void RejectUnsendableName(string kind, string? name)
+    {
+        if (VersionCheck is { } daemon)
+        {
+            TmuxFeatures.RequireName(daemon, kind, name);
+        }
+    }
+
     /// <summary>Selects the server whose daemon must be checked before an operation runs.</summary>
     /// <param name="target">The object the operation acts on.</param>
     /// <returns>The server to check, or null when the operation never dispatches to tmux.</returns>

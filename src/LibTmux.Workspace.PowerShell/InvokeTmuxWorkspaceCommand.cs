@@ -36,8 +36,25 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
             + DescribeActions(plan.CompensationActions);
         if (ShouldProcess($"{endpoint.TmuxBinaryPath} at {socket} session '{plan.SessionName}'", action))
         {
-            ReadResult(token => new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token),
-                "Tmux.WorkspaceApplyFailed", plan);
+            ReadResult(token =>
+            {
+                // Refuse before the first action creates anything.
+                foreach (WorkspaceAction step in plan.Actions)
+                {
+                    switch (step)
+                    {
+                        case WorkspaceAction<NewSessionRequest> session:
+                            RejectUnsendableName("session", session.Request.Name);
+                            RejectUnsendableName("window", session.Request.WindowName);
+                            break;
+                        case WorkspaceAction<NewWindowRequest> window:
+                            RejectUnsendableName("window", window.Request.Name);
+                            break;
+                    }
+                }
+
+                return new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token);
+            }, "Tmux.WorkspaceApplyFailed", plan);
         }
     }
 
