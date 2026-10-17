@@ -75,9 +75,12 @@ function Assert-Guide([bool] $Condition, [string] $Message) {
 }
 
 # An example that attaches a control client or runs a pane command needs the matching tmux feature.
-function Get-GuideRequirement([string] $Code) {
-    if ($Code -match 'Connect-TmuxControl|Watch-TmuxEvent|Wait-TmuxPaneText|EnterControlMode') { return 'Control' }
-    if ($Code -match 'Invoke-TmuxPaneCommand') { return 'NamedBuffers' }
+function Get-GuideRequirement($Source) {
+    $code = $Source.Code.ToString()
+    # Examples that consume a job started by a control example cannot run without it.
+    if ($code -match 'Connect-TmuxControl|Watch-TmuxEvent|EnterControlMode' -or
+        $Source.Requires -contains 'job') { return 'Control' }
+    if ($code -match 'Invoke-TmuxPaneCommand|delete-buffer') { return 'NamedBuffers' }
 }
 
 function Get-GuideField($Context, [string] $Target, [string] $Format) {
@@ -1185,7 +1188,7 @@ foreach ($group in $selectedGroups) {
             foreach ($id in $sources.Keys | Sort-Object) {
                 if ($assertions[$id].Group -cne $group) { continue }
                 # The clients group observes a control client attached by its own setup.
-                $requirement = if ($group -eq 'Clients') { 'Control' } else { Get-GuideRequirement $sources[$id].Code.ToString() }
+                $requirement = if ($group -eq 'Clients') { 'Control' } else { Get-GuideRequirement $sources[$id] }
                 if ($requirement -and -not (Test-TmuxFeature $requirement)) {
                     $skipped.Add(@{ id = $id; reason = "tmux feature $requirement is unavailable on this daemon";
                         powershell = $PSVersionTable.PSVersion.ToString(); tmux = (Get-TestTmuxVersion).Raw })
