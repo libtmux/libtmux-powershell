@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-PaneTextWait([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Pane text wait: $Message" }
@@ -109,9 +110,21 @@ Invoke-WithOwnedTmux {
     $marker = [Guid]::NewGuid().ToString('N')
 
     $present = $server | LibTmux\Get-TmuxSession -Name fixture | LibTmux\Get-TmuxPane
-    $completed = $present | LibTmux\Invoke-TmuxPaneCommand -Command "printf 'PRESENT-$marker\n'" `
-        -Timeout 5 -Confirm:$false -ErrorAction Stop
-    Assert-PaneTextWait ($completed.ExitStatus -eq 0) 'present-at-entry producer did not complete'
+    if (Test-TmuxFeature NamedBuffers) {
+        $completed = $present | LibTmux\Invoke-TmuxPaneCommand -Command "printf 'PRESENT-$marker\n'" `
+            -Timeout 5 -Confirm:$false -ErrorAction Stop
+        Assert-PaneTextWait ($completed.ExitStatus -eq 0) 'present-at-entry producer did not complete'
+    } else {
+        # Pane commands stage a named buffer, which this tmux cannot delete safely; type the producer instead.
+        $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', 'fixture:0.0', '-l', "printf 'PRESENT-$marker\n'")
+        $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', 'fixture:0.0', 'Enter')
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        do {
+            Start-Sleep -Milliseconds 25
+            $rendered = (Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-t', 'fixture:0.0')).StdOut
+        } until ($rendered -cmatch "(?m)^PRESENT-$marker`$" -or [DateTime]::UtcNow -ge $deadline)
+        Assert-PaneTextWait ($rendered -cmatch "(?m)^PRESENT-$marker`$") 'present-at-entry producer did not complete'
+    }
     $entry = $present | LibTmux\Wait-TmuxPaneText -Pattern "^PRESENT-$marker`$" `
         -Timeout 1 -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($entry -is [LibTmux.PaneWaitResult] -and
