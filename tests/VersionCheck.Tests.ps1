@@ -222,6 +222,27 @@ esac
     $stopped = $gone | Invoke-TmuxCommand -Arguments @('kill-server') -ErrorAction SilentlyContinue -ErrorVariable errors
     Assert-True ($errors.Count -eq 0 -and $stopped.ExitCode -eq 0) 'kill-server on an absent endpoint was not a no-op'
 
+    # A connection opened outside the module is checked from its own daemon before it carries a command.
+    # Control clients crash older servers, so this positive control runs only where they are routine.
+    if ($binaryVersion -ge [LibTmux.TmuxVersion]::Parse('3.7')) {
+        $outside = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+        try {
+            $reply = @($outside | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'outside')))
+            Assert-True ($reply.Count -eq 1 -and $reply[0] -ceq 'outside') 'a supplied control connection was not checked and used'
+            # A connection known to belong to a sub-floor daemon carries nothing.
+            $remember = [LibTmux.PowerShell.TmuxCmdlet].Assembly.GetType('LibTmux.PowerShell.TmuxVersionCheck').GetMethod(
+                'Remember', [Reflection.BindingFlags]'Static,NonPublic')
+            $null = $remember.Invoke($null, @($outside, [LibTmux.TmuxVersion]::Parse('3.2a')))
+            $errors = @()
+            $null = $outside | Invoke-TmuxControlCommand -ErrorAction SilentlyContinue -ErrorVariable errors `
+                -Command (New-TmuxCommand -Name 'set-option' -Arguments @('-g', '@outside', 'sent'))
+            Assert-True (@(Get-Refusals $errors).Count -eq 1 -and
+                (Invoke-OwnedTmux $fixture -Arguments @('show-options', '-gv', '@outside') -AllowFailure).StdOut.Trim().Length -eq 0) 'a control connection to a sub-floor daemon carried a command'
+        } finally { $null = $outside.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+    } else {
+        Write-Host 'VersionCheck: SKIPPED supplied control connection (control clients need tmux 3.7)'
+    }
+
     # A daemon that vanishes after the version check is not restarted by the client that dispatches.
     $second = Join-Path $fixture.DirectoryPath 'vanish.sock'
     $null = & $fixture.TmuxPath -S $second -f /dev/null new-session -d -s keep 'exec /bin/sh'
