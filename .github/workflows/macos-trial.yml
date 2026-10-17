@@ -191,6 +191,9 @@ jobs:
           # The shared build script runs a bare configure, which tmux 3.3a rejects
           # without an explicit utf8proc choice; brew installs utf8proc above.
           install="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}"
+          # Homebrew on Apple silicon keeps utf8proc outside the default search paths.
+          export CPPFLAGS="-I$(brew --prefix utf8proc)/include"
+          export LDFLAGS="-L$(brew --prefix utf8proc)/lib"
           (cd "${source}" \
             && sh autogen.sh \
             && ./configure --prefix="${install}" --enable-utf8proc \
