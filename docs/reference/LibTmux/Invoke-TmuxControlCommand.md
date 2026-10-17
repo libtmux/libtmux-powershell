@@ -20,7 +20,7 @@ Run a native command on a borrowed control client.
 ### __AllParameterSets
 
 ```text
-Invoke-TmuxControlCommand [-Connection] <IControlModeSession> [-Command] <TmuxCommand> [-WhatIf] [-Confirm]
+Invoke-TmuxControlCommand [-Connection] <IControlModeSession> [-Command] <TmuxCommand> [-Server <Server>] [-WhatIf] [-Confirm]
 ```
 
 ## ALIASES
@@ -110,6 +110,30 @@ ParameterSets:
   Position: 0
   IsRequired: true
   ValueFromPipeline: true
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -Server
+
+The endpoint of a connection that Connect-TmuxControl did not open. The
+daemon behind that endpoint is checked with the hook-free version probe
+before the command is sent, and the connection is remembered. Without it, a
+connection opened another way is refused.
+
+```yaml
+Type: LibTmux.Server
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
 DontShow: false

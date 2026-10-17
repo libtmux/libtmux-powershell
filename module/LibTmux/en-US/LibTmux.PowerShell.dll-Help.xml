@@ -3471,6 +3471,14 @@ finishes. WhatIf sends nothing; an empty connection pipeline performs no work.</
           </dev:type>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description />
           <dev:type>
@@ -3514,6 +3522,19 @@ finishes. WhatIf sends nothing; an empty connection pipeline performs no work.</
         <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
         <dev:type>
           <maml:name>LibTmux.IControlModeSession</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The endpoint of a connection that Connect-TmuxControl did not open. The
+daemon behind that endpoint is checked with the hook-free version probe
+before the command is sent, and the connection is remembered. Without it, a
+connection opened another way is refused.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
         </dev:type>
       </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
