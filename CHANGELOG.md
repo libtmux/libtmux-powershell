@@ -2,6 +2,19 @@
 
 ## 0.1.0-alpha3 - Unreleased
 
+### Breaking changes
+
+#### Require tmux 3.3a or newer
+
+Every cmdlet that talks to tmux checks the daemon's version first and
+refuses a daemon older than 3.3a, or one whose version it cannot read, with
+`TmuxVersionTooLowException` before anything changes. Reads return that error
+instead of an empty result. `Invoke-TmuxCommand` and `Invoke-TmuxChain` also
+refuse to run if the daemon was replaced after the check, a control
+connection opened elsewhere is checked before it carries a command, and
+`Invoke-TmuxCommand kill-server` against an endpoint with no daemon is a
+no-op. (#21)
+
 ## 0.1.0-alpha2 - 2026-10-10
 
 ### Documentation
