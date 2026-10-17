@@ -91,7 +91,9 @@ internal static class TmuxVersionCheck
         catch (TmuxCommandException failure)
         {
             ThrowIfReplaced(failure.Result, marker, daemon);
-            throw;
+            // The caller never sent the fence, so the error must not carry it.
+            throw new TmuxCommandException(
+                failure.Message, Unfence(failure.Result, [.. fence.ToArguments(), ";"]), failure);
         }
     }
 

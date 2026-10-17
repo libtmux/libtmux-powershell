@@ -49,6 +49,12 @@ public sealed class InvokeTmuxCommandCommand : TmuxCmdlet
 
     private async Task<TmuxCommandResult> ExecuteAsync(CancellationToken cancellationToken)
     {
+        if (!VersionCheck!.Value.Live && commandArguments[0] == "kill-server")
+        {
+            // Nothing is listening, so there is nothing to stop and nothing to dispatch.
+            return new TmuxCommandResult(commandArguments, 0, ReadOnlyMemory<byte>.Empty, ReadOnlyMemory<byte>.Empty, [], []);
+        }
+
         TmuxCommandResult result;
         try
         {
