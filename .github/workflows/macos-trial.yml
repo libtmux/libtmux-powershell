@@ -188,7 +188,15 @@ jobs:
           git clone --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
           test "$(git -C "${source}" rev-parse HEAD)" = "${TMUX_SOURCE_COMMIT}"
           test "$(git -C "${source}" describe --tags --exact-match HEAD)" = "${TMUX_VERSION}"
-          core/eng/tmux/build-version.sh "${TMUX_VERSION}"
+          # The shared build script runs a bare configure, which tmux 3.3a rejects
+          # without an explicit utf8proc choice; brew installs utf8proc above.
+          install="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}"
+          (cd "${source}" \
+            && sh autogen.sh \
+            && ./configure --prefix="${install}" --enable-utf8proc \
+            && make --jobs="${LIBTMUX_BUILD_JOBS}" \
+            && make install)
+          printf '%s\n' "${TMUX_SOURCE_COMMIT}" > "${install}/source-commit"
           binary="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}/bin/tmux"
           test -x "${binary}"
           test "$(cat "core/artifacts/tmux/installs/${TMUX_VERSION}/source-commit")" = "${TMUX_SOURCE_COMMIT}"
