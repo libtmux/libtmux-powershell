@@ -22,6 +22,35 @@ internal static class TmuxVersionCheck
     /// <param name="Live">Whether a daemon answered the probe.</param>
     internal readonly record struct CheckedVersion(TmuxVersion Version, bool Live);
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IControlModeSession, object> ControlVersions = new();
+
+    /// <summary>Records the daemon version a control connection was acquired under.</summary>
+    internal static void Remember(IControlModeSession connection, TmuxVersion version) =>
+        ControlVersions.AddOrUpdate(connection, version);
+
+    /// <summary>Checks the daemon behind a control connection the caller may have opened elsewhere.</summary>
+    internal static async Task<CheckedVersion> CheckControlAsync(IControlModeSession connection, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        if (ControlVersions.TryGetValue(connection, out object? known))
+        {
+            return new CheckedVersion(Require(((TmuxVersion)known).Raw), Live: true);
+        }
+
+        // The package refuses run-shell on a control connection; list-commands has no after-hook either.
+        IReadOnlyList<string> lines = await connection
+            .SendAsync(new TmuxCommand("list-commands", ["-F", "#{version}"]), cancellationToken)
+            .ConfigureAwait(false);
+        if (lines.Count == 0)
+        {
+            throw new LibTmuxException("The control connection did not report its daemon version, so no command was sent.");
+        }
+
+        TmuxVersion version = Require(lines[0]);
+        Remember(connection, version);
+        return new CheckedVersion(version, Live: true);
+    }
+
     internal static Server? ServerOf(object? target) => target switch
     {
         Server server => server,

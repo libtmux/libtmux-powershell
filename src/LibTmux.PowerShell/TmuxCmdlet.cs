@@ -13,6 +13,12 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     /// <summary>Gets the version check the running operation was dispatched under.</summary>
     private protected TmuxVersionCheck.CheckedVersion? VersionCheck { get; private set; }
 
+    /// <summary>Checks the daemon behind a caller-supplied control connection for the running operation.</summary>
+    /// <param name="connection">The connection about to carry a command.</param>
+    /// <param name="cancellationToken">Cancels the check.</param>
+    protected void CheckConnection(IControlModeSession connection, CancellationToken cancellationToken) =>
+        VersionCheck = TmuxVersionCheck.CheckControlAsync(connection, cancellationToken).GetAwaiter().GetResult();
+
     /// <summary>Selects the server whose daemon must be checked before an operation runs.</summary>
     /// <param name="target">The object the operation acts on.</param>
     /// <returns>The server to check, or null when the operation never dispatches to tmux.</returns>
