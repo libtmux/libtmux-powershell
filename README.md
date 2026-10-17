@@ -27,8 +27,8 @@ with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
-It needs PowerShell 7.4 or later and tmux on the same Linux host, including
-WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
+It needs PowerShell 7.4 or later and tmux 3.3a or newer on the same Linux
+host, including WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
 
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
