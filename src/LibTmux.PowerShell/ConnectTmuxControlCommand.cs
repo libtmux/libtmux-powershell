@@ -30,6 +30,7 @@ public sealed class ConnectTmuxControlCommand : TmuxCmdlet
 
         RunOperation(token =>
         {
+            TmuxFeatures.RequireControlAsync(Server, "Connect-TmuxControl", token).GetAwaiter().GetResult();
             IControlModeSession control = Server.EnterControlModeAsync(Target, token).GetAwaiter().GetResult();
             try
             {
