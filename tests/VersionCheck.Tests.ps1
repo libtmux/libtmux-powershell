@@ -32,6 +32,45 @@ function Get-NativeSessions($Fixture) {
     (Invoke-OwnedTmux $Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim()
 }
 
+Import-Module (Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1')
+
+# Version check fails closed: every cmdlet either resolves a daemon to check or is explicitly exempt.
+$base = [LibTmux.PowerShell.TmuxCmdlet]
+$cmdlets = @(
+    $base.Assembly.GetTypes() + [LibTmux.Workspace.PowerShell.InvokeTmuxWorkspaceCommand].Assembly.GetTypes() |
+        Where-Object { $_.IsSubclassOf($base) -and -not $_.IsAbstract })
+$exempt = @($cmdlets | Where-Object { $_.IsDefined([LibTmux.PowerShell.TmuxVersionCheckExemptAttribute], $false) } |
+    ForEach-Object Name | Sort-Object)
+$expectedExempt = @('ConvertToTmuxWorkspaceCommand', 'DisconnectTmuxControlCommand', 'GetTmuxWorkspaceCommand',
+    'ImportTmuxWorkspaceCommand', 'InvokeTmuxControlCommandCommand', 'ResolveTmuxWorkspaceCommand',
+    'SelectTmuxPaneCommand', 'SelectTmuxSessionCommand', 'SelectTmuxWindowCommand', 'WatchTmuxEventCommand')
+Assert-True (-not (Compare-Object $exempt $expectedExempt)) "the exempt cmdlets changed: $($exempt -join ', ')"
+$checkable = @('Server', 'Session', 'Window', 'Pane', 'Client', 'WorkspacePlan')
+foreach ($type in $cmdlets | Where-Object { $_.Name -cnotin $exempt }) {
+    $resolves = $type.GetMethod('ResolveServer', [Reflection.BindingFlags]'Instance,NonPublic,DeclaredOnly') -or
+        @($type.GetProperties() | Where-Object {
+            $_.IsDefined([Management.Automation.ParameterAttribute], $false) -and $_.PropertyType.Name -cin $checkable }).Count -gt 0
+    Assert-True $resolves "$($type.Name) neither exposes a checkable object nor is marked exempt"
+}
+
+# A cmdlet that forgets both a server and the exemption is refused rather than run without a version check.
+Add-Type -ReferencedAssemblies @($base.Assembly.Location, [Management.Automation.PSCmdlet].Assembly.Location) -TypeDefinition @'
+using System.Management.Automation;
+namespace LibTmux.Testing
+{
+    [Cmdlet("Invoke", "ForgottenVersionCheck")]
+    public sealed class InvokeForgottenVersionCheckCommand : LibTmux.PowerShell.TmuxCmdlet
+    {
+        protected override void ProcessRecord() =>
+            ReadResult(_ => System.Threading.Tasks.Task.FromResult("ran"), "Test.Forgotten", "not-a-server");
+    }
+}
+'@
+Import-Module -Assembly ([LibTmux.Testing.InvokeForgottenVersionCheckCommand].Assembly)
+$errors = @()
+$ran = @(Invoke-ForgottenVersionCheck -ErrorAction SilentlyContinue -ErrorVariable errors)
+Assert-True ($ran.Count -eq 0 -and $errors.Count -eq 1 -and $errors[0].Exception.Message -clike '*not marked TmuxVersionCheckExempt*') 'a cmdlet without a server or exemption ran without a version check'
+
 $floor = [LibTmux.TmuxVersion]::Parse('3.3a')
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $reported = (& $tmux -V)
@@ -134,13 +173,22 @@ esac
         Invoke-TmuxCommand -Arguments @('new-session', '-d', '-s', 'fenced', 'exec /bin/sh')
     Assert-True (Test-NativeSession $fixture 'fenced') 'the fence refused an unchanged daemon'
 
-    # Release ordering: patch letters, development builds and undated reports.
-    $cases = [ordered]@{
-        '3.2a' = $false; '3.3' = $false; '3.3a' = $true; '3.3b' = $true; '3.4' = $true; '3.7d' = $true
-        'next-3.3' = $false; 'next-3.4' = $true; '3.3-rc' = $false; '3.4-rc1' = $true
-        'next-3.9' = $true; '3.8-rc2' = $true; '3.8' = $true; 'next-3.3a' = $false; 'openbsd-7.4' = $false
-        'master' = $false; '3.3a-garbage' = $false; 'garbage' = $false; '' = $false
+    # Version grammar: every form tmux has reported, in the canonical vectors.
+    $check = @('3.3a', '3.4', '3.7d', '3.8', '3.10', '4.0', '3.4-rc', '3.8-rc', '3.8-rc2', 'next-3.4', 'next-3.9')
+    $refuse = @('3.3', '3.2a', '3.3-rc', '3.2-rc5', 'next-3.3', 'master', 'openbsd-7.6', '', '3', 'garbage',
+        '3.3a garbage', '3.3a-master', '3.3a-dev', 'next-3.3a', 'next-3.9-master')
+    $cases = [ordered]@{}
+    foreach ($report in $check) { $cases[$report] = $true }
+    foreach ($report in $refuse) { $cases[$report] = $false }
+    $ranked = @('next-3.7', '3.7-rc', '3.7-rc3', '3.7', '3.7a', '3.9', '3.10')
+    for ($i = 1; $i -lt $ranked.Count; $i++) {
+        Assert-True ([LibTmux.TmuxVersion]::Parse($ranked[$i - 1]) -lt [LibTmux.TmuxVersion]::Parse($ranked[$i])) "$($ranked[$i - 1]) does not rank below $($ranked[$i])"
     }
+    Assert-True ([LibTmux.TmuxVersion]::Parse('next-3.4') -lt [LibTmux.TmuxVersion]::Parse('3.4-rc') -and
+        [LibTmux.TmuxVersion]::Parse('3.4-rc') -lt [LibTmux.TmuxVersion]::Parse('3.4')) 'next-3.4 < 3.4-rc < 3.4 fails'
+    $seven = [LibTmux.TmuxVersion]::Parse('3.7')
+    Assert-True ([LibTmux.TmuxVersion]::Parse('3.8-rc2') -ge $seven -and [LibTmux.TmuxVersion]::Parse('next-3.8') -ge $seven -and
+        [LibTmux.TmuxVersion]::Parse('next-3.7') -lt $seven -and [LibTmux.TmuxVersion]::Parse('3.7-rc2') -lt $seven) 'control-gate ordering around 3.7 fails'
     foreach ($entry in $cases.GetEnumerator()) {
         $env:LIBTMUX_VERSION_REPORT = $entry.Key
         try {
@@ -160,6 +208,19 @@ esac
             Remove-Item Env:LIBTMUX_VERSION_REPORT -ErrorAction Ignore
         }
     }
+
+    # A failed batch reports what the caller sent, not the fence.
+    $errors = @()
+    $null = $server | Invoke-TmuxChain -Command (New-TmuxCommand -Name 'select-pane' -Arguments @('-t', '%999999999')) `
+        -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.TmuxCommandException] -and
+        ($errors[0].Exception.Result.Arguments -join ' ') -cnotmatch 'libtmux-version|if-shell') 'a failed chain leaked the version check fence'
+
+    # Stopping a server nobody is running is a no-op.
+    $gone = New-TmuxServer -SocketPath (Join-Path $fixture.DirectoryPath 'never.sock') -TmuxBinaryPath $fixture.TmuxPath
+    $errors = @()
+    $stopped = $gone | Invoke-TmuxCommand -Arguments @('kill-server') -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True ($errors.Count -eq 0 -and $stopped.ExitCode -eq 0) 'kill-server on an absent endpoint was not a no-op'
 
     # A daemon that vanishes after the version check is not restarted by the client that dispatches.
     $second = Join-Path $fixture.DirectoryPath 'vanish.sock'
