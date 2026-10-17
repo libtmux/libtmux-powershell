@@ -112,12 +112,14 @@ jobs:
         powershell: ['7.4.20', '7.6.6']
         tmux:
           - '3.3a'
-          # - '3.4'
-          # - '3.5'
-          # - '3.6'
-          # - '3.7a'
-          # - '3.7b'
+          - '3.4'
+          - '3.5'
+          - '3.6'
+          - '3.7a'
+          - '3.7b'
           - '3.7c'
+          - '3.8'
+          - 'master'
         include:
           - powershell: '7.4.20'
             powershell_sha256: ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181
@@ -125,18 +127,23 @@ jobs:
             powershell_sha256: ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
           - tmux: '3.3a'
             tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
-          # - tmux: '3.4'
-          #   tmux_commit: 9ae69c3795ab5ef6b4d760f6398cd9281151f632
-          # - tmux: '3.5'
-          #   tmux_commit: ac44566c9c7e3e94d23be6def4c7ae83472543f5
-          # - tmux: '3.6'
-          #   tmux_commit: 0dac7fe434d029a4f0b819cba8eb7963df291990
-          # - tmux: '3.7a'
-          #   tmux_commit: 0e418b62d259ce8da8970f75732cc6632ee4c3a0
-          # - tmux: '3.7b'
-          #   tmux_commit: e802909de06012a4df6209d55e86487c56223163
+          - tmux: '3.4'
+            tmux_commit: 9ae69c3795ab5ef6b4d760f6398cd9281151f632
+          - tmux: '3.5'
+            tmux_commit: ac44566c9c7e3e94d23be6def4c7ae83472543f5
+          - tmux: '3.6'
+            tmux_commit: 0dac7fe434d029a4f0b819cba8eb7963df291990
+          - tmux: '3.7a'
+            tmux_commit: 0e418b62d259ce8da8970f75732cc6632ee4c3a0
+          - tmux: '3.7b'
+            tmux_commit: e802909de06012a4df6209d55e86487c56223163
           - tmux: '3.7c'
             tmux_commit: e476c1230b958df0cb12977517d24b3dc931375b
+          - tmux: '3.8'
+            tmux_commit: 7f2a35ad3321f9ba57a1062ca73b1f3ff26aca53
+          # master floats: the job records the commit it built.
+          - tmux: 'master'
+            tmux_commit: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -179,8 +186,37 @@ jobs:
           path: core/artifacts/tmux
           key: tmux-${{ matrix.tmux }}-${{ runner.os }}-${{ hashFiles('core/eng/tmux/build-version.sh') }}
 
+      - name: Build and identify tmux ${{ matrix.tmux }} from source
+        if: matrix.tmux == '3.8' || matrix.tmux == 'master'
+        env:
+          TMUX_VERSION: ${{ matrix.tmux }}
+          TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
+        run: |
+          source="${RUNNER_TEMP}/tmux-source"
+          if [ "${TMUX_VERSION}" = master ]; then
+            git clone --quiet --depth 1 https://github.com/tmux/tmux.git "${source}"
+          else
+            git clone --quiet --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
+            test "$(git -C "${source}" rev-parse HEAD)" = "${TMUX_SOURCE_COMMIT}"
+          fi
+          echo "tmux source commit: $(git -C "${source}" rev-parse HEAD)"
+          (cd "${source}" \
+            && sh autogen.sh \
+            && ./configure --prefix="${RUNNER_TEMP}/tmux-install" \
+            && make --jobs="$(nproc)" \
+            && make install)
+          binary="${RUNNER_TEMP}/tmux-install/bin/tmux"
+          if [ "${TMUX_VERSION}" = master ]; then
+            "${binary}" -V | grep -E '^tmux next-[0-9]+\.[0-9]+$'
+          else
+            test "$("${binary}" -V)" = "tmux ${TMUX_VERSION}"
+          fi
+          echo "${RUNNER_TEMP}/tmux-install/bin" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
+
       - name: Build and identify tmux ${{ matrix.tmux }}
         id: tmux
+        if: matrix.tmux != '3.8' && matrix.tmux != 'master'
         env:
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
@@ -312,7 +348,8 @@ jobs:
             | while IFS=$'\t' read -r digest file; do
                 echo "${digest}  ${RUNNER_TEMP}/port-package/${file}" | sha256sum --check --strict
               done
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+          LIBTMUX_REQUIRE_REJECTED="${{ matrix.tmux }}" \
+            "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
 
   reject-old-daemon:

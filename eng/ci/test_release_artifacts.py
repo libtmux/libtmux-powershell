@@ -10,9 +10,23 @@ RUN_ID = 123
 NAMES = (
     "build and pack PowerShell modules",
     "PowerShell 7.4.20 / tmux 3.3a",
+    "PowerShell 7.4.20 / tmux 3.4",
+    "PowerShell 7.4.20 / tmux 3.5",
+    "PowerShell 7.4.20 / tmux 3.6",
+    "PowerShell 7.4.20 / tmux 3.7a",
+    "PowerShell 7.4.20 / tmux 3.7b",
     "PowerShell 7.4.20 / tmux 3.7c",
+    "PowerShell 7.4.20 / tmux 3.8",
+    "PowerShell 7.4.20 / tmux master",
     "PowerShell 7.6.6 / tmux 3.3a",
+    "PowerShell 7.6.6 / tmux 3.4",
+    "PowerShell 7.6.6 / tmux 3.5",
+    "PowerShell 7.6.6 / tmux 3.6",
+    "PowerShell 7.6.6 / tmux 3.7a",
+    "PowerShell 7.6.6 / tmux 3.7b",
     "PowerShell 7.6.6 / tmux 3.7c",
+    "PowerShell 7.6.6 / tmux 3.8",
+    "PowerShell 7.6.6 / tmux master",
     "PowerShell 7.4.20 / tmux 3.2a rejected",
     "PowerShell 7.4.20 / tmux 3.3 rejected",
     "PowerShell 7.4.20 / tmux 3.0a daemon behind a 3.3a client",
@@ -36,7 +50,7 @@ class ReleaseArtifactsTests(unittest.TestCase):
             "conclusion": "success",
             "run_attempt": 1,
         }
-        self.jobs = {"total_count": 10, "jobs": [
+        self.jobs = {"total_count": 24, "jobs": [
             {
                 "id": index + 1,
                 "run_id": RUN_ID,
