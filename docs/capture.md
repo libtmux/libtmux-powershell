@@ -94,7 +94,9 @@ $server | Invoke-TmuxCommand -Arguments @(
 
 For tmux features without a dedicated cmdlet, use the same literal argument
 boundary. This creates a named paste buffer, reads its text and removes only
-that buffer:
+that buffer. Deleting a buffer by name needs tmux 3.4 or newer; earlier
+releases act on an unrelated buffer when the name is missing, so
+`Invoke-TmuxCommand` refuses the command there:
 
 <!-- example: capture.buffer -->
 ```powershell
