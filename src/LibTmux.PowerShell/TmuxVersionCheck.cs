@@ -76,7 +76,8 @@ internal static class TmuxVersionCheck
         string marker = NewMarker();
         TmuxCommand fence = FenceCommand(daemon.Version, marker);
         // A live endpoint adds -N as the batch's first word so a vanished daemon is not restarted.
-        if (daemon.Live)
+        // A batch carrying a generation guard is already bound to one daemon and is wrapped by the package.
+        if (daemon.Live && commands.All(static command => command.RequiredGeneration is null))
         {
             fence = new TmuxCommand("-N", [fence.Name, .. fence.Arguments]);
         }
