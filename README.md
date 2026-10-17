@@ -619,8 +619,9 @@ default tmux server stays untouched.
 - **Releases.** Gallery packages carry a `0.1.0-alphaN` label, so pin an exact
   version. PowerShell imports use the numeric `0.1.0`.
 - **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
-- **tmux.** CI runs 3.2a and 3.7c. Other releases are unverified;
-  [compatibility](docs/compatibility.md) holds the contract.
+- **tmux.** 3.3a or newer. CI runs 3.3a through 3.8 and tmux master; other
+  releases are unverified. [Compatibility](docs/compatibility.md) holds the
+  contract.
 - **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
   environment. CI runs Linux x64 on every change and macOS as an advisory trial
   whose failures never fail the check. CI has no Windows job.

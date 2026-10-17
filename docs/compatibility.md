@@ -11,7 +11,7 @@ and source builds. Publication does not expand the tested platforms below.
 
 | Environment | Contract |
 | --- | --- |
-| Linux x64 | The [Linux workflow](../.github/workflows/ci.yml) exercises PowerShell 7.4.20 and 7.6.6 with tmux 3.3a and 3.7c. Check the run for the commit you use; a green older commit does not verify newer code. |
+| Linux x64 | The [Linux workflow](../.github/workflows/ci.yml) exercises PowerShell 7.4.20 and 7.6.6 with tmux 3.3a, 3.4, 3.5, 3.6, 3.7a, 3.7b, 3.7c, 3.8 and the current tmux master (`next-3.9`). Check the run for the commit you use; a green older commit does not verify newer code. |
 | WSL2 | Run PowerShell and tmux inside the same Linux environment. The Windows host's PowerShell process is outside this contract. |
 | macOS | Intel and Apple Silicon have an advisory [eight-cell trial](../.github/workflows/macos-trial.yml). Suite failures appear in its job summaries and artifacts without failing the trial check; they do not establish support. |
 | Native Windows and psmux | Outside this port's scope. |
