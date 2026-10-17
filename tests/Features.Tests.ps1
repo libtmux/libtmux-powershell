@@ -82,6 +82,25 @@ Invoke-WithOwnedTmux {
     Assert-True ((Get-ClientCount) -eq 0) 'a control client remains attached'
     Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid) 'the daemon changed during control refusals'
 
+    # Commands sent over a connection carry the same literal guards, decided from that connection's daemon.
+    if ($control) {
+        $outside = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+        try {
+            $remember = [LibTmux.PowerShell.TmuxCmdlet].Assembly.GetType('LibTmux.PowerShell.TmuxVersionCheck').GetMethod(
+                'Remember', [Reflection.BindingFlags]'Static,NonPublic')
+            $null = $remember.Invoke($null, @($outside, [LibTmux.TmuxVersion]::Parse('3.7')))
+            foreach ($arguments in @(@('break-pane', '-d'), @('new-window', '-n', 'a.b'))) {
+                $errors = @()
+                $null = $outside | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name $arguments[0] -Arguments $arguments[1..($arguments.Count - 1)]) `
+                    -ErrorAction SilentlyContinue -ErrorVariable errors
+                Assert-True (@(Get-Refusal $errors '3.7a').Count -eq 1) "$($arguments -join ' ') crossed a control connection on 3.7"
+            }
+            Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('list-windows', '-a', '-F', '#{window_id}')).StdOut.Trim().Split("`n").Count -eq 1) 'a refused control command changed the topology'
+        } finally { $null = $outside.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+    } else {
+        Write-Host 'Features: SKIPPED control command guards (control clients need tmux 3.7)'
+    }
+
     # Subprocess operations keep working at the floor.
     $reply = $server | Invoke-TmuxCommand -Arguments @('display-message', '-p', 'subprocess')
     Assert-True ($reply.StandardOutputLines -ccontains 'subprocess') 'a subprocess command failed at the floor'
@@ -159,6 +178,13 @@ Invoke-WithOwnedTmux {
     $errors = @()
     $created = $reported | Get-TmuxSession -Name fixture | New-TmuxWindow -Name 'bad.name' -Command 'exec /bin/sh' -ErrorAction SilentlyContinue -ErrorVariable errors
     Assert-True ($null -eq $created -and @(Get-Refusal $errors '3.7a').Count -eq 1) 'New-TmuxWindow sent a name that 3.7 rejects'
+    $errors = @()
+    $made = $reported | New-TmuxSession -Name 'okname' -WindowName 'win.dot' -Command 'exec /bin/sh' -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True ($null -eq $made -and @(Get-Refusal $errors '3.7a').Count -eq 1) 'New-TmuxSession sent a window name that 3.7 rejects'
+    # The package itself refuses ':' and '.' in session names, so a plan cannot reach the daemon with one.
+    $caught = $null
+    try { $null = $reported | New-TmuxSession -Name 'bad.session' -Command 'exec /bin/sh' } catch { $caught = $_.Exception }
+    Assert-True ($caught -is [ArgumentException] -or $caught -is [Management.Automation.ParentContainsErrorRecordException]) 'a dotted session name was not refused before dispatch'
     $declaration = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: named-workspace
 windows:
