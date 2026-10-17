@@ -20,6 +20,11 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
     [ValidateNotNull]
     public TmuxCommand Command { get; set; } = null!;
 
+    /// <summary>Gets or sets the endpoint of a connection that was not opened by Connect-TmuxControl.</summary>
+    [Parameter]
+    [ValidateNotNull]
+    public Server? Server { get; set; }
+
     /// <inheritdoc />
     protected override void BeginProcessing()
     {
@@ -40,7 +45,7 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
         {
             ReadResult(token =>
             {
-                CheckConnection(Connection, token);
+                CheckConnection(Connection, Server, token);
                 return Connection.SendAsync(Command, token);
             }, "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
         }

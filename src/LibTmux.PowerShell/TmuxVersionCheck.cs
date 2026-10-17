@@ -28,8 +28,16 @@ internal static class TmuxVersionCheck
     internal static void Remember(IControlModeSession connection, TmuxVersion version) =>
         ControlVersions.AddOrUpdate(connection, version);
 
-    /// <summary>Checks the daemon behind a control connection the caller may have opened elsewhere.</summary>
-    internal static async Task<CheckedVersion> CheckControlAsync(IControlModeSession connection, CancellationToken cancellationToken)
+    /// <summary>Checks the daemon behind a control connection.</summary>
+    /// <remarks>
+    /// A connection the cmdlets attached carries its checked version. A connection opened elsewhere
+    /// exposes no endpoint, so the caller names the server and the usual hook-free subprocess probe
+    /// runs against it; the connection could in principle belong to a different daemon on that
+    /// endpoint if it was replaced between the attach and this call, a window the version cannot close.
+    /// </remarks>
+    [UnsupportedOSPlatform("windows")]
+    internal static async Task<CheckedVersion> CheckControlAsync(
+        IControlModeSession connection, Server? server, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(connection);
         if (ControlVersions.TryGetValue(connection, out object? known))
@@ -37,18 +45,15 @@ internal static class TmuxVersionCheck
             return new CheckedVersion(Require(((TmuxVersion)known).Raw), Live: true);
         }
 
-        // The package refuses run-shell on a control connection; list-commands has no after-hook either.
-        IReadOnlyList<string> lines = await connection
-            .SendAsync(new TmuxCommand("list-commands", ["-F", "#{version}"]), cancellationToken)
-            .ConfigureAwait(false);
-        if (lines.Count == 0)
+        if (server is null)
         {
-            throw new LibTmuxException("The control connection did not report its daemon version, so no command was sent.");
+            throw new LibTmuxException(
+                "This control connection was not opened by Connect-TmuxControl, so its daemon is unknown and no command was sent. Pass -Server with the endpoint it belongs to.");
         }
 
-        TmuxVersion version = Require(lines[0]);
-        Remember(connection, version);
-        return new CheckedVersion(version, Live: true);
+        CheckedVersion daemon = await CheckAsync(server, cancellationToken).ConfigureAwait(false);
+        Remember(connection, daemon.Version);
+        return daemon;
     }
 
     internal static Server? ServerOf(object? target) => target switch

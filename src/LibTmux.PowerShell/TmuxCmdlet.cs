@@ -16,8 +16,14 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     /// <summary>Checks the daemon behind a caller-supplied control connection for the running operation.</summary>
     /// <param name="connection">The connection about to carry a command.</param>
     /// <param name="cancellationToken">Cancels the check.</param>
-    protected void CheckConnection(IControlModeSession connection, CancellationToken cancellationToken) =>
-        VersionCheck = TmuxVersionCheck.CheckControlAsync(connection, cancellationToken).GetAwaiter().GetResult();
+    /// <param name="server">The endpoint the connection belongs to, needed when the cmdlets did not open it.</param>
+    protected void CheckConnection(IControlModeSession connection, Server? server, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            VersionCheck = TmuxVersionCheck.CheckControlAsync(connection, server, cancellationToken).GetAwaiter().GetResult();
+        }
+    }
 
     /// <summary>Selects the server whose daemon must be checked before an operation runs.</summary>
     /// <param name="target">The object the operation acts on.</param>
