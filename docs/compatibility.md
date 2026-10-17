@@ -46,6 +46,19 @@ still lists 3.2a as its own minimum, and it reads only a `tmux <version>`
 banner, so a 3.3a executable renamed to anything else cannot start a daemon
 through the typed commands.
 
+A refusal is a non-terminating error, like every other operation failure in
+the module, so it follows `-ErrorAction`. Use `-ErrorAction Stop` where a
+refused daemon must not fall through as no output, as in
+`Get-TmuxSession -ErrorAction SilentlyContinue`, which hides it.
+
+`Invoke-TmuxCommand kill-server` against an endpoint where no daemon answers
+returns an empty successful result without dispatching anything.
+
+The separate [MCP tool](mcp.md) is not part of this change. It keeps the
+linked .NET package's own floor until that package checks the daemon's version itself;
+typed calls here can then rely on the package and the cmdlet-level version check
+can shrink.
+
 Optional features can need a newer release than this floor. Their
 requirements belong to the cmdlet that needs them and are listed with the
 feature rather than raised for the whole module.
