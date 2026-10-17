@@ -2,6 +2,36 @@
 
 ## 0.1.0-alpha3 - Unreleased
 
+### Breaking changes
+
+#### Require tmux 3.3a or newer
+
+Both modules now build on libtmux for .NET 0.0.0-alpha.22, which checks the
+daemon's version before it sends any command. It refuses a daemon older than
+3.3a, or one whose version it cannot read, with `TmuxVersionTooLowException`
+before anything changes, and a daemon older than 3.2, which cannot report a
+version, gets the same refusal. Reads return that error instead of an empty
+result. The refusal says to upgrade tmux and restart the tmux server, or to
+install `LibTmux` `0.1.0-alpha2`, the last release that accepts older tmux.
+`Invoke-TmuxCommand` and `Invoke-TmuxChain` refuse to run if the daemon was
+replaced by one below the floor after the check, and `Invoke-TmuxCommand
+kill-server` against an endpoint with no daemon is a no-op. (#21)
+
+#### Poll for pane text below tmux 3.7
+
+`Wait-TmuxPaneText` attaches no control client on tmux before 3.7. It polls
+without `-AllowPollingFallback` and reports `PollingFallback` as true. On 3.7
+and newer, control observation is still required unless the switch is given.
+(#21)
+
+#### Share one control client on tmux 3.7 and newer
+
+Commands sent from one server handle now share a control client. A blocking
+command nested in a list, such as `if-shell -F 1 'wait-for release'`, holds the
+commands behind it, and a `wait-for` at the top level still runs on its own.
+Set `LIBTMUX_CONTROL_TRANSPORT=0` before creating the server handle to send
+each command from its own process. (#21)
+
 ### Documentation
 
 - Give the `LibTmux` and `LibTmux.Workspace` source directories a README and
