@@ -138,6 +138,7 @@ esac
     $cases = [ordered]@{
         '3.2a' = $false; '3.3' = $false; '3.3a' = $true; '3.3b' = $true; '3.4' = $true; '3.7d' = $true
         'next-3.3' = $false; 'next-3.4' = $true; '3.3-rc' = $false; '3.4-rc1' = $true
+        'next-3.9' = $true; '3.8-rc2' = $true; '3.8' = $true; 'next-3.3a' = $false; 'openbsd-7.4' = $false
         'master' = $false; '3.3a-garbage' = $false; 'garbage' = $false; '' = $false
     }
     foreach ($entry in $cases.GetEnumerator()) {
@@ -159,6 +160,25 @@ esac
             Remove-Item Env:LIBTMUX_VERSION_REPORT -ErrorAction Ignore
         }
     }
+
+    # A daemon that vanishes after the version check is not restarted by the client that dispatches.
+    $second = Join-Path $fixture.DirectoryPath 'vanish.sock'
+    $null = & $fixture.TmuxPath -S $second -f /dev/null new-session -d -s keep 'exec /bin/sh'
+    $vanish = New-Wrapper $bin 'tmux-vanish' $fixture.TmuxPath @"
+case "`$*" in
+*"if-shell -F"*)
+    '$($fixture.TmuxPath)' -S '$second' kill-server
+    sleep 0.3;;
+esac
+"@
+    $vanished = New-TmuxServer -SocketPath $second -TmuxBinaryPath $vanish
+    $errors = @()
+    $null = $vanished | Invoke-TmuxCommand -Arguments @('new-session', '-d', '-s', 'revived', 'exec /bin/sh') `
+        -ErrorAction SilentlyContinue -ErrorVariable errors
+    Start-Sleep -Milliseconds 300
+    $null = & $fixture.TmuxPath -S $second -f /dev/null has-session 2>$null
+    Assert-True ($errors.Count -eq 1 -and $LASTEXITCODE -ne 0) 'a vanished daemon was restarted by the dispatching client'
+    $null = & $fixture.TmuxPath -S $second kill-server 2>$null
 
     # An absent endpoint is checked from the executable's own banner. The shared .NET package
     # reads only `tmux <version>`, so a renamed 3.3a, which prints its file name, stays untested.
