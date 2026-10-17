@@ -77,8 +77,8 @@ jobs:
             asset_arch: x64
             powershell: '7.4.20'
             powershell_sha256: 634d04e806b37a441b140c875e96662a5eb14efd0e38060a730b991069602138
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15-intel
             arch: x86_64
             asset_arch: x64
@@ -91,8 +91,8 @@ jobs:
             asset_arch: x64
             powershell: '7.6.6'
             powershell_sha256: e325ed9f666894eb39a5ea52800b602da2fb4242bbe9747ceddb39cdc66de805
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15-intel
             arch: x86_64
             asset_arch: x64
@@ -105,8 +105,8 @@ jobs:
             asset_arch: arm64
             powershell: '7.4.20'
             powershell_sha256: 7f9a2503304ee239330f5c4ccc7eef11894b095d7ccb8f9fa78a16c6ee508edc
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15
             arch: arm64
             asset_arch: arm64
@@ -119,8 +119,8 @@ jobs:
             asset_arch: arm64
             powershell: '7.6.6'
             powershell_sha256: 6df833d094ebac1c1a74340d7b3437f4aaf5e03ce640484a1c4359f3ce8b3db1
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15
             arch: arm64
             asset_arch: arm64

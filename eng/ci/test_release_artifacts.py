@@ -9,10 +9,12 @@ SOURCE = "a" * 40
 RUN_ID = 123
 NAMES = (
     "build and pack PowerShell modules",
-    "PowerShell 7.4.20 / tmux 3.2a",
+    "PowerShell 7.4.20 / tmux 3.3a",
     "PowerShell 7.4.20 / tmux 3.7c",
-    "PowerShell 7.6.6 / tmux 3.2a",
+    "PowerShell 7.6.6 / tmux 3.3a",
     "PowerShell 7.6.6 / tmux 3.7c",
+    "PowerShell 7.4.20 / tmux 3.2a rejected",
+    "PowerShell 7.4.20 / tmux 3.3 rejected",
     "powershell gate",
 )
 
@@ -32,7 +34,7 @@ class ReleaseArtifactsTests(unittest.TestCase):
             "conclusion": "success",
             "run_attempt": 1,
         }
-        self.jobs = {"total_count": 6, "jobs": [
+        self.jobs = {"total_count": 8, "jobs": [
             {
                 "id": index + 1,
                 "run_id": RUN_ID,
