@@ -49,8 +49,19 @@ public sealed class InvokeTmuxCommandCommand : TmuxCmdlet
 
     private async Task<TmuxCommandResult> ExecuteAsync(CancellationToken cancellationToken)
     {
-        TmuxCommandResult result = await Server.ExecuteCommandAsync(commandArguments, cancellationToken)
-            .ConfigureAwait(false);
+        TmuxCommandResult result;
+        try
+        {
+            result = await TmuxVersionCheck.ExecuteFencedAsync(
+                    Server, VersionCheck!.Value, [new TmuxCommand(commandArguments[0], commandArguments[1..])], cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (TmuxCommandException failure)
+        {
+            throw new TmuxCommandException(
+                $"tmux {commandArguments[0]} failed with exit code {failure.Result.ExitCode}.", failure.Result);
+        }
+
         if (result.ExitCode != 0)
         {
             throw new TmuxCommandException(

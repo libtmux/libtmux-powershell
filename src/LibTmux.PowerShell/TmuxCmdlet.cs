@@ -10,6 +10,14 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     private bool cancellationInProgress;
     private bool stopped;
 
+    /// <summary>Gets the version check the running operation was dispatched under.</summary>
+    private protected TmuxVersionCheck.CheckedVersion? VersionCheck { get; private set; }
+
+    /// <summary>Selects the server whose daemon must be checked before an operation runs.</summary>
+    /// <param name="target">The object the operation acts on.</param>
+    /// <returns>The server to check, or null when the operation never dispatches to tmux.</returns>
+    protected virtual Server? ResolveServer(object target) => TmuxVersionCheck.ServerOf(target);
+
     /// <summary>Waits for a core operation and writes its completed result.</summary>
     /// <typeparam name="T">The core result type.</typeparam>
     /// <param name="operation">The cancellable core operation.</param>
@@ -62,6 +70,12 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
 
         try
         {
+            VersionCheck = null;
+            if (!OperatingSystem.IsWindows() && target is not null && ResolveServer(target) is Server server)
+            {
+                VersionCheck = TmuxVersionCheck.CheckAsync(server, cancellation.Token).GetAwaiter().GetResult();
+            }
+
             operation(cancellation.Token);
         }
         catch (Exception exception) when (
@@ -101,6 +115,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         ArgumentException => ErrorCategory.InvalidArgument,
         InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
         TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
+        TmuxVersionTooLowException => ErrorCategory.NotImplemented,
         _ => ErrorCategory.InvalidOperation,
     };
 

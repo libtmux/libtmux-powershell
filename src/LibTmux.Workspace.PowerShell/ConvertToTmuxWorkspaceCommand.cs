@@ -16,6 +16,9 @@ public sealed class ConvertToTmuxWorkspaceCommand : TmuxCmdlet
     public Session Session { get; set; } = null!;
 
     /// <inheritdoc />
+    protected override Server? ResolveServer(object target) => null;
+
+    /// <inheritdoc />
     protected override void ProcessRecord() =>
         ReadResult(_ =>
         {
