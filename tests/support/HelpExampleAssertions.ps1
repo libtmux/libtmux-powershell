@@ -120,7 +120,7 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 $plan = $Result[0]
                 if ($plan -isnot [LibTmux.Query.QueryPlan[LibTmux.Pane]] -or
-                    $plan.DaemonVersion.Raw -cne '3.2a' -or
+                    $plan.DaemonVersion.Raw -cne '3.3a' -or
                     $plan.Pushdown -ne [LibTmux.Query.QueryPushdown]::Require -or
                     $null -eq $plan.PushedPredicate -or $null -ne $plan.ResidualPredicate) {
                     throw 'Plan example did not preserve the native exact pane-ID source plan.'
