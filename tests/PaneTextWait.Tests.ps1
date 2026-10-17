@@ -102,7 +102,7 @@ function Assert-NoObservationClient($Server, [string] $When) {
 }
 
 if (-not (Test-TmuxFeature Control)) {
-    # Features.Tests.ps1 asserts that Wait-TmuxPaneText is refused here before a control client attaches.
+    # Below 3.7 the cmdlet polls capture-pane; Features.Tests.ps1 covers that path.
     Write-FeatureSkip 'pane text wait live runs' Control
     return
 }

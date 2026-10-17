@@ -72,13 +72,17 @@ Invoke-WithOwnedTmux {
     } else {
         Assert-True ($events.Count -eq 0 -and @(Get-Refusal $errors '3.7').Count -eq 1) 'Watch-TmuxEvent was not refused below 3.7'
     }
+    # Waiting polls capture-pane below 3.7 and attaches no control client.
     $errors = @()
-    $wait = @($pane | Wait-TmuxPaneText -Pattern 'never-printed' -Timeout 0.2 -ErrorAction SilentlyContinue -ErrorVariable errors)
-    if ($control) {
-        Assert-True ($wait.Count -eq 1) 'Wait-TmuxPaneText did not run on a 3.7 daemon'
-    } else {
-        Assert-True ($wait.Count -eq 0 -and @(Get-Refusal $errors '3.7').Count -eq 1) 'Wait-TmuxPaneText was not refused below 3.7'
-    }
+    $wait = @($pane | Wait-TmuxPaneText -Pattern 'never-printed' -Timeout 0.3 -ErrorAction SilentlyContinue -ErrorVariable errors)
+    Assert-True ($errors.Count -eq 0 -and $wait.Count -eq 1 -and $wait[0].Outcome.ToString() -ceq 'TimedOut') "Wait-TmuxPaneText did not time out cleanly (errors: $($errors.Count))"
+    $marker = 'polled-' + [Guid]::NewGuid().ToString('N')
+    $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', $pane.Id.ToString(), '-l', "echo $marker")
+    $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', $pane.Id.ToString(), 'Enter')
+    $found = $pane | Wait-TmuxPaneText -Pattern "^$marker$" -Timeout 5
+    Assert-True ($found.Outcome.ToString() -cin @('Matched', 'PresentAtEntry') -and $found.Found) 'Wait-TmuxPaneText did not find printed text'
+    $stopped = $pane | Wait-TmuxPaneText -Pattern 'never-printed' -StopPattern $marker -Timeout 5
+    Assert-True ($stopped.Outcome.ToString() -ceq 'Stopped') 'a stop pattern did not end the polling wait'
     Assert-True ((Get-ClientCount) -eq 0) 'a control client remains attached'
     Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid) 'the daemon changed during control refusals'
 
