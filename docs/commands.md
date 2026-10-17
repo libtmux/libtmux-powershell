@@ -6,6 +6,11 @@ it does no I/O. Commands can still invoke tmux features that deliberately run
 a shell, such as `run-shell`. Shell programs inside those arguments retain
 those features' normal semantics.
 
+`Connect-TmuxControl` needs tmux 3.7 or newer and is refused on an older
+daemon before a client attaches; chains and raw commands need only 3.3a.
+Literal `delete-buffer -b` and `set-buffer -n` items need tmux 3.4; see
+[optional features](compatibility.md#optional-features).
+
 Select `$server` first using [explicit endpoint selection](read.md). These
 examples require an existing session named `fixture` and borrow its lifetime.
 

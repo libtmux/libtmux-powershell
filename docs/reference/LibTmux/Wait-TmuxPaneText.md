@@ -347,6 +347,8 @@ observation metadata. No result is emitted for `-WhatIf` or an empty pipeline.
 
 ## NOTES
 
+Waiting needs a control client and so tmux 3.7 or newer. On an older daemon the cmdlet reports `LibTmux.TmuxVersionTooLowException` as its error and attaches nothing; `-AllowPollingFallback` applies only after an attach fails and does not change that.
+
 `Tmux.PaneTextWaitFailed` retains the native pane as its error target for
 transport and capture failures. `Tmux.InvalidTimeout` and
 `Tmux.InvalidPaneTextRequest` fail before attaching a client. `-ErrorAction
