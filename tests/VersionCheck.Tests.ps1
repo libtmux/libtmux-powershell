@@ -54,7 +54,7 @@ foreach ($type in $cmdlets | Where-Object { $_.Name -cnotin $exempt }) {
 }
 
 # A cmdlet that forgets both a server and the exemption is refused rather than run without a version check.
-Add-Type -ReferencedAssemblies @($base.Assembly.Location, [Management.Automation.PSCmdlet].Assembly.Location) -TypeDefinition @'
+Add-Type -ReferencedAssemblies (@($base.Assembly.Location, [Management.Automation.PSCmdlet].Assembly.Location) + @(Get-ChildItem "$PSHOME/ref/*.dll" | Select-Object -ExpandProperty FullName)) -CompilerOptions '/nowarn:1701' -TypeDefinition @'
 using System.Management.Automation;
 namespace LibTmux.Testing
 {
