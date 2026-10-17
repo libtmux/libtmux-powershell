@@ -98,10 +98,12 @@ reads, writes, raw commands and workspaces stays tmux 3.3a.
 3.7 and polls the pane instead.
 
 The guards cover typed operations, workspace plans and literal command items
-sent through `Invoke-TmuxCommand` and `Invoke-TmuxChain`. Commands typed into
-a pane, text inside an `if-shell` string and aliases in your tmux
-configuration are outside them. A connection you open yourself and pass to
-`Watch-TmuxEvent -Connection` was acquired before the module could decide.
+sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand` on a connection from `Connect-TmuxControl`.
+Commands typed into a pane, text inside an `if-shell` string and aliases in
+your tmux configuration are outside them. A connection you open yourself,
+passed to `Invoke-TmuxControlCommand` or `Watch-TmuxEvent -Connection`, was
+acquired before the module could decide and is not checked.
 
 The version a guard reads is the daemon's, taken just before the command is
 sent. A daemon replaced in that moment is not caught by the guard, though the
