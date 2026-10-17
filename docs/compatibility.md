@@ -51,6 +51,12 @@ the module, so it follows `-ErrorAction`. Use `-ErrorAction Stop` where a
 refused daemon must not fall through as no output, as in
 `Get-TmuxSession -ErrorAction SilentlyContinue`, which hides it.
 
+`Invoke-TmuxControlCommand` on a connection that `Connect-TmuxControl` opened
+uses the version checked before the attach. For a connection opened another
+way, pass `-Server`: the usual hook-free probe runs against that endpoint
+and the connection is remembered. The connection could belong to a different
+daemon only if the endpoint was replaced between its attach and the call.
+
 `Invoke-TmuxCommand kill-server` against an endpoint where no daemon answers
 returns an empty successful result without dispatching anything.
 
