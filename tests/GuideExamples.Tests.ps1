@@ -1045,7 +1045,10 @@ function Initialize-GuideContext($Fixture, [hashtable] $Context, [string] $Group
     $quotedTrace = ConvertTo-GuideShellLiteral $Context.Trace
     @"
 #!/bin/sh
-printf '%s\n' dispatch >> $quotedTrace
+case "`$*" in
+*"run-shell -C libtmux-version-"*|"-V") ;;
+*) printf '%s\n' dispatch >> $quotedTrace ;;
+esac
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
