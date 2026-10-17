@@ -46,6 +46,7 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
             ReadResult(token =>
             {
                 CheckConnection(Connection, Server, token);
+                TmuxFeatures.CheckCommands(VersionCheck!.Value, [Command]);
                 return Connection.SendAsync(Command, token);
             }, "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
         }
