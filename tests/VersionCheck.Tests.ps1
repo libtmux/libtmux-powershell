@@ -227,7 +227,10 @@ esac
     if ($binaryVersion -ge [LibTmux.TmuxVersion]::Parse('3.7')) {
         $outside = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
         try {
-            $reply = @($outside | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'outside')))
+            $errors = @()
+            $null = $outside | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'list-sessions') -ErrorAction SilentlyContinue -ErrorVariable errors
+            Assert-True ($errors.Count -eq 1 -and $errors[0].Exception.Message -clike '*Pass -Server*') 'an unknown control connection was used without naming its endpoint'
+            $reply = @($outside | Invoke-TmuxControlCommand -Server $server -Command (New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'outside')))
             Assert-True ($reply.Count -eq 1 -and $reply[0] -ceq 'outside') 'a supplied control connection was not checked and used'
             # A connection known to belong to a sub-floor daemon carries nothing.
             $remember = [LibTmux.PowerShell.TmuxCmdlet].Assembly.GetType('LibTmux.PowerShell.TmuxVersionCheck').GetMethod(
@@ -239,6 +242,74 @@ esac
             Assert-True (@(Get-Refusals $errors).Count -eq 1 -and
                 (Invoke-OwnedTmux $fixture -Arguments @('show-options', '-gv', '@outside') -AllowFailure).StdOut.Trim().Length -eq 0) 'a control connection to a sub-floor daemon carried a command'
         } finally { $null = $outside.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+
+        # Control version check is hook-free too: neither list-commands nor display-message hooks fire.
+        $controlLog = Join-Path $fixture.DirectoryPath 'control-hooks.log'
+        $hooks = @{ 'after-list-commands' = 'list'; 'after-display-message' = 'display'; 'command-error' = 'error' }
+        $armed = @()
+        foreach ($hook in $hooks.GetEnumerator()) {
+            $set = Invoke-OwnedTmux $fixture -AllowFailure -Arguments @('set-hook', '-g', $hook.Key, "run-shell 'echo $($hook.Value) >> $controlLog'")
+            if ($set.ExitCode -eq 0) { $armed += $hook.Key } else { Write-Host "VersionCheck: SKIPPED $($hook.Key) hook (not available on this tmux)" }
+        }
+        function Wait-ControlLog([int] $Minimum) {
+            $deadline = [DateTime]::UtcNow.AddSeconds(3)
+            while ([DateTime]::UtcNow -lt $deadline -and
+                (-not (Test-Path -LiteralPath $controlLog) -or @(Get-Content -LiteralPath $controlLog).Count -lt $Minimum)) { Start-Sleep -Milliseconds 50 }
+            Start-Sleep -Milliseconds 400
+            if (Test-Path -LiteralPath $controlLog) { @(Get-Content -LiteralPath $controlLog).Count } else { 0 }
+        }
+        # The package's own attach and command fire some of these hooks; the baseline measures exactly that.
+        $bare = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+        try { $null = $bare.SendAsync((New-TmuxCommand -Name 'list-sessions')).GetAwaiter().GetResult() }
+        finally { $null = $bare.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+        $baseline = Wait-ControlLog 0
+        Remove-Item -LiteralPath $controlLog -ErrorAction Ignore
+        $viaCmdlets = $server | Connect-TmuxControl -Target fixture
+        try {
+            $null = $viaCmdlets | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name 'list-sessions')
+        } finally { $null = $viaCmdlets.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+        $cmdletPath = Wait-ControlLog 0
+        Remove-Item -LiteralPath $controlLog -ErrorAction Ignore
+        $foreign = $server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
+        try {
+            $null = $foreign | Invoke-TmuxControlCommand -Server $server -Command (New-TmuxCommand -Name 'list-sessions')
+        } finally { $null = $foreign.DisposeAsync().AsTask().GetAwaiter().GetResult() }
+        $foreignPath = Wait-ControlLog 0
+        Assert-True ($cmdletPath -le $baseline -and $foreignPath -le $baseline) "control version check fired hooks: package attach $baseline, cmdlet path $cmdletPath, foreign connection $foreignPath"
+        Remove-Item -LiteralPath $controlLog -ErrorAction Ignore
+        # Version check of a foreign connection sends nothing over it: only the caller's command arrives.
+        Add-Type -ReferencedAssemblies (@([LibTmux.Server].Assembly.Location) + @(Get-ChildItem "$PSHOME/ref/*.dll" | Select-Object -ExpandProperty FullName)) -CompilerOptions '/nowarn:1701' -TypeDefinition @'
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+namespace LibTmux.Testing
+{
+    public sealed class CountingConnection : LibTmux.IControlModeSession
+    {
+        public List<string> Sent { get; } = new();
+        public bool IsRunning => true;
+        public IAsyncEnumerable<LibTmux.TmuxEvent> Events => throw new System.NotSupportedException();
+        public Task<IReadOnlyList<string>> SendAsync(LibTmux.TmuxCommand command, CancellationToken cancellationToken = default)
+        {
+            Sent.Add(command.Name);
+            return Task.FromResult<IReadOnlyList<string>>(new List<string>());
+        }
+        public System.Threading.Tasks.ValueTask DisposeAsync() => default;
+    }
+}
+'@
+        $counting = [LibTmux.Testing.CountingConnection]::new()
+        $null = $counting | Invoke-TmuxControlCommand -Server $server -Command (New-TmuxCommand -Name 'list-sessions')
+        Assert-True ($counting.Sent.Count -eq 1 -and $counting.Sent[0] -ceq 'list-sessions') "control version check sent commands over the connection: $($counting.Sent -join ',')"
+        # The armed hooks do fire for ordinary commands.
+        $null = Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', 'control')
+        $null = Invoke-OwnedTmux $fixture -Arguments @('list-commands') -AllowFailure
+        if ($armed -contains 'command-error') { $null = Invoke-OwnedTmux $fixture -Arguments @('select-pane', '-t', '%999999') -AllowFailure }
+        $want = 1 + $(if ($armed -contains 'command-error') { 1 } else { 0 })
+        $fired = Wait-ControlLog $want
+        $seen = @(Get-Content -LiteralPath $controlLog)
+        Assert-True ($seen -ccontains 'display' -and (($armed -cnotcontains 'command-error') -or $seen -ccontains 'error')) "the armed control hooks do not fire for ordinary commands (saw $($seen -join ','))"
+        foreach ($hook in $hooks.GetEnumerator()) { if ($armed -contains $hook.Key) { $null = Invoke-OwnedTmux $fixture -Arguments @('set-hook', '-gu', $hook.Key) } }
     } else {
         Write-Host 'VersionCheck: SKIPPED supplied control connection (control clients need tmux 3.7)'
     }
