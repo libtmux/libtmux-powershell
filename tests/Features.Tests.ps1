@@ -215,5 +215,23 @@ windows:
     Assert-True ($null -eq $applied -and @(Get-Refusal $errors '3.7a').Count -eq 1) 'a workspace plan sent a window name that 3.7 rejects'
     Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -ceq 'fixture') 'a refused plan or creation changed the sessions'
 
+    # Commands sent over a connection from Connect-TmuxControl carry the same guards, decided from the
+    # version the connection was attached under.
+    if ($control) {
+        $connection = $claimed | Connect-TmuxControl -Target fixture
+        try {
+            foreach ($arguments in @(@('break-pane', '-d'), @('new-window', '-n', 'a.b'))) {
+                $errors = @()
+                $null = $connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name $arguments[0] -Arguments $arguments[1..($arguments.Count - 1)]) `
+                    -ErrorAction SilentlyContinue -ErrorVariable errors
+                Assert-True (@(Get-Refusal $errors '3.7a').Count -eq 1) "$($arguments -join ' ') crossed a control connection on a claimed 3.7"
+            }
+            Assert-True ((Get-Topology) -ceq $topology) 'a refused control command changed the topology'
+            $named = @($connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name display-message -Arguments @('-p', 'sent')))
+            Assert-True ($named -ccontains 'sent') 'an unguarded command did not cross the control connection'
+        } finally { $connection | Disconnect-TmuxControl }
+    } else {
+        Write-Host 'Features: SKIPPED control command guards (control clients need tmux 3.7)'
+    }
     Write-Host 'Features: refusals precede effects; supported paths operative'
 }
