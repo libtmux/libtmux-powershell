@@ -154,6 +154,8 @@ internal static class TmuxVersionCheck
         IEnumerable<TmuxCommand> commands,
         CancellationToken cancellationToken)
     {
+        TmuxCommand[] batch = [.. commands];
+        TmuxFeatures.CheckCommands(daemon, batch);
         string marker = NewMarker();
         TmuxCommand fence = FenceCommand(daemon.Version, marker);
         // A live endpoint adds -N as the batch's first word so a vanished daemon is not restarted.
@@ -165,7 +167,7 @@ internal static class TmuxVersionCheck
 
         try
         {
-            TmuxCommandResult result = await server.Chain().Then(fence).Then(commands)
+            TmuxCommandResult result = await server.Chain().Then(fence).Then(batch)
                 .ExecuteAsync(cancellationToken).ConfigureAwait(false);
             ForgetIfReplaced(server, result, marker, daemon);
             return Unfence(result, [.. fence.ToArguments(), ";"]);

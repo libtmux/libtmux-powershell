@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-PaneTextWait([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Pane text wait: $Message" }
@@ -98,6 +99,12 @@ function Close-PaneTextWait($Running) {
 
 function Assert-NoObservationClient($Server, [string] $When) {
     Assert-PaneTextWait (@($Server | LibTmux\Get-TmuxClient).Count -eq 0) "$When left a control client attached"
+}
+
+if (-not (Test-TmuxFeature Control)) {
+    # Below 3.7 the cmdlet polls capture-pane; Features.Tests.ps1 covers that path.
+    Write-FeatureSkip 'pane text wait live runs' Control
+    return
 }
 
 Invoke-WithOwnedTmux {

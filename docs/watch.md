@@ -20,6 +20,9 @@ reply processing does not wait for notification delivery.
 
 ## Observe one owned change
 
+`Watch-TmuxEvent` attaches a control client, which needs tmux 3.7 or newer.
+With a server it is refused on an older daemon before anything attaches.
+
 After [installing libtmux for PowerShell](../README.md#install-from-source),
 paste this script into PowerShell. It creates one session on a socket in a
 private temporary directory. It connects a control client before renaming the

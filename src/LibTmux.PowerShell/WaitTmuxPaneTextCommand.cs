@@ -94,7 +94,12 @@ public sealed class WaitTmuxPaneTextCommand : TmuxCmdlet
             return;
         }
 
-        ReadResult(token => pane.WaitForTextAsync(request!, token),
-            "Tmux.PaneTextWaitFailed", pane);
+        ReadResult(token =>
+            {
+                // Below 3.7 no control client is attached; the wait polls capture-pane instead.
+                return VersionCheck!.Value.Version >= TmuxFeatures.Control
+                    ? pane.WaitForTextAsync(request!, token)
+                    : PaneTextPoller.WaitAsync(pane, request!, token);
+            }, "Tmux.PaneTextWaitFailed", pane);
     }
 }

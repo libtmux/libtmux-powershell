@@ -70,10 +70,13 @@ function Assert-Guide([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Guide assertion: $Message" }
 }
 
-function Test-GuideDeferral([string] $Id, [bool] $Linux,
-    [string] $PowerShellVersion, [string] $TmuxVersion) {
-    $Id -ceq 'watch.parallel' -and $Linux -and
-        $PowerShellVersion -ceq '7.4.20' -and $TmuxVersion -ceq '3.3a'
+# An example that attaches a control client or runs a pane command needs the matching tmux feature.
+function Get-GuideRequirement($Source) {
+    $code = $Source.Code.ToString()
+    # Examples that consume a job started by a control example cannot run without it.
+    if ($code -match 'Connect-TmuxControl|Watch-TmuxEvent|Wait-TmuxPaneText|EnterControlMode' -or
+        $Source.Requires -contains 'job') { return 'Control' }
+    if ($code -match 'Invoke-TmuxPaneCommand|delete-buffer') { return 'NamedBuffers' }
 }
 
 function Get-GuideField($Context, [string] $Target, [string] $Format) {
@@ -989,6 +992,7 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
     Import-Module (Join-Path $ModuleRoot "$module/0.1.0/$module.psd1")
 }
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function ConvertTo-GuideShellLiteral([string] $Value) { "'" + $Value.Replace("'", "'\''") + "'" }
 function Get-GuideTraceCount($Context) {
@@ -1033,7 +1037,6 @@ esac
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
-    $Context.TmuxVersion = (Invoke-OwnedTmux $Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
     if ($Group -eq 'Capture') {
         $program = Join-Path $Fixture.DirectoryPath 'capture.sh'
         $quotedSocket = ConvertTo-GuideShellLiteral $Fixture.SocketPath
@@ -1158,19 +1161,19 @@ foreach ($group in $selectedGroups) {
     $run = {
         $control = $null
         try {
-            if ($group -eq 'Clients') {
+            if ($group -eq 'Clients' -and (Test-TmuxFeature Control)) {
                 $control = $context.Server.EnterControlModeAsync('fixture').GetAwaiter().GetResult()
                 $context.Client = $context.Server.GetClientsAsync().GetAwaiter().GetResult()[0]
                 $null = $context.Fixture.OwnedProcessIds.Add([int] $context.Client.RawFormatFields['client_pid'])
             }
             foreach ($id in $sources.Keys | Sort-Object) {
                 if ($assertions[$id].Group -cne $group) { continue }
-                if ($context.ContainsKey('TmuxVersion') -and
-                    (Test-GuideDeferral $id $IsLinux $PSVersionTable.PSVersion.ToString() $context.TmuxVersion)) {
-                    $skipped.Add(@{ id = $id; reason = 'tmux daemon exit 139 during control attachment';
-                        issue = 'https://github.com/libtmux/libtmux-powershell/issues/5'; powershell = $PSVersionTable.PSVersion.ToString();
-                        tmux = $context.TmuxVersion })
-                    "SKIP $id on Linux / PowerShell 7.4.20 / tmux 3.3a: https://github.com/libtmux/libtmux-powershell/issues/5"
+                # The clients group observes a control client attached by its own setup.
+                $requirement = if ($group -eq 'Clients') { 'Control' } else { Get-GuideRequirement $sources[$id] }
+                if ($requirement -and -not (Test-TmuxFeature $requirement)) {
+                    $skipped.Add(@{ id = $id; reason = "tmux feature $requirement is unavailable on this daemon";
+                        powershell = $PSVersionTable.PSVersion.ToString(); tmux = (Get-TestTmuxVersion).Raw })
+                    Write-FeatureSkip "guide $id" $requirement
                     continue
                 }
                 Invoke-GuideUnit $id $context

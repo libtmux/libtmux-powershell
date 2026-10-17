@@ -263,6 +263,11 @@ when the application can signal completion itself.
 | Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
+`Invoke-TmuxPaneCommand` needs tmux 3.4 or newer. `Connect-TmuxControl`,
+`Watch-TmuxEvent` with a server need tmux 3.7 or newer; `Wait-TmuxPaneText`
+polls below 3.7. Each is refused on an older daemon before it changes anything; see
+[optional features](docs/compatibility.md#optional-features).
+
 Connect once to send a command through tmux control mode. This example uses
 the private endpoint from above, reads a session name, then disconnects and
 removes the session it created:

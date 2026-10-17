@@ -81,7 +81,12 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
     {
         if (ShouldProcess(CreationEnvironment.Endpoint(Server), "Create detached tmux session"))
         {
-            ReadResult(token => Server.CreateSessionAsync(request, token), "Tmux.SessionCreateFailed", Server);
+            ReadResult(token =>
+            {
+                // The package already refuses ':' and '.' in a session name on every release.
+                TmuxFeatures.RequireName(VersionCheck!.Value, "window", request.WindowName);
+                return Server.CreateSessionAsync(request, token);
+            }, "Tmux.SessionCreateFailed", Server);
         }
     }
 }

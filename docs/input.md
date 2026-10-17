@@ -53,6 +53,9 @@ the commands never retry automatically.
 ## Run a command to completion
 
 `Invoke-TmuxPaneCommand` runs a shell command in a writable POSIX shell pane.
+It needs tmux 3.4 or newer, because it stages a temporary buffer that older
+releases cannot delete safely; an older daemon is refused before any buffer
+exists.
 It returns a native `LibTmux.PaneRunResult` with an authenticated exit
 status. A nonzero status remains a result; a timeout returns `TimedOut = True`
 and a null status because the command may still be running. The command runs
@@ -96,7 +99,9 @@ history suppression, validation and confirmation.
 ## Wait for an application's readiness line
 
 Use [Wait-TmuxPaneText](reference/LibTmux/Wait-TmuxPaneText.md) when an
-application reports readiness in its terminal output. It observes rendered
+application reports readiness in its terminal output. On tmux 3.7 or newer it observes through a control client; on an older
+daemon it polls `capture-pane`, which can miss text that scrolls past
+between polls. It observes rendered
 text through a temporary control client, checks text already visible at entry,
 then wakes on output or layout changes. It returns a native
 `LibTmux.PaneWaitResult`; it does not require a cooperative tmux channel.

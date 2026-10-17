@@ -69,6 +69,38 @@ Optional features can need a newer release than this floor. Their
 requirements belong to the cmdlet that needs them and are listed with the
 feature rather than raised for the whole module.
 
+## Optional features
+
+A feature that needs a newer release is refused for that cmdlet alone, with
+`LibTmux.TmuxVersionTooLowException`; the error names the release it needs
+and nothing is sent first. Each requirement is per feature, so the floor for
+reads, writes, raw commands and workspaces stays tmux 3.3a.
+
+| Feature | Needs | Below that release |
+| --- | --- | --- |
+| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. Control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. |
+| `Wait-TmuxPaneText` | 3.3a (control from 3.7) | Below 3.7 it polls `capture-pane` every 100 ms and attaches nothing. It sees rendered rows, so text that scrolls past between polls can be missed, and its result carries the outcome, pattern and elapsed time only. |
+| `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a temporary named buffer. Before 3.4, deleting a missing buffer by name removes an unrelated one. |
+| Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. |
+| Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
+| Session and window names containing `:` or `.` | not exactly 3.7 | Refused on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
+| Literal `split-window -p` | not exactly 3.4 | Refused on tmux 3.4, which breaks it. Use `-l` with a percentage such as `30%`. |
+
+The guards cover typed operations, workspace plans and literal command items
+sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand`. Commands typed into a pane, text inside an
+`if-shell` string and aliases in your tmux configuration are outside them.
+A connection you open yourself and pass to `Invoke-TmuxControlCommand` or
+`Watch-TmuxEvent -Connection` was acquired before the module could decide,
+but the daemon behind it is still checked before a command is sent.
+
+The Linux workflow runs the full suites on tmux 3.3a and 3.7c. Sections
+that need a control client or a pane command report SKIP below their
+releases rather than pass, and the features suite asserts the refusals and
+that nothing changed. Releases between those two are not exercised in
+routine CI, and the guards for 3.4 and exactly 3.7 are tested by reporting
+that version to the version probe.
+
 Choose the tmux executable and socket explicitly with
 [New-TmuxServer](read.md). A handle alone starts no daemon. The module does
 not change `TMUX` or `TMUX_PANE` in the calling process, and it does not

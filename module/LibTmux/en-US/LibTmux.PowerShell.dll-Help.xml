@@ -116,7 +116,9 @@ performs no work.</maml:para>
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Tmux.ControlConnectFailed retains the original failure and server target. If
+        <maml:para>Control clients need tmux 3.7 or newer. On a daemon older than tmux 3.7 this cmdlet reports LibTmux.TmuxVersionTooLowException as its error and attaches no control client.
+
+Tmux.ControlConnectFailed retains the original failure and server target. If
 pipeline output fails before the client transfers to the caller, the cmdlet
 disposes it. Stop cancels attachment; it never kills the borrowed tmux server.</maml:para>
       </maml:alert>
@@ -4151,7 +4153,9 @@ Cleanup after an observed result may take additional time.</maml:para>
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Tmux.PaneCommandFailed retains the pane as its target. The core reserves one
+        <maml:para>Each run stages a temporary named buffer and deletes it by name when it aborts, which needs tmux 3.4 or newer. On an older daemon the cmdlet reports LibTmux.TmuxVersionTooLowException as its error before any buffer exists.
+
+Tmux.PaneCommandFailed retains the pane as its target. The core reserves one
 active command per pane in this process. A timed-out run keeps its reservation
 until completion or an authenticated pane/server end; a second run is refused
 while that command may still be active. A borrowed server is never removed.</maml:para>
@@ -11597,7 +11601,9 @@ observation metadata. No result is emitted for `-WhatIf` or an empty pipeline.</
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Tmux.PaneTextWaitFailed retains the native pane as its error target for
+        <maml:para>Below tmux 3.7 the cmdlet polls capture-pane every 100 ms and attaches no control client; the result then carries the outcome, matched pattern and elapsed time only, and text that scrolls past between polls can be missed. From 3.7 it observes through a control client.
+
+Tmux.PaneTextWaitFailed retains the native pane as its error target for
 transport and capture failures. Tmux.InvalidTimeout and
 Tmux.InvalidPaneTextRequest fail before attaching a client. `-ErrorAction
 Continue` can advance to the next pane after an operation error;
@@ -11885,7 +11891,9 @@ lines, byte-exact output or a durable log. Loss and exit events are forwarded.</
     </command:returnValues>
     <maml:alertSet>
       <maml:alert>
-        <maml:para>Tmux.WatchFailed preserves the native exception and supplied owner. Buffered
+        <maml:para>Attaching its own control client with -Server needs tmux 3.7 or newer. On an older daemon the cmdlet reports LibTmux.TmuxVersionTooLowException as its error and attaches nothing. A connection passed with -Connection was acquired before the cmdlet could decide.
+
+Tmux.WatchFailed preserves the native exception and supplied owner. Buffered
 events precede a terminal stream error. A byte-budget failure preserves earlier
 output and reports that the consumed oversized event was not emitted.
 

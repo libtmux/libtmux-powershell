@@ -30,6 +30,7 @@ public sealed class ConnectTmuxControlCommand : TmuxCmdlet
 
         RunOperation(token =>
         {
+            TmuxFeatures.RequireControl(VersionCheck!.Value, "Connect-TmuxControl");
             IControlModeSession control = Server.EnterControlModeAsync(Target, token).GetAwaiter().GetResult();
             TmuxVersionCheck.Remember(control, VersionCheck!.Value.Version);
             try
