@@ -74,7 +74,11 @@ public sealed class NewTmuxWindowCommand : TmuxCmdlet
     {
         if (ShouldProcess($"{CreationEnvironment.Endpoint(Session.Server)} session {Session.Id}", "Create tmux window"))
         {
-            ReadResult(token => Session.CreateWindowAsync(request, token), "Tmux.WindowCreateFailed", Session);
+            ReadResult(async token =>
+            {
+                await TmuxFeatures.RequireNameAsync(Session.Server, "window", request.Name, token).ConfigureAwait(false);
+                return await Session.CreateWindowAsync(request, token).ConfigureAwait(false);
+            }, "Tmux.WindowCreateFailed", Session);
         }
     }
 }
