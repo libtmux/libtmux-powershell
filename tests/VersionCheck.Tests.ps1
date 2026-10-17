@@ -78,6 +78,11 @@ $null = $reported -match '^\S+ (\S+)$'
 $binaryVersion = [LibTmux.TmuxVersion]::Parse($Matches[1])
 $supported = $binaryVersion -ge $floor
 Write-Host "VersionCheck: tmux $($binaryVersion.Raw) is $(if ($supported) { 'supported' } else { 'below the floor' })"
+# A rejection lane names the release it must run; a missing or mismatched build fails instead of skipping.
+$requiredRejection = $env:LIBTMUX_REQUIRE_REJECTED
+if ($requiredRejection) {
+    Assert-True ((-not $supported) -and $binaryVersion.Raw -ceq $requiredRejection) "the rejection lane expected tmux $requiredRejection but found $($binaryVersion.Raw)"
+}
 
 Invoke-WithOwnedTmux {
     param($fixture)
@@ -88,6 +93,8 @@ Invoke-WithOwnedTmux {
         # A client that claims to be newer must not qualify an older daemon.
         $lying = New-Wrapper $bin 'tmux' $fixture.TmuxPath 'if [ "$1" = "-V" ]; then echo "tmux 9.9"; exit 0; fi'
         $absent = Join-Path $fixture.DirectoryPath 'absent'
+        $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-g', '@sentinel', 'kept')
+        $null = Invoke-OwnedTmux $fixture -Arguments @('set-buffer', '-b', 'sentinel', 'kept')
         # An absent endpoint checks the executable that would start it, so only a live daemon can be lied about.
         foreach ($case in @(
             @{ Name = 'live daemon'; Path = $fixture.SocketPath; Binaries = @($fixture.TmuxPath, $lying) },
@@ -113,6 +120,9 @@ Invoke-WithOwnedTmux {
             }
         }
         Assert-True ((Get-NativeSessions $fixture) -ceq 'fixture') 'a refused operation changed the live daemon'
+        Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('show-options', '-gv', '@sentinel')).StdOut.Trim() -ceq 'kept' -and
+            (Invoke-OwnedTmux $fixture -Arguments @('list-buffers', '-F', '#{buffer_name}')).StdOut.Trim() -ceq 'sentinel' -and
+            (Invoke-OwnedTmux $fixture -Arguments @('show-buffer', '-b', 'sentinel')).StdOut -ceq 'kept') 'a refused operation changed an option or buffer'
         Assert-True (-not (Test-Path -LiteralPath $absent)) 'a refused operation started a daemon on the absent endpoint'
         Write-Host 'VersionCheck: older daemons refused with no effects'
         return
@@ -192,7 +202,7 @@ esac
     foreach ($entry in $cases.GetEnumerator()) {
         $env:LIBTMUX_VERSION_REPORT = $entry.Key
         try {
-            $reporting = New-Wrapper $bin 'tmux-reporting' $fixture.TmuxPath @'
+            $reporting = New-Wrapper $bin ('tmux-reporting-' + [Guid]::NewGuid().ToString('N')) $fixture.TmuxPath @'
 case "$*" in
 *"run-shell -C libtmux-version-"*)
     for last; do :; done
@@ -208,6 +218,40 @@ esac
             Remove-Item Env:LIBTMUX_VERSION_REPORT -ErrorAction Ignore
         }
     }
+
+    # One probe checks an endpoint; later operations reuse it until a fence or failure says otherwise.
+    $probeLog = Join-Path $fixture.DirectoryPath 'probes.log'
+    $counted = New-Wrapper $bin 'tmux-counted' $fixture.TmuxPath @"
+case "`$*" in
+*"run-shell -C libtmux-version-"*) echo probe >> '$probeLog';;
+esac
+"@
+    $cachedServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $counted
+    foreach ($index in 1..3) { $null = $cachedServer | Get-TmuxSession }
+    $null = $cachedServer | Invoke-TmuxCommand -Arguments @('list-sessions')
+    Assert-True (@(Get-Content -LiteralPath $probeLog).Count -eq 1) "operations on one endpoint probed more than once: $(@(Get-Content -LiteralPath $probeLog).Count)"
+
+    # A daemon that is not the one checked fails the fence, and the next operation probes again.
+    $state = Join-Path $fixture.DirectoryPath 'swapped'
+    $swapLog = Join-Path $fixture.DirectoryPath 'swap-probes.log'
+    $swapped = New-Wrapper $bin 'tmux-swapped' $fixture.TmuxPath @"
+case "`$*" in
+*"run-shell -C libtmux-version-"*)
+    echo probe >> '$swapLog'
+    if [ ! -e '$state' ]; then
+        : > '$state'
+        for last; do :; done
+        printf 'unknown command: %s\n' "`$(printf %s "`$last" | sed 's/#{version}/9.9/')" >&2
+        exit 1
+    fi;;
+esac
+"@
+    $swappedServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $swapped
+    $errors = @()
+    $null = $swappedServer | Invoke-TmuxCommand -Arguments @('list-sessions') -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True (@(Get-Refusals $errors).Count -eq 1) 'the swapped daemon passed the fence'
+    $again = $swappedServer | Invoke-TmuxCommand -Arguments @('list-sessions')
+    Assert-True ($again.ExitCode -eq 0 -and @(Get-Content -LiteralPath $swapLog).Count -eq 2) 'the fence did not invalidate the cached version check'
 
     # A failed batch reports what the caller sent, not the fence.
     $errors = @()
@@ -309,7 +353,7 @@ namespace LibTmux.Testing
         $fired = Wait-ControlLog $want
         $seen = @(Get-Content -LiteralPath $controlLog)
         Assert-True ($seen -ccontains 'display' -and (($armed -cnotcontains 'command-error') -or $seen -ccontains 'error')) "the armed control hooks do not fire for ordinary commands (saw $($seen -join ','))"
-        foreach ($hook in $hooks.GetEnumerator()) { if ($armed -contains $hook.Key) { $null = Invoke-OwnedTmux $fixture -Arguments @('set-hook', '-gu', $hook.Key) } }
+        foreach ($hook in $hooks.GetEnumerator()) { if ($armed -contains $hook.Key) { $null = Invoke-OwnedTmux $fixture -Arguments @('set-hook', '-gu', $hook.Key) -AllowFailure } }
     } else {
         Write-Host 'VersionCheck: SKIPPED supplied control connection (control clients need tmux 3.7)'
     }
