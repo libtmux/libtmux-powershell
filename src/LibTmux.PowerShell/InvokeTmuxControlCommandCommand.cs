@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 namespace LibTmux.PowerShell;
 
 /// <summary>Runs one native command on an explicit control connection.</summary>
+[TmuxVersionCheckExempt("sends over a connection the caller already acquired")]
 [Cmdlet(VerbsLifecycle.Invoke, "TmuxControlCommand", SupportsShouldProcess = true)]
 [OutputType(typeof(string))]
 [UnsupportedOSPlatform("windows")]

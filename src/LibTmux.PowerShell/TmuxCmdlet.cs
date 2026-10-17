@@ -71,7 +71,15 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         try
         {
             VersionCheck = null;
-            if (!OperatingSystem.IsWindows() && target is not null && ResolveServer(target) is Server server)
+            Server? server = target is null ? null : ResolveServer(target);
+            if (server is null && !GetType().IsDefined(typeof(TmuxVersionCheckExemptAttribute), inherit: false))
+            {
+                // Fail closed: a cmdlet that resolves no server must say why it needs none.
+                throw new InvalidOperationException(
+                    $"{GetType().Name} resolved no tmux server for its operation and is not marked TmuxVersionCheckExempt, so nothing was dispatched.");
+            }
+
+            if (!OperatingSystem.IsWindows() && server is not null)
             {
                 VersionCheck = TmuxVersionCheck.CheckAsync(server, cancellation.Token).GetAwaiter().GetResult();
             }

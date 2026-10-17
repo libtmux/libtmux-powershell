@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 namespace LibTmux.PowerShell;
 
 /// <summary>Closes a native control client without ending its borrowed tmux daemon.</summary>
+[TmuxVersionCheckExempt("closes a connection the caller already acquired")]
 [Cmdlet(VerbsCommunications.Disconnect, "TmuxControl", SupportsShouldProcess = true)]
 [UnsupportedOSPlatform("windows")]
 public sealed class DisconnectTmuxControlCommand : TmuxCmdlet

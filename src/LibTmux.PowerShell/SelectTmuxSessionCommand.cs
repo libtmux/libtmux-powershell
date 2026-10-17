@@ -5,6 +5,7 @@ using LibTmux.Query;
 namespace LibTmux.PowerShell;
 
 /// <summary>Filters captured native sessions without contacting tmux.</summary>
+[TmuxVersionCheckExempt("selects from objects already in memory")]
 [Cmdlet(VerbsCommon.Select, "TmuxSession", DefaultParameterSetName = "Criteria")]
 [OutputType(typeof(Session))]
 public sealed class SelectTmuxSessionCommand : TmuxCmdlet

@@ -5,6 +5,7 @@ using LibTmux.PowerShell;
 namespace LibTmux.Workspace.PowerShell;
 
 /// <summary>Converts a captured session to a native workspace declaration.</summary>
+[TmuxVersionCheckExempt("converts a captured session without dispatching")]
 [Cmdlet(VerbsData.ConvertTo, "TmuxWorkspace")]
 [OutputType(typeof(WorkspaceFile))]
 [UnsupportedOSPlatform("windows")]
@@ -14,9 +15,6 @@ public sealed class ConvertToTmuxWorkspaceCommand : TmuxCmdlet
     [Parameter(Mandatory = true, ValueFromPipeline = true, Position = 0)]
     [ValidateNotNull]
     public Session Session { get; set; } = null!;
-
-    /// <inheritdoc />
-    protected override Server? ResolveServer(object target) => null;
 
     /// <inheritdoc />
     protected override void ProcessRecord() =>

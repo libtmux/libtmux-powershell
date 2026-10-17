@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 namespace LibTmux.PowerShell;
 
 /// <summary>Reads native tmux events through a bounded callback handoff.</summary>
+[TmuxVersionCheckExempt("a supplied connection was acquired by the caller; its own server is checked")]
 [Cmdlet(VerbsCommon.Watch, "TmuxEvent", DefaultParameterSetName = "Connection", SupportsShouldProcess = true)]
 [OutputType(typeof(TmuxEvent))]
 [UnsupportedOSPlatform("windows")]
