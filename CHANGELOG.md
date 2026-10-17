@@ -21,7 +21,7 @@ no-op. (#21)
   before anything is sent, with `TmuxVersionTooLowException`: control clients
   (`Connect-TmuxControl`, `Watch-TmuxEvent` with a server and
   `Wait-TmuxPaneText`) need tmux 3.7, because short-lived control attaches
-  crash older servers;
+  can crash servers before 3.7 (measured on 3.2a and 3.6b);
   `Invoke-TmuxPaneCommand` and literal `delete-buffer -b` and
   `set-buffer -b -n` items need 3.4. Exactly 3.7 refuses `break-pane`
   without a name and `:` or `.` in session and window names, and exactly
