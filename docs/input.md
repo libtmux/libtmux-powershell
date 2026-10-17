@@ -53,6 +53,9 @@ the commands never retry automatically.
 ## Run a command to completion
 
 `Invoke-TmuxPaneCommand` runs a shell command in a writable POSIX shell pane.
+It needs tmux 3.4 or newer, because it stages a temporary buffer that older
+releases cannot delete safely; an older daemon is refused before any buffer
+exists.
 It returns a native `LibTmux.PaneRunResult` with an authenticated exit
 status. A nonzero status remains a result; a timeout returns `TimedOut = True`
 and a null status because the command may still be running. The command runs

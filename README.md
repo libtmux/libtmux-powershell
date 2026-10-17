@@ -258,6 +258,12 @@ Pick a mode by who owns the client and how a failure is reported:
 | Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
+An older daemon refuses these before anything changes:
+[`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] needs tmux 3.4, and
+[`Connect-TmuxControl`][connect-tmuxcontrol] and
+[`Watch-TmuxEvent`][watch-tmuxevent] with a server need 3.7. See
+[optional features](docs/compatibility.md#optional-features).
+
 ### [`Connect-TmuxControl`][connect-tmuxcontrol]: one client for repeated commands
 
 It connects one control client. [`New-TmuxCommand`][new-tmuxcommand] builds a
