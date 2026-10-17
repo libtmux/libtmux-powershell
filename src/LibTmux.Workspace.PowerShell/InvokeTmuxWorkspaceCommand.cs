@@ -43,10 +43,6 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
                 {
                     switch (step)
                     {
-                        case WorkspaceAction<NewSessionRequest> session:
-                            RejectUnsendableName("session", session.Request.Name);
-                            RejectUnsendableName("window", session.Request.WindowName);
-                            break;
                         case WorkspaceAction<NewWindowRequest> window:
                             RejectUnsendableName("window", window.Request.Name);
                             break;

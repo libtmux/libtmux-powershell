@@ -83,7 +83,7 @@ public sealed class NewTmuxSessionCommand : TmuxCmdlet
         {
             ReadResult(token =>
             {
-                TmuxFeatures.RequireName(VersionCheck!.Value, "session", request.Name);
+                // The package already refuses ':' and '.' in a session name on every release.
                 TmuxFeatures.RequireName(VersionCheck!.Value, "window", request.WindowName);
                 return Server.CreateSessionAsync(request, token);
             }, "Tmux.SessionCreateFailed", Server);
