@@ -111,8 +111,7 @@ jobs:
       matrix:
         powershell: ['7.4.20', '7.6.6']
         tmux:
-          - '3.2a'
-          # - '3.3a'
+          - '3.3a'
           # - '3.4'
           # - '3.5'
           # - '3.6'
@@ -124,10 +123,8 @@ jobs:
             powershell_sha256: ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181
           - powershell: '7.6.6'
             powershell_sha256: ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
-          - tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
-          # - tmux: '3.3a'
-          #   tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
+          - tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           # - tmux: '3.4'
           #   tmux_commit: 9ae69c3795ab5ef6b4d760f6398cd9281151f632
           # - tmux: '3.5'
@@ -219,7 +216,7 @@ jobs:
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
       - name: Discover the separate MCP tool
-        if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.2a' || matrix.tmux == '3.7c')
+        if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.3a' || matrix.tmux == '3.7c')
         env:
           MCP_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
         run: |
@@ -248,8 +245,156 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  reject:
+    needs: port
+    name: PowerShell 7.4.20 / tmux ${{ matrix.tmux }} rejected
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Releases below the 3.3a floor: the suite asserts refusal with no effects.
+        tmux: ['3.2a', '3.3']
+        include:
+          - tmux: '3.2a'
+            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+          - tmux: '3.3'
+            tmux_commit: 87fe00e8b44901240fc22d7120c1b31e4331f6f5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install official PowerShell 7.4.20
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+
+      - name: Install tmux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            autoconf automake bison build-essential \
+            libevent-dev libncurses-dev pkg-config
+
+      - name: Build and identify tmux ${{ matrix.tmux }}
+        env:
+          TMUX_VERSION: ${{ matrix.tmux }}
+          TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
+        run: |
+          git clone --quiet https://github.com/tmux/tmux.git "${RUNNER_TEMP}/tmux-source"
+          git -C "${RUNNER_TEMP}/tmux-source" checkout --quiet "${TMUX_SOURCE_COMMIT}"
+          test "$(git -C "${RUNNER_TEMP}/tmux-source" describe --tags --exact-match)" = "${TMUX_VERSION}"
+          (cd "${RUNNER_TEMP}/tmux-source" \
+            && sh autogen.sh \
+            && ./configure --prefix="${RUNNER_TEMP}/tmux-install" \
+            && make --jobs="$(nproc)" \
+            && make install)
+          test "$("${RUNNER_TEMP}/tmux-install/bin/tmux" -V)" = "tmux ${TMUX_VERSION}"
+          echo "${RUNNER_TEMP}/tmux-install/bin" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${RUNNER_TEMP}/tmux-install/bin/tmux" >> "${GITHUB_ENV}"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: port-package
+          path: ${{ runner.temp }}/port-package
+
+      - name: Check the installed package bytes and run the rejection suite
+        run: |
+          test "$(command -v tmux)" = "${TMUX_BINARY}"
+          jq -r '.packages[] | [.sha256, .file] | @tsv' \
+            "${RUNNER_TEMP}/port-package/package-evidence.json" \
+            | while IFS=$'\t' read -r digest file; do
+                echo "${digest}  ${RUNNER_TEMP}/port-package/${file}" | sha256sum --check --strict
+              done
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+            -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
+
+  reject-old-daemon:
+    needs: port
+    name: PowerShell 7.4.20 / tmux ${{ matrix.tmux }} daemon behind a 3.3a client
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Releases whose daemon cannot report a version: the suite refuses them promptly.
+        tmux: ['3.0a', '3.1c']
+        include:
+          - tmux: '3.0a'
+            tmux_commit: 25ae02869544b84b639b25b0aa69baa6ea2d3a6a
+          - tmux: '3.1c'
+            tmux_commit: 25cae5d86f01d0deb050243842ed5d967b3dc411
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install official PowerShell 7.4.20
+        run: |
+          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            --output "${archive}"
+          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
+            | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/powershell"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
+          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
+
+      - name: Install tmux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            autoconf automake bison build-essential \
+            libevent-dev libncurses-dev pkg-config
+
+      - name: Build the 3.3a client and the old daemon
+        env:
+          TMUX_VERSION: ${{ matrix.tmux }}
+          TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
+        run: |
+          source="${RUNNER_TEMP}/tmux-source"
+          git clone --quiet https://github.com/tmux/tmux.git "${source}"
+          build() {
+            git -C "${source}" checkout --quiet "$1"
+            test "$(git -C "${source}" describe --tags --exact-match)" = "$2"
+            (cd "${source}" \
+              && git clean --quiet -fdx \
+              && sh autogen.sh \
+              && ./configure --prefix="${RUNNER_TEMP}/tmux-$2" \
+              && make --jobs="$(nproc)" \
+              && make install)
+            test "$("${RUNNER_TEMP}/tmux-$2/bin/tmux" -V)" = "tmux $2"
+          }
+          build 0b355ae8114511e1ff6359272b164f1cdf718e80 3.3a
+          build "${TMUX_SOURCE_COMMIT}" "${TMUX_VERSION}"
+          echo "${RUNNER_TEMP}/tmux-3.3a/bin" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${RUNNER_TEMP}/tmux-3.3a/bin/tmux" >> "${GITHUB_ENV}"
+          printf 'LIBTMUX_OLD_DAEMON=%s\n' "${RUNNER_TEMP}/tmux-${TMUX_VERSION}/bin/tmux" >> "${GITHUB_ENV}"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: port-package
+          path: ${{ runner.temp }}/port-package
+
+      - name: Check the installed package bytes and run the old-daemon suite
+        run: |
+          test "$(command -v tmux)" = "${TMUX_BINARY}"
+          jq -r '.packages[] | [.sha256, .file] | @tsv' \
+            "${RUNNER_TEMP}/port-package/package-evidence.json" \
+            | while IFS=$'\t' read -r digest file; do
+                echo "${digest}  ${RUNNER_TEMP}/port-package/${file}" | sha256sum --check --strict
+              done
+          LIBTMUX_REQUIRE_OLD_DAEMON="${{ matrix.tmux }}" \
+            "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+            -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
+
   gate:
-    needs: [port, matrix]
+    needs: [port, matrix, reject, reject-old-daemon]
     if: always()
     name: powershell gate
     runs-on: ubuntu-24.04
@@ -259,3 +404,5 @@ jobs:
         run: |
           test "${{ needs.port.result }}" = success
           test "${{ needs.matrix.result }}" = success
+          test "${{ needs.reject.result }}" = success
+          test "${{ needs.reject-old-daemon.result }}" = success
