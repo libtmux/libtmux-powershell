@@ -135,10 +135,12 @@ if ($Online) {
         "https://raw.githubusercontent.com/libtmux/libtmux-powershell/$commit/${prefix}assets/logo.svg"
         "https://raw.githubusercontent.com/libtmux/libtmux-powershell/$commit/${prefix}assets/logo.png"
     }
-    $urls = @($documents.Values | ForEach-Object {
+    $pageUrls = @($documents.Values | ForEach-Object {
         $_.Links.Url
         $_.Definitions.Values
-    } + $logoUrls | Where-Object { $_ -and $_ -cmatch '^https?://' } | ForEach-Object { ($_ -split '#')[0] } | Sort-Object -Unique)
+    })
+    $urls = @(($pageUrls + @($logoUrls)) | Where-Object { $_ -and $_ -cmatch '^https?://' } |
+        ForEach-Object { ($_ -split '#')[0] } | Sort-Object -Unique)
     $failed = [Collections.Generic.List[string]]::new()
     $redirected = [Collections.Generic.List[string]]::new()
     $handler = [Net.Http.HttpClientHandler]::new()
