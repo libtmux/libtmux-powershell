@@ -2,6 +2,14 @@
 
 ## 0.1.0-alpha3 - Unreleased
 
+### Documentation
+
+- Give the `LibTmux` and `LibTmux.Workspace` source directories a README and
+  list each product on the repository page under a heading that links its
+  directory. Link the first mention of each public cmdlet and native type to
+  its libtmux.org page, and every MCP tool name to its tool page. Add the
+  Claude Code and JSON registrations for the separate MCP tool.
+
 ## 0.1.0-alpha2 - 2026-10-10
 
 ### Documentation

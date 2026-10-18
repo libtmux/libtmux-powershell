@@ -13,6 +13,8 @@ $McpProbe = (Get-Item -LiteralPath $McpProbe -ErrorAction Stop).FullName
 $McpGuide = (Get-Item -LiteralPath $McpGuide -ErrorAction Stop).FullName
 $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/ReadmeLinks.ps1"
+. "$PSScriptRoot/support/McpReadme.ps1"
 $state = @{ Fixture = $null; Version = $McpVersion }
 try {
     Invoke-WithOwnedTmux {
@@ -66,6 +68,12 @@ try {
                 $result.paneWorkflow.eventsDropped -ne 0) {
                 throw 'MCP client did not complete the advertised pane-list, capture and ready-text workflow.'
             }
+            # The pages show these registrations and tool names; the installed server must agree.
+            $readmePath = (Get-Item -LiteralPath "$PSScriptRoot/../README.md" -ErrorAction Stop).FullName
+            $readmePages = @($readmePath, $McpGuide) | ForEach-Object {
+                Get-MarkdownDocument $_ ([IO.File]::ReadAllText($_))
+            }
+            $readme = Test-McpReadme $fixture $McpCommand $readmePages
             $after = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:', '#{pid}|#{start_time}|#{session_id}|#{pane_id}|#{pane_pid}')).StdOut
             if ($before -cne $after -or
                 (Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -cne 'fixture' -or
@@ -81,6 +89,8 @@ try {
                 paneWorkflow = $result.paneWorkflow
                 guideSha256 = $result.guideSha256
                 toolSha256 = (Get-FileHash -LiteralPath $McpCommand -Algorithm SHA256).Hash
+                readmeConfigurations = $readme.Configurations
+                readmeToolsChecked = $readme.Tools
                 borrowedStatePreserved = $true
             } | ConvertTo-Json -Depth 5
         } finally {

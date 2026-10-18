@@ -11,11 +11,18 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot
 
-function Get-GuideAdmissionContext {
-    $files = @(Get-Item $PSCommandPath) + @(Get-Item "$root/README.md") +
+# The root README, each package README and the guides carry executable fences.
+function Get-GuideDocumentFile {
+    @(Get-Item "$root/README.md") +
+        @(Get-ChildItem "$root/src" -Filter 'README.md' -Recurse) +
         @(Get-ChildItem "$root/docs" -Filter '*.md' -Recurse | Where-Object {
             !$_.FullName.StartsWith("$root/docs/reference/", [StringComparison]::Ordinal)
-        }) + @(Get-ChildItem "$root/examples" -Filter '*.ps1' -Recurse) +
+        })
+}
+
+function Get-GuideAdmissionContext {
+    $files = @(Get-Item $PSCommandPath) + @(Get-GuideDocumentFile) +
+        @(Get-ChildItem "$root/examples" -Filter '*.ps1' -Recurse) +
         @(Get-ChildItem "$PSScriptRoot/support" -File) + @(
             foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
                 Get-ChildItem (Join-Path $ModuleRoot "$module/0.1.0") -File -Recurse
@@ -29,10 +36,7 @@ function Get-GuideAdmissionContext {
 }
 
 function Get-GuideDocumentUnit([IO.FileInfo[]] $Files) {
-    if (!$Files) {
-        $Files = @(Get-Item "$root/README.md") + @(Get-ChildItem "$root/docs" -Filter '*.md' -Recurse |
-            Where-Object { !$_.FullName.StartsWith("$root/docs/reference/", [StringComparison]::Ordinal) })
-    }
+    if (!$Files) { $Files = Get-GuideDocumentFile }
     $units = @{}
     foreach ($file in $files) {
         $text = [IO.File]::ReadAllText($file.FullName).Replace("`r`n", "`n")
@@ -940,6 +944,21 @@ if ($Phase -eq 'Examples') {
         Assert-GuideRejection {
             $null = Get-GuideDocumentUnit @((Get-Item $firstCopy), (Get-Item $secondCopy))
         } 'Guide copy drift: readme.input'
+        # A package README is scanned, and its copy must match the root README.
+        $packageNames = @(Get-GuideDocumentFile | ForEach-Object {
+            [IO.Path]::GetRelativePath($root, $_.FullName)
+        })
+        foreach ($package in @('src/LibTmux.PowerShell/README.md', 'src/LibTmux.Workspace.PowerShell/README.md')) {
+            if ($package -cnotin $packageNames) { throw "Guide scan omits $package." }
+        }
+        $packageCopy = Join-Path $copied 'README.md'
+        $packageText = [IO.File]::ReadAllText("$root/src/LibTmux.PowerShell/README.md")
+        $planted = $packageText.Replace("'exit 7'", "'exit 8'")
+        if ($planted -ceq $packageText) { throw 'The package drift control found no code to change.' }
+        [IO.File]::WriteAllText($packageCopy, $planted)
+        Assert-GuideRejection {
+            $null = Get-GuideDocumentUnit @((Get-Item "$root/README.md"), (Get-Item $packageCopy))
+        } 'Guide copy drift: input.run'
     } finally {
         if (Test-Path -LiteralPath $copied) { Remove-Item -LiteralPath $copied -Recurse -Force }
     }

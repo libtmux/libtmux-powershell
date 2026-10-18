@@ -253,6 +253,24 @@ within 80 columns:
 $ python3 eng/check_example_width.py
 ```
 
+Check that the README pages link each package directory, link the first
+mention of every public cmdlet and native type to its libtmux.org page, and
+name only relative paths and headings that exist. The check plants each fault
+it guards against and needs no installed module or tmux:
+
+```console
+$ pwsh -NoLogo -NoProfile -File tests/ReadmeLinks.Tests.ps1
+```
+
+Add `-Online` to request every absolute URL on those pages. It follows up to
+five redirects, lists them, and fails unless each URL ends in status 200. It
+reaches the network, so keep it out of the inner and mid loops:
+
+```console
+$ pwsh -NoLogo -NoProfile -File tests/ReadmeLinks.Tests.ps1 \
+    -Online
+```
+
 Native help is authored under `docs/reference/` and generated with the pinned
 PlatyPS version. Check that the packaged MAML matches its source:
 
@@ -444,6 +462,10 @@ its exact version, then run the
 The runner requires the existing executable and built probe; it does not
 install, restore or build. It starts only its own tmux fixture and stdio
 client. Tool installation and client compilation are setup/outer-loop work.
+
+The same run starts the tool with the `LIBTMUX_` settings that the README and
+MCP guide show, using the fixture's tmux and socket or a socket name of its
+own, and links every tool name on those pages to a tool the server has.
 
 ## Checks
 
