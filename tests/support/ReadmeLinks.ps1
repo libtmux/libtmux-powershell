@@ -258,3 +258,38 @@ function Test-ReadmePackageHeading($Document, [string[]] $Directories) {
         if ($directory -cnotin $headings) { "$($Document.Path): no package heading links $directory" }
     }
 }
+
+# Every README opens with the shared centred logo block and ships its art beside it.
+function Test-ReadmeLogoHeader($Document, [string] $Alt) {
+    $expected = @(
+        '<!-- libtmux-logo -->', '<div align="center">', '  <picture>',
+        '    <source srcset="assets/logo.svg" type="image/svg+xml">',
+        "    <img src=`"assets/logo.png`" width=`"128`" height=`"128`" alt=`"$Alt`">",
+        '  </picture>', '</div>', '<!-- /libtmux-logo -->', '', '<div align="center">')
+    for ($index = 0; $index -lt $expected.Count; $index++) {
+        $actual = if ($index -lt $Document.Lines.Count) { $Document.Lines[$index] } else { '' }
+        if ($actual -cne $expected[$index]) {
+            "$($Document.Path):$($index + 1): logo header line is '$actual', not '$($expected[$index])'"
+            break
+        }
+    }
+    $directory = Split-Path $Document.Path
+    $png = Join-Path $directory 'assets/logo.png'
+    $svg = Join-Path $directory 'assets/logo.svg'
+    if (!(Test-Path -LiteralPath $svg -PathType Leaf)) { "$($Document.Path): assets/logo.svg is missing" }
+    elseif ([IO.File]::ReadAllText($svg).TrimStart([char] 0xFEFF).TrimStart() -cnotmatch '^(<\?xml|<svg)') {
+        "$($Document.Path): assets/logo.svg is not an SVG"
+    }
+    if (!(Test-Path -LiteralPath $png -PathType Leaf)) { "$($Document.Path): assets/logo.png is missing"; return }
+    $bytes = [IO.File]::ReadAllBytes($png)
+    $signature = [byte[]] (0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+    $isPng = $bytes.Length -ge 24 -and !(Compare-Object $signature $bytes[0..7] -SyncWindow 0)
+    # The logo kit ships 512 x 512 PNGs; a smaller file means someone resized the art.
+    $isSized = $false
+    if ($isPng) {
+        # A Byte shifted left stays a Byte, so widen the IHDR fields first.
+        $field = { param([int] $At) ([int] $bytes[$At] * 16777216) + ([int] $bytes[$At + 1] * 65536) + ([int] $bytes[$At + 2] * 256) + [int] $bytes[$At + 3] }
+        $isSized = (& $field 16) -eq 512 -and (& $field 20) -eq 512
+    }
+    if (!$isSized) { "$($Document.Path): assets/logo.png is not a 512 x 512 PNG" }
+}

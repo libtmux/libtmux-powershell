@@ -1,3 +1,14 @@
+<!-- libtmux-logo -->
+<div align="center">
+  <picture>
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for PowerShell workspace">
+  </picture>
+</div>
+<!-- /libtmux-logo -->
+
+<div align="center">
+
 # LibTmux.Workspace
 
 The workspace module of
@@ -5,6 +16,8 @@ The workspace module of
 Describe a tmux session in YAML or JSON, review the plan, then apply it. The
 module needs the matching [`LibTmux`](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell)
 core module, and installing it also installs that dependency.
+
+</div>
 
 Reference: [every cmdlet][module], the
 [workspace guide](https://libtmux.org/en/powershell/latest/workspace/source-guide/)

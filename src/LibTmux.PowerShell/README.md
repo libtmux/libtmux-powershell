@@ -1,9 +1,22 @@
+<!-- libtmux-logo -->
+<div align="center">
+  <picture>
+    <source srcset="assets/logo.svg" type="image/svg+xml">
+    <img src="assets/logo.png" width="128" height="128" alt="libtmux for PowerShell">
+  </picture>
+</div>
+<!-- /libtmux-logo -->
+
+<div align="center">
+
 # LibTmux
 
 The core module of
 [libtmux for PowerShell](https://github.com/libtmux/libtmux-powershell#readme).
 Its cmdlets create, read, arrange and remove tmux sessions, windows and panes,
 send input and capture output as native objects.
+
+</div>
 
 Reference: [every cmdlet][module], the
 [getting started guide](https://libtmux.org/en/powershell/latest/guides/getting-started/)

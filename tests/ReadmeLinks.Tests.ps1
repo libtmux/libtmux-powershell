@@ -25,6 +25,13 @@ $projectDirectories = @($tracked | Where-Object { $_ -cmatch '^src/[^/]+/[^/]+\.
 $headingLinks = @($projectDirectories | ForEach-Object { "$script:RepositoryTree/tree/master/$_" }) +
     'https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp'
 
+# Each README shows its product's art; a package without an entry here has no alt text.
+$logoAlt = @{
+    'README.md' = 'libtmux for PowerShell'
+    'src/LibTmux.PowerShell/README.md' = 'libtmux for PowerShell'
+    'src/LibTmux.Workspace.PowerShell/README.md' = 'libtmux for PowerShell workspace'
+}
+
 function Read-Page([string] $Relative, [string] $Text) {
     Get-MarkdownDocument (Join-Path $root $Relative) $Text
 }
@@ -47,7 +54,14 @@ foreach ($page in $pages) {
     $document = Read-Page $page ([IO.File]::ReadAllText("$root/$page"))
     $documents[$page] = $document
     foreach ($problem in Get-PageProblem $document ($page -ceq 'README.md')) { $problems.Add($problem) }
+    if ($page -cmatch 'README\.md$') {
+        if (!$logoAlt.ContainsKey($page)) { $problems.Add("$page has no logo alt text registered") }
+        else { foreach ($problem in Test-ReadmeLogoHeader $document $logoAlt[$page]) { $problems.Add($problem) } }
+    }
 }
+$libraryArt = (Get-FileHash -LiteralPath "$root/src/LibTmux.PowerShell/assets/logo.svg").Hash
+$workspaceArt = (Get-FileHash -LiteralPath "$root/src/LibTmux.Workspace.PowerShell/assets/logo.svg").Hash
+if ($libraryArt -ceq $workspaceArt) { $problems.Add('The workspace package shows the library art.') }
 foreach ($directory in $projectDirectories) {
     if ("$directory/README.md" -cnotin $tracked) { $problems.Add("$directory has no README.md") }
 }
@@ -82,11 +96,49 @@ Assert-Planted 'bare tool' "Use list_panes now.`n" 'tool name list_panes is outs
 Assert-Planted 'tool link names another' "Use [``list_panes``](https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/).`n" 'does not name list_windows' $false @('list_panes')
 Assert-Planted 'unknown tool' "Use [``no_such``][t].`n`n[t]: $(Get-ToolPageUrl 'no_such')`n" 'no_such is not a tool of the installed server' $false @('list_panes')
 
+# Logo controls: a faulty header or asset is reported; the real header passes.
+$realCore = [IO.File]::ReadAllText("$root/src/LibTmux.PowerShell/README.md")
+$coreAlt = $logoAlt['src/LibTmux.PowerShell/README.md']
+function Assert-PlantedLogo([string] $Name, [string] $Markdown, [string] $Expected, [string] $Relative = 'src/LibTmux.PowerShell/README.md') {
+    $document = Get-MarkdownDocument (Join-Path $root $Relative) $Markdown
+    $found = @(Test-ReadmeLogoHeader $document $coreAlt)
+    if ($Expected -and !($found | Where-Object { $_.Contains($Expected) })) {
+        throw "README logo control '$Name' did not report '$Expected'. Reported: $($found -join '; ')"
+    }
+    if (!$Expected -and $found.Count) { throw "README logo control '$Name' rejected a clean header: $($found -join '; ')" }
+}
+Assert-PlantedLogo 'clean' $realCore ''
+Assert-PlantedLogo 'paragraph wrapper' $realCore.Replace('<div align="center">', '<p align="center">').Replace('</div>', '</p>') 'logo header line'
+Assert-PlantedLogo 'no marker' $realCore.Replace('<!-- libtmux-logo -->', '') 'logo header line'
+Assert-PlantedLogo 'wrong alt' $realCore.Replace('alt="libtmux for PowerShell"', 'alt="logo"') 'logo header line'
+Assert-PlantedLogo 'wrong size' $realCore.Replace('width="128"', 'width="64"') 'logo header line'
+Assert-PlantedLogo 'title outside the centred block' $realCore.Replace("<!-- /libtmux-logo -->`n`n<div align=`"center`">`n`n# LibTmux", "<!-- /libtmux-logo -->`n`n# LibTmux") 'logo header line'
+Assert-PlantedLogo 'no assets' $realCore 'assets/logo.svg is missing' 'docs/planted.md'
+$planted = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-readme-logo-' + [Guid]::NewGuid().ToString('N'))
+try {
+    $null = New-Item -ItemType Directory -Path "$planted/assets"
+    [IO.File]::WriteAllText("$planted/assets/logo.png", 'not a png')
+    [IO.File]::WriteAllText("$planted/assets/logo.svg", 'plain text')
+    $document = Get-MarkdownDocument "$planted/README.md" $realCore
+    $found = @(Test-ReadmeLogoHeader $document $coreAlt)
+    foreach ($expected in @('is not an SVG', 'is not a 512 x 512 PNG')) {
+        if (!($found | Where-Object { $_.Contains($expected) })) { throw "README logo control did not report '$expected'. Reported: $($found -join '; ')" }
+    }
+} finally { Remove-Item -LiteralPath $planted -Recurse -Force }
+
 if ($Online) {
+    # The logo files must resolve on GitHub at the commit under test (push it first).
+    $commit = (git -C $root rev-parse HEAD).Trim()
+    $logoUrls = foreach ($page in $documents.Keys | Where-Object { $_ -cmatch 'README\.md$' }) {
+        $directory = (Split-Path $page).Replace('\', '/')
+        $prefix = if ($directory) { "$directory/" } else { '' }
+        "https://raw.githubusercontent.com/libtmux/libtmux-powershell/$commit/${prefix}assets/logo.svg"
+        "https://raw.githubusercontent.com/libtmux/libtmux-powershell/$commit/${prefix}assets/logo.png"
+    }
     $urls = @($documents.Values | ForEach-Object {
         $_.Links.Url
         $_.Definitions.Values
-    } | Where-Object { $_ -and $_ -cmatch '^https?://' } | ForEach-Object { ($_ -split '#')[0] } | Sort-Object -Unique)
+    } + $logoUrls | Where-Object { $_ -and $_ -cmatch '^https?://' } | ForEach-Object { ($_ -split '#')[0] } | Sort-Object -Unique)
     $failed = [Collections.Generic.List[string]]::new()
     $redirected = [Collections.Generic.List[string]]::new()
     $handler = [Net.Http.HttpClientHandler]::new()
