@@ -12,6 +12,7 @@ Import-Module $tool
 function ConvertTo-MamlText([string] $Text) {
     # MAML prose is plain text; the website export retains authored Markdown.
     $plain = [regex]::Replace($Text, '<kbd>([^<\r\n]+)</kbd>', '$1')
+    $plain = [regex]::Replace($plain, '\*\*([^*\r\n]+)\*\*', '$1')
     $plain = [regex]::Replace($plain, '\[([^\]\r\n]+)\]\(([^\s)]+)\)', '$1')
     return [regex]::Replace($plain, '`([^`\r\n]+)`', '$1')
 }
