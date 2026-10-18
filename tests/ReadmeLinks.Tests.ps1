@@ -57,6 +57,7 @@ foreach ($page in $pages) {
     if ($page -cmatch 'README\.md$') {
         if (!$logoAlt.ContainsKey($page)) { $problems.Add("$page has no logo alt text registered") }
         else { foreach ($problem in Test-ReadmeLogoHeader $document $logoAlt[$page]) { $problems.Add($problem) } }
+        foreach ($problem in Test-ReadmeStructure $document) { $problems.Add($problem) }
     }
 }
 $libraryArt = (Get-FileHash -LiteralPath "$root/src/LibTmux.PowerShell/assets/logo.svg").Hash
@@ -95,6 +96,31 @@ Assert-Planted 'unlinked tool' "Use ``list_panes`` now.`n" 'tool `list_panes` is
 Assert-Planted 'bare tool' "Use list_panes now.`n" 'tool name list_panes is outside backticks' $false @('list_panes')
 Assert-Planted 'tool link names another' "Use [``list_panes``](https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/).`n" 'does not name list_windows' $false @('list_panes')
 Assert-Planted 'unknown tool' "Use [``no_such``][t].`n`n[t]: $(Get-ToolPageUrl 'no_such')`n" 'no_such is not a tool of the installed server' $false @('list_panes')
+
+# Structure controls: each planted fault is reported; a short, complete page passes.
+function Assert-PlantedStructure([string] $Name, [string[]] $Lines, [string] $Expected) {
+    $document = Get-MarkdownDocument (Join-Path $root 'planted.md') ($Lines -join "`n")
+    $found = @(Test-ReadmeStructure $document)
+    if ($Expected -and !($found | Where-Object { $_.Contains($Expected) })) {
+        throw "README structure control '$Name' did not report '$Expected'. Reported: $($found -join '; ')"
+    }
+    if (!$Expected -and $found.Count) { throw "README structure control '$Name' rejected a clean page: $($found -join '; ')" }
+}
+$tail = @('## What it leaves out', '', '- Nothing.', '', '## Support and status', '', '- Alpha.')
+$long = 'word ' * 60
+$wrapped = @(($long.Trim() -split ' ') | ForEach-Object -Begin { $row = @() } -Process {
+    $row += $_
+    if ($row.Count -eq 10) { $row -join ' '; $row = @() }
+})
+Assert-PlantedStructure 'clean' (@('## Quick start', '', 'Short text.', '') + $tail) ''
+Assert-PlantedStructure 'wall' (@('## Quick start', '', $long, '') + $tail) 'over 240'
+Assert-PlantedStructure 'wrapped wall' (@('## Quick start', '') + $wrapped + @('') + $tail) 'over 240'
+Assert-PlantedStructure 'list wall' (@('## Quick start', '', "- $long", '- Short.', '') + $tail) 'over 240'
+Assert-PlantedStructure 'long link target' (@('## Quick start', '', "[Text](https://example.com/$('a' * 300)) here.", '') + $tail) ''
+Assert-PlantedStructure 'table row' (@('## Quick start', '', "| $long |", '| --- |', '') + $tail) ''
+Assert-PlantedStructure 'wrong first section' (@('## Install', '', 'Short.', '') + $tail) 'first section is not Quick start'
+Assert-PlantedStructure 'no leaves out' @('## Quick start', '', 'Short.', '', '## Support and status', '', '- Alpha.') 'no What it leaves out section'
+Assert-PlantedStructure 'no support' @('## Quick start', '', 'Short.', '', '## What it leaves out', '', '- Nothing.') 'no Support and status section'
 
 # Logo controls: a faulty header or asset is reported; the real header passes.
 $realCore = [IO.File]::ReadAllText("$root/src/LibTmux.PowerShell/README.md")

@@ -293,3 +293,40 @@ function Test-ReadmeLogoHeader($Document, [string] $Alt) {
     }
     if (!$isSized) { "$($Document.Path): assets/logo.png is not a 512 x 512 PNG" }
 }
+
+# Every README opens on a Quick start, lists what it leaves out and what it
+# supports, and keeps each paragraph and list item short enough to scan.
+$script:ReadmeWallLimit = 240
+
+function Get-ReadmeRenderedText([string] $Text) {
+    $plain = [regex]::Replace($Text, '<!--.*?-->', '')
+    $plain = [regex]::Replace($plain, '\[(?<t>[^\]]*)\]\([^)]*\)', '${t}')
+    [regex]::Replace($plain, '\[(?<t>[^\]]*)\]\[[^\]]*\]', '${t}').Replace('`', '')
+}
+
+function Test-ReadmeStructure($Document) {
+    $headings = @($Document.Lines | ForEach-Object { if ($_ -match '^##\s+(?<h>.+?)\s*$') { $Matches.h } })
+    if (!$headings -or $headings[0] -cne 'Quick start') {
+        "$($Document.Path): the first section is not Quick start"
+    }
+    foreach ($required in @('What it leaves out', 'Support and status')) {
+        if ($required -cnotin $headings) { "$($Document.Path): no $required section" }
+    }
+    $unit = [Collections.Generic.List[string]]::new()
+    $start = 0
+    for ($index = 0; $index -le $Document.Lines.Count; $index++) {
+        $line = if ($index -lt $Document.Lines.Count) { $Document.Lines[$index] } else { '' }
+        $skipped = $line.Trim() -eq '' -or $line.TrimStart().StartsWith('|') -or $line.StartsWith('<') -or $line -match '^#{1,6}\s'
+        $opensItem = $line -match '^\s*(?:[-*]|\d+\.)\s'
+        if (($skipped -or $opensItem) -and $unit.Count) {
+            $length = (Get-ReadmeRenderedText ($unit -join ' ')).Length
+            if ($length -gt $script:ReadmeWallLimit) {
+                "$($Document.Path):${start}: a paragraph or list item is $length characters, over $script:ReadmeWallLimit"
+            }
+            $unit.Clear()
+        }
+        if ($skipped) { continue }
+        if (!$unit.Count) { $start = $index + 1 }
+        $unit.Add($line.Trim())
+    }
+}
