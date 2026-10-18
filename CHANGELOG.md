@@ -9,6 +9,11 @@
   directory. Link the first mention of each public cmdlet and native type to
   its libtmux.org page, and every MCP tool name to its tool page. Add the
   Claude Code and JSON registrations for the separate MCP tool.
+- Section the repository and module READMEs by task. Each opens on a Quick
+  start, names the cmdlet in each subsection heading, and closes with what the
+  modules leave out and what they support. Move the PowerShellGet install
+  commands to the compatibility guide. The README link check now fails a README
+  that skips those sections or has a paragraph over 240 characters.
 
 ## 0.1.0-alpha2 - 2026-10-10
 

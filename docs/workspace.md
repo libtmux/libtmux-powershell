@@ -6,7 +6,7 @@ plan you reviewed. `LibTmux.Workspace` handles files and workspace commands;
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet)'s shared engine.
 
 Install [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
-as described in the [README](../README.md#install). Its package dependency
+as described in the [README](../README.md#build-a-workspace-from-a-file). Its package dependency
 installs the matching core module.
 Choose an explicit `$server` with [New-TmuxServer](read.md).
 The following workflow creates a detached `development` session with two
