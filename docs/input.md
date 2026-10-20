@@ -144,8 +144,9 @@ wanted patterns. Without `-Pattern`, the wait returns on new output.
 [`TimedOut`][panewaitoutcome-timedout] and
 [`PaneExited`][panewaitoutcome-paneexited] are result outcomes; transport
 failures and invalid patterns are errors. Ctrl+C cancels observation, not the
-application. `-AllowPollingFallback` explicitly permits polling if control
-observation fails; `PollingFallback` and `EventsDropped` disclose degradation.
+application. On tmux 3.7 and newer, `-AllowPollingFallback` explicitly permits
+polling if control observation fails; older releases attach no control client
+and always poll. `PollingFallback` and `EventsDropped` disclose degradation.
 
 Rendered text can include echoed input and can disappear on repaint or
 scrollback eviction. A match proves the text condition, not an exit status or

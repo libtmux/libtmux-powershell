@@ -103,6 +103,7 @@ function Assert-NoObservationClient($Server, [string] $When) {
 Invoke-WithOwnedTmux {
     param($fixture)
     $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $fixture.TmuxPath
+    $polls = Test-PollingExpected $fixture.TmuxPath
     $anchor = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', 'fixture:0.0',
             '#{session_id}|#{window_id}|#{pane_id}|#{pane_pid}')).StdOut.Trim()
     $marker = [Guid]::NewGuid().ToString('N')
@@ -116,7 +117,7 @@ Invoke-WithOwnedTmux {
     Assert-PaneTextWait ($entry -is [LibTmux.PaneWaitResult] -and
         $entry.Outcome -eq [LibTmux.PaneWaitOutcome]::PresentAtEntry -and
         $entry.PaneId -eq $present.Id -and $entry.EventsDropped -eq 0 -and
-        !$entry.PollingFallback) 'text already rendered at entry did not return its native outcome'
+        $entry.PollingFallback -eq $polls) 'text already rendered at entry did not return its native outcome'
     $defaultView = $entry | Out-String
     Assert-PaneTextWait ($defaultView.Contains('PresentAtEntry') -and
         $defaultView.Contains('Missed') -and !$defaultView.Contains($marker)) `
@@ -171,7 +172,7 @@ Invoke-WithOwnedTmux {
             $matched[0].Outcome -eq [LibTmux.PaneWaitOutcome]::Matched -and
             $matched[0].Pattern -ceq "^READY-$marker`$" -and
             $matched[0].PaneId -eq $ready.Pane.Id -and
-            $matched[0].EventsDropped -eq 0 -and !$matched[0].PollingFallback) `
+            $matched[0].EventsDropped -eq 0 -and $matched[0].PollingFallback -eq $polls) `
             'split producer output did not match as one rendered line'
     } finally {
         Close-PaneTextWait $pending

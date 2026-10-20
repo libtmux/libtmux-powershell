@@ -44,12 +44,13 @@ missed-line or lost-anchor indicators. The default view shows `Missed` and
 omits the tail; inspect `Tail` explicitly if you need its text. A lost event
 or anchor means the observer may have missed transient output.
 
-Control observation is required by default. `-AllowPollingFallback` permits
-bounded polling if control observation fails, and the result discloses whether
-it ran. The wait borrows the pane and server; it disposes only its own observer
-and client on completion or Ctrl+C. `-WhatIf` attaches no client and captures
-no text. Confirmation identifies the endpoint and pane without displaying
-patterns or pane content.
+On tmux 3.7 and newer, control observation is required by default and
+`-AllowPollingFallback` permits bounded polling if it fails. Older releases
+attach no control client, so the wait always polls. The result discloses
+whether polling ran. The wait borrows the pane and server; it disposes only its
+own observer and client on completion or Ctrl+C. `-WhatIf` attaches no client
+and captures no text. Confirmation identifies the endpoint and pane without
+displaying patterns or pane content.
 
 This command recognizes text; it does not authenticate command completion or
 an exit status. Use [Invoke-TmuxPaneCommand](Invoke-TmuxPaneCommand.md) for a
@@ -80,8 +81,9 @@ line was observed:
 
 ### -AllowPollingFallback
 
-Allow bounded capture polling if the control client cannot observe the pane.
-The default is to report the control failure. `PollingFallback` discloses use.
+Allow bounded capture polling if the control client cannot observe the pane on
+tmux 3.7 and newer; older releases always poll. The default is to report the
+control failure. `PollingFallback` discloses use.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter

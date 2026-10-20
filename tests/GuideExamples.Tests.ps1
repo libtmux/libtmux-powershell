@@ -228,7 +228,7 @@ $assertions = @{
                 $ready.Pattern -ceq '^Serving HTTP on 127\.0\.0\.1 port [0-9]+' -and
                 ($ready.Tail -join "`n") -cmatch 'Serving HTTP on 127\.0\.0\.1 port [0-9]+' -and
                 $ready.EffectiveTimeout -eq [TimeSpan]::FromSeconds(10) -and
-                !$ready.PollingFallback -and $ready.EventsDropped -eq 0 -and
+                $ready.PollingFallback -eq (Test-PollingExpected $o.Context.Fixture.TmuxPath) -and $ready.EventsDropped -eq 0 -and
                 $o.Result[1] -eq 200 -and
                 (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'HTTP ready-line observation and successful request'
             $sessions = @((Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim().Split("`n"))

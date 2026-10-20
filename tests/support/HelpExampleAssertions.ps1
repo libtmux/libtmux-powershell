@@ -602,7 +602,8 @@ function Get-HelpExampleAssertion {
                         [LibTmux.PaneWaitOutcome]::Matched) -or
                     $wait.PaneId -ne $Context.Pane.Id -or
                     $wait.Pattern -cne '^READY$' -or
-                    $wait.EventsDropped -ne 0 -or $wait.PollingFallback -or
+                    $wait.EventsDropped -ne 0 -or
+                    $wait.PollingFallback -ne (Test-PollingExpected $Context.Fixture.TmuxPath) -or
                     @($wait.Tail | Where-Object { $_ -cmatch '^READY$' }).Count -eq 0 -or
                     @($server | LibTmux\Get-TmuxClient).Count -ne 0) {
                     throw 'Pane text example did not observe the ready line or release its client.'

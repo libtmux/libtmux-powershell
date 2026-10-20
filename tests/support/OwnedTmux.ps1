@@ -2,6 +2,18 @@ if (-not ('LibTmux.Testing.SocketCreatedSignal' -as [type])) {
     Add-Type -Path "$PSScriptRoot/SocketCreatedSignal.cs"
 }
 
+# Before tmux 3.7 a pane text wait attaches no control client: the library polls and reports it.
+# A development build or release candidate of 3.7 ranks below 3.7 and polls too.
+function Test-PollingExpected {
+    param([Parameter(Mandatory)] [string] $TmuxPath)
+
+    $banner = (& $TmuxPath -V)
+    if ($banner -notmatch '^\S+ (?:next-)?(\d+\.\d+)') { throw "Unreadable tmux version banner: $banner" }
+    $release = [version] $Matches[1]
+    $floor = [version] '3.7'
+    $release -lt $floor -or ($release -eq $floor -and $banner -match ' next-|-rc')
+}
+
 function New-OwnedTmuxStartInfo {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates only a local ProcessStartInfo value without starting a process.')]
     param($Fixture, [string[]] $Arguments)

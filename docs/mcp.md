@@ -112,7 +112,8 @@ Know when a command is done:
 
 Read output without losing it:
 
-- By default, pane text waits require control observation in alpha.20.
+- On tmux 3.7 and newer, pane text waits require control observation by
+  default. Older releases attach no control client and poll.
 - Setting `LIBTMUX_MCP_ALLOW_POLLING_FALLBACK=true` allows repeated captures if
   control observation fails. Capabilities disclose the policy and affected
   results report `pollingFallback`.
@@ -200,8 +201,9 @@ The result:
 The [official SDK client](../tests/support/McpDiscovery/Program.cs) reads these
 three request examples, substitutes discovered IDs and executes them against
 an installed tool. Its owned fixture prints the ready line before the calls,
-then checks capture, `PresentAtEntry`, an untruncated tail, no polling or event
-drops, stdio shutdown and preservation of the borrowed tmux state.
+then checks capture, `PresentAtEntry`, an untruncated tail, no event drops,
+polling only on tmux before 3.7, stdio shutdown and preservation of the
+borrowed tmux state.
 
 Cancel with care:
 

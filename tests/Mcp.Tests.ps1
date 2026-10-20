@@ -64,7 +64,7 @@ try {
                 $result.paneWorkflow.captureContainsReady -ne $true -or
                 $result.paneWorkflow.tailContainsReady -ne $true -or
                 $result.paneWorkflow.outcome -cne 'PresentAtEntry' -or
-                $result.paneWorkflow.pollingFallback -ne $false -or
+                $result.paneWorkflow.pollingFallback -ne (Test-PollingExpected $fixture.TmuxPath) -or
                 $result.paneWorkflow.eventsDropped -ne 0) {
                 throw 'MCP client did not complete the advertised pane-list, capture and ready-text workflow.'
             }

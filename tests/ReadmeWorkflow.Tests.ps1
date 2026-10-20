@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot
 $readme = [IO.File]::ReadAllText("$root/README.md")
 $moduleRootPath = (Resolve-Path -LiteralPath $ModuleRoot).Path
+. "$PSScriptRoot/support/OwnedTmux.ps1"
 
 function Get-ReadmeBlock([string] $Id) {
     $pattern = '(?ms)^<!-- example: ' + [regex]::Escape($Id) + ' -->\r?\n```powershell\r?\n(?<code>.*?)^```[ \t]*$'
@@ -139,7 +140,7 @@ try {
         $httpReady[0].Outcome.ToString() -cin @('PresentAtEntry', 'Matched') -and
         ($httpReady[0].Tail -join "`n") -cmatch $readyLine -and
         $httpReady[0].EffectiveTimeout -eq [TimeSpan]::FromSeconds(10) -and
-        !$httpReady[0].PollingFallback -and $httpReady[0].EventsDropped -eq 0 -and
+        $httpReady[0].PollingFallback -eq (Test-PollingExpected $tmux) -and $httpReady[0].EventsDropped -eq 0 -and
         $httpReady[1] -eq 200) 'the HTTP service was not ready and responsive'
     Assert-Readme (
         (Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0
