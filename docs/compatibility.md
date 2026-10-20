@@ -97,6 +97,12 @@ reads, writes, raw commands and workspaces stays tmux 3.3a.
 `Wait-TmuxPaneText` needs no refusal: it attaches no control client below
 3.7 and polls the pane instead.
 
+One registry in the module holds these requirements, and it writes
+[`capabilities.json`](../capabilities.json) for the capabilities page of the
+documentation site. The module reads the daemon's version and infers what that
+release can do; tmux does not report its capabilities, so a patched build is
+judged as the release it names.
+
 The guards cover typed operations, workspace plans and literal command items
 sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand` on a connection from `Connect-TmuxControl`.
