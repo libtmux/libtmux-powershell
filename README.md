@@ -167,7 +167,7 @@ $captured.Windows |
     Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
 ```
 
-It prints `editor` with a `PaneCount` of 2. `logs` has one pane and drops out:
+It prints `editor` with a pane count of 2. `logs` has one pane and drops out:
 
 ```text
 Name   PaneCount
@@ -375,8 +375,10 @@ and environment values hidden; inspect an action's
 $workspacePlan.Actions
 ```
 
-It lists the actions in order, from `CreateSession` to `CaptureResult`, with
-command text shown as `[redacted]`.
+It lists the actions in order, from
+[`CreateSession`][workspaceactionkind-createsession] to
+[`CaptureResult`][workspaceactionkind-captureresult], with command text shown
+as `[redacted]`.
 
 ### [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace]: preview, then apply
 
@@ -704,6 +706,8 @@ for bundled dependencies.
 [workspacefile]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacefile/
 [workspaceresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceresult/
 [workspaceaction-request]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceaction-request/
+[workspaceactionkind-createsession]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-createsession/
+[workspaceactionkind-captureresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-captureresult/
 [mcp-list_sessions]: https://libtmux.org/en/csharp/latest/mcp/tools/list_sessions/
 [mcp-list_windows]: https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/
 [mcp-list_panes]: https://libtmux.org/en/csharp/latest/mcp/tools/list_panes/
