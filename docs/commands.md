@@ -122,6 +122,15 @@ The recipe leaves the client open; its owner closes it here.
 }
 ```
 
+On tmux 3.7 and newer, commands from one server handle share a single control
+client, so a command that blocks while the client waits holds the commands
+behind it. A command that is a `wait-for` on its own runs in its own process
+and leaves the others free. A `wait-for` nested in a list, such as
+`if-shell -F 1 'wait-for release ; display-message -p done'`, is not seen and
+blocks the shared client until it is released. Keep a blocking command at the
+top level, or set `LIBTMUX_CONTROL_TRANSPORT=0` before creating the server
+handle to send every command from its own process.
+
 The recipe admits 1–64 commands and 1–16 pending calls; the default is four
 pending calls. Its cumulative result-text budget defaults to 64 KiB, counting
 UTF-8 command names and output/error lines plus one byte per item. A result
