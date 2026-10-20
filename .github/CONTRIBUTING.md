@@ -52,7 +52,7 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-Both modules consume published .NET alpha.20 packages, pinned in
+Both modules consume published .NET alpha.22 packages, pinned in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
 the optional `build/nuget` feed, and an isolated `build/packages` cache.
 Restore checks the committed lockfiles and stages both modules:
@@ -113,7 +113,7 @@ its full Git revision, `REVIEW_VERSION` to the new identifier, and
 `CORE_PACKAGES` to a new output directory. Use absolute directory paths.
 The checkout uses its own SDK pin; avoid running this recipe while another
 task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.20/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.22/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
@@ -426,12 +426,12 @@ Workspace-only installation from PSGallery and executes installed examples.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Install the published alpha.20 tool in a fresh directory:
+module package. Install the published alpha.22 tool in a fresh directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.0.0-alpha.20 \
+    --version 0.0.0-alpha.22 \
     --framework net8.0
 ```
 

@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
-  CORE_PACKAGE_VERSION: '0.0.0-alpha.20'
+  CORE_REVISION: 5b486ea9f3df6a882f3fedb36b9373a8161f4d0f
+  CORE_PACKAGE_VERSION: '0.0.0-alpha.22'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'

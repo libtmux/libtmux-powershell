@@ -40,7 +40,7 @@
 Alpha 2 prerelease (0.1.0-alpha2). Follow Gallery installation and runnable
 object-graph examples with direct documentation links.
 
-Built on libtmux for .NET 0.0.0-alpha.20.
+Built on libtmux for .NET 0.0.0-alpha.22.
 APIs may change before a stable release.
 https://github.com/libtmux/libtmux-dotnet
 
