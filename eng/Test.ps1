@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'VersionCheck', 'Features', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'VersionCheck', 'Features', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
     [string] $McpCommand,
     [string] $McpVersion,
@@ -155,7 +155,7 @@ try {
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -eq 'Fixture') { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'VersionCheck', 'Features', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
+    if ($Suite -in @('Package', 'VersionCheck', 'Features', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -282,6 +282,9 @@ try {
             }
             if ($Suite -eq 'PaneTextWait' -or $runProduct) {
                 Invoke-TestScript 'tests/PaneTextWait.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
+            if ($Suite -eq 'PaneTextContract' -or $runProduct) {
+                Invoke-TestScript 'tests/PaneTextContract.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
             if ($Suite -eq 'Runtime' -or $runProduct) {
                 Invoke-TestScript 'tests/Runtime.Tests.ps1' @('-ModuleRoot', $installed) $installed
