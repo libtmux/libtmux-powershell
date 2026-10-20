@@ -200,8 +200,12 @@ The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`,
 within the outer-loop budget. `All` combines those selections; none establishes
 the full architecture or compatibility matrix.
 The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
-processes. `Create` verifies native creation plus first-daemon cleanup on
-success and injected consumer failure in separate disposable processes.
+processes. It sets `LIBTMUX_CONTROL_TRANSPORT=0` only for the scripts that
+wrap tmux to trace or inject invocations and so need to see each command
+(`$processTransportScripts` in `eng/Test.ps1`); every other script runs on the
+library's default transport. `Create` verifies native creation plus
+first-daemon cleanup on success and injected consumer failure in separate
+disposable processes.
 
 Task-guide fences are checked against `examples/Guides.ps1`. Check source IDs,
 registration and snippet drift without importing the product or starting tmux:
