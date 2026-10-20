@@ -149,7 +149,9 @@ wanted patterns. Without `-Pattern`, the wait returns on new output.
 failures and invalid patterns are errors. Ctrl+C cancels observation, not the
 application. On tmux 3.7 and newer, `-AllowPollingFallback` explicitly permits
 polling if control observation fails; older releases attach no control client
-and always poll. `PollingFallback` and `EventsDropped` disclose degradation.
+and always poll, matching a line that wraps across rows as one line. A wait
+whose server is killed ends as `PaneExited` without an error. `PollingFallback`
+and `EventsDropped` disclose degradation.
 
 Rendered text can include echoed input and can disappear on repaint or
 scrollback eviction. A match proves the text condition, not an exit status or
