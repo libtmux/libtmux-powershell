@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -31,12 +32,23 @@ public static class WaitContextProbe
                     return Task.FromResult(Success(arguments, "tmux 3.7c\n"));
                 }
 
-                if (arguments[0] != "wait-for")
+                // The package checks the daemon before it sends a command and fences every command list
+                // on that answer: a version probe, then "if-shell -F <match> '' <marker> ; <command>".
+                if (arguments[0] == "run-shell" && arguments.Count == 3 && arguments[1] == "-C")
+                {
+                    string answer = arguments[2].Replace("#{version},#{pid},#{start_time}", "3.7c,4242,1700000000", StringComparison.Ordinal);
+                    return Task.FromResult(new TmuxCommandResult(arguments, 1, ReadOnlyMemory<byte>.Empty,
+                        Encoding.UTF8.GetBytes("unknown command: " + answer + "\n"), Array.Empty<string>(),
+                        new[] { "unknown command: " + answer }));
+                }
+
+                IReadOnlyList<string> command = arguments[0] == "if-shell" ? arguments.Skip(6).ToArray() : arguments;
+                if (command[0] != "wait-for")
                 {
                     throw new InvalidOperationException("Unexpected wait probe invocation.");
                 }
 
-                if (arguments[1] == "-S")
+                if (command[1] == "-S")
                 {
                     signals++;
                     return withdrawal.Task;
