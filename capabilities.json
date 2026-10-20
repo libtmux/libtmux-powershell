@@ -1,0 +1,158 @@
+{
+  "schema": "libtmux-capabilities/1",
+  "port": "powershell",
+  "floor": {
+    "minimum": "3.3a"
+  },
+  "capabilities": [
+    {
+      "id": "control-mode",
+      "name": "Control mode",
+      "summary": "Attach a control client and stream events.",
+      "since": "3.7",
+      "handling": "refuse",
+      "error": "LibTmux.TmuxVersionTooLowException",
+      "apis": [
+        "Connect-TmuxControl",
+        "Watch-TmuxEvent"
+      ],
+      "commands": [
+        {
+          "command": "attach-session"
+        }
+      ]
+    },
+    {
+      "id": "buffer-delete-named",
+      "name": "Named buffer deletion",
+      "summary": "Delete one paste buffer by name without risking another buffer.",
+      "since": "3.4",
+      "handling": "refuse",
+      "error": "LibTmux.TmuxVersionTooLowException",
+      "apis": [
+        "Invoke-TmuxPaneCommand",
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain"
+      ],
+      "commands": [
+        {
+          "command": "delete-buffer",
+          "flags": [
+            "-b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "buffer-rename",
+      "name": "Buffer rename",
+      "summary": "Rename one paste buffer by name without risking another buffer.",
+      "since": "3.4",
+      "handling": "refuse",
+      "error": "LibTmux.TmuxVersionTooLowException",
+      "apis": [
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain"
+      ],
+      "commands": [
+        {
+          "command": "set-buffer",
+          "flags": [
+            "-b",
+            "-n"
+          ]
+        }
+      ]
+    }
+  ],
+  "workarounds": [
+    {
+      "id": "break-pane-misnames-windows",
+      "name": "break-pane without a name",
+      "summary": "break-pane without -n crashes tmux 3.7; the module refuses it.",
+      "releases": [
+        "3.7"
+      ],
+      "handling": "refuse",
+      "apis": [
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain",
+        "Invoke-TmuxControlCommand"
+      ],
+      "commands": [
+        {
+          "command": "break-pane",
+          "flags": [
+            "-n"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "split-window-percent-size",
+      "name": "split-window -p",
+      "summary": "split-window -p reads its value from -l on tmux 3.4; the module refuses it.",
+      "releases": [
+        "3.4"
+      ],
+      "handling": "refuse",
+      "apis": [
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain",
+        "Invoke-TmuxControlCommand"
+      ],
+      "commands": [
+        {
+          "command": "split-window",
+          "flags": [
+            "-p"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "name-separators-rejected",
+      "name": "Colon and period in names",
+      "summary": "tmux 3.7 rejects \u0027:\u0027 and \u0027.\u0027 in session and window names; the module refuses them.",
+      "releases": [
+        "3.7"
+      ],
+      "handling": "refuse",
+      "apis": [
+        "New-TmuxSession",
+        "New-TmuxWindow",
+        "Invoke-TmuxWorkspace",
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain",
+        "Invoke-TmuxControlCommand"
+      ],
+      "commands": [
+        {
+          "command": "new-session",
+          "flags": [
+            "-n",
+            "-s"
+          ]
+        },
+        {
+          "command": "new-window",
+          "flags": [
+            "-n"
+          ]
+        },
+        {
+          "command": "break-pane",
+          "flags": [
+            "-n"
+          ]
+        },
+        {
+          "command": "rename-session"
+        },
+        {
+          "command": "rename-window"
+        }
+      ]
+    }
+  ]
+}

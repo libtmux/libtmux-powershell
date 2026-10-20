@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
+using LibTmux.PowerShell.Support;
 
 namespace LibTmux.PowerShell;
 
@@ -12,13 +13,13 @@ namespace LibTmux.PowerShell;
 [UnsupportedOSPlatform("windows")]
 internal static class TmuxFeatures
 {
-    internal static readonly TmuxVersion Control = TmuxVersion.Parse("3.7");
-    internal static readonly TmuxVersion NamedBuffers = TmuxVersion.Parse("3.4");
+    internal static readonly TmuxVersion Control = Capabilities.SinceOf("control-mode");
+    internal static readonly TmuxVersion NamedBuffers = Capabilities.SinceOf("buffer-delete-named");
 
-    private static readonly TmuxVersion Split34 = TmuxVersion.Parse("3.4");
-    private static readonly TmuxVersion Exact37 = TmuxVersion.Parse("3.7");
-    private static readonly TmuxVersion After34 = TmuxVersion.Parse("3.5");
-    private static readonly TmuxVersion After37 = TmuxVersion.Parse("3.7a");
+    private static readonly TmuxVersion BufferRename = Capabilities.SinceOf("buffer-rename");
+    private static readonly WorkaroundClaim SplitPercent = Capabilities.Workaround("split-window-percent-size");
+    private static readonly WorkaroundClaim BreakWithoutName = Capabilities.Workaround("break-pane-misnames-windows");
+    private static readonly WorkaroundClaim NameSeparators = Capabilities.Workaround("name-separators-rejected");
 
     // Short options per command; a trailing colon marks an option that takes a value.
     private static readonly Dictionary<string, string> Options = new(StringComparer.Ordinal)
@@ -123,12 +124,12 @@ internal static class TmuxFeatures
         }
 
         TmuxVersion version = await VersionAsync(server, cancellationToken).ConfigureAwait(false);
-        if (version == Exact37)
+        if (NameSeparators.Affects(version))
         {
             throw new TmuxVersionTooLowException(
-                $"tmux {Exact37} rejects a {kind} name containing ':' or '.'; the name '{name}' was not sent. "
-                + $"Choose another name or use tmux {After37} or newer.",
-                After37,
+                $"tmux {version} rejects a {kind} name containing ':' or '.'; the name '{name}' was not sent. "
+                + $"Choose another name or use tmux {NameSeparators.Until} or newer.",
+                NameSeparators.Until,
                 version);
         }
     }
@@ -181,17 +182,17 @@ internal static class TmuxFeatures
             case "set-buffer" when parsed.Has('n'):
                 yield return new Hazard(command,
                     "renames a buffer by name, and below 3.4 a missing name renames an unrelated buffer",
-                    NamedBuffers, version => version < NamedBuffers);
+                    BufferRename, version => version < BufferRename);
                 break;
             case "split-window" when parsed.Has('p'):
                 yield return new Hazard(command,
                     "uses -p, which tmux 3.4 breaks; send -l with a percentage such as 30%",
-                    After34, version => version == Split34);
+                    SplitPercent.Until, SplitPercent.Affects);
                 break;
             case "break-pane" when !parsed.Has('n'):
                 yield return new Hazard(command,
                     "has no -n window name, which crashes tmux 3.7",
-                    After37, version => version == Exact37);
+                    BreakWithoutName.Until, BreakWithoutName.Affects);
                 break;
         }
 
@@ -207,7 +208,7 @@ internal static class TmuxFeatures
             {
                 yield return new Hazard(command,
                     $"names something '{candidate}' with ':' or '.', which tmux 3.7 rejects",
-                    After37, version => version == Exact37);
+                    NameSeparators.Until, NameSeparators.Affects);
             }
         }
     }
