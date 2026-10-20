@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 env:
-  CORE_REVISION: ec8b6ab2a4f65e23664f43fba538ba200d4ae8bc
-  CORE_PACKAGE_VERSION: '0.0.0-alpha.20'
+  CORE_REVISION: 5b486ea9f3df6a882f3fedb36b9373a8161f4d0f
+  CORE_PACKAGE_VERSION: '0.0.0-alpha.22'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -77,8 +77,8 @@ jobs:
             asset_arch: x64
             powershell: '7.4.20'
             powershell_sha256: 634d04e806b37a441b140c875e96662a5eb14efd0e38060a730b991069602138
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15-intel
             arch: x86_64
             asset_arch: x64
@@ -91,8 +91,8 @@ jobs:
             asset_arch: x64
             powershell: '7.6.6'
             powershell_sha256: e325ed9f666894eb39a5ea52800b602da2fb4242bbe9747ceddb39cdc66de805
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15-intel
             arch: x86_64
             asset_arch: x64
@@ -105,8 +105,8 @@ jobs:
             asset_arch: arm64
             powershell: '7.4.20'
             powershell_sha256: 7f9a2503304ee239330f5c4ccc7eef11894b095d7ccb8f9fa78a16c6ee508edc
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15
             arch: arm64
             asset_arch: arm64
@@ -119,8 +119,8 @@ jobs:
             asset_arch: arm64
             powershell: '7.6.6'
             powershell_sha256: 6df833d094ebac1c1a74340d7b3437f4aaf5e03ce640484a1c4359f3ce8b3db1
-            tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
+            tmux: '3.3a'
+            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
           - runner: macos-15
             arch: arm64
             asset_arch: arm64
@@ -188,7 +188,18 @@ jobs:
           git clone --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
           test "$(git -C "${source}" rev-parse HEAD)" = "${TMUX_SOURCE_COMMIT}"
           test "$(git -C "${source}" describe --tags --exact-match HEAD)" = "${TMUX_VERSION}"
-          core/eng/tmux/build-version.sh "${TMUX_VERSION}"
+          # The shared build script runs a bare configure, which tmux 3.3a rejects
+          # without an explicit utf8proc choice; brew installs utf8proc above.
+          install="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}"
+          # Homebrew on Apple silicon keeps utf8proc outside the default search paths.
+          export CPPFLAGS="-I$(brew --prefix utf8proc)/include"
+          export LDFLAGS="-L$(brew --prefix utf8proc)/lib"
+          (cd "${source}" \
+            && sh autogen.sh \
+            && ./configure --prefix="${install}" --enable-utf8proc \
+            && make --jobs="${LIBTMUX_BUILD_JOBS}" \
+            && make install)
+          printf '%s\n' "${TMUX_SOURCE_COMMIT}" > "${install}/source-commit"
           binary="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}/bin/tmux"
           test -x "${binary}"
           test "$(cat "core/artifacts/tmux/installs/${TMUX_VERSION}/source-commit")" = "${TMUX_SOURCE_COMMIT}"
@@ -248,6 +259,14 @@ jobs:
               python:$python,buildDependencies:$buildDependencies,packages:$packages[0].packages}' \
             > build/macos-provenance.json
 
+      - name: Run installed version check suite
+        id: version-check
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+            -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
+
       - name: Run installed product suite
         id: product
         timeout-minutes: 15
@@ -267,6 +286,7 @@ jobs:
       - name: Report both suite conclusions
         if: always()
         env:
+          VERSION_CHECK_OUTCOME: ${{ steps.version-check.outcome }}
           PRODUCT_OUTCOME: ${{ steps.product.outcome }}
           DOCUMENTATION_OUTCOME: ${{ steps.documentation.outcome }}
           CELL_RUNNER: ${{ matrix.runner }}
@@ -274,17 +294,17 @@ jobs:
           CELL_TMUX: ${{ matrix.tmux }}
         run: |
           mkdir -p build
-          printf '{"runner":"%s","powershell":"%s","tmux":"%s","product":"%s","documentation":"%s"}\n' \
+          printf '{"runner":"%s","powershell":"%s","tmux":"%s","version_check":"%s","product":"%s","documentation":"%s"}\n' \
             "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
+            "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
             > build/macos-cell.json
-          printf '| Runner | PowerShell | tmux | Product | Documentation |\n| --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s |\n' \
+          printf '| Runner | PowerShell | tmux | Version check | Product | Documentation |\n| --- | --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s | %s |\n' \
             "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
+            "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
             >> "${GITHUB_STEP_SUMMARY}"
-          if [[ "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
-            printf '::warning::macOS trial suites failed: Product=%s, Documentation=%s\n' \
-              "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
+          if [[ "${VERSION_CHECK_OUTCOME}" != success || "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
+            printf '::warning::macOS trial suites failed: Version check=%s, Product=%s, Documentation=%s\n' \
+              "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
           fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

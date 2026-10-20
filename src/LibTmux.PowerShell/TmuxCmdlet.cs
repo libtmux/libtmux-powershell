@@ -73,7 +73,16 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
             }
 
             ErrorCategory category = GetErrorCategory(exception);
-            WriteError(new ErrorRecord(exception, errorId, category, target));
+            var record = new ErrorRecord(exception, errorId, category, target);
+            if (FindRefusal(exception) is { } refusal)
+            {
+                string detail = ReferenceEquals(refusal, exception)
+                    ? refusal.Message
+                    : $"{exception.Message} {refusal.Message}";
+                record.ErrorDetails = new ErrorDetails(NameModuleRelease(detail));
+            }
+
+            WriteError(record);
         }
         finally
         {
@@ -91,6 +100,38 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         }
     }
 
+    // The package names its own last release that accepts older tmux, which is not a module
+    // a PowerShell user can install.
+    private const string PackageRelease =
+        "or use LibTmux 0.0.0-alpha.21, the last release that supports older tmux.";
+
+    private const string ModuleRelease =
+        "or install LibTmux 0.1.0-alpha2 from the PowerShell Gallery, "
+        + "the last release of libtmux for PowerShell that supports older tmux.";
+
+    private const string AppendedRelease =
+        " For libtmux for PowerShell, install LibTmux 0.1.0-alpha2 from the PowerShell Gallery, "
+        + "the last release that supports older tmux.";
+
+    // A refusal can arrive wrapped, as when a workspace build fails on the daemon it inspects first.
+    private static TmuxVersionTooLowException? FindRefusal(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is TmuxVersionTooLowException refusal)
+            {
+                return refusal;
+            }
+        }
+
+        return null;
+    }
+
+    private static string NameModuleRelease(string message) =>
+        message.Contains(PackageRelease, StringComparison.Ordinal)
+            ? message.Replace(PackageRelease, ModuleRelease, StringComparison.Ordinal)
+            : message + AppendedRelease;
+
     /// <summary>Classifies an operation failure for the PowerShell error stream.</summary>
     /// <param name="exception">The original operation exception.</param>
     /// <returns>The category emitted without replacing the exception.</returns>
@@ -101,6 +142,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         ArgumentException => ErrorCategory.InvalidArgument,
         InvalidDataException or IncompleteSnapshotException or InconsistentSnapshotException => ErrorCategory.InvalidData,
         TmuxCommandNotFoundException => ErrorCategory.ResourceUnavailable,
+        _ when FindRefusal(exception) is not null => ErrorCategory.NotImplemented,
         _ => ErrorCategory.InvalidOperation,
     };
 

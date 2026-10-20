@@ -2563,11 +2563,11 @@ source evaluation does not reduce the captured rows.</maml:para>
       <command:example>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
-          <maml:para>Prepare an exact pane-ID query for tmux 3.2a without opening a connection.
+          <maml:para>Prepare an exact pane-ID query for tmux 3.3a without opening a connection.
 Use the observed daemon version when preparing a plan for execution.</maml:para>
           <maml:para>&#x80;</maml:para>
           <maml:para>```powershell
-$version = [LibTmux.TmuxVersion]::Parse('3.2a')
+$version = [LibTmux.TmuxVersion]::Parse('3.3a')
 LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
     LibTmux\Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
 ```</maml:para>
@@ -11386,12 +11386,13 @@ missed-line or lost-anchor indicators. The default view shows Missed and
 omits the tail; inspect Tail explicitly if you need its text. A lost event
 or anchor means the observer may have missed transient output.
 
-Control observation is required by default. -AllowPollingFallback permits
-bounded polling if control observation fails, and the result discloses whether
-it ran. The wait borrows the pane and server; it disposes only its own observer
-and client on completion or Ctrl+C. -WhatIf attaches no client and captures
-no text. Confirmation identifies the endpoint and pane without displaying
-patterns or pane content.
+On tmux 3.7 and newer, control observation is required by default and
+-AllowPollingFallback permits bounded polling if it fails. Older releases
+attach no control client, so the wait always polls. The result discloses
+whether polling ran. The wait borrows the pane and server; it disposes only its
+own observer and client on completion or Ctrl+C. -WhatIf attaches no client
+and captures no text. Confirmation identifies the endpoint and pane without
+displaying patterns or pane content.
 
 This command recognizes text; it does not authenticate command completion or
 an exit status. Use Invoke-TmuxPaneCommand for a
@@ -11493,8 +11494,9 @@ stream.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>AllowPollingFallback</maml:name>
         <maml:description>
-          <maml:para>Allow bounded capture polling if the control client cannot observe the pane.
-The default is to report the control failure. PollingFallback discloses use.</maml:para>
+          <maml:para>Allow bounded capture polling if the control client cannot observe the pane on
+tmux 3.7 and newer; older releases always poll. The default is to report the
+control failure. PollingFallback discloses use.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>

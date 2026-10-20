@@ -27,8 +27,8 @@ with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
-It needs PowerShell 7.4 or later and tmux on the same Linux host, including
-WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
+It needs PowerShell 7.4 or later and tmux 3.3a or newer on the same Linux
+host, including WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
 
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
@@ -167,7 +167,7 @@ $captured.Windows |
     Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
 ```
 
-It prints `editor` with a `PaneCount` of 2. `logs` has one pane and drops out:
+It prints `editor` with a pane count of 2. `logs` has one pane and drops out:
 
 ```text
 Name   PaneCount
@@ -375,8 +375,10 @@ and environment values hidden; inspect an action's
 $workspacePlan.Actions
 ```
 
-It lists the actions in order, from `CreateSession` to `CaptureResult`, with
-command text shown as `[redacted]`.
+It lists the actions in order, from
+[`CreateSession`][workspaceactionkind-createsession] to
+[`CaptureResult`][workspaceactionkind-captureresult], with command text shown
+as `[redacted]`.
 
 ### [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace]: preview, then apply
 
@@ -476,7 +478,7 @@ Install the tool on the Unix host that runs tmux:
 
 ```console
 $ dotnet tool install --global LibTmux.Mcp \
-    --version 0.0.0-alpha.20 \
+    --version 0.0.0-alpha.22 \
     --framework net8.0
 ```
 
@@ -535,7 +537,7 @@ $ tmux -V
 ```
 
 From the checkout root, restore the published
-[.NET alpha.20 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.20)
+[.NET alpha.22 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.22)
 and build both PowerShell modules:
 
 ```console
@@ -619,8 +621,9 @@ default tmux server stays untouched.
 - **Releases.** Gallery packages carry a `0.1.0-alphaN` label, so pin an exact
   version. PowerShell imports use the numeric `0.1.0`.
 - **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
-- **tmux.** CI runs 3.2a and 3.7c. Other releases are unverified;
-  [compatibility](docs/compatibility.md) holds the contract.
+- **tmux.** 3.3a or newer. CI runs 3.3a through 3.8 and tmux master; other
+  releases are unverified. [Compatibility](docs/compatibility.md) holds the
+  contract.
 - **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
   environment. CI runs Linux x64 on every change and macOS as an advisory trial
   whose failures never fail the check. CI has no Windows job.
@@ -703,6 +706,8 @@ for bundled dependencies.
 [workspacefile]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacefile/
 [workspaceresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceresult/
 [workspaceaction-request]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceaction-request/
+[workspaceactionkind-createsession]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-createsession/
+[workspaceactionkind-captureresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-captureresult/
 [mcp-list_sessions]: https://libtmux.org/en/csharp/latest/mcp/tools/list_sessions/
 [mcp-list_windows]: https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/
 [mcp-list_panes]: https://libtmux.org/en/csharp/latest/mcp/tools/list_panes/

@@ -120,7 +120,7 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 $plan = $Result[0]
                 if ($plan -isnot [LibTmux.Query.QueryPlan[LibTmux.Pane]] -or
-                    $plan.DaemonVersion.Raw -cne '3.2a' -or
+                    $plan.DaemonVersion.Raw -cne '3.3a' -or
                     $plan.Pushdown -ne [LibTmux.Query.QueryPushdown]::Require -or
                     $null -eq $plan.PushedPredicate -or $null -ne $plan.ResidualPredicate) {
                     throw 'Plan example did not preserve the native exact pane-ID source plan.'
@@ -602,7 +602,8 @@ function Get-HelpExampleAssertion {
                         [LibTmux.PaneWaitOutcome]::Matched) -or
                     $wait.PaneId -ne $Context.Pane.Id -or
                     $wait.Pattern -cne '^READY$' -or
-                    $wait.EventsDropped -ne 0 -or $wait.PollingFallback -or
+                    $wait.EventsDropped -ne 0 -or
+                    $wait.PollingFallback -ne (Test-PollingExpected $Context.Fixture.TmuxPath) -or
                     @($wait.Tail | Where-Object { $_ -cmatch '^READY$' }).Count -eq 0 -or
                     @($server | LibTmux\Get-TmuxClient).Count -ne 0) {
                     throw 'Pane text example did not observe the ready line or release its client.'

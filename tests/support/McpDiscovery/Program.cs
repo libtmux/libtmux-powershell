@@ -124,8 +124,8 @@ try
             .Any(line => line.GetString() == "Service ready");
         Require(waited.GetProperty("paneId").GetString() == paneId && outcome == "PresentAtEntry"
             && waited.GetProperty("matchedPattern").GetString() == "^Service ready$"
-            && !pollingFallback && eventsDropped == 0 && tailContainsReady && Complete(waited.GetProperty("tail")),
-            "Readiness wait did not report the existing match without fallback or loss.");
+            && eventsDropped == 0 && tailContainsReady && Complete(waited.GetProperty("tail")),
+            "Readiness wait did not report the existing match without loss.");
         receipt = new
         {
             protocol = client.NegotiatedProtocolVersion,

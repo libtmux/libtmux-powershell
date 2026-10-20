@@ -127,9 +127,9 @@ builds sessions from YAML or JSON declarations.
 
 - **Alpha.** Gallery packages carry a `0.1.0-alphaN` label and APIs may change,
   so pin an exact version. PowerShell imports use the numeric `0.1.0`.
-- **PowerShell and tmux.** PowerShell 7.4 or later. CI runs PowerShell 7.4.20
-  and 7.6.6 with tmux 3.2a and 3.7c; [compatibility][guide-compatibility] holds
-  the contract.
+- **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
+  runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master;
+  [compatibility][guide-compatibility] holds the contract.
 - **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
   environment. CI runs Linux x64 on every change and macOS as an advisory trial
   whose failures never fail the check. CI has no Windows job.

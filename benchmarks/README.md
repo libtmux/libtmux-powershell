@@ -131,7 +131,7 @@ twenty exact samples per size and effective canonical bytes per second from the
 same start clock; this includes producer, tmux, scheduling, and 10 ms capture
 polling. It does not claim raw byte parity or transport throughput.
 [Source-bound ps.4 receipts](receipts/README.md) retain four raw distributions
-from installed packages on tmux 3.2a and 3.7c.
+from installed packages on tmux 3.2a and 3.7c, taken before the 3.3a floor.
 
 ## Capture sizes
 

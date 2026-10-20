@@ -30,7 +30,10 @@ Invoke-WithOwnedTmux {
     $quotedSocket = "'" + $fixture.SocketPath.Replace("'", "'\''") + "'"
     @"
 #!/bin/sh
-printf '%s\n' dispatch >> '$trace'
+case "`$*" in
+*"run-shell -C libtmux-version-"*|"-V") ;;
+*) printf '%s\n' dispatch >> '$trace' ;;
+esac
 case "`$*" in
     *new-window*)
         if [ -f '$readinessArm' ]; then

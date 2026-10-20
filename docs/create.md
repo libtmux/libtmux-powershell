@@ -28,9 +28,7 @@ this command does not replace or attach to an existing session. Omitting
 dimensions retains tmux's defaults. Names and working directories retain
 tmux's format expansion rules, including the meaning of `#`.
 
-Dimensions remain subject to tmux's `window-size` policy. On tmux 3.2a,
-detached creation can use the command client's dimensions unless
-`window-size` is `manual`.
+Dimensions remain subject to tmux's `window-size` policy.
 
 ## Create a window or split
 

@@ -80,8 +80,8 @@ Invoke-WithOwnedTmux {
     Assert-Command (($ordered.Index -join '|') -ceq '0|1' -and
         ($ordered.StandardOutputLines -join '|') -ceq "first value|$nativeSecond" -and
         ($ordered | Measure-Object Utf8Bytes -Sum).Sum -le 65536) 'concurrent process results lost input order, attribution or byte accounting'
-    $blocked = New-TmuxCommand -Name 'if-shell' -Arguments @(
-        '-F', '1', 'wait-for concurrent-release ; display-message -p delayed')
+    # A top-level wait-for runs in its own process; one nested in a list would hold the shared control client.
+    $blocked = New-TmuxCommand -Name 'wait-for' -Arguments @('concurrent-release')
     $completion = [Collections.Generic.List[object]]::new()
     try {
         & $recipe -Server $server -Command @($blocked, $commands[0]) -MaxPending 2 -CompletionOrder |
@@ -95,7 +95,8 @@ Invoke-WithOwnedTmux {
         $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', '-S', 'concurrent-release')
     }
     Assert-Command (($completion.Index -join '|') -ceq '1|0' -and
-        ($completion.StandardOutputLines -join '|') -ceq 'first value|delayed') 'completion mode waited for input order or misattributed a native reply'
+        $completion[1].Name -ceq 'wait-for' -and
+        ($completion.StandardOutputLines -join '|') -ceq 'first value') 'completion mode waited for input order or misattributed a native reply'
     $cancel = [Threading.CancellationTokenSource]::new()
     $cancelBlocked = New-TmuxCommand -Name 'wait-for' -Arguments @('concurrent-cancel-release')
     $cancelled = $false

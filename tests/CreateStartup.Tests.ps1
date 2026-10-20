@@ -42,7 +42,10 @@ try {
     $quotedTrace = "'" + $trace.Replace("'", "'\''") + "'"
     @"
 #!/bin/sh
-printf '%s\n' tmux >> $quotedTrace
+case "`$*" in
+*"run-shell -C libtmux-version-"*|"-V") ;;
+*) printf '%s\n' tmux >> $quotedTrace ;;
+esac
 exec $quotedTmux "`$@"
 "@ | Set-Content -LiteralPath $wrapper
     [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor

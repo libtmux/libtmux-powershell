@@ -57,13 +57,33 @@ exec $quotedTmux "`$@"
     $version = [LibTmux.TmuxVersion]::Parse((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim())
     $captured = $server | Get-TmuxSnapshot
     $paneQuery = New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' }
+
+    # The package verifies exact source evaluation only for stable releases up to 3.8. A later patch
+    # release or a development build refuses an exact plan and falls back to residual evaluation, so
+    # only the pushdown assertions differ; everything else runs on every build.
+    $exact = -not ($version -gt [LibTmux.TmuxVersion]::Parse('3.8') -or $version.Raw -match 'next-|rc')
     $before = [IO.File]::ReadAllText($trace)
-    $plan = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
+    if ($exact) {
+        $plan = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require
+    } else {
+        $refusal = $null
+        try { $null = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $version -Pushdown Require -ErrorAction Stop }
+        catch { $refusal = $_.Exception }
+        Assert-SourceQuery ($refusal -is [LibTmux.UnsupportedQueryExpressionException] -and
+            $refusal.Message -clike '*verified only for stable*') "Require did not refuse the unverified tmux $($version.Raw)"
+        $plan = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $version
+    }
     $null = $plan | Format-List * | Out-String
-    $null = $plan.PushedPredicate | ConvertTo-TmuxQueryJson
-    Assert-SourceQuery ($plan -is [LibTmux.Query.QueryPlan[LibTmux.Pane]] -and
-        $plan.DaemonVersion -eq $version -and $null -ne $plan.PushedPredicate -and
-        $null -eq $plan.ResidualPredicate -and $plan.RequiredSnapshotDepth -eq [LibTmux.SnapshotDepth]::Panes) 'plan lost native type or exact predicate metadata'
+    if ($exact) {
+        $null = $plan.PushedPredicate | ConvertTo-TmuxQueryJson
+        Assert-SourceQuery ($plan -is [LibTmux.Query.QueryPlan[LibTmux.Pane]] -and
+            $plan.DaemonVersion -eq $version -and $null -ne $plan.PushedPredicate -and
+            $null -eq $plan.ResidualPredicate -and $plan.RequiredSnapshotDepth -eq [LibTmux.SnapshotDepth]::Panes) 'plan lost native type or exact predicate metadata'
+    } else {
+        Assert-SourceQuery ($plan -is [LibTmux.Query.QueryPlan[LibTmux.Pane]] -and
+            $plan.DaemonVersion -eq $version -and $null -eq $plan.PushedPredicate -and
+            $null -ne $plan.ResidualPredicate) 'an unverified tmux pushed a predicate to the source'
+    }
     Assert-SourceQuery ([IO.File]::ReadAllText($trace) -ceq $before) 'planning or plan display contacted tmux'
 
     foreach ($target in @('Session', 'Window', 'Pane')) {
@@ -88,7 +108,7 @@ exec $quotedTmux "`$@"
         }
     }
     $identity = Get-SourceIdentity ($captured.Panes | Where-Object { $_.Id.ToString() -ceq '%0' })
-    foreach ($mode in @('Never', 'Auto', 'Require')) {
+    foreach ($mode in $(if ($exact) { @('Never', 'Auto', 'Require') } else { @('Never', 'Auto') })) {
         $prepared = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $version -Pushdown $mode
         $result = $server | Invoke-TmuxQuery -Plan $prepared -AsResult
         Assert-SourceQuery ($result -is [LibTmux.Query.QueryResult[LibTmux.Pane]] -and $result.Count -eq 3 -and
@@ -137,7 +157,7 @@ exec $quotedTmux "`$@"
     $placementPlan = $placementQuery | Get-TmuxQueryPlan -DaemonVersion $version
     $selectedActive = @($captured.Windows | Select-TmuxWindow -Query $placementQuery)
     Assert-SourceQuery ($placementQuery.Version -eq 2 -and
-        $null -ne $placementPlan.PushedPredicate -and $null -ne $placementPlan.ResidualPredicate -and
+        $exact -eq ($null -ne $placementPlan.PushedPredicate) -and $null -ne $placementPlan.ResidualPredicate -and
         (Get-SourceIdentity $selectedActive) -ceq (Get-SourceIdentity $expectedActive)) 'schema-v2 placement criteria lost active/index context'
     foreach ($mode in @('Never', 'Auto')) {
         $placementResult = $server | Invoke-TmuxQuery -Query $placementQuery -Pushdown $mode -AsResult
@@ -195,7 +215,7 @@ exec $quotedTmux "`$@"
         $errors[0].Exception -is [LibTmux.UnsupportedQueryExpressionException] -and
         $dispatch.Contains('display-message') -and !$dispatch.Contains('list-')) 'document Require did not stop after explicit inspection and before capture'
 
-    $wrongVersion = [LibTmux.TmuxVersion]::Parse($(if ($version.Raw -ceq '3.2a') { '3.7c' } else { '3.2a' }))
+    $wrongVersion = [LibTmux.TmuxVersion]::Parse($(if ($version.Raw -ceq '3.3a') { '3.7c' } else { '3.3a' }))
     $wrongPlan = $paneQuery | Get-TmuxQueryPlan -DaemonVersion $wrongVersion
     $errors = @()
     $failedRows = @($server | Invoke-TmuxQuery -Plan $wrongPlan -ErrorAction Continue -ErrorVariable errors 2>$null)

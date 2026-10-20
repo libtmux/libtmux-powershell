@@ -52,7 +52,7 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-Both modules consume published .NET alpha.20 packages, pinned in
+Both modules consume published .NET alpha.22 packages, pinned in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
 the optional `build/nuget` feed, and an isolated `build/packages` cache.
 Restore checks the committed lockfiles and stages both modules:
@@ -113,7 +113,7 @@ its full Git revision, `REVIEW_VERSION` to the new identifier, and
 `CORE_PACKAGES` to a new output directory. Use absolute directory paths.
 The checkout uses its own SDK pin; avoid running this recipe while another
 task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.20/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.22/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
@@ -200,8 +200,12 @@ The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`,
 within the outer-loop budget. `All` combines those selections; none establishes
 the full architecture or compatibility matrix.
 The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
-processes. `Create` verifies native creation plus first-daemon cleanup on
-success and injected consumer failure in separate disposable processes.
+processes. It sets `LIBTMUX_CONTROL_TRANSPORT=0` only for the scripts that
+wrap tmux to trace or inject invocations and so need to see each command
+(`$processTransportScripts` in `eng/Test.ps1`); every other script runs on the
+library's default transport. `Create` verifies native creation plus
+first-daemon cleanup on success and injected consumer failure in separate
+disposable processes.
 
 Task-guide fences are checked against `examples/Guides.ps1`. Check source IDs,
 registration and snippet drift without importing the product or starting tmux:
@@ -426,12 +430,12 @@ Workspace-only installation from PSGallery and executes installed examples.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Install the published alpha.20 tool in a fresh directory:
+module package. Install the published alpha.22 tool in a fresh directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.0.0-alpha.20 \
+    --version 0.0.0-alpha.22 \
     --framework net8.0
 ```
 
@@ -525,6 +529,16 @@ default tmux server or sweep another port's temporary files.
 
 Record the actual tmux version when behavior depends on it. A passing subset
 does not establish support for an entire version range.
+
+The supported matrix starts at tmux 3.3a. The version check suite also runs on
+releases below it, where it asserts refusal with no effects. Run it against
+the tmux first on `PATH`:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite VersionCheck \
+    -PackageRoot "$PACKAGE_ROOT"
+```
 
 ## Pull requests
 
