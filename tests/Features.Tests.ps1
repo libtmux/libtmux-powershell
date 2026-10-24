@@ -212,6 +212,67 @@ Invoke-WithOwnedTmux {
             'Set-TmuxLayout sent a layout that releases below 3.4 crash on'
     }
 
+    # The same layout sent as a literal command: below 3.4 the package refuses it with ArgumentException,
+    # not TmuxVersionTooLowException, and from 3.4 tmux answers the unknown layout itself.
+    $window = $session | Get-TmuxWindow | Select-Object -First 1
+    $before = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut
+    foreach ($arguments in @(@('select-layout', '-t', $window.Id, 'bogus'), @('selectl', 'bogus'))) {
+        foreach ($route in @('command', 'chain')) {
+            $errors = @()
+            if ($route -eq 'command') {
+                $null = $server | Invoke-TmuxCommand -Arguments $arguments -ErrorAction SilentlyContinue -ErrorVariable errors
+            } else {
+                $null = $server | Invoke-TmuxChain -Command (New-TmuxCommand -Name $arguments[0] -Arguments $arguments[1..($arguments.Count - 1)]) `
+                    -ErrorAction SilentlyContinue -ErrorVariable errors
+            }
+            if ($version -lt [LibTmux.TmuxVersion]::Parse('3.4')) {
+                Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [ArgumentException] -and
+                    $errors[0].Exception.Message -clike '*crashes on the layout*') "$($arguments -join ' ') was not refused with ArgumentException by $route"
+            } else {
+                Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.TmuxCommandException]) `
+                    "$($arguments -join ' ') was not answered by tmux itself through $route"
+            }
+            Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid -and
+                (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut -ceq $before) `
+                "$($arguments -join ' ') through $route changed the daemon or the window"
+        }
+    }
+
+    # A command list is read one command at a time: a refused command stops the whole list, so the
+    # commands before it do not run either, and the same list without one runs both. A chain is a list,
+    # and so is a ';' word in the arguments of Invoke-TmuxCommand.
+    foreach ($case in @(
+        @{ Claim = '3.7'; Refused = @('break-pane', '-d'); Required = '3.7a' },
+        @{ Claim = '3.4'; Refused = @('refresh', '-l'); Required = '3.6a' },
+        @{ Claim = '3.3a'; Refused = @('deleteb', '-b', 'missing'); Required = '3.4' }
+    )) {
+        $claiming = New-ClaimingWrapper $bin $fixture.TmuxPath $case.Claim $realRaw
+        $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
+        $first = @('set-option', '-g', '@listrun', 'ran')
+        foreach ($route in @('chain', 'command')) {
+            $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gu', '@listrun') -AllowFailure
+            $errors = @()
+            if ($route -eq 'chain') {
+                $null = $claimed | Invoke-TmuxChain -ErrorAction SilentlyContinue -ErrorVariable errors -Command @(
+                    (New-TmuxCommand -Name $first[0] -Arguments $first[1..($first.Count - 1)]),
+                    (New-TmuxCommand -Name $case.Refused[0] -Arguments $case.Refused[1..($case.Refused.Count - 1)]))
+            } else {
+                $null = $claimed | Invoke-TmuxCommand -Arguments ($first + @(';') + $case.Refused) -ErrorAction SilentlyContinue -ErrorVariable errors
+            }
+            $ran = (Invoke-OwnedTmux $fixture -Arguments @('show-options', '-gqv', '@listrun')).StdOut.Trim()
+            Assert-True (@(Get-Refusal $errors $case.Required).Count -eq 1 -and $ran -ceq '') `
+                "a $route list holding $($case.Refused -join ' ') ran its first command on a claimed $($case.Claim)"
+        }
+        $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gu', '@listrun') -AllowFailure
+        $errors = @()
+        $null = $claimed | Invoke-TmuxChain -ErrorAction SilentlyContinue -ErrorVariable errors -Command @(
+            (New-TmuxCommand -Name $first[0] -Arguments $first[1..($first.Count - 1)]),
+            (New-TmuxCommand -Name display-message -Arguments @('-p', 'tail')))
+        $ran = (Invoke-OwnedTmux $fixture -Arguments @('show-options', '-gqv', '@listrun')).StdOut.Trim()
+        Assert-True ($errors.Count -eq 0 -and $ran -ceq 'ran') "a chain of safe commands did not run on a claimed $($case.Claim)"
+    }
+    $null = Invoke-OwnedTmux $fixture -Arguments @('set-option', '-gu', '@listrun') -AllowFailure
+
     # A typed creation and a workspace plan check names on exactly 3.7 before they send anything.
     $claiming = New-ClaimingWrapper $bin $fixture.TmuxPath '3.7' $realRaw
     $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
