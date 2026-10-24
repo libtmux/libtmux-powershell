@@ -24,7 +24,90 @@ Development builds rank below the release they name: `next-3.3a` and
 `3.3a-rc` do not qualify, and a report without a dated release, such as
 `master`, is refused.
 
-Every cmdlet that talks to tmux goes through the linked
+## Optional features
+
+A feature that needs a newer release is refused for that cmdlet alone, with
+`LibTmux.TmuxVersionTooLowException`; the error names the release it needs
+and nothing is sent first. Each requirement is per feature, so the floor for
+reads, writes, raw commands and workspaces stays tmux 3.3a.
+
+[`capabilities.json`](../capabilities.json) is the machine-readable list of
+these features: each entry names the capability, the release it needs, the
+error and the cmdlets it gates. The `id` in the last column names the entry
+and its [evidence](#evidence).
+
+| Feature | Needs | Below that release | Id |
+| --- | --- | --- | --- |
+| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. | [`control-mode`](#evidence) |
+| `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a named buffer. | [`buffer-delete-named`](#evidence) |
+| Literal `delete-buffer -b` | 3.4 | Refused by the raw-command cmdlets. | [`buffer-delete-named`](#evidence) |
+| Literal `set-buffer -b ... -n` | 3.4 | Refused by the raw-command cmdlets. | [`buffer-rename`](#evidence) |
+| Literal `break-pane` without `-n` | not exactly 3.7 | Refused on 3.7. Name the window. | [`break-pane-misnames-windows`](#evidence) |
+| Session and window names with `:` or `.` | not exactly 3.7 | Refused on 3.7 with `System.ArgumentException`. | [`name-separators-rejected`](#evidence) |
+| Literal `split-window -p` | not exactly 3.4 | Refused on 3.4. Use `-l` with a percentage such as `30%`. | [`split-window-percent-size`](#evidence) |
+| Literal `refresh-client -l` | 3.6a | Refused by the raw-command cmdlets. | [`clipboard-query`](#evidence) |
+| `Set-TmuxLayout` with a layout string | 3.4 for a layout without a checksum | Refused with `LibTmux.TmuxWindowException`. A literal `select-layout` item is refused with `System.ArgumentException`. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
+
+The raw-command cmdlets are `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand`. `Wait-TmuxPaneText` needs no refusal: it attaches
+no control client below 3.7 and polls the pane instead.
+
+### Evidence
+
+Each requirement rests on a published source. The libtmux for .NET pages are
+pinned to the commit of the release these modules build on.
+
+- `control-mode`: before 3.7, a notification that fires while a control
+  client identifies itself crashes the whole server, as the
+  [libtmux for .NET one-shot guide](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/one-shot.md?plain=1#L46-L50) records with the tmux commit
+  that changed it. The same package's [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L168)
+  lists the requirement. Short-lived control clients were measured on 3.2a and
+  3.6b; 3.7c and 3.8 survived every trial.
+- `buffer-delete-named` and `buffer-rename`: before 3.4, a buffer name that
+  does not exist acts on the most recent buffer instead of failing. See the
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L171).
+- `break-pane-misnames-windows`: `break-pane` without `-n` ends a 3.7 server.
+  tmux 3.7a lists
+  ["Fix crash in break-pane when no name is provided"](https://github.com/tmux/tmux/blob/0e418b6/CHANGES#L1-L8). See also the
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L173).
+- `name-separators-rejected`: 3.7 rejects `:` and `.` in names. tmux 3.7a lists
+  ["Only forbid #( in names, allow #[, empty names, : and ."](https://github.com/tmux/tmux/blob/0e418b6/CHANGES#L1-L8). See also
+  the [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L174).
+- `split-window-percent-size`: `split-window -p` is broken on 3.4. tmux 3.5
+  lists ["Fix split-window -p"](https://github.com/tmux/tmux/blob/ac44566/CHANGES#L88). See also the
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L175).
+- `clipboard-query`: before 3.6a, `refresh-client -l` can end the server when
+  the attached client leaves before its terminal answers, and on 3.3a it ends
+  the server with a client attached. tmux's `CHANGES` has no entry for it, so
+  the [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L177) is the source.
+- `layout-without-checksum`: a layout string that is neither checksummed nor
+  a preset name ends tmux 3.3a. The [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L176) lists the
+  requirement.
+
+### What the checks do not read
+
+The checks read the command a cmdlet is given. They do not read a refused
+command carried inside another command's text: an `if-shell` or `run-shell -C`
+string, a `bind-key`, `set-hook` or `confirm-before` command, a menu, prompt
+or choose template, a brace block, or an alias in your tmux configuration.
+Commands typed into a pane are outside them too. Nested, a refused command
+reaches tmux unchanged, and it fails as follows.
+
+| What happens | Command | Releases |
+| --- | --- | --- |
+| The server exits | `break-pane` without `-n`, direct or nested | Exactly 3.7; fixed in 3.7a |
+| The server exits | `select-layout` with an invalid layout string that has no checksum | 3.3a; 3.4 answers with an error and stays up |
+| The server exits | `refresh-client -l`, when an attached client leaves or does not answer the clipboard query | Below 3.6a |
+| A different buffer is changed, with no error | `delete-buffer -b NAME`, `set-buffer -b NAME -n`, when NAME does not exist | Below 3.4: the most recent buffer is used instead |
+| tmux answers with an error and nothing changes | `split-window -p` | Exactly 3.4 |
+| tmux answers with an error and nothing changes | `:` or `.` in a session or window name | Exactly 3.7 |
+
+On exactly tmux 3.7, name every `break-pane`, including the one the `prefix !`
+key runs, or upgrade to 3.7a or later. Do not nest any other command that
+this page lists as refused.
+
+## How the check works
+
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) package, which
 reads the version of the connected daemon first and refuses an older or
 unreadable one before it sends anything. The client executable does not
@@ -74,28 +157,6 @@ returns an empty successful result without dispatching anything.
 The separate [MCP tool](mcp.md) is built on the same package and refuses the
 same daemons.
 
-Optional features can need a newer release than this floor. Their
-requirements belong to the cmdlet that needs them and are listed with the
-feature rather than raised for the whole module.
-
-## Optional features
-
-A feature that needs a newer release is refused for that cmdlet alone, with
-`LibTmux.TmuxVersionTooLowException`; the error names the release it needs
-and nothing is sent first. Each requirement is per feature, so the floor for
-reads, writes, raw commands and workspaces stays tmux 3.3a.
-
-| Feature | Needs | Below that release |
-| --- | --- | --- |
-| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. Short-lived control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. |
-| `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a temporary named buffer. Before 3.4, deleting a missing buffer by name removes an unrelated one. |
-| Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. |
-| Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
-| Session and window names containing `:` or `.` | not exactly 3.7 | Refused with `System.ArgumentException` on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
-| Literal `split-window -p` | not exactly 3.4 | Refused on tmux 3.4, which breaks it. Use `-l` with a percentage such as `30%`. |
-| Literal `refresh-client -l` | 3.6a | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. Before 3.6a the query ends the server when the client leaves before its terminal answers. |
-| `Set-TmuxLayout` with a layout string | 3.4 for a layout without a checksum | Refused with `LibTmux.TmuxWindowException` before anything is sent; tmux earlier than 3.4 crashes on one. A literal `select-layout` item holding one is refused with `System.ArgumentException` by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. Use a preset name or a layout read from tmux. |
-
 `Wait-TmuxPaneText` needs no refusal: it attaches no control client below
 3.7 and polls the pane instead.
 
@@ -111,10 +172,9 @@ command items sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 reads a command word the way tmux does, by alias, name or unique prefix, and
 reads a `;` list one command at a time. A session or window name that exactly
 tmux 3.7 rejects is refused with `System.ArgumentException` on every one of
-those paths, typed or literal, not `LibTmux.TmuxVersionTooLowException`. Commands typed into a pane, tmux
-commands nested in an `if-shell` string, a `run-shell -C` string or a brace
-block, and aliases in your tmux configuration are outside the checks; do not
-nest a command that is refused.
+those paths, typed or literal, not `LibTmux.TmuxVersionTooLowException`.
+[What the checks do not read](#what-the-checks-do-not-read) lists the nested
+commands they skip.
 
 The version a guard reads is the daemon's, taken just before the command is
 sent. A daemon replaced in that moment is not caught by the guard, though the
