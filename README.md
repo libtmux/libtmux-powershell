@@ -265,8 +265,23 @@ Pick a mode by who owns the client and how a failure is reported:
 An older daemon refuses these before anything changes:
 [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] needs tmux 3.4, and
 [`Connect-TmuxControl`][connect-tmuxcontrol] and
-[`Watch-TmuxEvent`][watch-tmuxevent] with a server need 3.7. See
-[optional features](docs/compatibility.md#optional-features).
+[`Watch-TmuxEvent`][watch-tmuxevent] with a server need 3.7.
+
+Other commands are refused on the releases they harm. The
+[optional features](docs/compatibility.md#optional-features) table lists each
+one, and [`capabilities.json`](capabilities.json) holds the same list for an
+assistant or a script to read.
+
+The raw-command cmdlets [`Invoke-TmuxCommand`][invoke-tmuxcommand],
+[`Invoke-TmuxChain`][invoke-tmuxchain] and
+[`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand] check the command
+they are given and nothing nested in it, such as an `if-shell` string, a
+`bind-key` command or a brace block.
+
+On exactly tmux 3.7, name every `break-pane`, including the one `prefix !`
+runs, or upgrade to 3.7a: a nested nameless one ends the server.
+[What the checks do not read](docs/compatibility.md#what-the-checks-do-not-read)
+lists the other failures.
 
 ### [`Connect-TmuxControl`][connect-tmuxcontrol]: one client for repeated commands
 
@@ -696,6 +711,7 @@ for bundled dependencies.
 [invoke-tmuxcontrolcommand]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxcontrolcommand/
 [disconnect-tmuxcontrol]: https://libtmux.org/en/powershell/latest/reference/libtmux-disconnect-tmuxcontrol/
 [invoke-tmuxchain]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxchain/
+[invoke-tmuxcommand]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxcommand/
 [watch-tmuxevent]: https://libtmux.org/en/powershell/latest/reference/libtmux-watch-tmuxevent/
 [enter-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-enter-tmuxsession/
 [get-tmuxworkspace]: https://libtmux.org/en/powershell/latest/workspace/reference/libtmux-workspace-get-tmuxworkspace/
