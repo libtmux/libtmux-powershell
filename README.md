@@ -47,7 +47,9 @@ host, including WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
 
 ## Quick start
 
-Install the module from the PowerShell Gallery:
+Install the module from the PowerShell Gallery in PowerShell 7.4 or later
+(`pwsh`) on Linux, including WSL. `Install-PSResource` ships with PowerShell
+7.4; Windows PowerShell 5.1 has no such command and cannot load the module:
 
 ```console
 $ Install-PSResource -Name LibTmux `
