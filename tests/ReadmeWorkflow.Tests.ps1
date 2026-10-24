@@ -7,6 +7,8 @@ $root = Split-Path $PSScriptRoot
 $readme = [IO.File]::ReadAllText("$root/README.md")
 $moduleRootPath = (Resolve-Path -LiteralPath $ModuleRoot).Path
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
+$skippedBlocks = [Collections.Generic.List[string]]::new()
 
 function Get-ReadmeBlock([string] $Id) {
     $pattern = '(?ms)^<!-- example: ' + [regex]::Escape($Id) + ' -->\r?\n```powershell\r?\n(?<code>.*?)^```[ \t]*$'
@@ -129,10 +131,15 @@ try {
     $related = @(. $blocks['readme.related'])
     Assert-Readme ($related.Count -eq 1 -and
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
-    $paneRun = @(. $blocks['input.run'])
-    Assert-Readme ($paneRun.Count -eq 1 -and
-        $paneRun[0] -is [LibTmux.PaneRunResult] -and
-        $paneRun[0].ExitStatus -eq 7 -and !$paneRun[0].TimedOut) 'the shell exit status was not reported'
+    if (Test-TmuxFeature NamedBuffers) {
+        $paneRun = @(. $blocks['input.run'])
+        Assert-Readme ($paneRun.Count -eq 1 -and
+            $paneRun[0] -is [LibTmux.PaneRunResult] -and
+            $paneRun[0].ExitStatus -eq 7 -and !$paneRun[0].TimedOut) 'the shell exit status was not reported'
+    } else {
+        $skippedBlocks.Add('input.run')
+        Write-FeatureSkip 'README input.run' NamedBuffers
+    }
     $httpReady = @(. $blocks['input.http-ready'])
     $readyLine = 'Serving HTTP on 127\.0\.0\.1 port [0-9]+'
     Assert-Readme ($httpReady.Count -eq 2 -and
@@ -145,8 +152,13 @@ try {
     Assert-Readme (
         (Invoke-NamedTmux $tmux $socketName 'list-sessions') -ne 0
     ) 'HTTP cleanup left its owned session or client running'
-    $controlReply = @(. $blocks['readme.control'])
-    Assert-Readme ($controlReply.Count -eq 1 -and $controlReply[0] -ceq 'control-demo') 'the control client returned a different session'
+    if (Test-TmuxFeature Control) {
+        $controlReply = @(. $blocks['readme.control'])
+        Assert-Readme ($controlReply.Count -eq 1 -and $controlReply[0] -ceq 'control-demo') 'the control client returned a different session'
+    } else {
+        $skippedBlocks.Add('readme.control')
+        Write-FeatureSkip 'README readme.control' Control
+    }
     . $blocks['readme.workspace.01-import']
     Assert-Readme ($workspace -is [LibTmux.Workspace.WorkspaceFile] -and
         $workspace.Windows.Count -eq 1 -and $workspace.Windows[0].Panes.Count -eq 2) 'workspace import did not preserve the two panes'
@@ -204,4 +216,4 @@ try {
     }
 }
 
-'PASS README installed blocks, graph, captured output and named-socket cleanup'
+"PASS README installed blocks, graph, captured output and named-socket cleanup; $($skippedBlocks.Count) SKIP"

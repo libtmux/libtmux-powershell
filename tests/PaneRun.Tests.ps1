@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1')
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-PaneRun([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Pane command: $Message" }
@@ -14,6 +15,12 @@ $command = Get-Command 'LibTmux\Invoke-TmuxPaneCommand' -ErrorAction SilentlyCon
 Assert-PaneRun ($null -ne $command) 'installed module has no native Invoke-TmuxPaneCommand'
 Assert-PaneRun ($command.OutputType.Type -contains [LibTmux.PaneRunResult]) 'cmdlet does not declare the native result type'
 Assert-PaneRun ($command.Parameters['Timeout'].ParameterType -eq [double]) 'timeout must use seconds'
+
+if (-not (Test-TmuxFeature NamedBuffers)) {
+    # Features.Tests.ps1 asserts that Invoke-TmuxPaneCommand is refused here before it stages a buffer.
+    Write-FeatureSkip 'pane command live runs' NamedBuffers
+    return
+}
 
 Invoke-WithOwnedTmux {
     param($fixture)

@@ -6,7 +6,7 @@
 
 #### Require tmux 3.3a or newer
 
-Both modules now build on libtmux for .NET 0.0.0-alpha.22, which checks the
+Both modules now build on libtmux for .NET 0.0.0-alpha.23, which checks the
 daemon's version before it sends any command. It refuses a daemon older than
 3.3a, or one whose version it cannot read, with `TmuxVersionTooLowException`
 before anything changes, and a daemon older than 3.2, which cannot report a
@@ -32,8 +32,50 @@ commands behind it, and a `wait-for` at the top level still runs on its own.
 Set `LIBTMUX_CONTROL_TRANSPORT=0` before creating the server handle to send
 each command from its own process. (#21)
 
+#### Refuse optional features on older tmux
+
+A feature that needs a newer release than the 3.3a floor is refused for that
+cmdlet alone, with `TmuxVersionTooLowException` and before anything is sent.
+`Connect-TmuxControl` and `Watch-TmuxEvent` with a server need tmux 3.7, because
+a short-lived control client crashed tmux 3.2a and 3.6b servers while it
+identified itself. `Invoke-TmuxPaneCommand` and literal `delete-buffer -b` and
+`set-buffer -n` items need 3.4.
+
+The literal items of `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand` are also checked, by the libtmux for .NET package,
+which reads a command word the way tmux does, by alias, name or unique prefix.
+On exactly tmux 3.7, `break-pane` without `-n` crashes the server and a `:` or
+`.` in a session or window name is rejected, so both are refused, as is such a
+name in `New-TmuxSession`, `New-TmuxWindow` and `Invoke-TmuxWorkspace`. Such a
+name is refused with `ArgumentException`, typed or literal, not
+`TmuxVersionTooLowException`. On exactly 3.4, `split-window -p` is refused;
+`-l` with a percentage works. `refresh-client -l`, the clipboard query, needs
+3.6a, because it ends 3.3a at once with a client attached and 3.4 through 3.6
+when the client leaves before its terminal answers. A layout string without a
+checksum, which crashes tmux before 3.4, is refused by `Set-TmuxLayout`, and a
+literal `select-layout` item holding one is refused with `ArgumentException`.
+Everything else stays available from 3.3a. (#22)
+
+### Bug fixes
+
+- Match a pane text line that wraps across rows in `Wait-TmuxPaneText`, while it
+  polls and on a control client, and end the wait as `PaneExited` with the
+  output read so far instead of reporting a raw error when the server is killed
+  under it, even when a stopped second control client keeps the server up. The
+  result always carries its `Tail`. (#22)
+
+### Development
+
+- Remove the pane text watcher and the literal command parser that worked
+  around the earlier .NET package. (#22)
+- Record the tmux release each optional feature needs in one registry, and write
+  `capabilities.json` from it for the capabilities page of the documentation
+  site. A test fails when the file and the registry differ. (#22)
+
 ### Documentation
 
+- List the tmux release each optional feature needs in the compatibility guide,
+  with what the checks leave out. (#22)
 - Give the `LibTmux` and `LibTmux.Workspace` source directories a README and
   list each product on the repository page under a heading that links its
   directory. Link the first mention of each public cmdlet and native type to

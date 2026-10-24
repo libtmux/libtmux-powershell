@@ -26,7 +26,7 @@
 Alpha 2 prerelease (0.1.0-alpha2). Install with the matching core dependency
 and follow the workspace plan/apply examples.
 
-Requires LibTmux 0.1.0-alpha2. Built on libtmux for .NET 0.0.0-alpha.22.
+Requires LibTmux 0.1.0-alpha2. Built on libtmux for .NET 0.0.0-alpha.23.
 APIs may change before a stable release.
 https://github.com/libtmux/libtmux-dotnet
 

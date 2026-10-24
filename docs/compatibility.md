@@ -78,6 +78,54 @@ Optional features can need a newer release than this floor. Their
 requirements belong to the cmdlet that needs them and are listed with the
 feature rather than raised for the whole module.
 
+## Optional features
+
+A feature that needs a newer release is refused for that cmdlet alone, with
+`LibTmux.TmuxVersionTooLowException`; the error names the release it needs
+and nothing is sent first. Each requirement is per feature, so the floor for
+reads, writes, raw commands and workspaces stays tmux 3.3a.
+
+| Feature | Needs | Below that release |
+| --- | --- | --- |
+| `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. Short-lived control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. |
+| `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a temporary named buffer. Before 3.4, deleting a missing buffer by name removes an unrelated one. |
+| Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. |
+| Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
+| Session and window names containing `:` or `.` | not exactly 3.7 | Refused with `System.ArgumentException` on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
+| Literal `split-window -p` | not exactly 3.4 | Refused on tmux 3.4, which breaks it. Use `-l` with a percentage such as `30%`. |
+| Literal `refresh-client -l` | 3.6a | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. Before 3.6a the query ends the server when the client leaves before its terminal answers. |
+| `Set-TmuxLayout` with a layout string | 3.4 for a layout without a checksum | Refused with `LibTmux.TmuxWindowException` before anything is sent; tmux earlier than 3.4 crashes on one. A literal `select-layout` item holding one is refused with `System.ArgumentException` by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. Use a preset name or a layout read from tmux. |
+
+`Wait-TmuxPaneText` needs no refusal: it attaches no control client below
+3.7 and polls the pane instead.
+
+One registry in the module holds these requirements, and it writes
+[`capabilities.json`](../capabilities.json) for the capabilities page of the
+documentation site. The module reads the daemon's version and infers what that
+release can do; tmux does not report its capabilities, so a patched build is
+judged as the release it names.
+
+The module checks the typed operations and workspace plans itself. Literal
+command items sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand` are checked by the libtmux for .NET package, which
+reads a command word the way tmux does, by alias, name or unique prefix, and
+reads a `;` list one command at a time. A session or window name that exactly
+tmux 3.7 rejects is refused with `System.ArgumentException` on every one of
+those paths, typed or literal, not `LibTmux.TmuxVersionTooLowException`. Commands typed into a pane, tmux
+commands nested in an `if-shell` string, a `run-shell -C` string or a brace
+block, and aliases in your tmux configuration are outside the checks; do not
+nest a command that is refused.
+
+The version a guard reads is the daemon's, taken just before the command is
+sent. A daemon replaced in that moment is not caught by the guard, though the
+package's own check still refuses one below the floor.
+
+Sections of the suites that need a control client or a pane command report
+SKIP below their releases rather than pass, and the features suite asserts
+the refusals and that nothing changed. The guards for exactly 3.7, a release
+the workflow does not run, are tested by reporting that version to the
+version probe.
+
 Choose the tmux executable and socket explicitly with
 [New-TmuxServer](read.md). A handle alone starts no daemon. The module does
 not change `TMUX` or `TMUX_PANE` in the calling process, and it does not

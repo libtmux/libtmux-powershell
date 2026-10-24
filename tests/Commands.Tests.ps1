@@ -7,6 +7,7 @@ $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 . "$PSScriptRoot/support/OwnedTmux.ps1"
 . "$PSScriptRoot/support/InputReceiver.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-Command([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Commands: $Message" }
@@ -121,6 +122,11 @@ Invoke-WithOwnedTmux {
     }
     Assert-Command $failed 'concurrent process lane discarded the native placement guard'
 
+    if (-not (Test-TmuxFeature Control)) {
+        Write-FeatureSkip 'commands control replies' Control
+        return
+    }
+
     $control = $server | Connect-TmuxControl -Target $session.Id.ToString()
     try {
         Assert-Command ($control -is [LibTmux.IControlModeSession] -and $control.IsRunning) 'connect did not return a running native control client'
@@ -207,4 +213,5 @@ Invoke-WithOwnedTmux {
     }
     Assert-Command ($failed -and @($server | Get-TmuxClient).Count -eq 0) 'failed output transfer leaked a newly attached control client'
 }
-'PASS commands: typed argv, bounded chain, prefix failure, composite input, native control replies, ownership and cleanup'
+$controlNote = if (Test-TmuxFeature Control) { ', native control replies' } else { ' (control replies SKIPPED)' }
+"PASS commands: typed argv, bounded chain, prefix failure, composite input$controlNote, ownership and cleanup"

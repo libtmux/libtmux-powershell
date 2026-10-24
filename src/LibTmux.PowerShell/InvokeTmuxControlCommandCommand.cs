@@ -37,7 +37,8 @@ public sealed class InvokeTmuxControlCommandCommand : TmuxCmdlet
     {
         if (ShouldProcess("supplied tmux control connection", $"Run tmux command {Command.Name}"))
         {
-            ReadResult(token => Connection.SendAsync(Command, token), "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
+            ReadResult(token => Connection.SendAsync(Command, token),
+                "Tmux.ControlCommandFailed", Connection, enumerateCollection: true);
         }
     }
 }

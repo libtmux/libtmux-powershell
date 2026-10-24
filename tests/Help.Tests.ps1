@@ -211,6 +211,8 @@ if ($RunExamples) {
     # Outer integration: packaged examples execute against owned sockets with native outcome checks.
     . "$PSScriptRoot/support/OwnedTmux.ps1"
     . "$PSScriptRoot/support/InputReceiver.ps1"
+    . "$PSScriptRoot/support/TmuxFeatures.ps1"
+    $skipped = [Collections.Generic.List[string]]::new()
     $owned = [Collections.Generic.List[object]]::new()
     if ($Phase -ne 'Examples') { $selectedIds = @(Get-HelpGroupId @($examples.Id) $ExampleGroup) }
     $selectedExamples = @($examples | Where-Object { $_.Id -cin $selectedIds })
@@ -237,6 +239,7 @@ if ($RunExamples) {
         if (!$rejected -or !$negative.Executed) { throw 'Wrong-output control did not reject a live example outcome.' }
         'PASS wrong help example outcome rejected after live execution; owned resources removed'
 
+        if (Test-TmuxFeature Control) {
         Invoke-WithOwnedTmux {
             param($fixture)
             $owned.Add($fixture)
@@ -258,6 +261,7 @@ if ($RunExamples) {
             }
         }
         'PASS failed client help assertion closes its owned client and preserves the session'
+        } else { Write-FeatureSkip 'client help cleanup control' Control }
     }
 
     try {
@@ -284,6 +288,15 @@ exec /bin/cat
             foreach ($example in $selectedExamples) {
                 $assertion = $assertions[$example.Id]
                 if ($assertion.ContainsKey('TerminalMode')) { continue }
+                # An example that attaches a control client or runs a pane command needs the matching feature.
+                $scan = $example.Code + "`n" + $(if ($assertion.ContainsKey('Prepare')) { $assertion.Prepare.ToString() })
+                $requirement = if ($scan -match 'Connect-TmuxControl|Watch-TmuxEvent|EnterControlMode|Initialize-HelpClient') { 'Control' }
+                    elseif ($scan -match 'Invoke-TmuxPaneCommand') { 'NamedBuffers' }
+                if ($requirement -and -not (Test-TmuxFeature $requirement)) {
+                    $skipped.Add($example.Id)
+                    Write-FeatureSkip "help $($example.Id)" $requirement
+                    continue
+                }
                 if ($assertion.Isolated) {
                     Invoke-WithOwnedTmux {
                         param($isolatedFixture)
@@ -316,7 +329,7 @@ exec /bin/cat
             }
         }
     }
-    "PASS $($selectedExamples.Count) $ExampleGroup native help examples executed against owned tmux"
+    "PASS $($selectedExamples.Count - $skipped.Count) $ExampleGroup native help examples executed against owned tmux; $($skipped.Count) SKIP"
 }
 
 'PASS packaged native help, example content, parameter coverage, and pipeline metadata'

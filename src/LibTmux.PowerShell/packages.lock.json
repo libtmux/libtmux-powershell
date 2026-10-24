@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.22, 0.0.0-alpha.22]",
-        "resolved": "0.0.0-alpha.22",
-        "contentHash": "O0dFfeyfM8pPfncRTm6sxLBuh9b5yNCuYhHaFwXgbcx8Ln47NjENZguseoCn12fvcJ7Vnh/S8N13g75YGNqAVg==",
+        "requested": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
+        "resolved": "0.0.0-alpha.23",
+        "contentHash": "hIS7CJRCM38vQ2m5tcEdbeBueqkmRLzHekHei/B29uBQKhnvjQ7TPLW2uiugAFiW3xEDzGZ5jaIWLXiPaJB2xA==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Query.Json": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.22, 0.0.0-alpha.22]",
-        "resolved": "0.0.0-alpha.22",
-        "contentHash": "gc3+cN+45Yj8ZqvfZPgxAKAbwEn8YVUGCSEyXaORT1iFcgqgpGDtF0BdB3mBkzQRbQPMF5YbGywcnzI4PS5L9A==",
+        "requested": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
+        "resolved": "0.0.0-alpha.23",
+        "contentHash": "/3aY4+DsYDYzjl/bvd0ok52U7fL88Yd5SgJCAw21B/j73seiT3v9tLq4su59WUytOmPXvsKaG3LsGHtc7jVrOg==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.22"
+          "LibTmux": "0.0.0-alpha.23"
         }
       },
       "System.Management.Automation": {

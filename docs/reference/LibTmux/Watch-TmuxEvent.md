@@ -261,6 +261,8 @@ Native output, notification, loss, pane-gone or exit events.
 
 ## NOTES
 
+Attaching its own control client with `-Server` needs tmux 3.7 or newer. On an older daemon the cmdlet reports `LibTmux.TmuxVersionTooLowException` as its error and attaches nothing. A connection passed with `-Connection` was acquired before the cmdlet could decide.
+
 Tmux.WatchFailed preserves the native exception and supplied owner. Buffered
 events precede a terminal stream error. A byte-budget failure preserves earlier
 output and reports that the consumed oversized event was not emitted.

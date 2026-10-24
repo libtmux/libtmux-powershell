@@ -46,8 +46,11 @@ or anchor means the observer may have missed transient output.
 
 On tmux 3.7 and newer, control observation is required by default and
 `-AllowPollingFallback` permits bounded polling if it fails. Older releases
-attach no control client, so the wait always polls. The result discloses
-whether polling ran. The wait borrows the pane and server; it disposes only its
+attach no control client, so the wait always polls. On either path a pattern
+matches a line that wraps across rows as one line. A wait whose server is
+killed ends as `PaneExited` with the output read so far in `Tail`, without an
+error, as it does when the pane exits. The result discloses whether polling
+ran. The wait borrows the pane and server; it disposes only its
 own observer and client on completion or Ctrl+C. `-WhatIf` attaches no client
 and captures no text. Confirmation identifies the endpoint and pane without
 displaying patterns or pane content.

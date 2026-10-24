@@ -56,6 +56,11 @@ public sealed class WatchTmuxEventCommand : TmuxCmdlet
         {
             Guid runspaceId = Runspace.DefaultRunspace?.InstanceId
                 ?? throw new InvalidOperationException("Event watching requires an active PowerShell runspace.");
+            if (ownsConnection)
+            {
+                TmuxFeatures.RequireControlAsync(Server, "Watch-TmuxEvent", token).GetAwaiter().GetResult();
+            }
+
             IControlModeSession control = ownsConnection
                 ? Server.EnterControlModeAsync(Target, token).GetAwaiter().GetResult()
                 : Connection;

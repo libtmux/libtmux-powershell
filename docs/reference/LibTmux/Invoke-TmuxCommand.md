@@ -31,6 +31,8 @@ None.
 
 Pass the tmux command name and arguments as a string array. The adapter invokes the core directly without a shell. It returns a native TmuxCommandResult only on success; a nonzero exit writes an error retaining the result, target and dispatch metadata.
 
+Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before dispatch, so nothing is sent. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise System.ArgumentException. A command nested in a string argument, such as an if-shell or run-shell argument, is not inspected.
+
 ## EXAMPLES
 
 ### Example 1
@@ -157,3 +159,5 @@ Arguments can mutate tmux or run application commands. WhatIf performs no dispat
 ## RELATED LINKS
 
 [Task guide](../../capture.md)
+
+[Tmux release requirements](../../compatibility.md)

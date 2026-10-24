@@ -6,6 +6,7 @@ Set-StrictMode -Version Latest
 $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-PaneTextWait([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Pane text wait: $Message" }
@@ -32,6 +33,8 @@ function New-CaptureSignallingPane {
 if [ ! -e $capturePath ]; then
     printf 'captured\n' > $capturePath
     $tmux -S $socket wait-for -S '$captureSignal'
+else
+    printf 'captured\n' >> $capturePath
 fi
 "@ | Set-Content -LiteralPath $captureScript
 
@@ -50,6 +53,23 @@ fi
     $pane = $server | LibTmux\Get-TmuxSession -Name $Name | LibTmux\Get-TmuxPane
     Assert-PaneTextWait ($pane -is [LibTmux.Pane]) "could not select native pane for $Name"
     [pscustomobject]@{ Pane = $pane; Signal = $captureSignal; CaptureFile = $captureFile }
+}
+
+# A wait reads the pane more than once on entry, and only the first read signals the barrier. Input
+# sent before the last one is part of the baseline instead of new output. The control path stops
+# reading after its entry reads; the polling path captures again every few milliseconds, so a pause
+# longer than that interval stands for the same point.
+function Wait-PaneBaseline($Owner, [bool] $Polls) {
+    if ($Polls) { Start-Sleep -Milliseconds 250; return }
+    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    $size = -1
+    $quiet = 0
+    while ($quiet -lt 200 -and [DateTime]::UtcNow -lt $deadline) {
+        Start-Sleep -Milliseconds 25
+        $length = (Get-Item -LiteralPath $Owner.CaptureFile).Length
+        if ($length -eq $size) { $quiet += 25 } else { $size = $length; $quiet = 0 }
+    }
+    Assert-PaneTextWait ($quiet -ge 200) 'the baseline reads of the control wait did not finish'
 }
 
 function Start-PaneTextWait {
@@ -109,9 +129,21 @@ Invoke-WithOwnedTmux {
     $marker = [Guid]::NewGuid().ToString('N')
 
     $present = $server | LibTmux\Get-TmuxSession -Name fixture | LibTmux\Get-TmuxPane
-    $completed = $present | LibTmux\Invoke-TmuxPaneCommand -Command "printf 'PRESENT-$marker\n'" `
-        -Timeout 5 -Confirm:$false -ErrorAction Stop
-    Assert-PaneTextWait ($completed.ExitStatus -eq 0) 'present-at-entry producer did not complete'
+    if (Test-TmuxFeature NamedBuffers) {
+        $completed = $present | LibTmux\Invoke-TmuxPaneCommand -Command "printf 'PRESENT-$marker\n'" `
+            -Timeout 5 -Confirm:$false -ErrorAction Stop
+        Assert-PaneTextWait ($completed.ExitStatus -eq 0) 'present-at-entry producer did not complete'
+    } else {
+        # Pane commands stage a named buffer, which this tmux cannot delete safely; type the producer instead.
+        $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', 'fixture:0.0', '-l', "printf 'PRESENT-$marker\n'")
+        $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', 'fixture:0.0', 'Enter')
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        do {
+            Start-Sleep -Milliseconds 25
+            $rendered = (Invoke-OwnedTmux $fixture -Arguments @('capture-pane', '-p', '-t', 'fixture:0.0')).StdOut
+        } until ($rendered -cmatch "(?m)^PRESENT-$marker`$" -or [DateTime]::UtcNow -ge $deadline)
+        Assert-PaneTextWait ($rendered -cmatch "(?m)^PRESENT-$marker`$") 'present-at-entry producer did not complete'
+    }
     $entry = $present | LibTmux\Wait-TmuxPaneText -Pattern "^PRESENT-$marker`$" `
         -Timeout 1 -Confirm:$false -ErrorAction Stop
     Assert-PaneTextWait ($entry -is [LibTmux.PaneWaitResult] -and
@@ -158,6 +190,7 @@ Invoke-WithOwnedTmux {
     }
     try {
         $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', $ready.Signal)
+        Wait-PaneBaseline $ready $polls
         Assert-PaneTextWait (Test-Path -LiteralPath $ready.CaptureFile) 'baseline capture barrier did not fire'
         $fastList = @($server | LibTmux\Get-TmuxSession -Name fixture)
         Assert-PaneTextWait ($fastList.Count -eq 1 -and !$pending.Invocation.IsCompleted) `
@@ -204,12 +237,13 @@ Invoke-WithOwnedTmux {
         $running = Start-PaneTextWait $module $owner.Pane $case.Parameters
         try {
             $null = Invoke-OwnedTmux $fixture -Arguments @('wait-for', $owner.Signal)
+            Wait-PaneBaseline $owner $polls
             $owner.Pane | LibTmux\Send-TmuxText -Text go -Enter -Confirm:$false -ErrorAction Stop
             $observed = @(Complete-PaneTextWait $running)
             Assert-PaneTextWait ($observed.Count -eq 1 -and
                 $observed[0].Outcome -eq $case.Outcome -and
                 $observed[0].Pattern -ceq $case.Pattern -and
-                $observed[0].PaneId -eq $owner.Pane.Id) "unexpected $($case.Name) outcome"
+                $observed[0].PaneId -eq $owner.Pane.Id) "unexpected $($case.Name) outcome: $($observed[0].Outcome) tail=$($observed[0].Tail -join "|")"
             if ($case.Name -eq 'any') {
                 Assert-PaneTextWait ($observed[0].Tail -ccontains "ANY-$marker") `
                     'any-output wait returned input echo instead of producer output'

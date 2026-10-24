@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 env:
-  CORE_REVISION: 5b486ea9f3df6a882f3fedb36b9373a8161f4d0f
-  CORE_PACKAGE_VERSION: '0.0.0-alpha.22'
+  CORE_REVISION: 0e25b51502c3a3879325aa0dbc1868f5940b233f
+  CORE_PACKAGE_VERSION: '0.0.0-alpha.23'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -267,6 +267,14 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
 
+      - name: Run installed features suite
+        id: features
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
+            -Suite Features -PackageRoot "${RUNNER_TEMP}/port-package"
+
       - name: Run installed product suite
         id: product
         timeout-minutes: 15
@@ -287,6 +295,7 @@ jobs:
         if: always()
         env:
           VERSION_CHECK_OUTCOME: ${{ steps.version-check.outcome }}
+          FEATURES_OUTCOME: ${{ steps.features.outcome }}
           PRODUCT_OUTCOME: ${{ steps.product.outcome }}
           DOCUMENTATION_OUTCOME: ${{ steps.documentation.outcome }}
           CELL_RUNNER: ${{ matrix.runner }}
@@ -294,17 +303,17 @@ jobs:
           CELL_TMUX: ${{ matrix.tmux }}
         run: |
           mkdir -p build
-          printf '{"runner":"%s","powershell":"%s","tmux":"%s","version_check":"%s","product":"%s","documentation":"%s"}\n' \
+          printf '{"runner":"%s","powershell":"%s","tmux":"%s","version_check":"%s","features":"%s","product":"%s","documentation":"%s"}\n' \
             "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
+            "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
             > build/macos-cell.json
-          printf '| Runner | PowerShell | tmux | Version check | Product | Documentation |\n| --- | --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s | %s |\n' \
+          printf '| Runner | PowerShell | tmux | Version check | Features | Product | Documentation |\n| --- | --- | --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s | %s | %s |\n' \
             "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
+            "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
             >> "${GITHUB_STEP_SUMMARY}"
-          if [[ "${VERSION_CHECK_OUTCOME}" != success || "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
-            printf '::warning::macOS trial suites failed: Version check=%s, Product=%s, Documentation=%s\n' \
-              "${VERSION_CHECK_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
+          if [[ "${VERSION_CHECK_OUTCOME}" != success || "${FEATURES_OUTCOME}" != success || "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
+            printf '::warning::macOS trial suites failed: Version check=%s, Features=%s, Product=%s, Documentation=%s\n' \
+              "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
           fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

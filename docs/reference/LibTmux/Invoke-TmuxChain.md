@@ -38,6 +38,14 @@ A failed command stops the remaining chain; earlier mutations remain. The
 result is merged stdout/stderr, not one receipt per command. Chains are not
 transactions. Cancellation cannot undo a command already sent to tmux.
 
+Literal commands that an optional feature cannot run safely on the daemon's
+tmux release are refused before dispatch, so nothing is sent. A command that
+needs another release raises LibTmux.TmuxVersionTooLowException. A session
+or window name that exactly tmux 3.7 rejects, and a layout string that tmux
+before 3.4 crashes on, raise System.ArgumentException. A command nested in a
+string argument, such as an if-shell or run-shell argument, is not
+inspected.
+
 ## EXAMPLES
 
 ### Example 1
@@ -210,3 +218,5 @@ an uncertain mutation.
 ## RELATED LINKS
 
 [Commands and control clients](../../commands.md)
+
+[Tmux release requirements](../../compatibility.md)
