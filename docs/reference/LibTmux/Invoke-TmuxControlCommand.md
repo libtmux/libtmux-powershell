@@ -38,6 +38,13 @@ stops this caller waiting, not a command already sent, and does not dispose
 the borrowed client. A later send remains usable after the cancelled command
 finishes. WhatIf sends nothing; an empty connection pipeline performs no work.
 
+Literal commands that an optional feature cannot run safely on the daemon's
+tmux release are refused before dispatch, so nothing is sent. A command that
+needs another release raises LibTmux.TmuxVersionTooLowException. A session
+or window name that exactly tmux 3.7 rejects raises
+System.ArgumentException. A command nested in a string argument, such as an
+if-shell or run-shell argument, is not inspected.
+
 ## EXAMPLES
 
 ### Example 1
@@ -170,3 +177,5 @@ metadata absent from IControlModeSession.
 ## RELATED LINKS
 
 [Commands and control clients](../../commands.md)
+
+[Tmux release requirements](../../compatibility.md)
