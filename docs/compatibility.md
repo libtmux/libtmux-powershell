@@ -93,6 +93,8 @@ reads, writes, raw commands and workspaces stays tmux 3.3a.
 | Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
 | Session and window names containing `:` or `.` | not exactly 3.7 | Refused with `System.ArgumentException` on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
 | Literal `split-window -p` | not exactly 3.4 | Refused on tmux 3.4, which breaks it. Use `-l` with a percentage such as `30%`. |
+| Literal `refresh-client -l` | 3.6a | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. Before 3.6a the query ends the server when the client leaves before its terminal answers. |
+| `Set-TmuxLayout` with a layout string | 3.4 for a layout without a checksum | Refused with `LibTmux.TmuxWindowException` before anything is sent; tmux earlier than 3.4 crashes on one. A literal `select-layout` item holding one is refused with `System.ArgumentException` by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. Use a preset name or a layout read from tmux. |
 
 `Wait-TmuxPaneText` needs no refusal: it attaches no control client below
 3.7 and polls the pane instead.

@@ -63,6 +63,43 @@
           ]
         }
       ]
+    },
+    {
+      "id": "layout-without-checksum",
+      "name": "Layouts without a checksum",
+      "summary": "Apply a layout string; earlier releases crash on one that is not a checksummed layout or a preset name.",
+      "since": "3.4",
+      "handling": "refuse",
+      "error": "LibTmux.TmuxWindowException",
+      "apis": [
+        "Set-TmuxLayout"
+      ],
+      "commands": [
+        {
+          "command": "select-layout"
+        }
+      ]
+    },
+    {
+      "id": "clipboard-query",
+      "name": "Clipboard query",
+      "summary": "Ask the attached clients for their clipboard; earlier releases can end the server when a client leaves before its terminal answers.",
+      "since": "3.6a",
+      "handling": "refuse",
+      "error": "LibTmux.TmuxVersionTooLowException",
+      "apis": [
+        "Invoke-TmuxCommand",
+        "Invoke-TmuxChain",
+        "Invoke-TmuxControlCommand"
+      ],
+      "commands": [
+        {
+          "command": "refresh-client",
+          "flags": [
+            "-l"
+          ]
+        }
+      ]
     }
   ],
   "workarounds": [

@@ -121,6 +121,24 @@ internal static class Capabilities
             "LibTmux.TmuxVersionTooLowException",
             ["Invoke-TmuxCommand", "Invoke-TmuxChain"],
             [new("set-buffer", "-b", "-n")]),
+        new(
+            "layout-without-checksum",
+            "Layouts without a checksum",
+            "Apply a layout string; earlier releases crash on one that is not a checksummed layout or a preset name.",
+            "3.4",
+            ClaimHandling.Refuse,
+            "LibTmux.TmuxWindowException",
+            ["Set-TmuxLayout"],
+            [new("select-layout")]),
+        new(
+            "clipboard-query",
+            "Clipboard query",
+            "Ask the attached clients for their clipboard; earlier releases can end the server when a client leaves before its terminal answers.",
+            "3.6a",
+            ClaimHandling.Refuse,
+            "LibTmux.TmuxVersionTooLowException",
+            ["Invoke-TmuxCommand", "Invoke-TmuxChain", "Invoke-TmuxControlCommand"],
+            [new("refresh-client", "-l")]),
     ];
 
     /// <summary>Gets the release-specific defects, in manifest order.</summary>

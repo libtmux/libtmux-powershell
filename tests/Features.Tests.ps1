@@ -159,6 +159,8 @@ Invoke-WithOwnedTmux {
         @{ Claim = '3.7'; Arguments = @('new-session', '-d', '-s', 'ok', '-n', 'x.y'); Name = $true; Required = '3.7a' },
         @{ Claim = '3.7'; Arguments = @('rename-window', '-t', '@0', 'c.d'); Name = $true; Required = '3.7a' },
         @{ Claim = '3.7'; Arguments = @('rename-session', 'e:f'); Name = $true; Required = '3.7a' },
+        @{ Claim = '3.3a'; Arguments = @('refresh-client', '-l'); Required = '3.6a' },
+        @{ Claim = '3.4'; Arguments = @('refresh', '-lt', 'nosuch'); Required = '3.6a' },
         @{ Claim = '3.4'; Arguments = @('split-window', '-p', '30'); Required = '3.5' },
         @{ Claim = '3.4'; Arguments = @('splitw', '-dp30'); Required = '3.5' }
     )
@@ -184,6 +186,8 @@ Invoke-WithOwnedTmux {
     foreach ($case in @(
         @{ Claim = '3.7'; Arguments = @('break-pane', '-d', '-n', 'named', '-s', 'fixture:9.9') },
         @{ Claim = '3.7'; Arguments = @('new-window', '-d', '-n', 'plain', '-t', 'nosuch:') },
+        @{ Claim = '3.6a'; Arguments = @('refresh-client', '-l', '-t', 'nosuch') },
+        @{ Claim = '3.4'; Arguments = @('refresh-client', '-t', 'nosuch') },
         @{ Claim = '3.4'; Arguments = @('split-window', '-d', '-l', '30%', '-t', 'nosuch:') },
         @{ Claim = '3.5'; Arguments = @('split-window', '-d', '-p', '30', '-t', 'nosuch:') }
     )) {
@@ -195,6 +199,18 @@ Invoke-WithOwnedTmux {
             "$($case.Arguments -join ' ') was refused by a feature guard on a claimed $($case.Claim)"
     }
     Assert-True ((Get-Topology) -ceq $topology) 'a command aimed at a missing target changed the topology'
+
+    # A layout string that is not checksummed crashes releases below 3.4; the package refuses it before sending.
+    if ($version -lt [LibTmux.TmuxVersion]::Parse('3.4')) {
+        $window = $session | Get-TmuxWindow | Select-Object -First 1
+        $before = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut
+        $errors = @()
+        $null = $window | Set-TmuxLayout -Layout 'bogus-layout' -ErrorAction SilentlyContinue -ErrorVariable errors
+        Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.TmuxWindowException] -and
+            (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid -and
+            (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut -ceq $before) `
+            'Set-TmuxLayout sent a layout that releases below 3.4 crash on'
+    }
 
     # A typed creation and a workspace plan check names on exactly 3.7 before they send anything.
     $claiming = New-ClaimingWrapper $bin $fixture.TmuxPath '3.7' $realRaw
