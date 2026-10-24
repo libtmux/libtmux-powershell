@@ -18,15 +18,15 @@
     AliasesToExport = @()
     PrivateData = @{
         PSData = @{
-            Prerelease = 'alpha2'
+            Prerelease = 'alpha3'
             Tags = @('tmux', 'tmuxp', 'workspace', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
             LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
             ReleaseNotes = @'
-Alpha 2 prerelease (0.1.0-alpha2). Install with the matching core dependency
-and follow the workspace plan/apply examples.
+Alpha 3 prerelease (0.1.0-alpha3). Requires tmux 3.3a or newer, as the core
+module does.
 
-Requires LibTmux 0.1.0-alpha2. Built on libtmux for .NET 0.0.0-alpha.23.
+Requires LibTmux 0.1.0-alpha3. Built on libtmux for .NET 0.0.0-alpha.23.
 APIs may change before a stable release.
 https://github.com/libtmux/libtmux-dotnet
 

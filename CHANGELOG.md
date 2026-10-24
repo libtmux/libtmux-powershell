@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.0-alpha3 - Unreleased
+## 0.1.0-alpha4 - Unreleased
+
+## 0.1.0-alpha3 - 2026-10-24
 
 ### Breaking changes
 

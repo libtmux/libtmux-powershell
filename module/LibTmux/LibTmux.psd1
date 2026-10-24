@@ -32,13 +32,13 @@
     AliasesToExport = @()
     PrivateData = @{
         PSData = @{
-            Prerelease = 'alpha2'
+            Prerelease = 'alpha3'
             Tags = @('tmux', 'automation', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
             LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
             ReleaseNotes = @'
-Alpha 2 prerelease (0.1.0-alpha2). Follow Gallery installation and runnable
-object-graph examples with direct documentation links.
+Alpha 3 prerelease (0.1.0-alpha3). Requires tmux 3.3a or newer. Optional
+features that a tmux release mishandles are refused before anything is sent.
 
 Built on libtmux for .NET 0.0.0-alpha.23.
 APIs may change before a stable release.

@@ -49,7 +49,7 @@ Install the module from the PowerShell Gallery:
 
 ```console
 $ Install-PSResource -Name LibTmux `
-    -Version 0.1.0-alpha2 `
+    -Version 0.1.0-alpha3 `
     -Prerelease `
     -Repository PSGallery `
     -Scope CurrentUser `
@@ -57,7 +57,7 @@ $ Install-PSResource -Name LibTmux `
 ```
 
 Import it by its numeric version, `0.1.0`. The Gallery package adds the
-`alpha2` label:
+`alpha3` label:
 
 ```console
 $ Import-Module -Name LibTmux `
@@ -322,7 +322,7 @@ Installing the workspace module also installs its exact core dependency:
 
 ```console
 $ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha2 `
+    -Version 0.1.0-alpha3 `
     -Prerelease `
     -Repository PSGallery `
     -Scope CurrentUser `

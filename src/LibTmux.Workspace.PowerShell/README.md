@@ -33,7 +33,7 @@ host, including WSL:
 
 ```console
 $ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha2 `
+    -Version 0.1.0-alpha3 `
     -Prerelease `
     -Repository PSGallery `
     -Scope CurrentUser `
