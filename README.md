@@ -11,6 +11,8 @@
 
 # libtmux for PowerShell
 
+[![LibTmux](https://img.shields.io/powershellgallery/v/LibTmux?include_prereleases&label=LibTmux)](https://www.powershellgallery.com/packages/LibTmux/)
+
 Drive [tmux](https://github.com/tmux/tmux) from PowerShell with native cmdlets.
 [Sessions][session], [windows][window] and [panes][pane] come back as typed
 objects that an ordinary pipeline can filter.
