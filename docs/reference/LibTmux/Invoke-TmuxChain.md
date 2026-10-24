@@ -48,8 +48,8 @@ command's text is not: an if-shell or run-shell -C string, bind-key,
 set-hook, confirm-before, a menu, a prompt or choose template, or a brace
 block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux
 3.7 server, so on exactly 3.7 name every break-pane, including the one
-prefix ! runs, or upgrade to 3.7a. See the Compatibility page for the other
-failures.
+prefix ! runs, or upgrade to 3.7a. The other failures are listed at
+https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read
 
 ## EXAMPLES
 

@@ -8,6 +8,8 @@
   capability to its evidence, and link `capabilities.json` from the README.
   State that the checks do not read a refused command nested in another
   command's text, and what each failure does on which release. (#39)
+- Name the exception each refusal raises under the optional-features table,
+  and link the raw-command help to the nested-command failures. (#40)
 
 ## 0.1.0-alpha3 - 2026-10-24
 

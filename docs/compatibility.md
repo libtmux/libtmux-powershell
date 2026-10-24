@@ -26,10 +26,10 @@ Development builds rank below the release they name: `next-3.3a` and
 
 ## Optional features
 
-A feature that needs a newer release is refused for that cmdlet alone, with
-`LibTmux.TmuxVersionTooLowException`; the error names the release it needs
-and nothing is sent first. Each requirement is per feature, so the floor for
-reads, writes, raw commands and workspaces stays tmux 3.3a.
+A feature that a release cannot run safely is refused for that cmdlet alone;
+the error says why, and nothing is sent first. Each requirement is per
+feature, so the floor for reads, writes, raw commands and workspaces stays
+tmux 3.3a.
 
 [`capabilities.json`](../capabilities.json) is the machine-readable list of
 these features: each entry names the capability, the release it needs, the
@@ -43,14 +43,25 @@ and its [evidence](#evidence).
 | Literal `delete-buffer -b` | 3.4 | Refused by the raw-command cmdlets. | [`buffer-delete-named`](#evidence) |
 | Literal `set-buffer -b ... -n` | 3.4 | Refused by the raw-command cmdlets. | [`buffer-rename`](#evidence) |
 | Literal `break-pane` without `-n` | not exactly 3.7 | Refused on 3.7. Name the window. | [`break-pane-misnames-windows`](#evidence) |
-| Session and window names with `:` or `.` | not exactly 3.7 | Refused on 3.7 with `System.ArgumentException`. | [`name-separators-rejected`](#evidence) |
+| Session and window names with `:` or `.` | not exactly 3.7 | Refused on 3.7. | [`name-separators-rejected`](#evidence) |
 | Literal `split-window -p` | not exactly 3.4 | Refused on 3.4. Use `-l` with a percentage such as `30%`. | [`split-window-percent-size`](#evidence) |
 | Literal `refresh-client -l` | 3.6a | Refused by the raw-command cmdlets. | [`clipboard-query`](#evidence) |
-| `Set-TmuxLayout` with a layout string | 3.4 for a layout without a checksum | Refused with `LibTmux.TmuxWindowException`. A literal `select-layout` item is refused with `System.ArgumentException`. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
+| `Set-TmuxLayout` or a literal `select-layout` with a layout string | 3.4 for a layout without a checksum | Refused. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
 
 The raw-command cmdlets are `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand`. `Wait-TmuxPaneText` needs no refusal: it attaches
 no control client below 3.7 and polls the pane instead.
+
+Most refusals raise `LibTmux.TmuxVersionTooLowException`. Two raise other
+types:
+
+- A name with `:` or `.` on exactly 3.7 raises `System.ArgumentException`, on
+  every path, typed or literal.
+- A layout string raises `LibTmux.TmuxWindowException` from `Set-TmuxLayout`,
+  and `System.ArgumentException` as a literal `select-layout` item.
+
+`capabilities.json` names one error per entry, for its main cmdlet; this list
+covers every path.
 
 ### Evidence
 
@@ -61,8 +72,7 @@ pinned to the commit of the release these modules build on.
   client identifies itself crashes the whole server, as the
   [libtmux for .NET one-shot guide](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/one-shot.md?plain=1#L46-L50) records with the tmux commit
   that changed it. The same package's [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L168)
-  lists the requirement. Short-lived control clients were measured on 3.2a and
-  3.6b; 3.7c and 3.8 survived every trial.
+  lists the requirement.
 - `buffer-delete-named` and `buffer-rename`: before 3.4, a buffer name that
   does not exist acts on the most recent buffer instead of failing. See the
   [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L171).
@@ -111,6 +121,7 @@ this page lists as refused.
 
 ## How the check works
 
+Every cmdlet that talks to tmux goes through the
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) package, which
 reads the version of the connected daemon first and refuses an older or
 unreadable one before it sends anything. The client executable does not
@@ -160,9 +171,6 @@ returns an empty successful result without dispatching anything.
 The separate [MCP tool](mcp.md) is built on the same package and refuses the
 same daemons.
 
-`Wait-TmuxPaneText` needs no refusal: it attaches no control client below
-3.7 and polls the pane instead.
-
 One registry in the module holds these requirements, and it writes
 [`capabilities.json`](../capabilities.json) for the capabilities page of the
 documentation site. The module reads the daemon's version and infers what that
@@ -173,9 +181,7 @@ The module checks the typed operations and workspace plans itself. Literal
 command items sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand` are checked by the libtmux for .NET package, which
 reads a command word the way tmux does, by alias, name or unique prefix, and
-reads a `;` list one command at a time. A session or window name that exactly
-tmux 3.7 rejects is refused with `System.ArgumentException` on every one of
-those paths, typed or literal, not `LibTmux.TmuxVersionTooLowException`.
+reads a `;` list one command at a time.
 [What the checks do not read](#what-the-checks-do-not-read) lists the nested
 commands they skip.
 
