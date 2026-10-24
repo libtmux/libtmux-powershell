@@ -290,7 +290,7 @@ exec /bin/cat
                 if ($assertion.ContainsKey('TerminalMode')) { continue }
                 # An example that attaches a control client or runs a pane command needs the matching feature.
                 $scan = $example.Code + "`n" + $(if ($assertion.ContainsKey('Prepare')) { $assertion.Prepare.ToString() })
-                $requirement = if ($scan -match 'Connect-TmuxControl|Watch-TmuxEvent|EnterControlMode') { 'Control' }
+                $requirement = if ($scan -match 'Connect-TmuxControl|Watch-TmuxEvent|EnterControlMode|Initialize-HelpClient') { 'Control' }
                     elseif ($scan -match 'Invoke-TmuxPaneCommand') { 'NamedBuffers' }
                 if ($requirement -and -not (Test-TmuxFeature $requirement)) {
                     $skipped.Add($example.Id)
