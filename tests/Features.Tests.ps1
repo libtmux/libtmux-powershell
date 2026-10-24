@@ -182,6 +182,23 @@ Invoke-WithOwnedTmux {
     }
     Assert-True ((Get-Topology) -ceq $topology) 'a refused command changed the topology'
 
+    # The checks read the command they are given, not one carried inside another command's text.
+    # tmux accepts if-shell -F with a quoted command, so the nested form below reaches the daemon
+    # unchanged, while the same command sent directly is refused (the control). A real 3.7 daemon
+    # would end on the nested command if the condition held, so the condition is false there.
+    $condition = if ($exact37) { '0' } else { '1' }
+    $claiming = New-ClaimingWrapper $bin $fixture.TmuxPath '3.7' $realRaw
+    $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
+    $errors = @()
+    $null = $claimed | Invoke-TmuxCommand -Arguments @('break-pane', '-d') -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True (@(Get-Refusal $errors '3.7a').Count -eq 1) 'a direct nameless break-pane was not refused on a claimed 3.7'
+    $errors = @()
+    $null = $claimed | Invoke-TmuxCommand -Arguments @('if-shell', '-F', $condition, 'break-pane -d') `
+        -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True (@($errors | Where-Object { $_.Exception -is [LibTmux.TmuxVersionTooLowException] -or
+        $_.Exception -is [ArgumentException] }).Count -eq 0) `
+        'a nameless break-pane nested in if-shell was refused, though the checks do not read nested commands'
+
     # The safe forms of the same commands are not stopped by a feature guard.
     foreach ($case in @(
         @{ Claim = '3.7'; Arguments = @('break-pane', '-d', '-n', 'named', '-s', 'fixture:9.9') },
