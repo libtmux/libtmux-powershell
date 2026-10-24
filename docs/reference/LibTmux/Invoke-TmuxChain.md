@@ -42,9 +42,14 @@ Literal commands that an optional feature cannot run safely on the daemon's
 tmux release are refused before dispatch, so nothing is sent. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
-before 3.4 crashes on, raise System.ArgumentException. A command nested in a
-string argument, such as an if-shell or run-shell argument, is not
-inspected.
+before 3.4 crashes on, raise System.ArgumentException.
+Only the command given is checked. A refused command carried inside another
+command's text is not: an if-shell or run-shell -C string, bind-key,
+set-hook, confirm-before, a menu, a prompt or choose template, or a brace
+block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux
+3.7 server, so on exactly 3.7 name every break-pane, including the one
+prefix ! runs, or upgrade to 3.7a. See the Compatibility page for the other
+failures.
 
 ## EXAMPLES
 
