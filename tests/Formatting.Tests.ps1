@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1')
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
@@ -44,6 +45,18 @@ try {
         $identityWindow = $server.GetWindowAsync($window.Id, $token).GetAwaiter().GetResult()
         $identityPane = $server.GetPaneAsync($pane.Id, $token).GetAwaiter().GetResult()
 
+        $state.Groups = @(
+            @{ Values = @($session, $identitySession); Headers = @('Id', 'Name', 'ServerPID'); Expected = 'fixture' },
+            @{ Values = @($window, $identityWindow); Headers = @('Id', 'Name', 'Session', 'Index'); Expected = 'ViewWindow' },
+            @{ Values = @($pane, $identityPane); Headers = @('Id', 'Title', 'Window', 'Index'); Expected = 'ViewPane' },
+            @{ Values = @($endpoint, $server); Headers = @('Socket', 'ServerPID', 'Connected'); Expected = $fixture.SocketPath }
+        )
+        $state.SocketPath = $fixture.SocketPath
+        # A control client is the only client this suite can create, and it needs tmux 3.7.
+        if (-not (Test-TmuxFeature Control)) {
+            Write-FeatureSkip 'client formatting' Control
+            return
+        }
         $control = $server.EnterControlModeAsync('fixture', $token).WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
         $clientProcess = $null
         try {
@@ -51,14 +64,7 @@ try {
             Assert-True ($clients.Count -eq 1 -and $clients[0].IsControlClient) 'The formatting fixture did not capture its control client.'
             $client = $clients[0]
             $clientProcess = [Diagnostics.Process]::GetProcessById([int] $client.RawFormatFields['client_pid'])
-            $state.Groups = @(
-                @{ Values = @($session, $identitySession); Headers = @('Id', 'Name', 'ServerPID'); Expected = 'fixture' },
-                @{ Values = @($window, $identityWindow); Headers = @('Id', 'Name', 'Session', 'Index'); Expected = 'ViewWindow' },
-                @{ Values = @($pane, $identityPane); Headers = @('Id', 'Title', 'Window', 'Index'); Expected = 'ViewPane' },
-                @{ Values = @($client); Headers = @('Name', 'Session', 'Control', 'ServerPID'); Expected = $client.Name },
-                @{ Values = @($endpoint, $server); Headers = @('Socket', 'ServerPID', 'Connected'); Expected = $fixture.SocketPath }
-            )
-            $state.SocketPath = $fixture.SocketPath
+            $state.Groups += @{ Values = @($client); Headers = @('Name', 'Session', 'Control', 'ServerPID'); Expected = $client.Name }
         } finally {
             $null = $control.DisposeAsync().AsTask().WaitAsync([TimeSpan]::FromSeconds(1)).GetAwaiter().GetResult()
             if ($clientProcess) {
