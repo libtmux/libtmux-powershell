@@ -49,6 +49,8 @@ public sealed class InvokeTmuxCommandCommand : TmuxCmdlet
 
     private async Task<TmuxCommandResult> ExecuteAsync(CancellationToken cancellationToken)
     {
+        await TmuxFeatures.CheckCommandsAsync(
+            Server, [TmuxCommand.Create(commandArguments[0], commandArguments[1..])], cancellationToken).ConfigureAwait(false);
         TmuxCommandResult result = await Server.ExecuteCommandAsync(commandArguments, cancellationToken)
             .ConfigureAwait(false);
         if (result.ExitCode != 0)

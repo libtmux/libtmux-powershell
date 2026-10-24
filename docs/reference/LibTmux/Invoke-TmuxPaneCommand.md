@@ -220,6 +220,8 @@ One result per pane with exit status or a timeout indication.
 
 ## NOTES
 
+Each run stages a temporary named buffer and deletes it by name when it aborts, which needs tmux 3.4 or newer. On an older daemon the cmdlet reports `LibTmux.TmuxVersionTooLowException` as its error before any buffer exists.
+
 Tmux.PaneCommandFailed retains the pane as its target. The core reserves one
 active command per pane in this process. A timed-out run keeps its reservation
 until completion or an authenticated pane/server end; a second run is refused

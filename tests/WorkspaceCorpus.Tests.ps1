@@ -10,6 +10,7 @@ $corpusFixtures = (Resolve-Path $CorpusFixtureRoot).Path
 Import-Module (Join-Path $root 'LibTmux/0.1.0/LibTmux.psd1')
 Import-Module (Join-Path $root 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1')
 . "$PSScriptRoot/support/OwnedTmux.ps1"
+. "$PSScriptRoot/support/TmuxFeatures.ps1"
 
 function Assert-WorkspaceCorpus([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Workspace corpus: $Message" }
@@ -280,8 +281,19 @@ windows:
             $outputPath = Join-Path $fixture.DirectoryPath "environment-$windowIndex-$paneIndex.txt"
             $quotedOutput = "'" + $outputPath.Replace("'", "'\''") + "'"
             $command = 'printf "%s" "$FOO" > ' + $quotedOutput
-            $completed = $panes[$paneIndex] | LibTmux\Invoke-TmuxPaneCommand -Command $command -Timeout 1 -Confirm:$false -ErrorAction Stop
-            Assert-WorkspaceCorpus ($completed.ExitStatus -eq 0 -and !$completed.TimedOut) "upstream environment pane $windowIndex/$paneIndex did not finish its probe"
+            if (Test-TmuxFeature NamedBuffers) {
+                $completed = $panes[$paneIndex] | LibTmux\Invoke-TmuxPaneCommand -Command $command -Timeout 1 -Confirm:$false -ErrorAction Stop
+                Assert-WorkspaceCorpus ($completed.ExitStatus -eq 0 -and !$completed.TimedOut) "upstream environment pane $windowIndex/$paneIndex did not finish its probe"
+            } else {
+                # Pane commands stage a named buffer, which this tmux cannot delete safely.
+                $done = "$outputPath.done"
+                $quotedDone = "'" + $done.Replace("'", "'\''") + "'"
+                $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', $panes[$paneIndex].Id.ToString(), '-l', "$command && touch $quotedDone")
+                $null = Invoke-OwnedTmux $fixture -Arguments @('send-keys', '-t', $panes[$paneIndex].Id.ToString(), 'Enter')
+                $deadline = [DateTime]::UtcNow.AddSeconds(10)
+                while (-not (Test-Path -LiteralPath $done) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 25 }
+                Assert-WorkspaceCorpus (Test-Path -LiteralPath $done) "upstream environment pane $windowIndex/$paneIndex did not finish its probe"
+            }
             $observed = [IO.File]::ReadAllText($outputPath)
             Assert-WorkspaceCorpus ($observed -ceq $expectedWindow.Values[$paneIndex]) "upstream environment pane $windowIndex/$paneIndex lost its FOO override"
         }

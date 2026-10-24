@@ -49,7 +49,11 @@ public sealed class InvokeTmuxChainCommand : TmuxCmdlet
     {
         if (ShouldProcess(TmuxOwner.Describe(Server), $"Run tmux chain of {commands.Length} commands"))
         {
-            ReadResult(token => Server.Chain().Then(commands).ExecuteAsync(token), "Tmux.ChainFailed", Server);
+            ReadResult(async token =>
+            {
+                await TmuxFeatures.CheckCommandsAsync(Server, commands, token).ConfigureAwait(false);
+                return await Server.Chain().Then(commands).ExecuteAsync(token).ConfigureAwait(false);
+            }, "Tmux.ChainFailed", Server);
         }
     }
 }

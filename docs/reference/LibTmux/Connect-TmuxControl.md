@@ -159,6 +159,8 @@ The newly attached client. Its ownership transfers to the caller.
 
 ## NOTES
 
+Control clients need tmux 3.7 or newer. On a daemon older than tmux 3.7 this cmdlet reports `LibTmux.TmuxVersionTooLowException` as its error and attaches no control client.
+
 Tmux.ControlConnectFailed retains the original failure and server target. If
 pipeline output fails before the client transfers to the caller, the cmdlet
 disposes it. Stop cancels attachment; it never kills the borrowed tmux server.

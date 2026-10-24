@@ -32,8 +32,41 @@ commands behind it, and a `wait-for` at the top level still runs on its own.
 Set `LIBTMUX_CONTROL_TRANSPORT=0` before creating the server handle to send
 each command from its own process. (#21)
 
+#### Refuse optional features on older tmux
+
+A feature that needs a newer release than the 3.3a floor is refused for that
+cmdlet alone, with `TmuxVersionTooLowException` and before anything is sent.
+`Connect-TmuxControl` and `Watch-TmuxEvent` with a server need tmux 3.7, because
+a short-lived control client crashed tmux 3.2a and 3.6b servers while it
+identified itself. `Invoke-TmuxPaneCommand` and literal `delete-buffer -b` and
+`set-buffer -n` items need 3.4.
+
+The literal items of `Invoke-TmuxCommand`, `Invoke-TmuxChain` and, on a
+connection from `Connect-TmuxControl`, `Invoke-TmuxControlCommand` are also
+checked against two release defects. On exactly tmux 3.7, `break-pane` without
+`-n` crashes the server and a `:` or `.` in a session or window name is
+rejected, so both are refused, as is such a name in `New-TmuxSession`,
+`New-TmuxWindow` and `Invoke-TmuxWorkspace`. On exactly 3.4, `split-window -p`
+is refused; `-l` with a percentage works. Everything else stays available from
+3.3a. (#22)
+
+### Bug fixes
+
+- Match a pane text line that wraps across rows while `Wait-TmuxPaneText` polls
+  below tmux 3.7, and end the wait as `PaneExited` instead of reporting a raw
+  error when the server is killed under it, on every release. A result found by
+  joining wrapped rows, or ended by a killed server, has no `Tail`. (#22)
+
+### Development
+
+- Record the tmux release each optional feature needs in one registry, and write
+  `capabilities.json` from it for the capabilities page of the documentation
+  site. A test fails when the file and the registry differ. (#22)
+
 ### Documentation
 
+- List the tmux release each optional feature needs in the compatibility guide,
+  with what the guards leave out. (#22)
 - Give the `LibTmux` and `LibTmux.Workspace` source directories a README and
   list each product on the repository page under a heading that links its
   directory. Link the first mention of each public cmdlet and native type to
