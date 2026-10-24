@@ -89,9 +89,9 @@ reads, writes, raw commands and workspaces stays tmux 3.3a.
 | --- | --- | --- |
 | `Connect-TmuxControl`, `Watch-TmuxEvent` with a server | 3.7 | Refused before a control client attaches. Short-lived control clients can crash tmux servers before 3.7 while they identify themselves (measured on 3.2a and 3.6b; 3.7c and 3.8 survived every trial), and the linked .NET package would attach first and fall back afterwards. |
 | `Invoke-TmuxPaneCommand` | 3.4 | Refused before it stages a temporary named buffer. Before 3.4, deleting a missing buffer by name removes an unrelated one. |
-| Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand` and `Invoke-TmuxChain`. |
+| Literal `delete-buffer -b` and `set-buffer -b ... -n` items | 3.4 | Refused by `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`. |
 | Literal `break-pane` without `-n` | not exactly 3.7 | Refused on tmux 3.7, which crashes on it. Name the window. |
-| Session and window names containing `:` or `.` | not exactly 3.7 | Refused on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
+| Session and window names containing `:` or `.` | not exactly 3.7 | Refused with `System.ArgumentException` on tmux 3.7, which rejects them, by `New-TmuxSession`, `New-TmuxWindow`, `Invoke-TmuxWorkspace` and literal command items. |
 | Literal `split-window -p` | not exactly 3.4 | Refused on tmux 3.4, which breaks it. Use `-l` with a percentage such as `30%`. |
 
 `Wait-TmuxPaneText` needs no refusal: it attaches no control client below
@@ -103,13 +103,16 @@ documentation site. The module reads the daemon's version and infers what that
 release can do; tmux does not report its capabilities, so a patched build is
 judged as the release it names.
 
-The guards cover typed operations, workspace plans and literal command items
-sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
-`Invoke-TmuxControlCommand` on a connection from `Connect-TmuxControl`.
-Commands typed into a pane, text inside an `if-shell` string and aliases in
-your tmux configuration are outside them. A connection you open yourself,
-passed to `Invoke-TmuxControlCommand` or `Watch-TmuxEvent -Connection`, was
-acquired before the module could decide and is not checked.
+The module checks the typed operations and workspace plans itself. Literal
+command items sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
+`Invoke-TmuxControlCommand` are checked by the libtmux for .NET package, which
+reads a command word the way tmux does, by alias, name or unique prefix, and
+reads a `;` list one command at a time. A session or window name that exactly
+tmux 3.7 rejects is refused with `System.ArgumentException` on every one of
+those paths, typed or literal, not `LibTmux.TmuxVersionTooLowException`. Commands typed into a pane, tmux
+commands nested in an `if-shell` string, a `run-shell -C` string or a brace
+block, and aliases in your tmux configuration are outside the checks; do not
+nest a command that is refused.
 
 The version a guard reads is the daemon's, taken just before the command is
 sent. A daemon replaced in that moment is not caught by the guard, though the

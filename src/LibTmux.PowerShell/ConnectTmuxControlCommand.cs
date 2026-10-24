@@ -30,9 +30,8 @@ public sealed class ConnectTmuxControlCommand : TmuxCmdlet
 
         RunOperation(token =>
         {
-            TmuxVersion daemon = TmuxFeatures.RequireControlAsync(Server, "Connect-TmuxControl", token).GetAwaiter().GetResult();
+            TmuxFeatures.RequireControlAsync(Server, "Connect-TmuxControl", token).GetAwaiter().GetResult();
             IControlModeSession control = Server.EnterControlModeAsync(Target, token).GetAwaiter().GetResult();
-            TmuxFeatures.Remember(control, daemon);
             try
             {
                 WriteObject(control);

@@ -41,6 +41,15 @@ function Get-Refusal($Errors, [string] $Required) {
         $_.Exception.RequiredVersion.Raw -ceq $Required })
 }
 
+# The package refuses a release defect with TmuxVersionTooLowException and a name that exactly 3.7
+# rejects with ArgumentException; both leave before anything is sent.
+function Test-Refused($Errors, [string] $Required, [bool] $Name) {
+    if ($Name) {
+        return @($Errors | Where-Object { $_.Exception -is [ArgumentException] -and $_.Exception.Message -clike "*rejects ':' and '.'*" }).Count -eq 1
+    }
+    return @(Get-Refusal $Errors $Required).Count -eq 1
+}
+
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $null = (& $tmux -V) -match '^\S+ (\S+)$'
 $version = [LibTmux.TmuxVersion]::Parse($Matches[1])
@@ -145,11 +154,11 @@ Invoke-WithOwnedTmux {
     $cases = @(
         @{ Claim = '3.7'; Arguments = @('break-pane', '-d', '-s', '%0'); Required = '3.7a' },
         @{ Claim = '3.7'; Arguments = @('breakp', '-d'); Required = '3.7a' },
-        @{ Claim = '3.7'; Arguments = @('new-window', '-n', 'a.b'); Required = '3.7a' },
-        @{ Claim = '3.7'; Arguments = @('neww', '-n', 'a:b'); Required = '3.7a' },
-        @{ Claim = '3.7'; Arguments = @('new-session', '-d', '-s', 'ok', '-n', 'x.y'); Required = '3.7a' },
-        @{ Claim = '3.7'; Arguments = @('rename-window', '-t', '@0', 'c.d'); Required = '3.7a' },
-        @{ Claim = '3.7'; Arguments = @('rename-session', 'e:f'); Required = '3.7a' },
+        @{ Claim = '3.7'; Arguments = @('new-window', '-n', 'a.b'); Name = $true; Required = '3.7a' },
+        @{ Claim = '3.7'; Arguments = @('neww', '-n', 'a:b'); Name = $true; Required = '3.7a' },
+        @{ Claim = '3.7'; Arguments = @('new-session', '-d', '-s', 'ok', '-n', 'x.y'); Name = $true; Required = '3.7a' },
+        @{ Claim = '3.7'; Arguments = @('rename-window', '-t', '@0', 'c.d'); Name = $true; Required = '3.7a' },
+        @{ Claim = '3.7'; Arguments = @('rename-session', 'e:f'); Name = $true; Required = '3.7a' },
         @{ Claim = '3.4'; Arguments = @('split-window', '-p', '30'); Required = '3.5' },
         @{ Claim = '3.4'; Arguments = @('splitw', '-dp30'); Required = '3.5' }
     )
@@ -165,7 +174,7 @@ Invoke-WithOwnedTmux {
                 $null = $claimed | Invoke-TmuxChain -Command (New-TmuxCommand -Name $case.Arguments[0] -Arguments $case.Arguments[1..($case.Arguments.Count - 1)]) `
                     -ErrorAction SilentlyContinue -ErrorVariable errors
             }
-            Assert-True (@(Get-Refusal $errors $case.Required).Count -eq 1 -and $errors[0].Exception.Message -clike '*was not sent*') `
+            Assert-True (Test-Refused $errors $case.Required ($case.ContainsKey("Name"))) `
                 "$($case.Arguments -join ' ') was not refused by $route on a claimed $($case.Claim)"
         }
     }
@@ -182,7 +191,7 @@ Invoke-WithOwnedTmux {
         $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
         $errors = @()
         $null = $claimed | Invoke-TmuxCommand -Arguments $case.Arguments -ErrorAction SilentlyContinue -ErrorVariable errors
-        Assert-True (@($errors | Where-Object { $_.Exception.Message -clike '*was not sent*' }).Count -eq 0) `
+        Assert-True ($errors.Count -eq 0 -or @($errors | Where-Object { $_.Exception -is [LibTmux.TmuxVersionTooLowException] -or $_.Exception -is [ArgumentException] }).Count -eq 0) `
             "$($case.Arguments -join ' ') was refused by a feature guard on a claimed $($case.Claim)"
     }
     Assert-True ((Get-Topology) -ceq $topology) 'a command aimed at a missing target changed the topology'
@@ -228,7 +237,7 @@ windows:
                 $errors = @()
                 $null = $connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name $arguments[0] -Arguments $arguments[1..($arguments.Count - 1)]) `
                     -ErrorAction SilentlyContinue -ErrorVariable errors
-                Assert-True (@(Get-Refusal $errors '3.7a').Count -eq 1) "$($arguments -join ' ') crossed a control connection on a claimed 3.7"
+                Assert-True (Test-Refused $errors '3.7a' ($arguments[0] -ceq 'new-window')) "$($arguments -join ' ') crossed a control connection on a claimed 3.7"
             }
             Assert-True ((Get-Topology) -ceq $topology) 'a refused control command changed the topology'
             $named = @($connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name display-message -Arguments @('-p', 'sent')))
