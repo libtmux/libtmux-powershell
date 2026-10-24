@@ -78,8 +78,11 @@ pinned to the commit of the release these modules build on.
   [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L175).
 - `clipboard-query`: before 3.6a, `refresh-client -l` can end the server when
   the attached client leaves before its terminal answers, and on 3.3a it ends
-  the server with a client attached. tmux's `CHANGES` has no entry for it, so
-  the [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L177) is the source.
+  the server with a client attached. tmux 3.6a lists
+  ["Newer libevents do not allow event_del on a zero'd event"](https://github.com/tmux/tmux/blob/cc117b5/CHANGES#L21),
+  the [commit](https://github.com/tmux/tmux/commit/0af04295f) that sets up the
+  clipboard query's timer when a client's terminal opens. See also the
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L177).
 - `layout-without-checksum`: a layout string that is neither checksummed nor
   a preset name ends tmux 3.3a. The [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L176) lists the
   requirement.
