@@ -42,7 +42,9 @@ Literal commands that an optional feature cannot run safely on the daemon's
 tmux release are refused before dispatch, so nothing is sent. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
-before 3.4 crashes on, raise System.ArgumentException.
+before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the
+type that TmuxVersionTooLowException derives from, so one catch of it covers
+every refusal.
 Only the command given is checked. A refused command carried inside another
 command's text is not: an if-shell or run-shell -C string, bind-key,
 set-hook, confirm-before, a menu, a prompt or choose template, or a brace

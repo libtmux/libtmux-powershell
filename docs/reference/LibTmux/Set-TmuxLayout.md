@@ -204,7 +204,11 @@ Emitted only with PassThru.
 
 Restoring a classic layout restores pane sizes but can rotate pane placement on
 tmux 3.7 and earlier. It does not guarantee the same pane IDs occupy the same
-positions. A disappeared target or stale generation writes a per-target error.
+positions. A mirrored main layout needs tmux 3.5 and a JSON layout needs
+tmux 3.8-rc2; on an earlier daemon the cmdlet reports
+LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing. A
+layout that is malformed or unknown reports LibTmux.TmuxWindowException on
+every release. A disappeared target or stale generation writes a per-target error.
 Use -ErrorAction Stop to terminate. Cancellation cannot undo an already
 dispatched change.
 

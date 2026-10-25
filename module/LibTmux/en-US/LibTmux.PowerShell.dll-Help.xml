@@ -3132,7 +3132,9 @@ Literal commands that an optional feature cannot run safely on the daemon's
 tmux release are refused before dispatch, so nothing is sent. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
-before 3.4 crashes on, raise System.ArgumentException.
+before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the
+type that TmuxVersionTooLowException derives from, so one catch of it covers
+every refusal.
 Only the command given is checked. A refused command carried inside another
 command's text is not: an if-shell or run-shell -C string, bind-key,
 set-hook, confirm-before, a menu, a prompt or choose template, or a brace
@@ -3324,7 +3326,7 @@ $server | LibTmux\Invoke-TmuxChain -Command $commands
     <maml:description>
       <maml:para>Pass the tmux command name and arguments as a string array. The adapter invokes the core directly without a shell. It returns a native TmuxCommandResult only on success; a nonzero exit writes an error retaining the result, target and dispatch metadata.
 
-Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before dispatch, so nothing is sent. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise System.ArgumentException. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
+Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before dispatch, so nothing is sent. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the type that TmuxVersionTooLowException derives from, so one catch of it covers every refusal. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -3480,7 +3482,9 @@ Literal commands that an optional feature cannot run safely on the daemon's
 tmux release are refused before dispatch, so nothing is sent. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects raises
-System.ArgumentException.
+LibTmux.TmuxUnsupportedOnReleaseException, the type that
+TmuxVersionTooLowException derives from, so one catch of it covers every
+refusal.
 Only the command given is checked. A refused command carried inside another
 command's text is not: an if-shell or run-shell -C string, bind-key,
 set-hook, confirm-before, a menu, a prompt or choose template, or a brace
@@ -5475,7 +5479,10 @@ operation. Success does not transfer ownership of the daemon to the module or
 arrange automatic cleanup. Cancellation can occur after a session was created;
 it is not rollback and the module does not retry. Per-owner errors use
 Tmux.SessionCreateFailed and retain the core exception and failed server.
-ErrorAction Continue allows later owners to run.</maml:para>
+ErrorAction Continue allows later owners to run. A WindowName with a colon or
+a period on exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException
+as its error and sends nothing. A Name with either character is refused on every
+release with ArgumentException.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -5729,7 +5736,8 @@ Confirmation precedes the core operation. The caller remains responsible for
 created resources. Cancellation does not prove that creation was rolled back; no
 mutation is retried. Per-owner errors use Tmux.WindowCreateFailed and retain the
 core exception and failed session. ErrorAction Continue allows later owners to
-run.</maml:para>
+run. A name with a colon or a period on exactly tmux 3.7 reports
+LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -9457,7 +9465,11 @@ replacement Window and leave the original capture unchanged.</maml:para>
       <maml:alert>
         <maml:para>Restoring a classic layout restores pane sizes but can rotate pane placement on
 tmux 3.7 and earlier. It does not guarantee the same pane IDs occupy the same
-positions. A disappeared target or stale generation writes a per-target error.
+positions. A mirrored main layout needs tmux 3.5 and a JSON layout needs
+tmux 3.8-rc2; on an earlier daemon the cmdlet reports
+LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing. A
+layout that is malformed or unknown reports LibTmux.TmuxWindowException on
+every release. A disappeared target or stale generation writes a per-target error.
 Use -ErrorAction Stop to terminate. Cancellation cannot undo an already
 dispatched change.</maml:para>
       </maml:alert>
