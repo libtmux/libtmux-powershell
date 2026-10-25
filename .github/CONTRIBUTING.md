@@ -28,15 +28,15 @@ support. Keep module, folder, and manifest casing consistent. Export cmdlets
 explicitly and do not export aliases that could shadow the `tmux` executable.
 Pin the bundled LibTmux dependency to an exact version when a project is added.
 
-Gallery releases use `0.1.0-alphaN`, starting at `0.1.0-alpha1` and
-incrementing N for each release, until the maintainer explicitly chooses a
-different release line or a stable release. This is independent of the
-LibTmux NuGet version. Keep `ModuleVersion = '0.1.0'` and set
-`PrivateData.PSData.Prerelease` to the release's `alphaN` suffix in both
-manifests. Workspace's package dependency requires the exact core prerelease;
-its runtime manifest uses numeric `RequiredVersion = '0.1.0'`. The first
-release uses `alpha1` and requires `LibTmux` `0.1.0-alpha1`. Record the bundled
-.NET dependency version in release notes.
+Gallery releases are numbered `0.1.N`: `0.1.0`, then `0.1.1`, `0.1.2` and so
+on, incrementing N for each release. A release carries no `-alpha` or other
+prerelease label unless the maintainer asks for one. This is independent of
+the LibTmux NuGet version. Set `ModuleVersion` to the release in both
+manifests and leave `PrivateData.PSData.Prerelease` unset. Workspace's package
+dependency requires the exact core version, and its runtime manifest uses the
+same numeric `RequiredVersion`. Record the bundled .NET dependency version in
+release notes. The earlier `0.1.0-alpha1` to `0.1.0-alpha3` releases stay on
+the Gallery as prereleases.
 Local package artifacts do not establish publication or platform support.
 
 ## Setup
@@ -394,18 +394,18 @@ $ gh workflow run release.yml \
 ```
 
 After a publishing-workflow repair, set `release_tag` to the existing
-annotated `v0.1.0-alphaN` tag and use that source commit's successful CI run.
+annotated `v0.1.N` tag and use that source commit's successful CI run.
 The tag must point to an ancestor of the workflow's `master` commit. This
 uses the repaired publishing code with the original tested archives; it
 does not rebuild packages or move the release tag. For example, validate
-the alpha2 archives:
+the `0.1.0` archives:
 
 ```console
 $ gh workflow run release.yml \
     --repo libtmux/libtmux-powershell \
     --ref master \
     --field ci_run_id="$CI_RUN_ID" \
-    --field release_tag=v0.1.0-alpha2 \
+    --field release_tag=v0.1.0 \
     --field publish=false
 ```
 

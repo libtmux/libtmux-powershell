@@ -25,7 +25,11 @@ with [`Get-TmuxSnapshot`][get-tmuxsnapshot], wait for output with
 [`Wait-TmuxPaneText`][wait-tmuxpanetext], and apply a reviewed workspace file
 with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
 
-**Alpha.** APIs may change. Both modules are available on PowerShell Gallery:
+Releases are numbered `0.1.N`, and each release increments `N`. The API is not
+settled: any release may change or remove exported identifiers, and the
+changelog marks each break. Pin an exact version to avoid one.
+
+Both modules are available on PowerShell Gallery:
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
@@ -643,8 +647,10 @@ default tmux server stays untouched.
 
 ## Support and status
 
-- **Releases.** Gallery packages carry a `0.1.0-alphaN` label, so pin an exact
-  version. PowerShell imports use the numeric `0.1.0`.
+- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
+  The API is not settled: any release may change or remove exported
+  identifiers, and the changelog marks each break. Pin an exact version to
+  avoid one.
 - **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
 - **tmux.** 3.3a or newer. CI runs 3.3a through 3.8 and tmux master; other
   releases are unverified. [Compatibility](docs/compatibility.md) holds the

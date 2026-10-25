@@ -125,8 +125,10 @@ builds sessions from YAML or JSON declarations.
 
 ## Support and status
 
-- **Alpha.** Gallery packages carry a `0.1.0-alphaN` label and APIs may change,
-  so pin an exact version. PowerShell imports use the numeric `0.1.0`.
+- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
+  The API is not settled: any release may change or remove exported
+  identifiers, and the changelog marks each break. Pin an exact version to
+  avoid one.
 - **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
   runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master;
   [compatibility][guide-compatibility] holds the contract.

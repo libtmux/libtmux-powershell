@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0-alpha4 - Unreleased
+## 0.1.0 - Unreleased
 
 ### Breaking changes
 
@@ -38,6 +38,10 @@ release. `capabilities.json` now names an error for each workaround, lists
 
 ### Documentation
 
+- Number releases `0.1.N` from now on, starting with `0.1.0`, with no
+  `-alpha` label unless the maintainer asks for one. The README and package
+  READMEs now say that the API is not settled and to pin an exact version,
+  and the contributor guide describes cutting a `0.1.N` release.
 - Put the optional-features table first in the compatibility guide, link each
   capability to its evidence, and link `capabilities.json` from the README.
   State that the checks do not read a refused command nested in another
