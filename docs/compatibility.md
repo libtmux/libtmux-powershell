@@ -46,22 +46,35 @@ and its [evidence](#evidence).
 | Session and window names with `:` or `.` | not exactly 3.7 | Refused on 3.7. | [`name-separators-rejected`](#evidence) |
 | Literal `split-window -p` | not exactly 3.4 | Refused on 3.4. Use `-l` with a percentage such as `30%`. | [`split-window-percent-size`](#evidence) |
 | Literal `refresh-client -l` | 3.6a | Refused by the raw-command cmdlets. | [`clipboard-query`](#evidence) |
-| `Set-TmuxLayout` or a literal `select-layout` with a layout string | 3.4 for a layout without a checksum | Refused. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
+| Literal `select-layout` with a layout string | 3.4 for a layout without a checksum | Refused by the raw-command cmdlets. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
+| `Set-TmuxLayout` with `main-horizontal-mirrored` or `main-vertical-mirrored` | 3.5 | Refused. Use another preset. | [`layout-mirrored-main`](#evidence) |
+| `Set-TmuxLayout` with a JSON layout | 3.8-rc2 | Refused. Use the checksummed layout from `Layout`. | [`layout-json`](#evidence) |
 
 The raw-command cmdlets are `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand`. `Wait-TmuxPaneText` needs no refusal: it attaches
 no control client below 3.7 and polls the pane instead.
 
-Most refusals raise `LibTmux.TmuxVersionTooLowException`. Two raise other
-types:
+Every refusal raises one type, `LibTmux.TmuxUnsupportedOnReleaseException`,
+whichever cmdlet or literal command meets it. Where a plain release floor
+decides, the error is its subclass `LibTmux.TmuxVersionTooLowException`, so
+one `catch` of the base type covers both and a `catch` of the subclass keeps
+working for those rows. The exception carries `ActualVersion`, `SafeReleases`,
+`CapabilityId` and `Command`.
 
-- A name with `:` or `.` on exactly 3.7 raises `System.ArgumentException`, on
-  every path, typed or literal.
-- A layout string raises `LibTmux.TmuxWindowException` from `Set-TmuxLayout`,
-  and `System.ArgumentException` as a literal `select-layout` item.
+A workspace layout that the daemon's release lacks fails planning with
+`LibTmux.Workspace.WorkspaceFormatException`, which names the layout path and
+carries the refusal as its `InnerException`. The error still reports the
+`NotImplemented` category.
 
-`capabilities.json` names one error per entry, for its main cmdlet; this list
-covers every path.
+These inputs are caller errors on every release and are not release refusals:
+
+- A session name with `:` or `.` raises `System.ArgumentException` from
+  `New-TmuxSession`.
+- A layout string that is malformed or unknown raises
+  `LibTmux.TmuxWindowException` from `Set-TmuxLayout`.
+
+`capabilities.json` names the error of each entry and each workaround, and its
+`apis` list only the cmdlets that raise that error.
 
 ### Evidence
 
@@ -70,32 +83,39 @@ pinned to the commit of the release these modules build on.
 
 - `control-mode`: before 3.7, a notification that fires while a control
   client identifies itself crashes the whole server, as the
-  [libtmux for .NET one-shot guide](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/one-shot.md?plain=1#L46-L50) records with the tmux commit
-  that changed it. The same package's [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L168)
+  [libtmux for .NET one-shot guide](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/one-shot.md?plain=1#L46-L50) records with the tmux commit
+  that changed it. The same package's [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L178)
   lists the requirement.
 - `buffer-delete-named` and `buffer-rename`: before 3.4, a buffer name that
   does not exist acts on the most recent buffer instead of failing. See the
-  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L171).
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L181).
 - `break-pane-misnames-windows`: `break-pane` without `-n` ends a 3.7 server.
   tmux 3.7a lists
   ["Fix crash in break-pane when no name is provided"](https://github.com/tmux/tmux/blob/0e418b6/CHANGES#L1-L8). See also the
-  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L173).
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L183).
 - `name-separators-rejected`: 3.7 rejects `:` and `.` in names. tmux 3.7a lists
   ["Only forbid #( in names, allow #[, empty names, : and ."](https://github.com/tmux/tmux/blob/0e418b6/CHANGES#L1-L8). See also
-  the [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L174).
+  the [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L184).
 - `split-window-percent-size`: `split-window -p` is broken on 3.4. tmux 3.5
   lists ["Fix split-window -p"](https://github.com/tmux/tmux/blob/ac44566/CHANGES#L88). See also the
-  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L175).
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L185).
 - `clipboard-query`: before 3.6a, `refresh-client -l` can end the server when
   the attached client leaves before its terminal answers, and on 3.3a it ends
   the server with a client attached. tmux 3.6a lists
   ["Newer libevents do not allow event_del on a zero'd event"](https://github.com/tmux/tmux/blob/cc117b5/CHANGES#L21),
   the [commit](https://github.com/tmux/tmux/commit/0af04295f) that sets up the
   clipboard query's timer when a client's terminal opens. See also the
-  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L177).
+  [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L187).
 - `layout-without-checksum`: a layout string that is neither checksummed nor
-  a preset name ends tmux 3.3a. The [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/0e25b51/docs/modes/matrix.md?plain=1#L176) lists the
+  a preset name ends tmux 3.3a. The [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L186) lists the
   requirement.
+- `layout-mirrored-main`: tmux 3.5 lists
+  ["Add mirrored versions of the main-horizontal and main-vertical layouts"](https://github.com/tmux/tmux/blob/ac44566/CHANGES#L27), so
+  an earlier release rejects the preset. See also the
+  [refusal types](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L196-L199).
+- `layout-json`: tmux 3.8-rc2 lists
+  ["Layout strings now use a JSON subset format"](https://github.com/tmux/tmux/blob/17d32ae/CHANGES#L38), so an
+  earlier release rejects the JSON form.
 
 ### What the checks do not read
 
