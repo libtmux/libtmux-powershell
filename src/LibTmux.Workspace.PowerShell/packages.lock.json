@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
-        "resolved": "0.0.0-alpha.23",
-        "contentHash": "hIS7CJRCM38vQ2m5tcEdbeBueqkmRLzHekHei/B29uBQKhnvjQ7TPLW2uiugAFiW3xEDzGZ5jaIWLXiPaJB2xA==",
+        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
+        "resolved": "0.0.0-alpha.24",
+        "contentHash": "a9sDRfME6vByIjVzRZporr6fHDDCuKCNkKcIcfXme6FtVfgBjHmfyHX4QWQRB5/q61CAJqFiqrg4CUBi6G+iqw==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Workspace": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
-        "resolved": "0.0.0-alpha.23",
-        "contentHash": "AREknixtvB7yY84cOlEs+kYbVqbEQY7tICqtd4Xq7m862y1wc1JIgx5VpyUcNeUh4MAudu4H6B1ddf0lOXF0lw==",
+        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
+        "resolved": "0.0.0-alpha.24",
+        "contentHash": "NeEMSvAeyIOxDDMBxwliyu3GCaCUEP3WVEf7UQnUWXImr3v15TcYiRchlJKF0wm5Ri/hIXypNYwJ1SvKEvuHtQ==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.23",
+          "LibTmux": "0.0.0-alpha.24",
           "YamlDotNet": "18.1.0"
         }
       },
@@ -198,17 +198,17 @@
       "libtmux.powershell": {
         "type": "Project",
         "dependencies": {
-          "LibTmux": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
-          "LibTmux.Query.Json": "[0.0.0-alpha.23, 0.0.0-alpha.23]"
+          "LibTmux": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
+          "LibTmux.Query.Json": "[0.0.0-alpha.24, 0.0.0-alpha.24]"
         }
       },
       "LibTmux.Query.Json": {
         "type": "CentralTransitive",
-        "requested": "[0.0.0-alpha.23, 0.0.0-alpha.23]",
-        "resolved": "0.0.0-alpha.23",
-        "contentHash": "/3aY4+DsYDYzjl/bvd0ok52U7fL88Yd5SgJCAw21B/j73seiT3v9tLq4su59WUytOmPXvsKaG3LsGHtc7jVrOg==",
+        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
+        "resolved": "0.0.0-alpha.24",
+        "contentHash": "5WtngPCqXyuz9n+fh1aN244bjGew+qLL62ZT250QnjqKMmOowyakdyT5dq32h5iOCeYoNAimNYzkT4iSmNb+Pg==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.23"
+          "LibTmux": "0.0.0-alpha.24"
         }
       }
     }

@@ -26,7 +26,7 @@
 Alpha 3 prerelease (0.1.0-alpha3). Requires tmux 3.3a or newer, as the core
 module does.
 
-Requires LibTmux 0.1.0-alpha3. Built on libtmux for .NET 0.0.0-alpha.23.
+Requires LibTmux 0.1.0-alpha3. Built on libtmux for .NET 0.0.0-alpha.24.
 APIs may change before a stable release.
 https://github.com/libtmux/libtmux-dotnet
 
