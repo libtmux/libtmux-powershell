@@ -9,12 +9,12 @@ which documents this server.
 
 ## Install and select a server
 
-Install the published alpha.23 tool on the Unix host running tmux:
+Install the published alpha.24 tool on the Unix host running tmux:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.0.0-alpha.23 \
+    --version 0.0.0-alpha.24 \
     --framework net8.0
 ```
 

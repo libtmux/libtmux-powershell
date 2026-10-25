@@ -37,6 +37,20 @@ foreach ($capability in $manifest.capabilities) {
         Assert-Capabilities ($capability.error -and ($capability.error -as [type])) "capability $($capability.id) names no public error type"
     }
 }
+# One type covers every refusal a release causes: the base type, or its subclass for a plain floor.
+# The layout and name entries are the defects and gaps that once raised ArgumentException or
+# TmuxWindowException, so each must name the base type itself.
+$base = [LibTmux.TmuxUnsupportedOnReleaseException]
+$baseOnly = @('layout-without-checksum', 'layout-mirrored-main', 'layout-json', 'name-separators-rejected')
+foreach ($entry in $entries) {
+    if ($entry.handling -cne 'refuse') { continue }
+    $type = $entry.error -as [type]
+    Assert-Capabilities ($type -and $base.IsAssignableFrom($type)) "$($entry.id) names '$($entry.error)', which is not a release refusal"
+    if ($entry.id -cin $baseOnly) {
+        Assert-Capabilities ($type -eq $base) "$($entry.id) names '$($entry.error)' rather than the base release refusal"
+    }
+}
+foreach ($id in $baseOnly) { Assert-Capabilities ($id -cin $ids) "$id is missing from the manifest" }
 foreach ($entry in $entries) {
     Assert-Capabilities (@($entry.apis).Count -gt 0) "$($entry.id) names no API"
     foreach ($api in $entry.apis) {

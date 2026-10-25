@@ -309,7 +309,10 @@ operation. Success does not transfer ownership of the daemon to the module or
 arrange automatic cleanup. Cancellation can occur after a session was created;
 it is not rollback and the module does not retry. Per-owner errors use
 Tmux.SessionCreateFailed and retain the core exception and failed server.
-ErrorAction Continue allows later owners to run.
+ErrorAction Continue allows later owners to run. A WindowName with a colon or
+a period on exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException
+as its error and sends nothing. A Name with either character is refused on every
+release with ArgumentException.
 
 ## RELATED LINKS
 

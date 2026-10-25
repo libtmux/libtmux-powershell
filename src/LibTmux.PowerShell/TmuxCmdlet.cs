@@ -15,10 +15,12 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     /// <param name="kind">The kind of object named, for the error text.</param>
     /// <param name="name">The name an operation is about to send.</param>
     /// <param name="cancellationToken">Cancels the version read.</param>
+    /// <param name="command">The tmux command that would carry the name, reported on the refusal.</param>
     /// <returns>A task that completes when the name is acceptable.</returns>
+    /// <exception cref="TmuxUnsupportedOnReleaseException">The daemon's release rejects the name.</exception>
     [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
-    protected static Task RejectUnsendableNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken) =>
-        TmuxFeatures.RequireNameAsync(server, kind, name, cancellationToken);
+    protected static Task RejectUnsendableNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken, string? command = null) =>
+        TmuxFeatures.RequireNameAsync(server, kind, name, cancellationToken, command);
 
     /// <summary>Waits for a core operation and writes its completed result.</summary>
     /// <typeparam name="T">The core result type.</typeparam>
@@ -84,7 +86,7 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
 
             ErrorCategory category = GetErrorCategory(exception);
             var record = new ErrorRecord(exception, errorId, category, target);
-            if (FindRefusal(exception) is { } refusal)
+            if (FindRefusal(exception) is TmuxVersionTooLowException refusal)
             {
                 string detail = ReferenceEquals(refusal, exception)
                     ? refusal.Message
@@ -124,11 +126,11 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
         + "the last release that supports older tmux.";
 
     // A refusal can arrive wrapped, as when a workspace build fails on the daemon it inspects first.
-    private static TmuxVersionTooLowException? FindRefusal(Exception exception)
+    private static TmuxUnsupportedOnReleaseException? FindRefusal(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
         {
-            if (current is TmuxVersionTooLowException refusal)
+            if (current is TmuxUnsupportedOnReleaseException refusal)
             {
                 return refusal;
             }

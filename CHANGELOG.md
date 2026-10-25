@@ -2,6 +2,40 @@
 
 ## 0.1.0-alpha4 - Unreleased
 
+### Breaking changes
+
+#### Catch one type for release refusals
+
+Every refusal a tmux release causes now raises
+`LibTmux.TmuxUnsupportedOnReleaseException`, from libtmux for .NET
+0.0.0-alpha.24, whichever cmdlet or literal command meets it. It carries
+`ActualVersion`, `SafeReleases`, `CapabilityId` and `Command`.
+`TmuxVersionTooLowException` derives from it and is still raised where a
+release floor decides.
+
+Before, a window name with `:` or `.` on exactly tmux 3.7 raised
+`System.ArgumentException`, a literal `select-layout` that tmux below 3.4
+crashes on raised `System.ArgumentException`, and `Set-TmuxLayout` with a
+mirrored layout below tmux 3.5 or a JSON layout below 3.8-rc2 raised
+`LibTmux.TmuxWindowException`. The name and literal-layout refusals came from `New-TmuxSession`,
+`New-TmuxWindow`, `Invoke-TmuxWorkspace` and the raw-command cmdlets. All now
+raise `TmuxUnsupportedOnReleaseException`, which has no `WindowId`; the
+window is in the message. The `ErrorRecord` category for these cases changes
+too: `InvalidArgument` for the old `ArgumentException` and `InvalidOperation`
+for the old `TmuxWindowException` are now `NotImplemented`, as for a floor
+refusal. A workspace layout the release lacks fails planning as
+`LibTmux.Workspace.WorkspaceFormatException` with the refusal as its
+`InnerException`. Catch the base type where you caught
+`ArgumentException` or `TmuxWindowException` for these cases. A catch of
+`TmuxVersionTooLowException` needs no change.
+
+A session name with `:` or `.` still raises `ArgumentException` from
+`New-TmuxSession`, and a malformed or unknown layout still raises
+`TmuxWindowException` from `Set-TmuxLayout`, because both are invalid on every
+release. `capabilities.json` now names an error for each workaround, lists
+`layout-mirrored-main` and `layout-json`, and limits the `apis` of
+`layout-without-checksum` to the cmdlets that raise its error. (#41)
+
 ### Documentation
 
 - Put the optional-features table first in the compatibility guide, link each

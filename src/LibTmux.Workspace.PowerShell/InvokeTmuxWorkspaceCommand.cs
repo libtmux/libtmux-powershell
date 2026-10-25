@@ -35,17 +35,21 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
         {
             ReadResult(async token =>
             {
-                // Refuse before the first action creates anything. The package refuses a
-                // session name with ':' or '.' itself, so only window names are left to check.
+                // Refuse before the first action creates anything. The package refuses the same
+                // window name only when its action runs, after earlier actions created the session
+                // and its first window, and then reports a partial WorkspaceBuildException. The typed
+                // creation cmdlets need no such check: the package refuses their name before dispatch.
+                // The package refuses a session name with ':' or '.' itself, so only window names
+                // are left to check.
                 foreach (WorkspaceAction step in plan.Actions)
                 {
-                    string? window = step switch
+                    (string? window, string? command) = step switch
                     {
-                        WorkspaceAction<NewSessionRequest> session => session.Request.WindowName,
-                        WorkspaceAction<NewWindowRequest> created => created.Request.Name,
-                        _ => null,
+                        WorkspaceAction<NewSessionRequest> session => (session.Request.WindowName, "new-session"),
+                        WorkspaceAction<NewWindowRequest> created => (created.Request.Name, "new-window"),
+                        _ => (null, null),
                     };
-                    await RejectUnsendableNameAsync(plan.Endpoint, "window", window, token).ConfigureAwait(false);
+                    await RejectUnsendableNameAsync(plan.Endpoint, "window", window, token, command).ConfigureAwait(false);
                 }
 
                 return await new WorkspaceBuilder(plan.Endpoint).ApplyAsync(plan, token).ConfigureAwait(false);

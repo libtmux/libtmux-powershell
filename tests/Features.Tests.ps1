@@ -41,13 +41,36 @@ function Get-Refusal($Errors, [string] $Required) {
         $_.Exception.RequiredVersion.Raw -ceq $Required })
 }
 
-# The package refuses a release defect with TmuxVersionTooLowException and a name that exactly 3.7
-# rejects with ArgumentException; both leave before anything is sent.
-function Test-Refused($Errors, [string] $Required, [bool] $Name) {
+# Every refusal a release causes is a LibTmux.TmuxUnsupportedOnReleaseException that names its
+# release. A real floor is its TmuxVersionTooLowException subclass; a defect of one release or a
+# name or layout only some releases accept is the base type, never ArgumentException or
+# TmuxWindowException. Each leaves before anything is sent.
+$safeName = 'earlier than 3.7, or 3.7a or newer'
+function Test-Unsupported($Errors, [string] $CapabilityId, [string] $Actual, [string] $Safe, [string] $Message, [string] $Dispatch = '') {
+    # A release refusal that is not a floor reports NotImplemented, and carries no hint to install
+    # an older module release: that advice belongs to the floor alone.
+    $matching = @($Errors | Where-Object {
+        $_.Exception.GetType() -ceq [LibTmux.TmuxUnsupportedOnReleaseException] -and
+        $_.Exception -isnot [ArgumentException] -and
+        $_.CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::NotImplemented -and
+        $null -eq $_.ErrorDetails -and
+        $_.Exception.CapabilityId -ceq $CapabilityId -and
+        $_.Exception.ActualVersion.Raw -ceq $Actual -and
+        $_.Exception.SafeReleases -ceq $Safe -and
+        ($Dispatch -eq '' -or $_.Exception.Dispatch.ToString() -ceq $Dispatch) -and
+        $_.Exception.Message -clike $Message })
+    return $matching.Count -eq 1 -and $Errors.Count -eq 1
+}
+
+function Test-Refused($Errors, [string] $Required, [bool] $Name, [string] $Claim) {
     if ($Name) {
-        return @($Errors | Where-Object { $_.Exception -is [ArgumentException] -and $_.Exception.Message -clike "*rejects ':' and '.'*" }).Count -eq 1
+        return Test-Unsupported $Errors 'name-separators-rejected' $Claim $safeName "*rejects ':' and '.'*"
     }
-    return @(Get-Refusal $Errors $Required).Count -eq 1
+    $floor = @(Get-Refusal $Errors $Required)
+    # A floor refusal reports NotImplemented and tells the reader which module release still accepts older tmux.
+    return $floor.Count -eq 1 -and
+        $floor[0].CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::NotImplemented -and
+        $floor[0].ErrorDetails.Message -clike '*install LibTmux 0.1.0-alpha2 from the PowerShell Gallery*'
 }
 
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
@@ -176,7 +199,7 @@ Invoke-WithOwnedTmux {
                 $null = $claimed | Invoke-TmuxChain -Command (New-TmuxCommand -Name $case.Arguments[0] -Arguments $case.Arguments[1..($case.Arguments.Count - 1)]) `
                     -ErrorAction SilentlyContinue -ErrorVariable errors
             }
-            Assert-True (Test-Refused $errors $case.Required ($case.ContainsKey("Name"))) `
+            Assert-True (Test-Refused $errors $case.Required ($case.ContainsKey("Name")) $case.Claim) `
                 "$($case.Arguments -join ' ') was not refused by $route on a claimed $($case.Claim)"
         }
     }
@@ -195,7 +218,7 @@ Invoke-WithOwnedTmux {
     $errors = @()
     $null = $claimed | Invoke-TmuxCommand -Arguments @('if-shell', '-F', $condition, 'break-pane -d') `
         -ErrorAction SilentlyContinue -ErrorVariable errors
-    Assert-True (@($errors | Where-Object { $_.Exception -is [LibTmux.TmuxVersionTooLowException] -or
+    Assert-True (@($errors | Where-Object { $_.Exception -is [LibTmux.TmuxUnsupportedOnReleaseException] -or
         $_.Exception -is [ArgumentException] }).Count -eq 0) `
         'a nameless break-pane nested in if-shell was refused, though the checks do not read nested commands'
 
@@ -212,7 +235,7 @@ Invoke-WithOwnedTmux {
         $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
         $errors = @()
         $null = $claimed | Invoke-TmuxCommand -Arguments $case.Arguments -ErrorAction SilentlyContinue -ErrorVariable errors
-        Assert-True ($errors.Count -eq 0 -or @($errors | Where-Object { $_.Exception -is [LibTmux.TmuxVersionTooLowException] -or $_.Exception -is [ArgumentException] }).Count -eq 0) `
+        Assert-True ($errors.Count -eq 0 -or @($errors | Where-Object { $_.Exception -is [LibTmux.TmuxUnsupportedOnReleaseException] -or $_.Exception -is [ArgumentException] }).Count -eq 0) `
             "$($case.Arguments -join ' ') was refused by a feature guard on a claimed $($case.Claim)"
     }
     Assert-True ((Get-Topology) -ceq $topology) 'a command aimed at a missing target changed the topology'
@@ -229,8 +252,9 @@ Invoke-WithOwnedTmux {
             'Set-TmuxLayout sent a layout that releases below 3.4 crash on'
     }
 
-    # The same layout sent as a literal command: below 3.4 the package refuses it with ArgumentException,
-    # not TmuxVersionTooLowException, and from 3.4 tmux answers the unknown layout itself.
+    # The same layout sent as a literal command: below 3.4 the package refuses it as the base
+    # TmuxUnsupportedOnReleaseException, since the release decides, and from 3.4 tmux answers the
+    # unknown layout itself.
     $window = $session | Get-TmuxWindow | Select-Object -First 1
     $before = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut
     foreach ($arguments in @(@('select-layout', '-t', $window.Id, 'bogus'), @('selectl', 'bogus'))) {
@@ -243,8 +267,8 @@ Invoke-WithOwnedTmux {
                     -ErrorAction SilentlyContinue -ErrorVariable errors
             }
             if ($version -lt [LibTmux.TmuxVersion]::Parse('3.4')) {
-                Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [ArgumentException] -and
-                    $errors[0].Exception.Message -clike '*crashes on the layout*') "$($arguments -join ' ') was not refused with ArgumentException by $route"
+                Assert-True (Test-Unsupported $errors 'layout-without-checksum' $realRaw '3.4 or newer' '*crashes on the layout*') `
+                    "$($arguments -join ' ') was not refused as TmuxUnsupportedOnReleaseException by $route"
             } else {
                 Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.TmuxCommandException]) `
                     "$($arguments -join ' ') was not answered by tmux itself through $route"
@@ -295,17 +319,20 @@ Invoke-WithOwnedTmux {
     $claimed = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $claiming
     $errors = @()
     $created = $claimed | Get-TmuxSession -Name fixture | New-TmuxWindow -Name 'bad.name' -Command 'exec /bin/sh' -ErrorAction SilentlyContinue -ErrorVariable errors
-    Assert-True ($null -eq $created -and @($errors | Where-Object { $_.Exception -is [ArgumentException] -and $_.Exception.Message -clike "*rejects ':' and '.'*" }).Count -eq 1) `
-        'New-TmuxWindow did not refuse a name that 3.7 rejects with ArgumentException'
+    Assert-True ($null -eq $created -and (Test-Unsupported $errors 'name-separators-rejected' '3.7' $safeName "*rejects ':' and '.'*" 'NotDispatched') -and
+        $errors[0].Exception.Command -ceq 'new-window') `
+        'New-TmuxWindow did not refuse a name that 3.7 rejects as TmuxUnsupportedOnReleaseException'
     $errors = @()
     $made = $claimed | New-TmuxSession -Name 'okname' -WindowName 'win.dot' -Command 'exec /bin/sh' -ErrorAction SilentlyContinue -ErrorVariable errors
-    Assert-True ($null -eq $made -and @($errors | Where-Object { $_.Exception -is [ArgumentException] -and $_.Exception.Message -clike "*rejects ':' and '.'*" }).Count -eq 1) `
-        'New-TmuxSession did not refuse a window name that 3.7 rejects with ArgumentException'
-    # The package itself refuses ':' and '.' in session names, so a plan cannot reach the daemon with one.
+    Assert-True ($null -eq $made -and (Test-Unsupported $errors 'name-separators-rejected' '3.7' $safeName "*rejects ':' and '.'*" 'NotDispatched') -and
+        $errors[0].Exception.Command -ceq 'new-session') `
+        'New-TmuxSession did not refuse a window name that 3.7 rejects as TmuxUnsupportedOnReleaseException'
+    # A session name with either character is a caller error on every release, so the package keeps
+    # ArgumentException for it and no release refusal applies.
     $caught = $null
     try { $null = $claimed | New-TmuxSession -Name 'bad.session' -Command 'exec /bin/sh' } catch { $caught = $_.Exception }
     Assert-True ($caught -is [ArgumentException] -and $caught.ParamName -ceq 'name') `
-        'New-TmuxSession did not refuse a session name that 3.7 rejects with ArgumentException'
+        'New-TmuxSession did not refuse a session name with a separator as ArgumentException'
     $declaration = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: named-workspace
 windows:
@@ -318,9 +345,59 @@ windows:
     Assert-True ($null -ne $plan) 'the workspace plan could not be prepared on the claimed daemon'
     $errors = @()
     $applied = $plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable errors
-    Assert-True ($null -eq $applied -and @($errors | Where-Object { $_.Exception -is [ArgumentException] -and $_.Exception.Message -clike "*rejects ':' and '.'*" }).Count -eq 1) `
-        'Invoke-TmuxWorkspace did not refuse a window name that 3.7 rejects with ArgumentException'
+    Assert-True ($null -eq $applied -and (Test-Unsupported $errors 'name-separators-rejected' '3.7' $safeName "*rejects ':' and '.'*") -and
+        $errors[0].Exception.Command -ceq 'new-window') `
+        'Invoke-TmuxWorkspace did not refuse a window name that 3.7 rejects as TmuxUnsupportedOnReleaseException'
     Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -ceq 'fixture') 'a refused plan or creation changed the sessions'
+
+    # A layout form the release lacks is refused as the base type, from the typed cmdlet too, and
+    # the window keeps its layout. A layout that is malformed on every release stays TmuxWindowException.
+    $window = $session | Get-TmuxWindow | Select-Object -First 1
+    $before = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut
+    foreach ($case in @(
+        @{ Claim = '3.4'; Layout = 'main-horizontal-mirrored'; Id = 'layout-mirrored-main'; Safe = '3.5 or newer' },
+        @{ Claim = '3.4'; Layout = 'main-vertical-mirrored'; Id = 'layout-mirrored-main'; Safe = '3.5 or newer' },
+        @{ Claim = '3.7'; Layout = '{"V":2,"L":{"t":"p"}}'; Id = 'layout-json'; Safe = '3.8-rc2 or newer' }
+    )) {
+        $layoutWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath $case.Claim $realRaw
+        $layoutServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $layoutWrapper
+        $layoutWindow = $layoutServer | Get-TmuxSession -Name fixture | Get-TmuxWindow | Select-Object -First 1
+        $errors = @()
+        $null = $layoutWindow | Set-TmuxLayout -Layout $case.Layout -ErrorAction SilentlyContinue -ErrorVariable errors
+        Assert-True (Test-Unsupported $errors $case.Id $case.Claim $case.Safe '*') `
+            "Set-TmuxLayout $($case.Layout) was not refused as TmuxUnsupportedOnReleaseException on a claimed $($case.Claim)"
+    }
+    $layoutWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath '3.4' $realRaw
+    $layoutServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $layoutWrapper
+    $layoutWindow = $layoutServer | Get-TmuxSession -Name fixture | Get-TmuxWindow | Select-Object -First 1
+    $errors = @()
+    $null = $layoutWindow | Set-TmuxLayout -Layout 'bogus-layout' -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.TmuxWindowException] -and
+        $errors[0].Exception -isnot [LibTmux.TmuxUnsupportedOnReleaseException]) `
+        'Set-TmuxLayout did not keep TmuxWindowException for a layout that is malformed on every release'
+    Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $window.Id, '#{window_layout}')).StdOut -ceq $before) `
+        'a refused layout changed the window'
+
+    # A workspace plan wraps the refusal in WorkspaceFormatException, which names the layout path. The
+    # refusal stays its InnerException, and the error still reports NotImplemented.
+    $layoutDeclaration = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: mirrored-workspace
+windows:
+  - window_name: mirrored
+    layout: main-horizontal-mirrored
+    panes:
+      - shell_command: exec /bin/sh
+      - shell_command: exec /bin/sh
+'@
+    $errors = @()
+    $null = $layoutDeclaration.Resolve($fixture.DirectoryPath, $null) |
+        LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $layoutServer -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True ($errors.Count -eq 1 -and $errors[0].Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+        $errors[0].Exception.InnerException.GetType() -ceq [LibTmux.TmuxUnsupportedOnReleaseException] -and
+        $errors[0].Exception.InnerException.CapabilityId -ceq 'layout-mirrored-main' -and
+        $errors[0].CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::NotImplemented -and
+        $null -eq $errors[0].ErrorDetails) `
+        'a workspace layout that the release lacks did not carry the refusal as the inner exception'
 
     # Commands sent over a connection from Connect-TmuxControl carry the same guards; the package
     # checks them.
@@ -331,7 +408,7 @@ windows:
                 $errors = @()
                 $null = $connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name $arguments[0] -Arguments $arguments[1..($arguments.Count - 1)]) `
                     -ErrorAction SilentlyContinue -ErrorVariable errors
-                Assert-True (Test-Refused $errors '3.7a' ($arguments[0] -ceq 'new-window')) "$($arguments -join ' ') crossed a control connection on a claimed 3.7"
+                Assert-True (Test-Refused $errors '3.7a' ($arguments[0] -ceq 'new-window') '3.7') "$($arguments -join ' ') crossed a control connection on a claimed 3.7"
             }
             Assert-True ((Get-Topology) -ceq $topology) 'a refused control command changed the topology'
             $named = @($connection | Invoke-TmuxControlCommand -Command (New-TmuxCommand -Name display-message -Arguments @('-p', 'sent')))

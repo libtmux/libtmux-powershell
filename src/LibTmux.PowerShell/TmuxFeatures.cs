@@ -52,7 +52,14 @@ internal static class TmuxFeatures
     }
 
     /// <summary>Refuses a window or session name that exactly tmux 3.7 rejects.</summary>
-    internal static async Task RequireNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken)
+    /// <remarks>
+    /// Only a caller that sends several actions needs this, so that nothing is created before the
+    /// refusal; the package refuses a single typed creation itself, before dispatch. The refusal is
+    /// the package's <see cref="TmuxUnsupportedOnReleaseException" />, as the package raises it for
+    /// the same name in a literal command. A session name with either character is a caller error
+    /// on every release, which the package refuses as <see cref="ArgumentException" />.
+    /// </remarks>
+    internal static async Task RequireNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken, string? command = null)
     {
         if (name is null || name.AsSpan().IndexOfAny(':', '.') < 0)
         {
@@ -62,10 +69,13 @@ internal static class TmuxFeatures
         TmuxVersion version = await VersionAsync(server, cancellationToken).ConfigureAwait(false);
         if (NameSeparators.Affects(version))
         {
-            // The package refuses the same name with ArgumentException on every other path.
-            throw new ArgumentException(
+            throw new TmuxUnsupportedOnReleaseException(
                 $"tmux {version} rejects ':' and '.' in the {kind} name '{name}'; the name was not sent. "
-                + $"Choose another name or use tmux {NameSeparators.Until} or newer.");
+                + $"Choose another name or use tmux {NameSeparators.Until} or newer.",
+                version,
+                NameSeparators.SafeReleases,
+                NameSeparators.Id,
+                command);
         }
     }
 

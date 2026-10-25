@@ -165,7 +165,9 @@ One completed native result. Preview and declined confirmation emit nothing.
 Replace is an explicit planning policy. Compensation can remove only creations
 whose ownership is established by the native journal; shell and host-script
 effects cannot be undone. Reuse returns the existing session without running
-workspace mutation or host actions.
+workspace mutation or host actions. A window name with a colon or a period on
+exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException before the
+first action creates anything.
 
 ## RELATED LINKS
 
