@@ -492,7 +492,7 @@ Install the tool on the Unix host that runs tmux:
 
 ```console
 $ dotnet tool install --global LibTmux.Mcp \
-    --version 0.0.0-alpha.24 \
+    --version 0.1.0 \
     --framework net8.0
 ```
 
@@ -551,7 +551,7 @@ $ tmux -V
 ```
 
 From the checkout root, restore the published
-[.NET alpha.24 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.24)
+[.NET 0.1.0 packages](https://www.nuget.org/packages/LibTmux/0.1.0)
 and build both PowerShell modules:
 
 ```console

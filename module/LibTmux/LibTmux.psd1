@@ -39,7 +39,7 @@
 Requires tmux 3.3a or newer. Optional features that a tmux release
 mishandles are refused before anything is sent.
 
-Built on libtmux for .NET 0.0.0-alpha.24.
+Built on libtmux for .NET 0.1.0.
 The API is not settled: pin an exact version.
 https://github.com/libtmux/libtmux-dotnet
 
