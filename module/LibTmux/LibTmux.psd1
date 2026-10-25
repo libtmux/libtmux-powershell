@@ -3,7 +3,7 @@
     ModuleVersion = '0.1.0'
     GUID = '769d8b5e-807e-43c7-9c89-d6c9c6e32fbf'
     Author = 'libtmux contributors'
-    Description = 'Native PowerShell automation over the LibTmux .NET core. Alpha.'
+    Description = 'Native PowerShell automation over the LibTmux .NET core.'
     PowerShellVersion = '7.4'
     CompatiblePSEditions = @('Core')
     FormatsToProcess = @('LibTmux.Format.ps1xml')
@@ -32,16 +32,15 @@
     AliasesToExport = @()
     PrivateData = @{
         PSData = @{
-            Prerelease = 'alpha3'
             Tags = @('tmux', 'automation', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
             LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
             ReleaseNotes = @'
-Alpha 3 prerelease (0.1.0-alpha3). Requires tmux 3.3a or newer. Optional
-features that a tmux release mishandles are refused before anything is sent.
+Requires tmux 3.3a or newer. Optional features that a tmux release
+mishandles are refused before anything is sent.
 
 Built on libtmux for .NET 0.0.0-alpha.24.
-APIs may change before a stable release.
+The API is not settled: pin an exact version.
 https://github.com/libtmux/libtmux-dotnet
 
 Release details:

@@ -13,6 +13,9 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($Gallery) { $galleryTimer = [Diagnostics.Stopwatch]::StartNew() }
 Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion $PSResourceGetVersion
+$release = & "$PSScriptRoot/../eng/ReleaseVersion.ps1"
+$packageVersion = $release.PackageVersion
+$moduleVersion = $release.ModuleVersion
 
 if ($Gallery) {
     if ($RepositoryName -and $RepositoryName -cne 'PSGallery') {
@@ -28,10 +31,14 @@ if ($Gallery) {
 }
 
 if ($SaveWorker) {
-    Save-PSResource -Name LibTmux.Workspace -Version '0.1.0-alpha3' -Prerelease `
-        -Repository $RepositoryName -Path "$OwnedRoot/modules" `
-        -TemporaryPath "$OwnedRoot/download" -TrustRepository -AcceptLicense -Quiet
-    'PASS Save-PSResource requested only LibTmux.Workspace 0.1.0-alpha3'
+    $save = @{
+        Name = 'LibTmux.Workspace'; Version = $packageVersion
+        Repository = $RepositoryName; Path = "$OwnedRoot/modules"
+        TemporaryPath = "$OwnedRoot/download"
+    }
+    if ($release.Prerelease) { $save.Prerelease = $true }
+    Save-PSResource @save -TrustRepository -AcceptLicense -Quiet
+    "PASS Save-PSResource requested only LibTmux.Workspace $packageVersion"
     return
 }
 
@@ -98,9 +105,9 @@ function Invoke-ResourceChild([string] $Script, [string[]] $Arguments, [string] 
 }
 
 function Assert-ResourcePayload([string] $Name, [string] $Modules) {
-    $modulePath = Join-Path $Modules "$Name/0.1.0"
+    $modulePath = Join-Path $Modules "$Name/$moduleVersion"
     $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.0.1.0-alpha3.nupkg")
+    $archive = [IO.Compression.ZipFile]::OpenRead("$PackageRoot/$Name.$packageVersion.nupkg")
     try {
         foreach ($entry in $archive.Entries) {
             $relative = $entry.FullName
@@ -145,14 +152,14 @@ function Assert-ResourcePayload([string] $Name, [string] $Modules) {
 try {
     $null = New-Item "$owned/modules", "$owned/download" -ItemType Directory
     if (!$Gallery) {
-        # File feeds read numeric manifest dependencies instead of alpha nuspec pins.
+        # File feeds read numeric manifest dependencies instead of nuspec pins.
         $feedStart = [Diagnostics.ProcessStartInfo]::new('python3')
         $feedStart.UseShellExecute = $false
         $feedStart.RedirectStandardInput = $true
         $feedStart.RedirectStandardOutput = $true
         $feedStart.RedirectStandardError = $true
         $feedStart.WorkingDirectory = $owned
-        foreach ($argument in @("$PSScriptRoot/support/resource_feed.py", '--package-root', $PackageRoot)) {
+        foreach ($argument in @("$PSScriptRoot/support/resource_feed.py", '--package-root', $PackageRoot, '--version', $packageVersion)) {
             $feedStart.ArgumentList.Add($argument)
         }
         $feedProcess = [Diagnostics.Process]::new()
@@ -177,17 +184,17 @@ try {
 
     $modules = "$owned/modules"
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        $manifest = "$modules/$name/0.1.0/$name.psd1"
+        $manifest = "$modules/$name/$moduleVersion/$name.psd1"
         if (!(Test-Path -LiteralPath $manifest)) {
-            throw "Native package resolution did not save $name 0.1.0."
+            throw "Native package resolution did not save $name $moduleVersion."
         }
         $data = Import-PowerShellDataFile -LiteralPath $manifest
-        if ($data.ModuleVersion -cne '0.1.0' -or
-            $data.PrivateData.PSData.Prerelease -cne 'alpha3') {
-            throw "$name resolved an unexpected prerelease."
+        $label = if ($data.PrivateData.PSData.ContainsKey('Prerelease')) { $data.PrivateData.PSData.Prerelease } else { '' }
+        if ($data.ModuleVersion -cne $moduleVersion -or $label -cne $release.Prerelease) {
+            throw "$name resolved an unexpected version."
         }
         $versions = @(Get-ChildItem -LiteralPath "$modules/$name" -Directory)
-        if ($versions.Count -ne 1 -or $versions[0].Name -cne '0.1.0') {
+        if ($versions.Count -ne 1 -or $versions[0].Name -cne $moduleVersion) {
             throw "$name resolved additional versions."
         }
         Assert-ResourcePayload $name $modules
@@ -204,7 +211,7 @@ try {
     $duplicateCore = @(Get-ChildItem -LiteralPath "$modules/LibTmux.Workspace" -Recurse -File |
         Where-Object Name -CEQ 'LibTmux.dll')
     if ($duplicateCore.Count) { throw 'Workspace bundles a duplicate core assembly.' }
-    'PASS native dependency resolution: LibTmux.Workspace 0.1.0-alpha3 -> LibTmux 0.1.0-alpha3'
+    "PASS native dependency resolution: LibTmux.Workspace $packageVersion -> LibTmux $packageVersion"
     if ($Gallery) {
         Invoke-ResourceChild "$PSScriptRoot/Package.Tests.ps1" @('-ModuleRoot', $modules,
             '-Order', 'CoreFirst') $modules

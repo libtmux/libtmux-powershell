@@ -24,21 +24,25 @@ if (!$Worker) {
 
 $owned = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-publish-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $owned
-$source = '1111111111111111111111111111111111111111'
+# The publisher reads the approved identity from the manifest at this commit.
+$source = (& git -C (Split-Path $PSScriptRoot) rev-parse HEAD).Trim()
+$expectedRelease = & (Join-Path (Split-Path $PSScriptRoot) 'eng/ReleaseVersion.ps1')
+$expectedVersion = $expectedRelease.PackageVersion
+$expectedPrerelease = $expectedRelease.Prerelease
 $public = @{}
 $uploads = [Collections.Generic.List[string]]::new()
 $reads = [Collections.Generic.List[string]]::new()
 $failureCode = 0
 $failWorkspace = $false
 
-function New-TestPackage([string] $Name, [string] $Path, [string] $Version = '0.1.0', [string] $Payload = 'tested', [string] $Prerelease = 'alpha3') {
+function New-TestPackage([string] $Name, [string] $Path, [string] $Version = $expectedRelease.ModuleVersion, [string] $Payload = 'tested', [string] $Prerelease = $expectedPrerelease, [string] $ManifestPrerelease = $Prerelease) {
     $packageVersion = if ($Prerelease) { "$Version-$Prerelease" } else { $Version }
     $required = if ($Name -ceq 'LibTmux.Workspace') {
-        "RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '0.1.0' })"
+        "RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '$($expectedRelease.ModuleVersion)' })"
     } else { 'RequiredModules = @()' }
     $manifest = "@{ ModuleVersion = '$Version'; $required; PrivateData = @{ PSData = @{ " +
         "LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'; " +
-        "Prerelease = '$Prerelease'; ReleaseNotes = 'First alpha release; LibTmux .NET alpha.20.' } } }"
+        "$(if ($ManifestPrerelease) { "Prerelease = '$ManifestPrerelease'; " })ReleaseNotes = 'Test release; LibTmux .NET alpha.20.' } } }"
     $dependency = if ($Name -ceq 'LibTmux.Workspace') { "<dependency id=`"LibTmux`" version=`"[$packageVersion]`" />" } else { '' }
     $items = @{
         "$Name.psd1" = $manifest
@@ -57,7 +61,7 @@ function New-TestPackage([string] $Name, [string] $Path, [string] $Version = '0.
 
 function Set-TestEvidence {
     @{ sourceCommit = $source; packages = @(foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        @{ file = "$name.0.1.0-alpha3.nupkg"; sha256 = (Get-FileHash "$owned/$name.0.1.0-alpha3.nupkg").Hash.ToLowerInvariant() }
+        @{ file = "$name.$expectedVersion.nupkg"; sha256 = (Get-FileHash "$owned/$name.$expectedVersion.nupkg").Hash.ToLowerInvariant() }
     }) } | ConvertTo-Json -Depth 5 | Set-Content "$owned/package-evidence.json"
     @{ schemaVersion = 1; repository = 'libtmux/libtmux-powershell'; sourceCommit = $source
         workflowPath = '.github/workflows/ci.yml'; runId = 123; runAttempt = 1; artifactId = 456
@@ -78,7 +82,7 @@ function Assert-PublishFailure([string] $Reason, [switch] $Upload, [string] $Rev
 
 function Invoke-WebRequest {
     param([string] $Uri, [string] $OutFile, [int] $TimeoutSec, [string] $ErrorAction)
-    if ($Uri -cmatch '^https://cdn\.powershellgallery\.com/packages/(libtmux(?:\.workspace)?)\.0\.1\.0-alpha3\.nupkg$') {
+    if ($Uri -cmatch '^https://cdn\.powershellgallery\.com/packages/(libtmux(?:\.workspace)?)\.' + [regex]::Escape($expectedVersion) + '\.nupkg$') {
         $name = if ($Matches[1] -ceq 'libtmux.workspace') { 'LibTmux.Workspace' } else { 'LibTmux' }
     } else {
         throw 'Expected the exact Gallery CDN package URL.'
@@ -93,36 +97,45 @@ function Invoke-WebRequest {
 function Publish-PSResource {
     param([string] $NupkgPath, [string] $Repository, [string] $ApiKey, [string] $ErrorAction)
     if ($Repository -cne 'PSGallery' -or $ApiKey -cne 'fixture-credential') { throw 'Wrong publishing boundary.' }
-    $name = [IO.Path]::GetFileName($NupkgPath).Replace('.0.1.0-alpha3.nupkg', '')
+    $name = [IO.Path]::GetFileName($NupkgPath).Replace(".$expectedVersion.nupkg", '')
     $uploads.Add($name)
     if ($name -ceq 'LibTmux.Workspace' -and $failWorkspace) { throw 'Sensitive upload diagnostics must not escape.' }
     $public[$name] = $NupkgPath
 }
 
+# A final approval must refuse a prerelease candidate; a prerelease approval must refuse a final one.
+$otherPrerelease = if ($expectedPrerelease) { '' } else { 'alpha3' }
 try {
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        New-TestPackage $name "$owned/$name.0.1.0-alpha3.nupkg" -Prerelease ''
+        New-TestPackage $name "$owned/$name.$expectedVersion.nupkg" -Prerelease $otherPrerelease
     }
     Set-TestEvidence
     if (!(Test-Path -LiteralPath $publisher)) { throw 'Publisher does not implement offline candidate validation.' }
     Assert-PublishFailure 'version|prerelease'
-    if ($reads.Count -or $uploads.Count) { throw 'Stable candidate reached publication.' }
+    if ($reads.Count -or $uploads.Count) { throw 'A candidate with the other release kind reached publication.' }
     foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-        Remove-Item -LiteralPath "$owned/$name.0.1.0-alpha3.nupkg"
-        New-TestPackage $name "$owned/$name.0.1.0-alpha3.nupkg"
+        Remove-Item -LiteralPath "$owned/$name.$expectedVersion.nupkg"
+        New-TestPackage $name "$owned/$name.$expectedVersion.nupkg" -ManifestPrerelease $otherPrerelease
+    }
+    Set-TestEvidence
+    Assert-PublishFailure 'prerelease'
+    if ($reads.Count -or $uploads.Count) { throw 'A manifest with the other prerelease label reached publication.' }
+    foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
+        Remove-Item -LiteralPath "$owned/$name.$expectedVersion.nupkg"
+        New-TestPackage $name "$owned/$name.$expectedVersion.nupkg"
     }
     Set-TestEvidence
     & $publisher -PackageRoot $owned -SourceCommit $source | Out-Null
     if ($reads.Count -or $uploads.Count) { throw 'Dry run performed network I/O.' }
     Assert-PublishFailure 'source' -Revision ('2' * 40)
-    Add-Content "$owned/LibTmux.0.1.0-alpha3.nupkg" 'modified'
+    Add-Content "$owned/LibTmux.$expectedVersion.nupkg" 'modified'
     Assert-PublishFailure 'hash'
-    Remove-Item "$owned/LibTmux.0.1.0-alpha3.nupkg"
-    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha3.nupkg" -Version '0.2.0' -Prerelease 'alpha1'
+    Remove-Item "$owned/LibTmux.$expectedVersion.nupkg"
+    New-TestPackage 'LibTmux' "$owned/LibTmux.$expectedVersion.nupkg" -Version '0.2.0' -Prerelease 'alpha1'
     Set-TestEvidence
     Assert-PublishFailure 'version'
-    Remove-Item "$owned/LibTmux.0.1.0-alpha3.nupkg"
-    New-TestPackage 'LibTmux' "$owned/LibTmux.0.1.0-alpha3.nupkg"
+    Remove-Item "$owned/LibTmux.$expectedVersion.nupkg"
+    New-TestPackage 'LibTmux' "$owned/LibTmux.$expectedVersion.nupkg"
     Set-TestEvidence
     $provenance = Get-Content "$owned/release-provenance.json" -Raw | ConvertFrom-Json
     $provenance.repository = 'other/repository'
@@ -160,9 +173,9 @@ try {
     $uploads.Clear()
     Assert-PublishFailure 'payload' -Upload
     if ($uploads.Count) { throw 'Different public bytes permitted a subsequent upload.' }
-    $public['LibTmux'] = "$owned/LibTmux.0.1.0-alpha3.nupkg"
+    $public['LibTmux'] = "$owned/LibTmux.$expectedVersion.nupkg"
     $wrongDependency = "$owned/wrong-dependency.nupkg"
-    Copy-Item -LiteralPath "$owned/LibTmux.Workspace.0.1.0-alpha3.nupkg" -Destination $wrongDependency
+    Copy-Item -LiteralPath "$owned/LibTmux.Workspace.$expectedVersion.nupkg" -Destination $wrongDependency
     $archive = [IO.Compression.ZipFile]::Open($wrongDependency, [IO.Compression.ZipArchiveMode]::Update)
     try {
         $entry = $archive.GetEntry('LibTmux.Workspace.nuspec')
@@ -170,7 +183,7 @@ try {
         try { $nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $entry.Delete()
         $writer = [IO.StreamWriter]::new($archive.CreateEntry('LibTmux.Workspace.nuspec').Open())
-        try { $writer.Write($nuspec.Replace('version="[0.1.0-alpha3]"', 'version="[0.2.0-alpha1]"')) }
+        try { $writer.Write($nuspec.Replace("version=`"[$expectedVersion]`"", 'version="[0.2.0-alpha1]"')) }
         finally { $writer.Dispose() }
     } finally { $archive.Dispose() }
     $public['LibTmux.Workspace'] = $wrongDependency

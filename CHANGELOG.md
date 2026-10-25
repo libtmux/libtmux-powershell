@@ -36,6 +36,13 @@ release. `capabilities.json` now names an error for each workaround, lists
 `layout-mirrored-main` and `layout-json`, and limits the `apis` of
 `layout-without-checksum` to the cmdlets that raise its error. (#41)
 
+### Packaging
+
+- Build, test and publish a final release. The package scripts and the
+  release workflow now read the version from the module manifest, which has no
+  `Prerelease` label, and `release.yml` accepts a `v0.1.N` tag as well as
+  `v0.1.0-alphaN`.
+
 ### Documentation
 
 - Number releases `0.1.N` from now on, starting with `0.1.0`, with no

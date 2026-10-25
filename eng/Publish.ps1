@@ -9,9 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $names = @('LibTmux', 'LibTmux.Workspace')
-$moduleVersion = '0.1.0'
-$prerelease = 'alpha3'
-$version = '0.1.0-alpha3'
+$sourceRepository = Split-Path $PSScriptRoot
 $root = (Resolve-Path -LiteralPath $PackageRoot).Path
 $owned = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-publish-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $owned
@@ -66,9 +64,9 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
         if ($id -cne $Name -or $packageVersion -cne $version -or $data.ModuleVersion -cne $moduleVersion) {
             throw 'Release package name or version differs from the approved release.'
         }
-        if (!$data.PrivateData.PSData.ContainsKey('Prerelease') -or
-            $data.PrivateData.PSData.Prerelease -cne $prerelease) {
-            throw 'Release package prerelease differs from the approved alpha release.'
+        $label = if ($data.PrivateData.PSData.ContainsKey('Prerelease')) { $data.PrivateData.PSData.Prerelease } else { '' }
+        if ($label -cne $prerelease) {
+            throw 'Release package prerelease differs from the approved release.'
         }
         if ($data.PrivateData.PSData.LicenseUri -cne
             'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE' -or
@@ -79,7 +77,7 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
         $required = @(if ($data.ContainsKey('RequiredModules')) { $data.RequiredModules })
         if ($Name -ceq 'LibTmux.Workspace') {
             if ($dependencies.Count -ne 1 -or $dependencies[0].id -cne 'LibTmux' -or
-                $dependencies[0].version -cne '[0.1.0-alpha3]' -or $required.Count -ne 1 -or
+                $dependencies[0].version -cne "[$version]" -or $required.Count -ne 1 -or
                 $required[0].ModuleName -cne 'LibTmux' -or $required[0].RequiredVersion -cne $moduleVersion) {
                 throw 'Workspace does not require the exact approved core dependency.'
             }
@@ -131,6 +129,16 @@ try {
     if ($evidence.sourceCommit -cne $SourceCommit -or $provenance.sourceCommit -cne $SourceCommit) {
         throw 'Release source does not match the tested archive source.'
     }
+    # The approved identity is the manifest at the tested source commit, so a
+    # repair of an older tag checks that tag's version, not the current one.
+    $approvedManifest = Join-Path $owned 'approved.psd1'
+    $approvedText = & git -C $sourceRepository show "${SourceCommit}:module/LibTmux/LibTmux.psd1"
+    if ($LASTEXITCODE) { throw 'Cannot read the module manifest at the source commit.' }
+    Set-Content -LiteralPath $approvedManifest -Value $approvedText -Encoding utf8
+    $approved = & "$PSScriptRoot/ReleaseVersion.ps1" -ManifestPath $approvedManifest
+    $moduleVersion = $approved.ModuleVersion
+    $prerelease = $approved.Prerelease
+    $version = $approved.PackageVersion
     if ($provenance.schemaVersion -ne 1 -or $provenance.repository -cne 'libtmux/libtmux-powershell' -or
         $provenance.workflowPath -cne '.github/workflows/ci.yml' -or $provenance.artifactName -cne 'port-package' -or
         $provenance.runId -le 0 -or $provenance.runAttempt -le 0 -or $provenance.artifactId -le 0 -or

@@ -160,9 +160,10 @@ try {
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
         try {
+            $release = & "$PSScriptRoot/ReleaseVersion.ps1"
             foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
-                $package = Join-Path $PackageRoot "$name.0.1.0-alpha3.nupkg"
-                $destination = Join-Path $installed "$name/0.1.0"
+                $package = Join-Path $PackageRoot "$name.$($release.PackageVersion).nupkg"
+                $destination = Join-Path $installed "$name/$($release.ModuleVersion)"
                 [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
             }
             if ($runProduct) {
