@@ -4,7 +4,7 @@ This source checkout targets PowerShell 7.4 and .NET 8. The Linux workflow
 tests the specific PowerShell and tmux versions below; other combinations
 remain unverified. [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
-are published as prereleases on PowerShell Gallery. Both pin
+are published on PowerShell Gallery. Both pin
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet).
 See the [install guide](../README.md#quick-start) for package-manager commands
 and source builds. Publication does not expand the tested platforms below.
@@ -243,17 +243,16 @@ The README installs with PSResourceGet, which PowerShell 7.4 includes.
 PowerShellGet installs the same packages. Install the core module:
 
 ```console
-$ Install-Module -Name LibTmux -AllowPrerelease
+$ Install-Module -Name LibTmux
 ```
 
 Or install the workspace module with its matching core dependency:
 
 ```console
-$ Install-Module -Name LibTmux.Workspace -AllowPrerelease
+$ Install-Module -Name LibTmux.Workspace
 ```
 
-Choose one installer. The prerelease flag includes the alpha releases;
-without it, the installers look for stable releases. Both Gallery pages also
-provide Azure Automation and manual download options. A manual download does
-not include dependencies; use a package manager to resolve them. Azure
-Automation runs need a host with PowerShell and tmux as described above.
+Choose one installer. Both Gallery pages also provide Azure Automation and
+manual download options. A manual download does not include dependencies; use
+a package manager to resolve them. Azure Automation runs need a host with
+PowerShell and tmux as described above.

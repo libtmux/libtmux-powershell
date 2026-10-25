@@ -32,20 +32,13 @@ Install the module on PowerShell 7.4 or later, with tmux on the same Linux
 host, including WSL:
 
 ```console
-$ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux.Workspace
 ```
 
-Import both modules by their numeric version, `0.1.0`:
+Import both modules:
 
 ```console
-$ Import-Module -Name LibTmux, LibTmux.Workspace `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 ```
 
 ### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server

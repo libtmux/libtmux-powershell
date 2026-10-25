@@ -45,6 +45,9 @@ release. `capabilities.json` now names an error for each workaround, lists
 
 ### Documentation
 
+- Install with plain `Install-PSResource -Name LibTmux` or
+  `Install-Module -Name LibTmux`, without `-Version`, `-Prerelease` or
+  `-AllowPrerelease`, and import without a pinned version.
 - Number releases `0.1.N` from now on, starting with `0.1.0`, with no
   `-alpha` label unless the maintainer asks for one. The README and package
   READMEs now say that the API is not settled and to pin an exact version,

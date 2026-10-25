@@ -56,21 +56,13 @@ Install the module from the PowerShell Gallery in PowerShell 7.4 or later
 7.4; Windows PowerShell 5.1 has no such command and cannot load the module:
 
 ```console
-$ Install-PSResource -Name LibTmux `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux
 ```
 
-Import it by its numeric version, `0.1.0`. The Gallery package adds the
-`alpha3` label:
+Import it:
 
 ```console
-$ Import-Module -Name LibTmux `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux -ErrorAction Stop
 ```
 
 [`New-TmuxServer`][new-tmuxserver] makes a handle on a socket and an empty tmux
@@ -344,20 +336,13 @@ Describe a session once in YAML or JSON, review the plan, then apply it.
 Installing the workspace module also installs its exact core dependency:
 
 ```console
-$ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux.Workspace
 ```
 
-Import both modules by their numeric version:
+Import both modules:
 
 ```console
-$ Import-Module -Name LibTmux, LibTmux.Workspace `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 ```
 
 ### [`Import-TmuxWorkspace`][import-tmuxworkspace]: read a declaration
