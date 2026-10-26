@@ -11,6 +11,9 @@
 
 # LibTmux.Workspace
 
+[![LibTmux.Workspace](https://img.shields.io/powershellgallery/v/LibTmux.Workspace)](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+[![libtmux.org](https://img.shields.io/badge/docs-libtmux.org-0b7285)](https://libtmux.org/en/powershell/latest/workspace/)
+
 The workspace module of
 [libtmux for PowerShell](https://github.com/libtmux/libtmux-powershell#readme).
 Describe a tmux session in YAML or JSON, review the plan, then apply it. The
