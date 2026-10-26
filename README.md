@@ -11,9 +11,10 @@
 
 # libtmux for PowerShell
 
-[![LibTmux](https://img.shields.io/powershellgallery/v/LibTmux?include_prereleases&label=LibTmux)](https://www.powershellgallery.com/packages/LibTmux/)
-[![LibTmux.Workspace](https://img.shields.io/powershellgallery/v/LibTmux.Workspace)](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+[![powershell](https://github.com/libtmux/libtmux-powershell/actions/workflows/ci.yml/badge.svg)](https://github.com/libtmux/libtmux-powershell/actions/workflows/ci.yml)
+[![LibTmux](https://img.shields.io/powershellgallery/v/LibTmux?label=LibTmux)](https://www.powershellgallery.com/packages/LibTmux/)
 [![libtmux.org](https://img.shields.io/badge/docs-libtmux.org-0b7285)](https://libtmux.org/en/powershell/)
+[![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE)
 
 Drive [tmux](https://github.com/tmux/tmux) from PowerShell with native cmdlets.
 [Sessions][session], [windows][window] and [panes][pane] come back as typed
@@ -440,7 +441,7 @@ into a starting declaration.
 | Product | Use it for |
 | --- | --- |
 | [LibTmux](docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
-| [LibTmux.Workspace](docs/workspace.md#plan-and-review) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
+| [LibTmux.Workspace](docs/workspace.md#plan-and-review) [![LibTmux.Workspace](https://img.shields.io/powershellgallery/v/LibTmux.Workspace?label=LibTmux.Workspace)](https://www.powershellgallery.com/packages/LibTmux.Workspace) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
 | [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
 ### [LibTmux](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell): typed cmdlets for tmux

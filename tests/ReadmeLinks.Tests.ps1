@@ -117,6 +117,9 @@ Assert-PlantedStructure 'wall' (@('## Quick start', '', $long, '') + $tail) 'ove
 Assert-PlantedStructure 'wrapped wall' (@('## Quick start', '') + $wrapped + @('') + $tail) 'over 240'
 Assert-PlantedStructure 'list wall' (@('## Quick start', '', "- $long", '- Short.', '') + $tail) 'over 240'
 Assert-PlantedStructure 'long link target' (@('## Quick start', '', "[Text](https://example.com/$('a' * 300)) here.", '') + $tail) ''
+$badges = @(1..5 | ForEach-Object { "[![badge$_](https://img.shields.io/$('a' * 120))](https://example.com/$('b' * 120))" })
+Assert-PlantedStructure 'badge row' (@('## Quick start', '') + $badges + @('') + $tail) ''
+Assert-PlantedStructure 'prose after a badge' (@('## Quick start', '', "[![ci](https://img.shields.io/ci)](https://example.com/ci) $long", '') + $tail) 'over 240'
 Assert-PlantedStructure 'table row' (@('## Quick start', '', "| $long |", '| --- |', '') + $tail) ''
 Assert-PlantedStructure 'wrong first section' (@('## Install', '', 'Short.', '') + $tail) 'first section is not Quick start'
 Assert-PlantedStructure 'no leaves out' @('## Quick start', '', 'Short.', '', '## Support and status', '', '- Releases.') 'no What it leaves out section'
