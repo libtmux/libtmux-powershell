@@ -300,6 +300,7 @@ $script:ReadmeWallLimit = 240
 
 function Get-ReadmeRenderedText([string] $Text) {
     $plain = [regex]::Replace($Text, '<!--.*?-->', '')
+    $plain = [regex]::Replace($plain, '!\[[^\]]*\]\([^)]*\)', '')
     $plain = [regex]::Replace($plain, '\[(?<t>[^\]]*)\]\([^)]*\)', '${t}')
     [regex]::Replace($plain, '\[(?<t>[^\]]*)\]\[[^\]]*\]', '${t}').Replace('`', '')
 }
