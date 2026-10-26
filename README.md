@@ -25,7 +25,11 @@ with [`Get-TmuxSnapshot`][get-tmuxsnapshot], wait for output with
 [`Wait-TmuxPaneText`][wait-tmuxpanetext], and apply a reviewed workspace file
 with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
 
-**Alpha.** APIs may change. Both modules are available on PowerShell Gallery:
+Releases are numbered `0.1.N`, and each release increments `N`. The API is not
+settled: any release may change or remove exported identifiers, and the
+changelog marks each break. Pin an exact version to avoid one.
+
+Both modules are available on PowerShell Gallery:
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
 and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
@@ -52,21 +56,13 @@ Install the module from the PowerShell Gallery in PowerShell 7.4 or later
 7.4; Windows PowerShell 5.1 has no such command and cannot load the module:
 
 ```console
-$ Install-PSResource -Name LibTmux `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux
 ```
 
-Import it by its numeric version, `0.1.0`. The Gallery package adds the
-`alpha3` label:
+Import it:
 
 ```console
-$ Import-Module -Name LibTmux `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux -ErrorAction Stop
 ```
 
 [`New-TmuxServer`][new-tmuxserver] makes a handle on a socket and an empty tmux
@@ -340,20 +336,13 @@ Describe a session once in YAML or JSON, review the plan, then apply it.
 Installing the workspace module also installs its exact core dependency:
 
 ```console
-$ Install-PSResource -Name LibTmux.Workspace `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux.Workspace
 ```
 
-Import both modules by their numeric version:
+Import both modules:
 
 ```console
-$ Import-Module -Name LibTmux, LibTmux.Workspace `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 ```
 
 ### [`Import-TmuxWorkspace`][import-tmuxworkspace]: read a declaration
@@ -503,7 +492,7 @@ Install the tool on the Unix host that runs tmux:
 
 ```console
 $ dotnet tool install --global LibTmux.Mcp \
-    --version 0.0.0-alpha.24 \
+    --version 0.1.0 \
     --framework net8.0
 ```
 
@@ -562,7 +551,7 @@ $ tmux -V
 ```
 
 From the checkout root, restore the published
-[.NET alpha.24 packages](https://www.nuget.org/packages/LibTmux/0.0.0-alpha.24)
+[.NET 0.1.0 packages](https://www.nuget.org/packages/LibTmux/0.1.0)
 and build both PowerShell modules:
 
 ```console
@@ -643,8 +632,10 @@ default tmux server stays untouched.
 
 ## Support and status
 
-- **Releases.** Gallery packages carry a `0.1.0-alphaN` label, so pin an exact
-  version. PowerShell imports use the numeric `0.1.0`.
+- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
+  The API is not settled: any release may change or remove exported
+  identifiers, and the changelog marks each break. Pin an exact version to
+  avoid one.
 - **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
 - **tmux.** 3.3a or newer. CI runs 3.3a through 3.8 and tmux master; other
   releases are unverified. [Compatibility](docs/compatibility.md) holds the

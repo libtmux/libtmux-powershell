@@ -3,7 +3,7 @@
     ModuleVersion = '0.1.0'
     GUID = '56caa6c5-aab3-40d8-b5ad-289bd79780ab'
     Author = 'libtmux contributors'
-    Description = 'Workspace declarations and automation over LibTmux. Alpha.'
+    Description = 'Workspace declarations and automation over LibTmux.'
     PowerShellVersion = '7.4'
     CompatiblePSEditions = @('Core')
     RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '0.1.0' })
@@ -18,16 +18,14 @@
     AliasesToExport = @()
     PrivateData = @{
         PSData = @{
-            Prerelease = 'alpha3'
             Tags = @('tmux', 'tmuxp', 'workspace', 'Linux', 'macOS')
             ProjectUri = 'https://github.com/libtmux/libtmux-powershell'
             LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'
             ReleaseNotes = @'
-Alpha 3 prerelease (0.1.0-alpha3). Requires tmux 3.3a or newer, as the core
-module does.
+Requires tmux 3.3a or newer, as the core module does.
 
-Requires LibTmux 0.1.0-alpha3. Built on libtmux for .NET 0.0.0-alpha.24.
-APIs may change before a stable release.
+Requires the LibTmux package of the same version. Built on libtmux for .NET 0.1.0.
+The API is not settled: pin an exact version.
 https://github.com/libtmux/libtmux-dotnet
 
 Release details:

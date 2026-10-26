@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
-        "resolved": "0.0.0-alpha.24",
-        "contentHash": "a9sDRfME6vByIjVzRZporr6fHDDCuKCNkKcIcfXme6FtVfgBjHmfyHX4QWQRB5/q61CAJqFiqrg4CUBi6G+iqw==",
+        "requested": "[0.1.0, 0.1.0]",
+        "resolved": "0.1.0",
+        "contentHash": "cjfxW3WF0jS1vL1dRbGcSJfdUNod7MrxZD5Su3+y6MGLW0S6DywNdy2bEFkSBl9WIW6gELUoOC3yvPt+cvOKpQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Workspace": {
         "type": "Direct",
-        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
-        "resolved": "0.0.0-alpha.24",
-        "contentHash": "NeEMSvAeyIOxDDMBxwliyu3GCaCUEP3WVEf7UQnUWXImr3v15TcYiRchlJKF0wm5Ri/hIXypNYwJ1SvKEvuHtQ==",
+        "requested": "[0.1.0, 0.1.0]",
+        "resolved": "0.1.0",
+        "contentHash": "qLDzt5J77NTPMSEuQJCR77mIGJcwOoNsoMLJnrszruEFKDh50Q++r/DN1ZItcdm1+bqVp9RdltcFXutHBRe+uA==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.24",
+          "LibTmux": "0.1.0",
           "YamlDotNet": "18.1.0"
         }
       },
@@ -198,17 +198,17 @@
       "libtmux.powershell": {
         "type": "Project",
         "dependencies": {
-          "LibTmux": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
-          "LibTmux.Query.Json": "[0.0.0-alpha.24, 0.0.0-alpha.24]"
+          "LibTmux": "[0.1.0, 0.1.0]",
+          "LibTmux.Query.Json": "[0.1.0, 0.1.0]"
         }
       },
       "LibTmux.Query.Json": {
         "type": "CentralTransitive",
-        "requested": "[0.0.0-alpha.24, 0.0.0-alpha.24]",
-        "resolved": "0.0.0-alpha.24",
-        "contentHash": "5WtngPCqXyuz9n+fh1aN244bjGew+qLL62ZT250QnjqKMmOowyakdyT5dq32h5iOCeYoNAimNYzkT4iSmNb+Pg==",
+        "requested": "[0.1.0, 0.1.0]",
+        "resolved": "0.1.0",
+        "contentHash": "3gt35C+hu76/xTgS5JlHGHL+emi7/ZefZgEASWleV99lCTDyV38qSPMdZ44xbkp1p5G379DcN6y5RAue7l0VAw==",
         "dependencies": {
-          "LibTmux": "0.0.0-alpha.24"
+          "LibTmux": "0.1.0"
         }
       }
     }

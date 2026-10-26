@@ -28,15 +28,15 @@ support. Keep module, folder, and manifest casing consistent. Export cmdlets
 explicitly and do not export aliases that could shadow the `tmux` executable.
 Pin the bundled LibTmux dependency to an exact version when a project is added.
 
-Gallery releases use `0.1.0-alphaN`, starting at `0.1.0-alpha1` and
-incrementing N for each release, until the maintainer explicitly chooses a
-different release line or a stable release. This is independent of the
-LibTmux NuGet version. Keep `ModuleVersion = '0.1.0'` and set
-`PrivateData.PSData.Prerelease` to the release's `alphaN` suffix in both
-manifests. Workspace's package dependency requires the exact core prerelease;
-its runtime manifest uses numeric `RequiredVersion = '0.1.0'`. The first
-release uses `alpha1` and requires `LibTmux` `0.1.0-alpha1`. Record the bundled
-.NET dependency version in release notes.
+Gallery releases are numbered `0.1.N`: `0.1.0`, then `0.1.1`, `0.1.2` and so
+on, incrementing N for each release. A release carries no `-alpha` or other
+prerelease label unless the maintainer asks for one. This is independent of
+the LibTmux NuGet version. Set `ModuleVersion` to the release in both
+manifests and leave `PrivateData.PSData.Prerelease` unset. Workspace's package
+dependency requires the exact core version, and its runtime manifest uses the
+same numeric `RequiredVersion`. Record the bundled .NET dependency version in
+release notes. The earlier `0.1.0-alpha1` to `0.1.0-alpha3` releases stay on
+the Gallery as prereleases.
 Local package artifacts do not establish publication or platform support.
 
 ## Setup
@@ -52,7 +52,7 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-Both modules consume published .NET alpha.24 packages, pinned in
+Both modules consume published .NET 0.1.0 packages, pinned in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
 the optional `build/nuget` feed, and an isolated `build/packages` cache.
 Restore checks the committed lockfiles and stages both modules:
@@ -113,7 +113,7 @@ its full Git revision, `REVIEW_VERSION` to the new identifier, and
 `CORE_PACKAGES` to a new output directory. Use absolute directory paths.
 The checkout uses its own SDK pin; avoid running this recipe while another
 task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.0.0-alpha.24/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.1.0/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
@@ -394,18 +394,18 @@ $ gh workflow run release.yml \
 ```
 
 After a publishing-workflow repair, set `release_tag` to the existing
-annotated `v0.1.0-alphaN` tag and use that source commit's successful CI run.
+annotated `v0.1.N` tag and use that source commit's successful CI run.
 The tag must point to an ancestor of the workflow's `master` commit. This
 uses the repaired publishing code with the original tested archives; it
 does not rebuild packages or move the release tag. For example, validate
-the alpha2 archives:
+the `0.1.0` archives:
 
 ```console
 $ gh workflow run release.yml \
     --repo libtmux/libtmux-powershell \
     --ref master \
     --field ci_run_id="$CI_RUN_ID" \
-    --field release_tag=v0.1.0-alpha2 \
+    --field release_tag=v0.1.0 \
     --field publish=false
 ```
 
@@ -430,12 +430,12 @@ Workspace-only installation from PSGallery and executes installed examples.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Install the published alpha.24 tool in a fresh directory:
+module package. Install the published 0.1.0 tool in a fresh directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.0.0-alpha.24 \
+    --version 0.1.0 \
     --framework net8.0
 ```
 

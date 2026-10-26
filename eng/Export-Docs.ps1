@@ -162,7 +162,9 @@ try {
         })
         $moduleRecords.Add([ordered]@{
             name = $moduleName
-            version = "$($manifest.ModuleVersion)-$($manifest.PrivateData.PSData.Prerelease)"
+            version = if ($manifest.PrivateData.PSData.ContainsKey('Prerelease')) {
+                "$($manifest.ModuleVersion)-$($manifest.PrivateData.PSData.Prerelease)"
+            } else { $manifest.ModuleVersion }
             product = $product
             description = $manifest.Description
             powerShellVersion = $manifest.PowerShellVersion

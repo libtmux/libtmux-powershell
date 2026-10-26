@@ -32,20 +32,13 @@ Install the module on PowerShell 7.4 or later, with tmux on the same Linux
 host, including WSL:
 
 ```console
-$ Install-PSResource -Name LibTmux `
-    -Version 0.1.0-alpha3 `
-    -Prerelease `
-    -Repository PSGallery `
-    -Scope CurrentUser `
-    -TrustRepository
+$ Install-PSResource -Name LibTmux
 ```
 
-Import it by its numeric version, `0.1.0`:
+Import it:
 
 ```console
-$ Import-Module -Name LibTmux `
-    -RequiredVersion 0.1.0 `
-    -ErrorAction Stop
+$ Import-Module -Name LibTmux -ErrorAction Stop
 ```
 
 ### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server
@@ -125,8 +118,10 @@ builds sessions from YAML or JSON declarations.
 
 ## Support and status
 
-- **Alpha.** Gallery packages carry a `0.1.0-alphaN` label and APIs may change,
-  so pin an exact version. PowerShell imports use the numeric `0.1.0`.
+- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
+  The API is not settled: any release may change or remove exported
+  identifiers, and the changelog marks each break. Pin an exact version to
+  avoid one.
 - **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
   runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master;
   [compatibility][guide-compatibility] holds the contract.

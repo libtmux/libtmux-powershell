@@ -54,8 +54,8 @@ function Get-HostedCorePaneIdentity($Server) {
     $snapshot.Panes | ForEach-Object { $_.Id.ToString() }
 }
 
-$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path 'LibTmux.0.1.0-alpha3.nupkg'
-if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw 'PackageRoot must contain LibTmux.0.1.0-alpha3.nupkg.' }
+$package = Join-Path (Resolve-Path -LiteralPath $PackageRoot).Path "LibTmux.$((& "$PSScriptRoot/../eng/ReleaseVersion.ps1").PackageVersion).nupkg"
+if (!(Test-Path -LiteralPath $package -PathType Leaf)) { throw "PackageRoot must contain $(Split-Path -Leaf $package)." }
 $binary = (Resolve-Path -LiteralPath $TmuxBinaryPath).Path
 $destination = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputPath)
 if (Test-Path -LiteralPath $destination) { throw 'OutputPath already exists; choose a new report path.' }

@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 env:
-  CORE_REVISION: b1e8156b9332f0c6990033304c5932e8f2a260d5
-  CORE_PACKAGE_VERSION: '0.0.0-alpha.24'
+  CORE_REVISION: 472c2bcfbda6735139849324cc109ad70300001e
+  CORE_PACKAGE_VERSION: '0.1.0'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -229,7 +229,7 @@ jobs:
           jq -e --arg version "${CORE_VERSION}" \
             '.corePackageVersion == $version' \
             "${RUNNER_TEMP}/port-package/core-dependencies.json"
-          jq -e '.packages | length == 2 and ([.[].file] | sort) == ["LibTmux.0.1.0-alpha3.nupkg", "LibTmux.Workspace.0.1.0-alpha3.nupkg"]' \
+          jq -e '.version as $version | .packages | length == 2 and ([.[].file] | sort) == ["LibTmux.\($version).nupkg", "LibTmux.Workspace.\($version).nupkg"]' \
             "${RUNNER_TEMP}/port-package/package-evidence.json"
           jq -r '.packages[] | [.sha256, .file] | @tsv' \
             "${RUNNER_TEMP}/port-package/package-evidence.json" \

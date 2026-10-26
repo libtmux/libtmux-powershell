@@ -106,7 +106,7 @@ function Assert-PlantedStructure([string] $Name, [string[]] $Lines, [string] $Ex
     }
     if (!$Expected -and $found.Count) { throw "README structure control '$Name' rejected a clean page: $($found -join '; ')" }
 }
-$tail = @('## What it leaves out', '', '- Nothing.', '', '## Support and status', '', '- Alpha.')
+$tail = @('## What it leaves out', '', '- Nothing.', '', '## Support and status', '', '- Releases.')
 $long = 'word ' * 60
 $wrapped = @(($long.Trim() -split ' ') | ForEach-Object -Begin { $row = @() } -Process {
     $row += $_
@@ -119,7 +119,7 @@ Assert-PlantedStructure 'list wall' (@('## Quick start', '', "- $long", '- Short
 Assert-PlantedStructure 'long link target' (@('## Quick start', '', "[Text](https://example.com/$('a' * 300)) here.", '') + $tail) ''
 Assert-PlantedStructure 'table row' (@('## Quick start', '', "| $long |", '| --- |', '') + $tail) ''
 Assert-PlantedStructure 'wrong first section' (@('## Install', '', 'Short.', '') + $tail) 'first section is not Quick start'
-Assert-PlantedStructure 'no leaves out' @('## Quick start', '', 'Short.', '', '## Support and status', '', '- Alpha.') 'no What it leaves out section'
+Assert-PlantedStructure 'no leaves out' @('## Quick start', '', 'Short.', '', '## Support and status', '', '- Releases.') 'no What it leaves out section'
 Assert-PlantedStructure 'no support' @('## Quick start', '', 'Short.', '', '## What it leaves out', '', '- Nothing.') 'no Support and status section'
 
 # Logo controls: a faulty header or asset is reported; the real header passes.

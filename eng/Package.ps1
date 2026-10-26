@@ -4,9 +4,10 @@ param([Parameter(Mandatory)] [string] $DestinationPath)
 $ErrorActionPreference = 'Stop'
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
-$moduleVersion = '0.1.0'
-$prerelease = 'alpha3'
-$packageVersion = "$moduleVersion-$prerelease"
+$release = & "$PSScriptRoot/ReleaseVersion.ps1"
+$moduleVersion = $release.ModuleVersion
+$prerelease = $release.Prerelease
+$packageVersion = $release.PackageVersion
 $sourceCommit = (& git -C $root rev-parse HEAD).Trim()
 if ($LASTEXITCODE -or $sourceCommit -cnotmatch '^[0-9a-f]{40}$') {
     throw 'Cannot identify the package source commit.'
@@ -16,9 +17,9 @@ $names = @('LibTmux', 'LibTmux.Workspace')
 foreach ($name in $names) {
     if (Test-Path "$destination/$name.$packageVersion.nupkg") { throw 'The destination already contains a package. Choose a new artifact directory.' }
     $manifest = Import-PowerShellDataFile "$root/build/Modules/$name/$moduleVersion/$name.psd1"
-    if ($manifest.ModuleVersion -cne $moduleVersion -or
-        $manifest.PrivateData.PSData.Prerelease -cne $prerelease) {
-        throw 'The staged manifest does not identify the approved prerelease.'
+    $label = if ($manifest.PrivateData.PSData.ContainsKey('Prerelease')) { $manifest.PrivateData.PSData.Prerelease } else { '' }
+    if ($manifest.ModuleVersion -cne $moduleVersion -or $label -cne $prerelease) {
+        throw 'The staged manifest does not identify the approved release.'
     }
 }
 
@@ -39,7 +40,7 @@ function Set-WorkspacePackageDependency([string] $Path) {
             $dependencies[0].GetAttribute('version') -cne "[$moduleVersion]") {
             throw 'The compressed Workspace package has unexpected identity or dependencies.'
         }
-        # PowerShell requires a numeric runtime version; Gallery needs the alpha pin.
+        # PowerShell requires a numeric runtime version; a prerelease needs the Gallery pin.
         $dependencies[0].SetAttribute('version', "[$packageVersion]")
         $entry.Delete()
         $writer = [IO.StreamWriter]::new($archive.CreateEntry('LibTmux.Workspace.nuspec').Open())
