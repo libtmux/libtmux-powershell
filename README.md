@@ -12,6 +12,8 @@
 # libtmux for PowerShell
 
 [![LibTmux](https://img.shields.io/powershellgallery/v/LibTmux?include_prereleases&label=LibTmux)](https://www.powershellgallery.com/packages/LibTmux/)
+[![LibTmux.Workspace](https://img.shields.io/powershellgallery/v/LibTmux.Workspace)](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+[![libtmux.org](https://img.shields.io/badge/docs-libtmux.org-0b7285)](https://libtmux.org/en/powershell/)
 
 Drive [tmux](https://github.com/tmux/tmux) from PowerShell with native cmdlets.
 [Sessions][session], [windows][window] and [panes][pane] come back as typed
