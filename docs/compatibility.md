@@ -48,7 +48,7 @@ and its [evidence](#evidence).
 | Literal `refresh-client -l` | 3.6a | Refused by the raw-command cmdlets. | [`clipboard-query`](#evidence) |
 | Literal `select-layout` with a layout string | 3.4 for a layout without a checksum | Refused by the raw-command cmdlets. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
 | `Set-TmuxLayout` with `main-horizontal-mirrored` or `main-vertical-mirrored` | 3.5 | Refused. Use another preset. | [`layout-mirrored-main`](#evidence) |
-| `Set-TmuxLayout` with a JSON layout | 3.8-rc2 | Refused. Use the checksummed layout from `Layout`. | [`layout-json`](#evidence) |
+| `Set-TmuxLayout` with a JSON layout | 3.8-rc2 | Refused. Use the checksummed layout from [`$window.Layout`](https://libtmux.org/en/csharp/latest/reference/libtmux-window-layout/). | [`layout-json`](#evidence) |
 
 The raw-command cmdlets are `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand`. `Wait-TmuxPaneText` needs no refusal: it attaches
