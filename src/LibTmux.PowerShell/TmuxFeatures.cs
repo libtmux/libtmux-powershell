@@ -15,6 +15,7 @@ internal static class TmuxFeatures
 {
     internal static readonly TmuxVersion Control = Capabilities.SinceOf("control-mode");
     internal static readonly TmuxVersion NamedBuffers = Capabilities.SinceOf("buffer-delete-named");
+    internal static readonly TmuxVersion JsonLayout = Capabilities.SinceOf("layout-json");
 
     private static readonly WorkaroundClaim NameSeparators = Capabilities.Workaround("name-separators-rejected");
 
@@ -48,6 +49,28 @@ internal static class TmuxFeatures
                 + $"tmux {NamedBuffers} or newer; the endpoint reports {version}. No buffer was created.",
                 NamedBuffers,
                 version);
+        }
+    }
+
+    /// <summary>Refuses a JSON layout below the release that accepts one, before anything is sent.</summary>
+    /// <remarks>A JSON layout is a string that starts with an opening brace.</remarks>
+    internal static async Task RequireLayoutAsync(Server server, string? layout, CancellationToken cancellationToken)
+    {
+        if (layout is null || !layout.AsSpan().TrimStart().StartsWith("{", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        TmuxVersion version = await VersionAsync(server, cancellationToken).ConfigureAwait(false);
+        if (version >= LibTmuxInfo.MinimumTmuxVersion && version < JsonLayout)
+        {
+            throw new TmuxUnsupportedOnReleaseException(
+                $"tmux {version} does not accept a JSON layout; the layout was not sent. "
+                + $"Use a preset name or a layout read from the window, or use tmux {JsonLayout} or newer.",
+                version,
+                $"{JsonLayout.Raw} or newer",
+                "layout-json",
+                "select-layout");
         }
     }
 

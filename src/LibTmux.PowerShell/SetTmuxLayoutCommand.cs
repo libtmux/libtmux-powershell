@@ -39,13 +39,19 @@ public sealed class SetTmuxLayoutCommand : TmuxCmdlet
         };
         if (ShouldProcess(TmuxOwner.Describe(Window), "Set tmux window layout"))
         {
+            async Task<Window> ApplyAsync(CancellationToken token)
+            {
+                await RejectUnsendableLayoutAsync(Window.Server, Layout, token).ConfigureAwait(false);
+                return await Window.SelectLayoutAsync(request, token).ConfigureAwait(false);
+            }
+
             if (PassThru)
             {
-                ReadResult(token => Window.SelectLayoutAsync(request, token), "Tmux.LayoutSetFailed", Window);
+                ReadResult(ApplyAsync, "Tmux.LayoutSetFailed", Window);
             }
             else
             {
-                ExecuteOperation(token => Window.SelectLayoutAsync(request, token), "Tmux.LayoutSetFailed", Window);
+                ExecuteOperation(ApplyAsync, "Tmux.LayoutSetFailed", Window);
             }
         }
     }

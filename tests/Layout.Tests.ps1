@@ -62,6 +62,20 @@ exec $quotedTmux "`$@"
     $null = $laidOut | LibTmux\Set-TmuxLayout -Mode Spread -PassThru
     $saved = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $laidOut.Id.ToString(), '#{window_layout}')).StdOut.Trim()
     Assert-Layout (@($laidOut | LibTmux\Set-TmuxLayout -Layout $saved).Count -eq 0) 'saved layout emitted without PassThru'
+    # From tmux 3.8 the captured layout is JSON: the gate admits it and the daemon restores it.
+    if ($saved.StartsWith('{', [StringComparison]::Ordinal)) {
+        $null = $laidOut | LibTmux\Set-TmuxLayout -Layout 'even-vertical'
+        $changed = (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $laidOut.Id.ToString(), '#{window_layout}')).StdOut.Trim()
+        Assert-Layout ($changed -cne $saved) 'even-vertical did not change the layout before the JSON restore'
+        $jsonErrors = @()
+        $null = $laidOut | LibTmux\Set-TmuxLayout -Layout $saved -ErrorAction SilentlyContinue -ErrorVariable jsonErrors
+        Assert-Layout ($jsonErrors.Count -eq 0) 'a JSON layout was refused on a daemon that accepts it'
+        Assert-Layout ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '-t', $laidOut.Id.ToString(), '#{window_layout}')).StdOut.Trim() -ceq $saved) 'the JSON layout was not restored'
+    } else {
+        $banner = (& $fixture.TmuxPath -V)
+        Assert-Layout ($banner -match '^\S+ (?:next-)?(\d+\.\d+)' -and [version] $Matches[1] -lt [version] '3.8') `
+            "tmux reports a classic layout but its banner '$banner' is not below 3.8"
+    }
 
     $beforeInvalid = [IO.File]::ReadAllLines($trace).Length
     foreach ($operation in @(

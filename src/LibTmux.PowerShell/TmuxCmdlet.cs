@@ -22,6 +22,16 @@ public abstract class TmuxCmdlet : PSCmdlet, IDisposable
     protected static Task RejectUnsendableNameAsync(Server server, string kind, string? name, CancellationToken cancellationToken, string? command = null) =>
         TmuxFeatures.RequireNameAsync(server, kind, name, cancellationToken, command);
 
+    /// <summary>Refuses a JSON layout that the endpoint's daemon rejects.</summary>
+    /// <param name="server">The endpoint that would receive the layout.</param>
+    /// <param name="layout">The layout an operation is about to send.</param>
+    /// <param name="cancellationToken">Cancels the version read.</param>
+    /// <returns>A task that completes when the layout is acceptable.</returns>
+    /// <exception cref="TmuxUnsupportedOnReleaseException">The daemon's release rejects a JSON layout.</exception>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    protected static Task RejectUnsendableLayoutAsync(Server server, string? layout, CancellationToken cancellationToken) =>
+        TmuxFeatures.RequireLayoutAsync(server, layout, cancellationToken);
+
     /// <summary>Waits for a core operation and writes its completed result.</summary>
     /// <typeparam name="T">The core result type.</typeparam>
     /// <param name="operation">The cancellable core operation.</param>
