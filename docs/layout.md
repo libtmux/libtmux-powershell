@@ -34,6 +34,8 @@ A captured [`$window.Layout`][window-layout] can be passed back as `-Layout`. On
 tmux 3.7 and earlier, restoring its sizes can rotate which pane occupies a
 position; it does not guarantee pane identity at each position.
 
+A JSON layout needs tmux 3.8; see [compatibility](compatibility.md).
+
 Set a pane's width in a window with a horizontal split:
 
 <!-- example: layout.pane-size -->

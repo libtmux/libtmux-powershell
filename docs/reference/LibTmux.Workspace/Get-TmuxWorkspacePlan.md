@@ -325,6 +325,11 @@ endpoint observation. Planning errors preserve the native exception with the
 Tmux.WorkspacePlanFailed identifier; invalid policy values use
 Tmux.InvalidWorkspacePolicy.
 
+A JSON window layout needs tmux 3.8. On an earlier daemon planning fails with
+LibTmux.Workspace.WorkspaceFormatException, whose inner exception is the
+LibTmux.TmuxUnsupportedOnReleaseException refusal for layout-json, and nothing
+is created.
+
 ## RELATED LINKS
 
 [Invoke-TmuxWorkspace](Invoke-TmuxWorkspace.md)
