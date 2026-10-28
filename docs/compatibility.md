@@ -48,7 +48,7 @@ and its [evidence](#evidence).
 | Literal `refresh-client -l` | 3.6a | Refused by the raw-command cmdlets. | [`clipboard-query`](#evidence) |
 | Literal `select-layout` with a layout string | 3.4 for a layout without a checksum | Refused by the raw-command cmdlets. Use a preset name or a layout read from tmux. | [`layout-without-checksum`](#evidence) |
 | `Set-TmuxLayout` with `main-horizontal-mirrored` or `main-vertical-mirrored` | 3.5 | Refused. Use another preset. | [`layout-mirrored-main`](#evidence) |
-| `Set-TmuxLayout` with a JSON layout | 3.8-rc2 | Refused. Use the checksummed layout from [`$window.Layout`](https://libtmux.org/en/csharp/latest/reference/libtmux-window-layout/). | [`layout-json`](#evidence) |
+| `Set-TmuxLayout` or a workspace window (`Get-TmuxWorkspacePlan`) with a JSON layout | 3.8 | Refused. Use the checksummed layout from [`$window.Layout`](https://libtmux.org/en/csharp/latest/reference/libtmux-window-layout/). The raw-command cmdlets and control connections are not gated; tmux reports the error. | [`layout-json`](#evidence) |
 
 The raw-command cmdlets are `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
 `Invoke-TmuxControlCommand`. `Wait-TmuxPaneText` needs no refusal: it attaches
@@ -113,8 +113,8 @@ pinned to the commit of the release these modules build on.
   ["Add mirrored versions of the main-horizontal and main-vertical layouts"](https://github.com/tmux/tmux/blob/ac44566/CHANGES#L27), so
   an earlier release rejects the preset. See also the
   [refusal types](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L196-L199).
-- `layout-json`: tmux 3.8-rc2 lists
-  ["Layout strings now use a JSON subset format"](https://github.com/tmux/tmux/blob/17d32ae/CHANGES#L38), so an
+- `layout-json`: tmux 3.8 lists
+  ["Layout strings now use a JSON subset format"](https://github.com/tmux/tmux/blob/7f2a35a/CHANGES#L38), so an
   earlier release rejects the JSON form.
 
 ### What the checks do not read

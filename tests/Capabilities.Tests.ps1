@@ -51,6 +51,14 @@ foreach ($entry in $entries) {
     }
 }
 foreach ($id in $baseOnly) { Assert-Capabilities ($id -cin $ids) "$id is missing from the manifest" }
+# A JSON layout is a promise at the release, tmux 3.8: 3.7c is below it and 3.8 is at it. 3.8a is
+# only a sample that orders above 3.8; it is not a release.
+$jsonLayout = @($manifest.capabilities | Where-Object { $_.id -ceq 'layout-json' })[0]
+Assert-Capabilities ($jsonLayout.since -ceq '3.8') "layout-json starts at '$($jsonLayout.since)' rather than 3.8"
+$jsonFloor = [LibTmux.TmuxVersion]::Parse($jsonLayout.since)
+Assert-Capabilities ([LibTmux.TmuxVersion]::Parse('3.7c') -lt $jsonFloor) 'layout-json admits 3.7c'
+Assert-Capabilities ([LibTmux.TmuxVersion]::Parse('3.8') -ge $jsonFloor) 'layout-json refuses 3.8'
+Assert-Capabilities ([LibTmux.TmuxVersion]::Parse('3.8a') -gt [LibTmux.TmuxVersion]::Parse('3.8')) '3.8a does not order above 3.8'
 foreach ($entry in $entries) {
     Assert-Capabilities (@($entry.apis).Count -gt 0) "$($entry.id) names no API"
     foreach ($api in $entry.apis) {

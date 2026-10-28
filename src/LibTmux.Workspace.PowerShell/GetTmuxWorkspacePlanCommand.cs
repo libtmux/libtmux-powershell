@@ -80,6 +80,24 @@ public sealed class GetTmuxWorkspacePlanCommand : TmuxCmdlet
 
     /// <inheritdoc />
     protected override void ProcessRecord() =>
-        ReadResult(token => new WorkspaceBuilder(Server).PlanAsync(Workspace, policy, token),
-            "Tmux.WorkspacePlanFailed", Workspace);
+        ReadResult(async token =>
+        {
+            // Refuse here first so the refusal names layout-json and "3.8 or newer", not the package's
+            // own floor. Wrap it as planning wraps the other refusals: in WorkspaceFormatException.
+            foreach (WorkspaceWindow window in Workspace.Windows)
+            {
+                try
+                {
+                    await RejectUnsendableLayoutAsync(Server, window.Layout, token).ConfigureAwait(false);
+                }
+                catch (TmuxUnsupportedOnReleaseException refusal)
+                {
+                    throw new WorkspaceFormatException(
+                        $"Workspace window '{window.WindowName}' has a layout this tmux release does not accept. {refusal.Message}",
+                        refusal);
+                }
+            }
+
+            return await new WorkspaceBuilder(Server).PlanAsync(Workspace, policy, token).ConfigureAwait(false);
+        }, "Tmux.WorkspacePlanFailed", Workspace);
 }

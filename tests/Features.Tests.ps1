@@ -15,9 +15,14 @@ function Assert-True([bool] $Condition, [string] $Message) {
 # A wrapper that claims a daemon version to the package's version probe and passes everything else
 # through. The probe and the guard on later batches each carry the version in one argument; the
 # guard is pointed back at the real version so the batch is not mistaken for a replaced daemon.
-function New-ClaimingWrapper([string] $Directory, [string] $Real, [string] $Claim, [string] $RealVersion) {
+# StopSelectLayout records a select-layout call and exits 0 without running tmux.
+function New-ClaimingWrapper([string] $Directory, [string] $Real, [string] $Claim, [string] $RealVersion, [string] $ArgvLog = '', [switch] $StopSelectLayout) {
     $path = Join-Path $Directory ('tmux-' + [Guid]::NewGuid().ToString('N'))
     $quoted = "'" + $Real.Replace("'", "'\''") + "'"
+    $quotedLog = "'" + $ArgvLog.Replace("'", "'\''") + "'"
+    # With a log, every argument of every call is appended on a line of its own, so a test can see what reached tmux.
+    $record = if ($ArgvLog) { 'for arg; do printf ''%s\n'' "$arg"; done >> ' + $quotedLog } else { ':' }
+    $stop = if ($StopSelectLayout) { 'for arg; do case "$arg" in select-layout) exit 0;; esac; done' } else { ':' }
     @"
 #!/bin/sh
 for arg; do
@@ -28,6 +33,8 @@ for arg; do
     esac
     set -- "`$@" "`$arg"
 done
+$record
+$stop
 exec $quoted "`$@"
 "@ | Set-Content -LiteralPath $path -NoNewline
     [IO.File]::SetUnixFileMode($path, [IO.UnixFileMode]::UserRead -bor
@@ -357,7 +364,8 @@ windows:
     foreach ($case in @(
         @{ Claim = '3.4'; Layout = 'main-horizontal-mirrored'; Id = 'layout-mirrored-main'; Safe = '3.5 or newer' },
         @{ Claim = '3.4'; Layout = 'main-vertical-mirrored'; Id = 'layout-mirrored-main'; Safe = '3.5 or newer' },
-        @{ Claim = '3.7'; Layout = '{"V":2,"L":{"t":"p"}}'; Id = 'layout-json'; Safe = '3.8-rc2 or newer' }
+        @{ Claim = '3.7c'; Layout = '{"V":2,"L":{"t":"p"}}'; Id = 'layout-json'; Safe = '3.8 or newer' },
+        @{ Claim = '3.7c'; Layout = ' {"V":2,"L":{"t":"p"}}'; Id = 'layout-json'; Safe = '3.8 or newer' }
     )) {
         $layoutWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath $case.Claim $realRaw
         $layoutServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $layoutWrapper
@@ -367,6 +375,22 @@ windows:
         Assert-True (Test-Unsupported $errors $case.Id $case.Claim $case.Safe '*') `
             "Set-TmuxLayout $($case.Layout) was not refused as TmuxUnsupportedOnReleaseException on a claimed $($case.Claim)"
     }
+    # A JSON layout on a daemon that claims 3.8 passes the gate and is handed to tmux: the wrapper
+    # records select-layout with the layout itself. The wrapper stops that call there, so no real
+    # daemon below 3.8 sees the JSON layout (3.3a crashes on it); the real JSON restore in
+    # Layout.Tests.ps1 is the strict acceptance check.
+    $jsonLayout = '{"V":2,"L":{"t":"p"}}'
+    $argvLog = Join-Path $bin ('argv-' + [Guid]::NewGuid().ToString('N'))
+    $layoutWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath '3.8' $realRaw $argvLog -StopSelectLayout
+    $layoutServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $layoutWrapper
+    $layoutWindow = $layoutServer | Get-TmuxSession -Name fixture | Get-TmuxWindow | Select-Object -First 1
+    $errors = @()
+    $null = $layoutWindow | Set-TmuxLayout -Layout $jsonLayout -ErrorAction SilentlyContinue -ErrorVariable errors
+    Assert-True (@($errors | Where-Object { $_.Exception -is [LibTmux.TmuxUnsupportedOnReleaseException] }).Count -eq 0) `
+        'Set-TmuxLayout refused a JSON layout on a claimed 3.8'
+    $sent = @(if (Test-Path -LiteralPath $argvLog) { Get-Content -LiteralPath $argvLog })
+    Assert-True (($sent -ccontains 'select-layout') -and ($sent -ccontains $jsonLayout)) `
+        'Set-TmuxLayout did not send select-layout with the JSON layout on a claimed 3.8'
     $layoutWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath '3.4' $realRaw
     $layoutServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $layoutWrapper
     $layoutWindow = $layoutServer | Get-TmuxSession -Name fixture | Get-TmuxWindow | Select-Object -First 1
@@ -398,6 +422,36 @@ windows:
         $errors[0].CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::NotImplemented -and
         $null -eq $errors[0].ErrorDetails) `
         'a workspace layout that the release lacks did not carry the refusal as the inner exception'
+
+    # A workspace window with a JSON layout is gated like Set-TmuxLayout: refused on a claimed 3.7c
+    # and let through on a claimed 3.8, before the first action creates anything.
+    $jsonDeclaration = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
+session_name: json-workspace
+windows:
+  - window_name: json
+    layout: '{"V":2,"L":{"t":"p"}}'
+    panes:
+      - shell_command: exec /bin/sh
+'@
+    foreach ($claim in @('3.7c', '3.8')) {
+        $jsonWrapper = New-ClaimingWrapper $bin $fixture.TmuxPath $claim $realRaw
+        $jsonServer = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $jsonWrapper
+        $errors = @()
+        $jsonPlan = $jsonDeclaration.Resolve($fixture.DirectoryPath, $null) |
+            LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $jsonServer -ErrorAction SilentlyContinue -ErrorVariable errors
+        if ($claim -ceq '3.8') {
+            Assert-True ($null -ne $jsonPlan -and $errors.Count -eq 0) 'a workspace JSON layout was refused on a claimed 3.8'
+        } else {
+            Assert-True ($null -eq $jsonPlan -and $errors.Count -eq 1 -and
+                $errors[0].Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+                $errors[0].Exception.InnerException.GetType() -ceq [LibTmux.TmuxUnsupportedOnReleaseException] -and
+                $errors[0].Exception.InnerException.CapabilityId -ceq 'layout-json' -and
+                $errors[0].Exception.InnerException.SafeReleases -ceq '3.8 or newer' -and
+                $errors[0].CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::NotImplemented) `
+                "a workspace JSON layout was not refused as layout-json on a claimed $claim"
+        }
+    }
+    Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim() -ceq 'fixture') 'a refused workspace JSON layout changed the sessions'
 
     # Commands sent over a connection from Connect-TmuxControl carry the same guards; the package
     # checks them.

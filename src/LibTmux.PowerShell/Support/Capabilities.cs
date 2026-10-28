@@ -153,10 +153,10 @@ internal static class Capabilities
             "layout-json",
             "JSON layouts",
             "Apply a layout in the JSON form that tmux reports.",
-            "3.8-rc2",
+            "3.8",
             ClaimHandling.Refuse,
             "LibTmux.TmuxUnsupportedOnReleaseException",
-            ["Set-TmuxLayout"],
+            ["Set-TmuxLayout", "Get-TmuxWorkspacePlan"],
             [new("select-layout")]),
         new(
             "clipboard-query",

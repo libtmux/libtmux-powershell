@@ -2,6 +2,15 @@
 
 ## 0.1.1 - Unreleased
 
+### Bug fixes
+
+- `Set-TmuxLayout` and `Get-TmuxWorkspacePlan` now refuse a JSON layout on a
+  tmux older than 3.8 before anything is sent, raising
+  `LibTmux.TmuxUnsupportedOnReleaseException` with `CapabilityId` `layout-json`
+  and `SafeReleases` "3.8 or newer". Planning wraps it in a
+  `WorkspaceFormatException`. Installed tmux releases behave as before: each
+  one that refused a JSON layout still refuses it, and 3.8 applies it. (#51)
+
 ## 0.1.0 - 2026-10-25
 
 ### Breaking changes
