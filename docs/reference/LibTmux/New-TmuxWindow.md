@@ -282,7 +282,7 @@ created resources. Cancellation does not prove that creation was rolled back; no
 mutation is retried. Per-owner errors use Tmux.WindowCreateFailed and retain the
 core exception and failed session. ErrorAction Continue allows later owners to
 run. A name with a colon or a period on exactly tmux 3.7 reports
-LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing.
+LibTmux.TmuxUnsupportedOnReleaseException as its error before creating the window.
 
 ## RELATED LINKS
 

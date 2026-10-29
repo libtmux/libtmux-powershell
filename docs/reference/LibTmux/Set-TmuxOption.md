@@ -129,7 +129,8 @@ HelpMessage: ''
 
 ### -Global
 
-Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.
+Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter

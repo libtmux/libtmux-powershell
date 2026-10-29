@@ -26,10 +26,10 @@ Development builds rank below the release they name: `next-3.3a` and
 
 ## Optional features
 
-A feature that a release cannot run safely is refused for that cmdlet alone;
-the error says why, and nothing is sent first. Each requirement is per
-feature, so the floor for reads, writes, raw commands and workspaces stays
-tmux 3.3a.
+A feature that a release cannot run safely is refused for that cmdlet alone,
+before the requested operation is sent. Version checks may still contact tmux.
+Each requirement is per feature, so the floor for reads, writes, raw commands
+and workspaces stays tmux 3.3a.
 
 [`capabilities.json`](../capabilities.json) is the machine-readable list of
 these features: each entry names the capability, the release it needs, the
@@ -78,8 +78,10 @@ These inputs are caller errors on every release and are not release refusals:
 
 ### Evidence
 
-Each requirement rests on a published source. The libtmux for .NET pages are
-pinned to the commit of the release these modules build on.
+Each requirement rests on a published source. The libtmux for .NET links below
+record the compatibility investigations; they do not identify this checkout's
+dependency version. [Directory.Packages.props](../Directory.Packages.props)
+holds the current package pins.
 
 - `control-mode`: before 3.7, a notification that fires while a control
   client identifies itself crashes the whole server, as the
@@ -144,8 +146,8 @@ this page lists as refused.
 Every cmdlet that talks to tmux goes through the
 [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) package, which
 reads the version of the connected daemon first and refuses an older or
-unreadable one before it sends anything. The client executable does not
-decide this: an older daemon is refused even when the selected executable
+unreadable one before it sends the requested operation. The client executable
+does not decide this: an older daemon is refused even when the selected executable
 reports a newer version. Operations return a `LibTmux.TmuxVersionTooLowException`
 error rather than an empty result. When no daemon answers, the executable's own
 version is checked before it can start one; a read, which starts nothing,

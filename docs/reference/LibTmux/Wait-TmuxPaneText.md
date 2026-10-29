@@ -36,9 +36,10 @@ Stop patterns return `Stopped`; the deadline and a pane exit return `TimedOut`
 and `PaneExited`. These are native `LibTmux.PaneWaitResult` outcomes, not cmdlet
 errors. Inspect `Outcome` before treating a wait as readiness.
 
-The observer attaches a temporary control client before its first capture.
-Control events wake a grid-aware reader; matching uses captured rendered rows,
-not individual output fragments. Results include a bounded final screen tail,
+On tmux 3.7 and newer, the observer attaches a temporary control client before
+its first capture. Control events wake a grid-aware reader; matching uses
+captured rendered rows, not individual output fragments. Results include a
+bounded final screen tail,
 elapsed and effective timeout, dropped-event count, polling fallback, and
 missed-line or lost-anchor indicators. The default view shows `Missed` and
 omits the tail; inspect `Tail` explicitly if you need its text. A lost event
