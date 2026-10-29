@@ -24,6 +24,9 @@ Development builds rank below the release they name: `next-3.3a` and
 `3.3a-rc` do not qualify, and a report without a dated release, such as
 `master`, is refused.
 
+tmux release candidates are not supported: a feature can require one only
+until its release ships. See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#release-candidates).
+
 ## Optional features
 
 A feature that a release cannot run safely is refused for that cmdlet alone;
