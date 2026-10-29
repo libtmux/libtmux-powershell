@@ -1,8 +1,9 @@
 # Read and change options
 
 Pass a native server, session, window or pane to select its option table.
-Use `-Scope` to override the table and `-Global` for that scope's global
-defaults. For example, a server handle with `-Scope Session -Global`
+Use `-Scope` to override the table and `-Global` to request global defaults.
+tmux still selects pane-local options when pane scope is requested; `-Global`
+does not make them global. A server handle with `-Scope Session -Global`
 addresses global session defaults. Choose the endpoint explicitly with
 [New-TmuxServer](reference/LibTmux/New-TmuxServer.md).
 

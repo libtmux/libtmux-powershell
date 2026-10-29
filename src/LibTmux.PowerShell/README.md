@@ -31,6 +31,9 @@ and the [PowerShell Gallery page](https://www.powershellgallery.com/packages/Lib
 
 ## Quick start
 
+The command-completion example below needs tmux 3.4 or newer. Ordinary reads
+and writes support tmux 3.3a; see [optional features][guide-compatibility].
+
 Install the module on PowerShell 7.4 or later, with tmux on the same Linux
 host, including WSL:
 

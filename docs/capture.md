@@ -42,8 +42,11 @@ extra trailing newline. Internal empty lines remain empty lines. An empty
 capture emits no objects normally and one empty string with `-Raw`.
 
 This is rendered terminal text, not original process output or a byte-exact
-stream. Sending input does not establish command completion: use a cooperative
-wait channel or control event before asserting captured results.
+stream. Sending input or receiving a pane-output event does not establish
+command completion. Use an explicit completion signal from the application,
+such as a cooperative wait channel, or
+[Invoke-TmuxPaneCommand](input.md#run-a-command-to-completion) before asserting
+completed command output.
 
 | Switch | Effect |
 | --- | --- |

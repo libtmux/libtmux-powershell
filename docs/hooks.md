@@ -2,8 +2,8 @@
 
 Use a native server, session, window or pane to select a hook table. Server
 hooks are global; tmux has no separate server hook table. Choose a hook
-supported in the selected scope. `-Scope` overrides the scope and `-Global`
-selects its global table.
+supported in the selected scope. For reads and changes, `-Scope` overrides the
+scope and `-Global` requests global defaults; pane-local hooks stay local.
 
 Inspect a configured hook on a previously selected `$session`:
 
@@ -34,7 +34,9 @@ replaces entries. `-Append` keeps them and lets tmux choose a free index,
 which may precede existing sparse indices. Use explicit indices when order
 matters. Multiple changes do not form an atomic replacement.
 
-Run a previously configured hook without waiting for its event:
+Run a previously configured base hook without waiting for its event.
+`Invoke-TmuxHook` uses tmux's target-context lookup; `-Scope` and `-Global` do
+not force a particular table, and an indexed name does not select one entry:
 
 <!-- example: hooks.invoke -->
 ```powershell

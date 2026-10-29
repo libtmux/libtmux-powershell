@@ -384,7 +384,7 @@ WhatIf leaves the connection usable.</maml:para>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
         <maml:name>Connection</maml:name>
         <maml:description>
-          <maml:para>The native control client. This operation borrows the supplied client.</maml:para>
+          <maml:para>The native control client to close. Other callers sharing it lose the client.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
         <dev:type>
@@ -1138,7 +1138,8 @@ the global table. Omit Name to list the selected scope.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -1294,8 +1295,9 @@ $session | LibTmux\Get-TmuxHook -Name 'alert-bell'
       <command:noun>TmuxOption</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>The native owner selects its option table. Scope overrides that choice, and Global
-selects global defaults. A named read emits each native TmuxOption row, preserving
+      <maml:para>The native owner selects its option table. Scope overrides that choice, and
+Global requests global defaults; pane-local options still use the pane table.
+A named read emits each native TmuxOption row, preserving
 sparse array indices, inherited markers and TmuxOptionValue fields. Omit Name to
 list the table. IncludeInherited requests inherited values explicitly.
 
@@ -1529,7 +1531,8 @@ rows for local PowerShell filtering.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -3129,8 +3132,9 @@ result is merged stdout/stderr, not one receipt per command. Chains are not
 transactions. Cancellation cannot undo a command already sent to tmux.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
-needs another release raises LibTmux.TmuxVersionTooLowException. A session
+tmux release are refused before the requested commands are dispatched. Version
+checks may still contact tmux. A command that needs another release raises
+LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
 before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the
 type that TmuxVersionTooLowException derives from, so one catch of it covers
@@ -3326,7 +3330,7 @@ $server | LibTmux\Invoke-TmuxChain -Command $commands
     <maml:description>
       <maml:para>Pass the tmux command name and arguments as a string array. The adapter invokes the core directly without a shell. It returns a native TmuxCommandResult only on success; a nonzero exit writes an error retaining the result, target and dispatch metadata.
 
-Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before dispatch, so nothing is sent. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the type that TmuxVersionTooLowException derives from, so one catch of it covers every refusal. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
+Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before the requested command is dispatched. Version checks may still contact tmux. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the type that TmuxVersionTooLowException derives from, so one catch of it covers every refusal. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -3479,7 +3483,7 @@ the borrowed client. A later send remains usable after the cancelled command
 finishes. WhatIf sends nothing; an empty connection pipeline performs no work.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
+tmux release are refused before the requested command is dispatched. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects raises
 LibTmux.TmuxUnsupportedOnReleaseException, the type that
@@ -3843,7 +3847,7 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Confirm</maml:name>
         <maml:description>
-          <maml:para>Ask for confirmation before changing the selected table.</maml:para>
+          <maml:para>Ask for confirmation before running the hook.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -3852,7 +3856,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Immediate hook invocation still uses target-context
+lookup; this flag does not force the global definition.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -3861,7 +3866,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Name</maml:name>
         <maml:description>
-          <maml:para>The tmux hook name, optionally indexed for a specific entry. tmux expands formats in names.</maml:para>
+          <maml:para>The base tmux hook name. An indexed name does not select one entry for immediate
+invocation. tmux expands formats in names.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>
@@ -3881,7 +3887,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Scope</maml:name>
         <maml:description>
-          <maml:para>Override the owner scope with Server, Session, Window or Pane. Omission uses the native owner scope.</maml:para>
+          <maml:para>Pass an explicit scope to tmux. Immediate hook invocation still uses
+target-context lookup rather than forcing this table.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">LibTmux.OptionScope</command:parameterValue>
         <dev:type>
@@ -3975,9 +3982,10 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
     <maml:alertSet>
       <maml:alert>
         <maml:para>Server hooks are the global hook table; tmux has no separate server hook table.
-Choose a hook supported by the selected scope. Scope and Global pass through to
-tmux without remapping the owner. Empty pipelines do no I/O. Errors retain the
-native owner and core exception; Continue permits later owners and Stop terminates.
+Scope and Global pass through to tmux without remapping the owner or forcing
+the lookup table for immediate invocation. Empty pipelines do no I/O. Errors
+retain the native owner and core exception; Continue permits later owners and
+Stop terminates.
 Cancellation cannot undo commands already dispatched. Multiple mutations are
 sequential, not an atomic replacement.</maml:para>
       </maml:alert>
@@ -5481,7 +5489,7 @@ it is not rollback and the module does not retry. Per-owner errors use
 Tmux.SessionCreateFailed and retain the core exception and failed server.
 ErrorAction Continue allows later owners to run. A WindowName with a colon or
 a period on exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException
-as its error and sends nothing. A Name with either character is refused on every
+as its error before creating the session. A Name with either character is refused on every
 release with ArgumentException.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -5737,7 +5745,7 @@ created resources. Cancellation does not prove that creation was rolled back; no
 mutation is retried. Per-owner errors use Tmux.WindowCreateFailed and retain the
 core exception and failed session. ErrorAction Continue allows later owners to
 run. A name with a colon or a period on exactly tmux 3.7 reports
-LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing.</maml:para>
+LibTmux.TmuxUnsupportedOnReleaseException as its error before creating the window.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -6441,7 +6449,8 @@ Other scopes are preserved. WhatIf performs no tmux I/O.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -6873,7 +6882,8 @@ also removes pane overrides through tmux -U. WhatIf performs no tmux I/O.</maml:
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -9119,7 +9129,8 @@ PassThru emits the whole grouped hook readback. WhatIf performs no tmux I/O.</ma
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -9467,7 +9478,7 @@ replacement Window and leave the original capture unchanged.</maml:para>
 tmux 3.7 and earlier. It does not guarantee the same pane IDs occupy the same
 positions. A mirrored main layout needs tmux 3.5 and a JSON layout needs
 tmux 3.8; on an earlier daemon the cmdlet reports
-LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing. A
+LibTmux.TmuxUnsupportedOnReleaseException as its error before applying the layout. A
 layout that is malformed or unknown reports LibTmux.TmuxWindowException on
 every release. A disappeared target or stale generation writes a per-target error.
 Use -ErrorAction Stop to terminate. Cancellation cannot undo an already
@@ -9911,7 +9922,8 @@ the argument. An empty string remains a value. WhatIf performs no tmux I/O.</mam
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -11434,9 +11446,10 @@ Stop patterns return Stopped; the deadline and a pane exit return TimedOut
 and PaneExited. These are native LibTmux.PaneWaitResult outcomes, not cmdlet
 errors. Inspect Outcome before treating a wait as readiness.
 
-The observer attaches a temporary control client before its first capture.
-Control events wake a grid-aware reader; matching uses captured rendered rows,
-not individual output fragments. Results include a bounded final screen tail,
+On tmux 3.7 and newer, the observer attaches a temporary control client before
+its first capture. Control events wake a grid-aware reader; matching uses
+captured rendered rows, not individual output fragments. Results include a
+bounded final screen tail,
 elapsed and effective timeout, dropped-event count, polling fallback, and
 missed-line or lost-anchor indicators. The default view shows Missed and
 omits the tail; inspect Tail explicitly if you need its text. A lost event
@@ -11996,10 +12009,13 @@ The native upstream queue separately defaults to 512 events and 4 MiB of
 decoded UTF-8 payload. Configure its positive ControlModeEventBufferCapacity
 and ControlModeEventBufferMaxBytes through ServerConnectionOptions before
 connecting. Queue bytes include output data, notification names and arguments,
-and exit reasons, excluding pane IDs and object overhead. Oldest events are
-discarded until both queue limits hold. An oversized event is dropped; an
-oversized exit reason is omitted while the exit event remains. Loss is reported
-by TmuxEventsDroppedEvent without blocking command replies.
+and exit reasons, excluding pane IDs and object overhead. Under count pressure,
+the queue discards the oldest output from the pane with the most queued output
+events; under byte pressure it selects the pane with the most queued output
+bytes. If no output remains, it discards the oldest notification. An oversized
+event is dropped; an oversized exit reason is omitted while the exit event
+remains. Loss is reported by TmuxEventsDroppedEvent without blocking command
+replies.
 
 Ctrl+C, pipeline early exit and module removal stop the reader and await its
 disposal. Module removal cancels active watches only in the importing runspace;
