@@ -20,9 +20,9 @@ and source builds. Publication does not expand the tested platforms below.
 
 The minimum for ordinary operations is tmux 3.3a. Versions compare as whole
 releases, so 3.3 is below the floor and 3.3a is the first supported release.
-Development builds rank below the release they name: `next-3.3a` and
-`3.3a-rc` do not qualify, and a report without a dated release, such as
-`master`, is refused.
+Development builds and release candidates rank below the release they name:
+`next-3.3a` and a candidate of 3.3a do not qualify, and a report without a
+dated release, such as `master`, is refused.
 
 tmux release candidates are not supported: a feature can require one only
 until its release ships. See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#release-candidates).
