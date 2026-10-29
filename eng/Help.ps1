@@ -44,6 +44,10 @@ try {
         $name = "$module.PowerShell.dll-Help.xml"
         $generated = @(Get-ChildItem $output -Filter $name -Recurse)
         if ($generated.Count -ne 1) { throw "Expected one generated $name." }
+        # PlatyPS exports blank example paragraphs as a visible control character.
+        $maml = [IO.File]::ReadAllText($generated[0].FullName)
+        $maml = $maml.Replace('<maml:para>&#x80;</maml:para>', '<maml:para />')
+        [IO.File]::WriteAllText($generated[0].FullName, $maml, [Text.UTF8Encoding]::new($false))
         $destination = "$root/module/$module/en-US/$name"
         if ($Check) {
             if (!(Test-Path $destination) -or

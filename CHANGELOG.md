@@ -10,6 +10,8 @@
   and `SafeReleases` "3.8 or newer". Planning wraps it in a
   `WorkspaceFormatException`. Installed tmux releases behave as before: each
   one that refused a JSON layout still refuses it, and 3.8 applies it. (#51)
+- Preserve blank lines in native help examples without displaying control
+  characters.
 
 ### Documentation
 

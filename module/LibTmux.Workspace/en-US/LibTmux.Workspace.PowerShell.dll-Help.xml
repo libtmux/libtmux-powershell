@@ -101,7 +101,7 @@ or Confirm parameters.</maml:para>
         <maml:introduction>
           <maml:para>Convert a native Session selected from a pane-depth snapshot. This operation
 uses only the supplied capture and does not own resources requiring cleanup.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $capturedSession | LibTmux.Workspace\ConvertTo-TmuxWorkspace
 ```</maml:para>
@@ -222,7 +222,7 @@ distinction between omitted and empty collections or omitted and false focus.</m
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Convert a two-pane declaration for storage or inspection.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: development
@@ -344,7 +344,7 @@ distinction between omitted and empty collections or omitted and false focus.</m
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Convert a two-pane declaration for storage or inspection.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: development
@@ -676,7 +676,7 @@ before publication. Stopping discovery does not delete files or stop a daemon.</
         <maml:introduction>
           <maml:para>Select the existing declaration named by $WorkspacePath, retaining a native
 FileInfo that can feed Import-TmuxWorkspace or Resolve-TmuxWorkspace.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux.Workspace\Get-TmuxWorkspace -LiteralPath $WorkspacePath
 ```</maml:para>
@@ -999,7 +999,7 @@ is created.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Plan a workspace at an explicit socket without creating its session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $endpoint = LibTmux\New-TmuxServer -SocketPath $SocketPath
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
@@ -1151,7 +1151,7 @@ ErrorAction Continue. ErrorAction Stop terminates. No form applies a workspace.<
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Inspect a declaration with a window at index 5 without starting tmux.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: development
@@ -1312,7 +1312,7 @@ first action creates anything.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Preview an existing plan created by Get-TmuxWorkspacePlan without applying it.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```</maml:para>
@@ -1324,7 +1324,7 @@ $Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
         <maml:title>--------- Example 2 ---------</maml:title>
         <maml:introduction>
           <maml:para>Apply that reviewed plan with the normal confirmation explicitly disabled.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $Plan | LibTmux.Workspace\Invoke-TmuxWorkspace -Confirm:$false
 ```</maml:para>
@@ -1536,7 +1536,7 @@ under Tmux.WorkspaceResolutionFailed; ErrorAction Continue permits later input.<
         <maml:introduction>
           <maml:para>Resolve a parsed declaration against the current filesystem directory. Pass a
 different explicit BaseDirectory when the declaration came from elsewhere.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $resolve = @{
     BaseDirectory = (Get-Location).Path
@@ -1838,7 +1838,7 @@ and a reviewable plan; the validation result is not permission to apply it.</mam
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Check a one-window declaration without opening a tmux connection.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: development
