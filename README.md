@@ -39,6 +39,10 @@ and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Works
 It needs PowerShell 7.4 or later and tmux 3.3a or newer on the same Linux
 host, including WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
 
+tmux release candidates are not supported: a feature can require one only
+until its release ships, and a candidate such as `X.Y-rcN` ranks below `X.Y`.
+See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#release-candidates).
+
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
 [Service readiness](#wait-for-service-readiness) ·
