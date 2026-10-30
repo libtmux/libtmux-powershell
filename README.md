@@ -58,6 +58,9 @@ See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#releas
 
 ## Quick start
 
+The command-completion example below needs tmux 3.4 or newer. Ordinary reads
+and writes support tmux 3.3a; see [optional features](docs/compatibility.md#optional-features).
+
 Install the module from the PowerShell Gallery in PowerShell 7.4 or later
 (`pwsh`) on Linux, including WSL. `Install-PSResource` ships with PowerShell
 7.4; Windows PowerShell 5.1 has no such command and cannot load the module:
@@ -202,8 +205,9 @@ relationship criteria, and explicit fresh source queries.
 
 ### [`Wait-TmuxPaneText`][wait-tmuxpanetext]: wait for a readiness line
 
-It watches a pane's rendered text through a temporary control client and
-returns a [`LibTmux.PaneWaitResult`][panewaitresult].
+It watches a pane's rendered text and returns a
+[`LibTmux.PaneWaitResult`][panewaitresult]. On tmux 3.7 or newer it uses a
+temporary control client; on earlier supported releases it polls instead.
 
 [`Send-TmuxText`][send-tmuxtext] and [`Send-TmuxKey`][send-tmuxkey] type into
 the pane first, and [`Get-TmuxPaneContent`][get-tmuxpanecontent] reads its
@@ -243,7 +247,8 @@ also stops the server:
 ```
 
 The outcome is `PresentAtEntry` or `Matched`, followed by HTTP status 200. The
-wait closes its control client, and the example removes only its own session.
+wait closes any control client it creates, and the example removes only its
+own session.
 
 A text match shows the readiness line; the HTTP request checks the service.
 [Pane-text waits](docs/input.md#wait-for-an-applications-readiness-line) cover

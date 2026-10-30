@@ -39,7 +39,7 @@ the borrowed client. A later send remains usable after the cancelled command
 finishes. WhatIf sends nothing; an empty connection pipeline performs no work.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
+tmux release are refused before the requested command is dispatched. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects raises
 LibTmux.TmuxUnsupportedOnReleaseException, the type that

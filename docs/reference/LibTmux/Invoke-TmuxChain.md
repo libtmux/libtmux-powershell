@@ -39,8 +39,9 @@ result is merged stdout/stderr, not one receipt per command. Chains are not
 transactions. Cancellation cannot undo a command already sent to tmux.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
-needs another release raises LibTmux.TmuxVersionTooLowException. A session
+tmux release are refused before the requested commands are dispatched. Version
+checks may still contact tmux. A command that needs another release raises
+LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
 before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the
 type that TmuxVersionTooLowException derives from, so one catch of it covers

@@ -72,7 +72,7 @@ HelpMessage: ''
 
 ### -Connection
 
-The native control client. This operation borrows the supplied client.
+The native control client to close. Other callers sharing it lose the client.
 
 ```yaml
 Type: LibTmux.IControlModeSession

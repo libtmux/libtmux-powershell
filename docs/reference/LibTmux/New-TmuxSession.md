@@ -311,7 +311,7 @@ it is not rollback and the module does not retry. Per-owner errors use
 Tmux.SessionCreateFailed and retain the core exception and failed server.
 ErrorAction Continue allows later owners to run. A WindowName with a colon or
 a period on exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException
-as its error and sends nothing. A Name with either character is refused on every
+as its error before creating the session. A Name with either character is refused on every
 release with ArgumentException.
 
 ## RELATED LINKS

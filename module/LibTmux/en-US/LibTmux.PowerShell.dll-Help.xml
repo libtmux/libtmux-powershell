@@ -130,7 +130,7 @@ disposes it. Stop cancels attachment; it never kills the borrowed tmux server.</
           <maml:para>Attach to fixture on a previously selected $server. Retain the returned
 client and close it in finally with Disconnect-TmuxControl; the task guide
 shows a complete ownership scope.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $server | LibTmux\Connect-TmuxControl -Target 'fixture'
 ```</maml:para>
@@ -217,7 +217,7 @@ $server | LibTmux\Connect-TmuxControl -Target 'fixture'
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Connect to the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Connect-TmuxServer
 ```</maml:para>
@@ -306,7 +306,7 @@ Restore the document with New-TmuxQuery -Json.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Serialize a pane-width filter for storage or another native consumer.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } } |
     LibTmux\ConvertTo-TmuxQueryJson
@@ -384,7 +384,7 @@ WhatIf leaves the connection usable.</maml:para>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
         <maml:name>Connection</maml:name>
         <maml:description>
-          <maml:para>The native control client. This operation borrows the supplied client.</maml:para>
+          <maml:para>The native control client to close. Other callers sharing it lose the client.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">LibTmux.IControlModeSession</command:parameterValue>
         <dev:type>
@@ -433,7 +433,7 @@ rather than abandoned when a pipeline stops.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Close the $control client owned by the surrounding scope; use this in finally.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $control | LibTmux\Disconnect-TmuxControl -Confirm:$false
 ```</maml:para>
@@ -594,7 +594,7 @@ attachment and host restoration both fail, both causes are retained together.</m
         <maml:introduction>
           <maml:para>Preview attachment to a previously selected native session. No terminal is
 required for the preview.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Enter-TmuxSession -WhatIf
 ```</maml:para>
@@ -607,7 +607,7 @@ $session | LibTmux\Enter-TmuxSession -WhatIf
         <maml:introduction>
           <maml:para>Observe the selected session from your foreground terminal without sending pane
 input. Detach to receive the refreshed Session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Enter-TmuxSession -ReadOnly
 ```</maml:para>
@@ -721,7 +721,7 @@ server writes an error.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Read clients from a previously selected native $server.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $server | LibTmux\Get-TmuxClient
 ```</maml:para>
@@ -812,7 +812,7 @@ transport failures write an error rather than becoming an empty result.</maml:pa
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Resolve the current attachment of a previously selected native $client.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $client | LibTmux\Get-TmuxClientAttachment
 ```</maml:para>
@@ -961,7 +961,7 @@ and Stop terminates. Cancellation cannot undo a dispatched mutation.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Read a previously stored variable from a native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Get-TmuxEnvironment -Name 'APP_MODE'
 ```</maml:para>
@@ -1138,7 +1138,8 @@ the global table. Omit Name to list the selected scope.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -1264,7 +1265,7 @@ sequential, not an atomic replacement.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Inspect a previously configured hook on a native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Get-TmuxHook -Name 'alert-bell'
 ```</maml:para>
@@ -1294,8 +1295,9 @@ $session | LibTmux\Get-TmuxHook -Name 'alert-bell'
       <command:noun>TmuxOption</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>The native owner selects its option table. Scope overrides that choice, and Global
-selects global defaults. A named read emits each native TmuxOption row, preserving
+      <maml:para>The native owner selects its option table. Scope overrides that choice, and
+Global requests global defaults; pane-local options still use the pane table.
+A named read emits each native TmuxOption row, preserving
 sparse array indices, inherited markers and TmuxOptionValue fields. Omit Name to
 list the table. IncludeInherited requests inherited values explicitly.
 
@@ -1529,7 +1531,8 @@ rows for local PowerShell filtering.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -1681,7 +1684,7 @@ not a transaction with other clients.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Read the effective key mode from a previously selected native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Get-TmuxOption -Name 'status-keys' -IncludeInherited
 ```</maml:para>
@@ -1860,7 +1863,7 @@ $session | LibTmux\Get-TmuxOption -Name 'status-keys' -IncludeInherited
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>List panes on the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane
 ```</maml:para>
@@ -2317,7 +2320,7 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxPane
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Capture the first pane on the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxPane |
@@ -2425,7 +2428,7 @@ key Ge. See the criteria keys for the full mapping.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Inspect the pane-width field and its supported operations.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\Get-TmuxQueryField -Target Pane | Where-Object WireName -EQ 'pane_width'
 ```</maml:para>
@@ -2567,7 +2570,7 @@ source evaluation does not reduce the captured rows.</maml:para>
         <maml:introduction>
           <maml:para>Prepare an exact pane-ID query for tmux 3.3a without opening a connection.
 Use the observed daemon version when preparing a plan for execution.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $version = [LibTmux.TmuxVersion]::Parse('3.3a')
 LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Id = '%0' } |
@@ -2668,7 +2671,7 @@ error stream. Use ErrorAction Stop to stop the pipeline on those failures.</maml
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Inspect the existing daemon identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxServer
 ```</maml:para>
@@ -2799,7 +2802,7 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxServer
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>List sessions on the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxSession
 ```</maml:para>
@@ -2920,7 +2923,7 @@ unavailable relations throw rather than appearing empty.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Capture the hierarchy of the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxSnapshot -Depth Panes
@@ -3089,7 +3092,7 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>List window placements on the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxWindow
 ```</maml:para>
@@ -3129,8 +3132,9 @@ result is merged stdout/stderr, not one receipt per command. Chains are not
 transactions. Cancellation cannot undo a command already sent to tmux.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
-needs another release raises LibTmux.TmuxVersionTooLowException. A session
+tmux release are refused before the requested commands are dispatched. Version
+checks may still contact tmux. A command that needs another release raises
+LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects, and a layout string that tmux
 before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the
 type that TmuxVersionTooLowException derives from, so one catch of it covers
@@ -3287,7 +3291,7 @@ an uncertain mutation.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Print two values in order on a previously selected $server.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $commands = 'first', 'second' | ForEach-Object {
     LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @('-p', $_)
@@ -3326,7 +3330,7 @@ $server | LibTmux\Invoke-TmuxChain -Command $commands
     <maml:description>
       <maml:para>Pass the tmux command name and arguments as a string array. The adapter invokes the core directly without a shell. It returns a native TmuxCommandResult only on success; a nonzero exit writes an error retaining the result, target and dispatch metadata.
 
-Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before dispatch, so nothing is sent. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the type that TmuxVersionTooLowException derives from, so one catch of it covers every refusal. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
+Literal commands that an optional feature cannot run safely on the daemon's tmux release are refused before the requested command is dispatched. Version checks may still contact tmux. A command that needs another release raises LibTmux.TmuxVersionTooLowException. A session or window name that exactly tmux 3.7 rejects, and a layout string that tmux before 3.4 crashes on, raise LibTmux.TmuxUnsupportedOnReleaseException, the type that TmuxVersionTooLowException derives from, so one catch of it covers every refusal. Only the command given is checked. A refused command carried inside another command's text is not: an if-shell or run-shell -C string, bind-key, set-hook, confirm-before, a menu, a prompt or choose template, or a brace block. Nested, it reaches tmux unchanged. A nameless break-pane ends a tmux 3.7 server, so on exactly 3.7 name every break-pane, including the one prefix ! runs, or upgrade to 3.7a. The other failures are listed at https://libtmux.org/en/powershell/latest/guides/compatibility/#what-the-checks-do-not-read</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -3433,7 +3437,7 @@ Literal commands that an optional feature cannot run safely on the daemon's tmux
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Read the version of the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $arguments = @('display-message', '-p', '#{version}')
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
@@ -3479,7 +3483,7 @@ the borrowed client. A later send remains usable after the cancelled command
 finishes. WhatIf sends nothing; an empty connection pipeline performs no work.
 
 Literal commands that an optional feature cannot run safely on the daemon's
-tmux release are refused before dispatch, so nothing is sent. A command that
+tmux release are refused before the requested command is dispatched. A command that
 needs another release raises LibTmux.TmuxVersionTooLowException. A session
 or window name that exactly tmux 3.7 rejects raises
 LibTmux.TmuxUnsupportedOnReleaseException, the type that
@@ -3603,7 +3607,7 @@ metadata absent from IControlModeSession.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Print the attached session name using an existing $control owned by your surrounding try/finally scope.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $command = LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @(
     '-p', '#{session_name}'
@@ -3843,7 +3847,7 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Confirm</maml:name>
         <maml:description>
-          <maml:para>Ask for confirmation before changing the selected table.</maml:para>
+          <maml:para>Ask for confirmation before running the hook.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -3852,7 +3856,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Immediate hook invocation still uses target-context
+lookup; this flag does not force the global definition.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -3861,7 +3866,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Name</maml:name>
         <maml:description>
-          <maml:para>The tmux hook name, optionally indexed for a specific entry. tmux expands formats in names.</maml:para>
+          <maml:para>The base tmux hook name. An indexed name does not select one entry for immediate
+invocation. tmux expands formats in names.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>
@@ -3881,7 +3887,8 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Scope</maml:name>
         <maml:description>
-          <maml:para>Override the owner scope with Server, Session, Window or Pane. Omission uses the native owner scope.</maml:para>
+          <maml:para>Pass an explicit scope to tmux. Immediate hook invocation still uses
+target-context lookup rather than forcing this table.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">LibTmux.OptionScope</command:parameterValue>
         <dev:type>
@@ -3975,9 +3982,10 @@ and Wait-TmuxChannel when application completion matters. WhatIf performs no I/O
     <maml:alertSet>
       <maml:alert>
         <maml:para>Server hooks are the global hook table; tmux has no separate server hook table.
-Choose a hook supported by the selected scope. Scope and Global pass through to
-tmux without remapping the owner. Empty pipelines do no I/O. Errors retain the
-native owner and core exception; Continue permits later owners and Stop terminates.
+Scope and Global pass through to tmux without remapping the owner or forcing
+the lookup table for immediate invocation. Empty pipelines do no I/O. Errors
+retain the native owner and core exception; Continue permits later owners and
+Stop terminates.
 Cancellation cannot undo commands already dispatched. Multiple mutations are
 sequential, not an atomic replacement.</maml:para>
       </maml:alert>
@@ -3987,7 +3995,7 @@ sequential, not an atomic replacement.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Run a previously configured hook on a native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
 ```</maml:para>
@@ -4190,12 +4198,12 @@ while that command may still be active. A borrowed server is never removed.</mam
         <maml:introduction>
           <maml:para>Given a native `$pane` running `/bin/sh` on an endpoint you own, inspect a
 nonzero status without treating it as an operation failure:</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $pane |
     LibTmux\Invoke-TmuxPaneCommand -Command 'exit 7' -Timeout 5 -Confirm:$false
 ```</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>The result has `ExitStatus = 7` and `TimedOut = False`.</maml:para>
         </maml:introduction>
         <dev:code />
@@ -4472,7 +4480,7 @@ Query, Plan, Pushdown or AsResult.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Acquire panes at least 80 columns wide from an explicit socket.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $query = LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
@@ -4486,7 +4494,7 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
         <maml:title>--------- Example 2 ---------</maml:title>
         <maml:introduction>
           <maml:para>Keep the query result and its captured graph, including an empty selection.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $query = LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
@@ -4739,7 +4747,7 @@ Continue permits later inputs; ErrorAction Stop stops at the first failure.</mam
         <maml:introduction>
           <maml:para>Move the previously selected $window to index 5 in its own session and emit
 the replacement handle. Assign the output for subsequent operations.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $window | LibTmux\Move-TmuxWindow -Index 5 -PassThru -Confirm:$false
 ```</maml:para>
@@ -4854,7 +4862,7 @@ reconstructing a typed request as raw text would discard its identity guards.</m
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Construct a command that prints text containing spaces and punctuation.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxCommand -Name 'display-message' -Arguments @(
     '-p', 'hello; tmux'
@@ -5003,7 +5011,7 @@ and oversized data are rejected before evaluation.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Build a reusable filter for panes at least 80 columns wide.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
 ```</maml:para>
@@ -5219,7 +5227,7 @@ Invoke-TmuxControlCommand sends one over a control client.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Construct a handle for the existing socket identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath
 ```</maml:para>
@@ -5481,7 +5489,7 @@ it is not rollback and the module does not retry. Per-owner errors use
 Tmux.SessionCreateFailed and retain the core exception and failed server.
 ErrorAction Continue allows later owners to run. A WindowName with a colon or
 a period on exactly tmux 3.7 reports LibTmux.TmuxUnsupportedOnReleaseException
-as its error and sends nothing. A Name with either character is refused on every
+as its error before creating the session. A Name with either character is refused on every
 release with ArgumentException.</maml:para>
       </maml:alert>
     </maml:alertSet>
@@ -5492,7 +5500,7 @@ release with ArgumentException.</maml:para>
           <maml:para>Create a detached session on the server identified by the absolute $SocketPath.
 Choose an endpoint you control; the created session remains running until you
 remove it.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $options = @{
     Name = 'help-session'
@@ -5737,7 +5745,7 @@ created resources. Cancellation does not prove that creation was rolled back; no
 mutation is retried. Per-owner errors use Tmux.WindowCreateFailed and retain the
 core exception and failed session. ErrorAction Continue allows later owners to
 run. A name with a colon or a period on exactly tmux 3.7 reports
-LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing.</maml:para>
+LibTmux.TmuxUnsupportedOnReleaseException as its error before creating the window.</maml:para>
       </maml:alert>
     </maml:alertSet>
     <command:examples>
@@ -5747,7 +5755,7 @@ LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing.</maml:
           <maml:para>Create a named window at an unused index in the first session on the server
 identified by $SocketPath. This example requires /bin/sh and leaves the new
 window running for later work.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxSession | Select-Object -First 1 |
@@ -5973,7 +5981,7 @@ already dispatched mutation without observing current topology.</maml:para>
         <maml:introduction>
           <maml:para>Link the previously selected $window into $guest at index 5 without selecting
 it. Both handles must come from the same tmux server generation.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $link = @{ Session = $guest; Index = 5; NoSelect = $true; Confirm = $false }
 $window | LibTmux\New-TmuxWindowLink @link
@@ -6201,7 +6209,7 @@ and Stop terminates. Cancellation cannot undo a dispatched mutation.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Prevent future processes in a native $session from inheriting APP_MODE.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Remove-TmuxEnvironment -Name 'APP_MODE' -MarkRemoved
 ```</maml:para>
@@ -6441,7 +6449,8 @@ Other scopes are preserved. WhatIf performs no tmux I/O.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -6576,7 +6585,7 @@ sequential, not an atomic replacement.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Remove a previously configured indexed command from a native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Remove-TmuxHook -Name 'alert-bell[7]'
 ```</maml:para>
@@ -6873,7 +6882,8 @@ also removes pane overrides through tmux -U. WhatIf performs no tmux I/O.</maml:
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -7025,7 +7035,7 @@ not a transaction with other clients.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Remove a previously stored @scratch option from a native $session.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Remove-TmuxOption -Name '@scratch'
 ```</maml:para>
@@ -7157,7 +7167,7 @@ handles retain their old data after removal and are not refreshed in place.</mam
           <maml:para>Remove the previously selected native $pane from an endpoint you own.
 This example explicitly suppresses confirmation; omitting Confirm uses the
 normal high-impact confirmation behavior.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $pane | LibTmux\Remove-TmuxPane -Confirm:$false
 ```</maml:para>
@@ -7293,7 +7303,7 @@ handles retain their old data after removal and are not refreshed in place.</mam
           <maml:para>Remove the previously selected native $session from an endpoint you own.
 This example explicitly suppresses confirmation; omitting Confirm uses the
 normal high-impact confirmation behavior.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Remove-TmuxSession -Confirm:$false
 ```</maml:para>
@@ -7430,7 +7440,7 @@ handles retain their old data after removal and are not refreshed in place.</mam
           <maml:para>Remove the previously selected native $window from an endpoint you own.
 This example explicitly suppresses confirmation; omitting Confirm uses the
 normal high-impact confirmation behavior.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $window | LibTmux\Remove-TmuxWindow -Confirm:$false
 ```</maml:para>
@@ -7580,7 +7590,7 @@ inputs; ErrorAction Stop stops at the first failure.</maml:para>
         <maml:introduction>
           <maml:para>Remove the selected $window placement from its session while retaining the
 physical window through another link.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $window | LibTmux\Remove-TmuxWindowLink -Confirm:$false
 ```</maml:para>
@@ -7756,7 +7766,7 @@ cardinality on an input stream that never completes.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Capture the existing endpoint selected by $SocketPath, then select panes at least 80 columns wide.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxSnapshot
@@ -7939,7 +7949,7 @@ cardinality on an input stream that never completes.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Capture the existing endpoint selected by $SocketPath, then select detached sessions.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxSnapshot
@@ -8122,7 +8132,7 @@ cardinality on an input stream that never completes.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Capture the existing endpoint selected by $SocketPath, then select active window placements.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $snapshot = LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxSnapshot
@@ -8292,7 +8302,7 @@ but cannot undo delivered input. Nothing is retried.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Use a previously selected native $pane on an endpoint you own.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $pane | LibTmux\Send-TmuxKey -Key @('C-a', 'Enter') -Confirm:$false
 ```</maml:para>
@@ -8472,7 +8482,7 @@ partial dispatch. Retrying the whole operation can duplicate effects.</maml:para
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Use a previously selected native $pane on an endpoint you own.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $pane | LibTmux\Send-TmuxText -Text 'Enter' -Confirm:$false
 ```</maml:para>
@@ -8768,7 +8778,7 @@ and Stop terminates. Cancellation cannot undo a dispatched mutation.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Set a value for future processes in a native $session and inspect its readback.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session |
     LibTmux\Set-TmuxEnvironment -Name 'APP_MODE' -Value 'development' -PassThru
@@ -9119,7 +9129,8 @@ PassThru emits the whole grouped hook readback. WhatIf performs no tmux I/O.</ma
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local hooks still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -9263,7 +9274,7 @@ sequential, not an atomic replacement.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Store one indexed command on a native $session and inspect the grouped result.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $command = 'display-message "build finished"'
 $session |
@@ -9467,7 +9478,7 @@ replacement Window and leave the original capture unchanged.</maml:para>
 tmux 3.7 and earlier. It does not guarantee the same pane IDs occupy the same
 positions. A mirrored main layout needs tmux 3.5 and a JSON layout needs
 tmux 3.8; on an earlier daemon the cmdlet reports
-LibTmux.TmuxUnsupportedOnReleaseException as its error and sends nothing. A
+LibTmux.TmuxUnsupportedOnReleaseException as its error before applying the layout. A
 layout that is malformed or unknown reports LibTmux.TmuxWindowException on
 every release. A disappeared target or stale generation writes a per-target error.
 Use -ErrorAction Stop to terminate. Cancellation cannot undo an already
@@ -9479,7 +9490,7 @@ dispatched change.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Tile the panes in a previously selected native $window.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $window | LibTmux\Set-TmuxLayout -Layout tiled -PassThru
 ```</maml:para>
@@ -9911,7 +9922,8 @@ the argument. An empty string remains a value. WhatIf performs no tmux I/O.</mam
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>Global</maml:name>
         <maml:description>
-          <maml:para>Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.</maml:para>
+          <maml:para>Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -10082,7 +10094,7 @@ not a transaction with other clients.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Set the key mode on a previously selected native $session and inspect its stored value.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $session | LibTmux\Set-TmuxOption -Name 'status-keys' -Value 'vi' -PassThru
 ```</maml:para>
@@ -10377,7 +10389,7 @@ change.</maml:para>
         <maml:introduction>
           <maml:para>Give a previously selected native $pane 40 columns in a window with a horizontal
 split.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $pane | LibTmux\Set-TmuxPaneSize -Width 40 -PassThru
 ```</maml:para>
@@ -10672,7 +10684,7 @@ change.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Set a previously selected native $window to 120 columns and 40 rows.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $window | LibTmux\Set-TmuxWindowSize -Width 120 -Height 40 -PassThru
 ```</maml:para>
@@ -11071,7 +11083,7 @@ enforce geometry and version capabilities.</maml:para>
 identified by $SocketPath. The window must have enough room. The current pane
 selection is preserved; the new /bin/sh process remains running until you remove
 its pane.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxPane | Select-Object -First 1 |
@@ -11163,7 +11175,7 @@ per-target error. Use -ErrorAction Stop to terminate.</maml:para>
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Refresh a previously selected native $client.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $client | LibTmux\Update-TmuxClient
 ```</maml:para>
@@ -11250,7 +11262,7 @@ $client | LibTmux\Update-TmuxClient
         <maml:title>--------- Example 1 ---------</maml:title>
         <maml:introduction>
           <maml:para>Refresh the first pane on the existing server identified by $SocketPath.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 LibTmux\New-TmuxServer -SocketPath $SocketPath |
     LibTmux\Get-TmuxPane |
@@ -11397,7 +11409,7 @@ Invalid channels and timeouts fail before contacting tmux.</maml:para>
           <maml:para>Use a previously selected native $server and reserve build-finished for one
 waiter. Have the producer run tmux wait-for -S build-finished on that server
 after its work completes. The producer may signal before this command starts.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $server | LibTmux\Wait-TmuxChannel -Channel 'build-finished' -Timeout 10
 ```</maml:para>
@@ -11434,9 +11446,10 @@ Stop patterns return Stopped; the deadline and a pane exit return TimedOut
 and PaneExited. These are native LibTmux.PaneWaitResult outcomes, not cmdlet
 errors. Inspect Outcome before treating a wait as readiness.
 
-The observer attaches a temporary control client before its first capture.
-Control events wake a grid-aware reader; matching uses captured rendered rows,
-not individual output fragments. Results include a bounded final screen tail,
+On tmux 3.7 and newer, the observer attaches a temporary control client before
+its first capture. Control events wake a grid-aware reader; matching uses
+captured rendered rows, not individual output fragments. Results include a
+bounded final screen tail,
 elapsed and effective timeout, dropped-event count, polling fallback, and
 missed-line or lost-anchor indicators. The default view shows Missed and
 omits the tail; inspect Tail explicitly if you need its text. A lost event
@@ -11709,7 +11722,7 @@ Continue` can advance to the next pane after an operation error;
 then stays alive, send a trigger that cannot match the ready pattern. Output
 may arrive before the wait begins; both `PresentAtEntry` and `Matched` mean the
 line was observed:</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 &amp; {
     $pane | LibTmux\Send-TmuxText -Text go -Enter -Confirm:$false
@@ -11996,10 +12009,13 @@ The native upstream queue separately defaults to 512 events and 4 MiB of
 decoded UTF-8 payload. Configure its positive ControlModeEventBufferCapacity
 and ControlModeEventBufferMaxBytes through ServerConnectionOptions before
 connecting. Queue bytes include output data, notification names and arguments,
-and exit reasons, excluding pane IDs and object overhead. Oldest events are
-discarded until both queue limits hold. An oversized event is dropped; an
-oversized exit reason is omitted while the exit event remains. Loss is reported
-by TmuxEventsDroppedEvent without blocking command replies.
+and exit reasons, excluding pane IDs and object overhead. Under count pressure,
+the queue discards the oldest output from the pane with the most queued output
+events; under byte pressure it selects the pane with the most queued output
+bytes. If no output remains, it discards the oldest notification. An oversized
+event is dropped; an oversized exit reason is omitted while the exit event
+remains. Loss is reported by TmuxEventsDroppedEvent without blocking command
+replies.
 
 Ctrl+C, pipeline early exit and module removal stop the reader and await its
 disposal. Module removal cancels active watches only in the importing runspace;
@@ -12015,7 +12031,7 @@ ThreadJob to make the prompt available.</maml:para>
         <maml:introduction>
           <maml:para>Observe the first notification on fixture using a previously selected $server.
 The command closes its new control client when the count limit is reached.</maml:para>
-          <maml:para>&#x80;</maml:para>
+          <maml:para />
           <maml:para>```powershell
 $server |
     LibTmux\Watch-TmuxEvent -Target 'fixture' -MaxEvents 1 -MaxOutputBytes 1MB

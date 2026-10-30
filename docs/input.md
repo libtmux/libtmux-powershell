@@ -99,10 +99,11 @@ history suppression, validation and confirmation.
 ## Wait for an application's readiness line
 
 Use [Wait-TmuxPaneText](reference/LibTmux/Wait-TmuxPaneText.md) when an
-application reports readiness in its terminal output. It observes rendered
-text through a temporary control client, checks text already visible at entry,
-then wakes on output or layout changes. It returns a native
-`LibTmux.PaneWaitResult`; it does not require a cooperative tmux channel.
+application reports readiness in its terminal output. On tmux 3.7 or newer,
+it observes rendered text through a temporary control client, checks text
+already visible at entry, then wakes on output or layout changes. On earlier
+supported releases it polls without attaching a control client. It returns a
+native `LibTmux.PaneWaitResult`; it does not require a cooperative tmux channel.
 
 With Python 3 on `PATH` and the selected endpoint in `$server`, start a local
 HTTP server on an available loopback port. Wait for its readiness line, then
@@ -137,8 +138,8 @@ removes the session and stops the server process:
 ```
 
 The observation is `PresentAtEntry` or `Matched`, followed by HTTP status 200.
-The wait owns and closes its control client; it leaves the pane and daemon
-running. The example separately owns its session and removes it.
+The wait owns and closes any control client it creates; it leaves the pane and
+daemon running. The example separately owns its session and removes it.
 
 Patterns use bounded .NET regular expressions and ignore case by default. Use
 `-SimpleMatch` for literal text, `-CaseSensitive` for case-sensitive matching,
