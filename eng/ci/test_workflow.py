@@ -155,6 +155,11 @@ def check(text):
     if "      scope:\n" not in call or "        required: true\n" not in call:
         problems.append("workflow_call: the scope input must be required")
     dispatch = head.partition("\n  workflow_dispatch:\n")[2]
+    if "        options: ['off', before-tests, on-failure]\n        default: 'off'\n" not in dispatch:
+        problems.append(
+            "workflow_dispatch: quote 'off' in the tmate options and default, "
+            "which YAML reads as the boolean false"
+        )
     for name in ("scope", "tmux-ref", "pwsh", "tmate"):
         if not re.search(rf"^      {re.escape(name)}:$", dispatch, re.MULTILINE):
             problems.append(f"workflow_dispatch: missing the {name} input")
@@ -291,6 +296,11 @@ class WorkflowFollowsThePlan(unittest.TestCase):
         self.mutated("        description: How much of the tmux table to cover. The release workflow passes full.\n        required: true\n",
                      "        description: How much of the tmux table to cover. The release workflow passes full.\n        required: false\n",
                      "the scope input must be required")
+
+    def test_a_tmate_value_that_yaml_reads_as_a_boolean_is_reported(self):
+        self.mutated("        default: 'off'\n", "        default: off\n", "quote 'off' in the tmate options")
+        self.mutated("options: ['off', before-tests, on-failure]", "options: [off, before-tests, on-failure]",
+                     "quote 'off' in the tmate options")
 
     def test_a_missing_dispatch_input_is_reported(self):
         self.mutated("      pwsh:\n", "      shell:\n", "missing the pwsh input")
