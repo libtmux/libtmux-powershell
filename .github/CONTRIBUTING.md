@@ -374,52 +374,103 @@ build-only check. An immutable version must still identify its original
 source and package version. Inspect the build provenance and hosted page
 after publishing; a successful native export alone is not publication proof.
 
+## Running CI against any tmux
+
+A push and a pull request run the oldest and the newest tmux release in
+[`eng/ci/matrix.json`](../eng/ci/matrix.json), each on both PowerShell
+versions. The whole table, tmux master and the refusal lanes run only when a
+dispatch asks for `scope=full`. `eng/ci/plan_matrix.py` decides this from the
+manifest and the event, so the workflow lists no version.
+
+A dispatch runs any branch against a tmux outside the table. The workflow file
+has to be on the default branch before `gh workflow run` finds it. This builds
+tmux 3.6b and tmux master from source and runs both on PowerShell 7.6.6:
+
+```console
+$ gh workflow run ci.yml \
+    --ref my-branch \
+    -f scope=custom \
+    -f tmux-ref=3.6b,master \
+    -f pwsh=7.6.6
+```
+
+`tmux-ref` takes versions, tags, branches and full 40-character commits from
+[github.com/tmux/tmux](https://github.com/tmux/tmux), separated by commas, and
+needs `scope=custom`. A name in the manifest keeps its pinned commit and build
+path. Any other ref is resolved to a commit, cached by that commit, and built
+from source. Reproduce that build locally with
+`eng/ci/build-tmux.sh --ref 3.6b`.
+`pwsh` takes versions listed in the manifest, because each needs an archive
+hash, and an empty value runs both. The Linux jobs have no macOS option; the
+[macOS trial](workflows/macos-trial.yml) is a separate advisory workflow.
+
+To look at the runner, add `tmate`. The session opens for the person who
+started the run, who needs an SSH key on their GitHub profile, and it needs
+exactly one leg, so give `tmux-ref` one ref and `pwsh` one version.
+`before-tests` opens it before the tests and `on-failure` opens it only after
+a failure. The connection command is in the step log, and the step ends after
+30 minutes.
+
+```console
+$ gh workflow run ci.yml \
+    --ref my-branch \
+    -f scope=custom \
+    -f tmux-ref=3.7c \
+    -f pwsh=7.4.20 \
+    -f tmate=on-failure
+```
+
+The plan refuses a run that cannot happen, such as `tmux-ref` without
+`scope=custom` or a session that would land on several legs, before any
+runner builds anything.
+
 ## Gallery releases
 
 The [release workflow](workflows/release.yml) publishes the two module
-archives already tested by Linux CI. It does not build or repackage them.
-Use the successful `powershell` push run for the current `master` commit;
-pull request runs are rejected. The workflow validates that the run and
-archives belong to the selected source commit.
+archives that Linux CI tested. It does not build or repackage them. A push
+runs only the oldest and newest tmux, so the release calls the
+[CI workflow](workflows/ci.yml) at `scope=full` itself and publishes the
+archives that run produced; no earlier run has to be found or passed in.
+Before it publishes, the workflow validates that its own run and the archives
+belong to the selected source commit, and that the called CI has every job of
+the whole table, tmux master and the refusal jobs. A run of the CI workflow
+dispatched by hand cannot stand in for it.
 
-Set `CI_RUN_ID` to that run's numeric ID. Validate its archives without
-uploading:
+Validate a release without uploading:
 
 ```console
 $ gh workflow run release.yml \
     --repo libtmux/libtmux-powershell \
     --ref master \
-    --field ci_run_id="$CI_RUN_ID" \
     --field publish=false
 ```
 
-After a publishing-workflow repair, set `release_tag` to the existing
-annotated `v0.1.N` tag and use that source commit's successful CI run.
-The tag must point to an ancestor of the workflow's `master` commit. This
-uses the repaired publishing code with the original tested archives; it
-does not rebuild packages or move the release tag. For example, validate
-the `0.1.0` archives:
+To bind the release to its tag, set `RELEASE_TAG` to the existing annotated
+`v0.1.N` tag. The tag must point at the commit being released, which is the
+`master` commit the workflow runs from:
 
 ```console
 $ gh workflow run release.yml \
     --repo libtmux/libtmux-powershell \
     --ref master \
-    --field ci_run_id="$CI_RUN_ID" \
-    --field release_tag=v0.1.0 \
+    --field release_tag="$RELEASE_TAG" \
     --field publish=false
 ```
 
 After reviewing the successful validation, use the same command with
-`publish=true` to publish. This uploads `LibTmux` first, verifies its public
+`publish=true` to publish. This runs the whole CI again and publishes the
+archives of that run. It uploads `LibTmux` first, verifies its public
 package, then uploads `LibTmux.Workspace`. The workflow uses the repository
 Actions secret `PSGALLERY_API_KEY` only in that step. macOS is advisory;
-the build, four Linux endpoint combinations and aggregate gate must pass.
+the called CI, with every cell of the full-scope matrix, the refusal jobs and
+the aggregate gate, must pass.
 
 Publication is separate for each module. A failed second upload leaves
-the first module published. Rerun the same release only after checking
-the receipt: existing packages must match the tested payload, and only
-missing packages are uploaded. A differing payload under the same version
-is rejected. Release artifacts retain the source, CI run and package hashes.
+the first module published. Check the receipt before dispatching again: each
+dispatch builds its own archives, existing packages must match the tested
+payload, and only missing packages are uploaded. A differing payload under the
+same version is rejected. Release artifacts retain the source, CI run and
+package hashes.
 
 The publisher's local entrypoint is `eng/Publish.ps1`; omitting `-Publish`
 validates an artifact directory without network access or credentials.

@@ -21,6 +21,16 @@ def missing(text, versions):
     ]
 
 
+def bullet(text, start):
+    """Return a list item, including the lines it wraps onto."""
+    lines = text.splitlines()
+    first = next(index for index, line in enumerate(lines) if line.startswith(start))
+    last = first + 1
+    while last < len(lines) and lines[last].startswith("  "):
+        last += 1
+    return " ".join(lines[first:last])
+
+
 def trial_pins(text):
     """Read each tmux release and source commit pair from the macOS trial."""
     return re.findall(r"tmux: '([^']+)'\s+tmux_commit: ([0-9a-f]{40})", text)
@@ -38,9 +48,9 @@ class DocumentsAgreeWithTheTable(unittest.TestCase):
 
     def test_the_readme_names_the_tested_range(self):
         text = (ROOT / "README.md").read_text(encoding="utf-8")
-        line = next(each for each in text.splitlines() if each.startswith("- **tmux.** 3.3a or newer"))
-        self.assertEqual(missing(line, [SUPPORTED[0], SUPPORTED[-1], "master"]), [])
-        shells = next(each for each in text.splitlines() if each.startswith("- **PowerShell.**"))
+        tmux = bullet(text, "- **tmux.** 3.3a or newer")
+        self.assertEqual(missing(tmux, [SUPPORTED[0], SUPPORTED[-1], "master"]), [])
+        shells = bullet(text, "- **PowerShell.**")
         self.assertEqual(missing(shells, POWERSHELL), [])
 
     def test_the_floor_is_the_first_supported_release(self):
