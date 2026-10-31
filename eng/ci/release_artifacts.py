@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind the release to the tested archives from a successful trunk CI run."""
+"""Bind the release to the tested archives of the CI run it calls."""
 
 import argparse
 import json
@@ -8,34 +8,23 @@ from pathlib import Path
 import re
 from urllib.request import Request, urlopen
 
+import plan_matrix
+
 
 REPOSITORY = "libtmux/libtmux-powershell"
+# The release workflow calls the CI workflow at scope full, so the run to bind
+# is the release run itself, still in progress, and the CI jobs appear in it
+# under the name of the job that calls them.
 WORKFLOW = ".github/workflows/ci.yml"
+RELEASE_WORKFLOW = ".github/workflows/release.yml"
+CALLER_JOB = "ci"
+RELEASE_JOB = "gallery"
+# At scope full the CI runs the whole table, tmux master and the refusal lanes,
+# which the plan derives from eng/ci/matrix.json. A call with any fewer jobs is
+# not the proof a release needs.
 JOBS = {
-    "build and pack PowerShell modules",
-    "PowerShell 7.4.20 / tmux 3.3a",
-    "PowerShell 7.4.20 / tmux 3.4",
-    "PowerShell 7.4.20 / tmux 3.5",
-    "PowerShell 7.4.20 / tmux 3.6",
-    "PowerShell 7.4.20 / tmux 3.7a",
-    "PowerShell 7.4.20 / tmux 3.7b",
-    "PowerShell 7.4.20 / tmux 3.7c",
-    "PowerShell 7.4.20 / tmux 3.8",
-    "PowerShell 7.4.20 / tmux master",
-    "PowerShell 7.6.6 / tmux 3.3a",
-    "PowerShell 7.6.6 / tmux 3.4",
-    "PowerShell 7.6.6 / tmux 3.5",
-    "PowerShell 7.6.6 / tmux 3.6",
-    "PowerShell 7.6.6 / tmux 3.7a",
-    "PowerShell 7.6.6 / tmux 3.7b",
-    "PowerShell 7.6.6 / tmux 3.7c",
-    "PowerShell 7.6.6 / tmux 3.8",
-    "PowerShell 7.6.6 / tmux master",
-    "PowerShell 7.4.20 / tmux 3.2a rejected",
-    "PowerShell 7.4.20 / tmux 3.3 rejected",
-    "PowerShell 7.4.20 / tmux 3.0a daemon behind a 3.3a client",
-    "PowerShell 7.4.20 / tmux 3.1c daemon behind a 3.3a client",
-    "powershell gate",
+    f"{CALLER_JOB} / {name}"
+    for name in plan_matrix.full_job_names(plan_matrix.load_manifest())
 }
 
 
@@ -55,21 +44,32 @@ def validate(run, jobs, artifacts, source_commit, run_id):
         or head_repository.get("full_name") != REPOSITORY
         or not positive_integer(repository.get("id"))
         or repository.get("id") != head_repository.get("id")
-        or run.get("path") != WORKFLOW
-        or run.get("event") != "push"
+        or run.get("path") != RELEASE_WORKFLOW
+        or run.get("event") != "workflow_dispatch"
         or run.get("head_branch") != "master"
         or run.get("head_sha") != source_commit
-        or run.get("status") != "completed"
-        or run.get("conclusion") != "success"
+        or run.get("status") != "in_progress"
+        or run.get("conclusion") is not None
         or not positive_integer(attempt)
     ):
-        raise ValueError("CI run must be a successful same-repository master push at the release commit")
+        raise ValueError(
+            "Release run must be this same-repository master workflow_dispatch run "
+            "of the release workflow, at the release commit"
+        )
 
     rows = jobs.get("jobs", [])
+    own = [job for job in rows if job.get("name") == RELEASE_JOB]
+    called = [job for job in rows if job.get("name") != RELEASE_JOB]
     if (
         jobs.get("total_count") != len(rows)
-        or len(rows) != len(JOBS)
-        or {job.get("name") for job in rows} != JOBS
+        or len(own) != 1
+        or not positive_integer(own[0].get("id"))
+        or own[0].get("run_id") != run_id
+        or own[0].get("run_attempt") != attempt
+        or own[0].get("head_sha") != source_commit
+        or own[0].get("status") != "in_progress"
+        or len(called) != len(JOBS)
+        or {job.get("name") for job in called} != JOBS
         or any(
             not positive_integer(job.get("id"))
             or job.get("run_id") != run_id
@@ -77,10 +77,15 @@ def validate(run, jobs, artifacts, source_commit, run_id):
             or job.get("head_sha") != source_commit
             or job.get("status") != "completed"
             or job.get("conclusion") != "success"
-            for job in rows
+            for job in called
         )
     ):
-        raise ValueError("Linux jobs must include the successful build, the supported cells, the rejection cells and gate from this CI attempt")
+        raise ValueError(
+            "Linux jobs must include the successful build, the supported cells, tmux master, "
+            "the rejection cells and gate of the full-scope CI this run called, "
+            "from this attempt, beside the one release job; only the full-scope CI "
+            "runs them all"
+        )
 
     all_artifacts = artifacts.get("artifacts", [])
     matches = [item for item in all_artifacts if item.get("name") == "port-package"]
@@ -110,7 +115,7 @@ def validate(run, jobs, artifacts, source_commit, run_id):
         "artifactId": artifact["id"],
         "artifactName": artifact["name"],
         "artifactDigest": artifact["digest"],
-        "jobs": [{"id": job["id"], "name": job["name"]} for job in rows],
+        "jobs": [{"id": job["id"], "name": job["name"]} for job in called],
     }
 
 
