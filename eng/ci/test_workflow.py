@@ -166,6 +166,14 @@ def check(text):
             problems.append(f"line {number}: pass an input to a script through env")
 
     problems += check_debug_sessions(text, jobs)
+    group = (
+        "group: powershell-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' "
+        "&& format('-{0}', github.run_id) || '' }}"
+    )
+    if f"\n  {group}\n" not in text:
+        problems.append("concurrency: add github.run_id to a dispatch run's group")
+    if "\n  cancel-in-progress: true\n" not in text:
+        problems.append("concurrency: a superseded push must still be cancelled")
     for each in MANIFEST["supported"] + MANIFEST["rejected"] + MANIFEST["oldDaemon"]:
         if each["commit"] in text:
             problems.append(f"the source commit of tmux {each['tmux']} belongs in the manifest")
@@ -331,6 +339,20 @@ class WorkflowFollowsThePlan(unittest.TestCase):
                      "give the debugging leg more")
         self.mutated("          TMATE: ${{ inputs.tmate }}\n", "", "pass the tmate input through env")
         self.mutated("      tmate:\n", "      debug:\n", "missing the tmate input")
+
+    def test_a_dispatch_run_must_not_share_a_cancelling_group(self):
+        self.mutated(
+            "format('-{0}', github.run_id) || '' }}",
+            "'' }}",
+            "add github.run_id to a dispatch run's group",
+        )
+        self.mutated(
+            "${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}",
+            "-${{ github.run_id }}",
+            "add github.run_id to a dispatch run's group",
+        )
+        self.mutated("  cancel-in-progress: true\n", "  cancel-in-progress: false\n",
+                     "a superseded push must still be cancelled")
 
     def test_a_removed_job_is_reported(self):
         trimmed = self.text.replace("  reject:\n", "  rejected:\n", 1)
