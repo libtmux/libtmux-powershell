@@ -12,6 +12,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
+. "$root/tests/support/Sandbox.ps1"
+$sandbox = Enter-TestSandbox
 $pwsh = [Environment]::ProcessPath
 $records = [Collections.Generic.List[object]]::new()
 $passed = $false
@@ -79,8 +81,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $root
-    $null = $start.Environment.Remove('TMUX')
-    $null = $start.Environment.Remove('TMUX_PANE')
+    Clear-TestSandboxSelector $start
     # Wrapper doubles that trace or inject tmux invocations must see every command. Reads on the library's
     # shared control client start no process, so those scripts use the process transport.
     if ($Script -in $processTransportScripts) { $start.Environment['LIBTMUX_CONTROL_TRANSPORT'] = '0' }
@@ -347,8 +348,11 @@ try {
             }
         }
     }
+    $leaks = @(Get-TestSandboxLeak $sandbox)
+    if ($leaks.Count) { throw "A default socket or a server was left in the test sandbox: $($leaks -join ', ')." }
     $passed = $true
 } finally {
+    $null = Exit-TestSandbox
     $null = New-Item "$root/build" -ItemType Directory -Force
     @{ suite = $Suite; status = $(if ($passed) { 'PASS' } else { 'FAIL' });
         seconds = $timer.Elapsed.TotalSeconds; commands = @($records.ToArray());

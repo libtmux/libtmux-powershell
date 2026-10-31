@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $module = Join-Path (Resolve-Path $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
+. "$PSScriptRoot/support/OwnedTmux.ps1"
 
 function Assert-Watch([bool] $Condition, [string] $Message) {
     if (!$Condition) { throw "Watch: $Message" }
@@ -149,7 +150,6 @@ try {
     Import-Module $module
 }
 
-. "$PSScriptRoot/support/OwnedTmux.ps1"
 . "$PSScriptRoot/support/TmuxFeatures.ps1"
 if (-not (Test-TmuxFeature Control)) {
     # Features.Tests.ps1 asserts that Watch-TmuxEvent is refused here before any control client attaches.

@@ -9,8 +9,15 @@ if (-not $Child) {
     foreach ($argument in @('-NoProfile', '-File', $PSCommandPath, '-Child')) {
         $start.ArgumentList.Add($argument)
     }
+    # The child starts with every variable the sandbox removes and none of the sandbox's own.
     $start.Environment['TMUX'] = '/borrowed/server,123,0'
     $start.Environment['TMUX_PANE'] = '%999'
+    $start.Environment['LIBTMUX_SOCKET'] = 'borrowed'
+    $start.Environment['LIBTMUX_SOCKET_PATH'] = '/borrowed/socket'
+    $start.Environment['LIBTMUX_SOCKET_NAME'] = 'borrowed'
+    foreach ($name in @('TMUX_TMPDIR', 'LIBTMUX_TEST_SANDBOX', 'LIBTMUX_TEST_SANDBOX_OWNER')) {
+        $null = $start.Environment.Remove($name)
+    }
     $process = [System.Diagnostics.Process]::Start($start)
     try {
         if (-not $process.WaitForExit(30000)) {
@@ -44,6 +51,11 @@ function Assert-CleanedUp($Fixture) {
     }
 }
 
+foreach ($name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME')) {
+    Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) "The sandbox left $name set."
+}
+Assert-True (@(Get-TestSandboxViolation).Count -eq 0) 'The sandbox does not hold in the self-check process.'
+
 $fixture = New-OwnedTmuxFixture
 try {
     Assert-True (Test-Path -LiteralPath $fixture.SocketPath) 'Fixture did not start an owned tmux server.'
@@ -58,14 +70,32 @@ try {
         $environment = Invoke-OwnedTmux $fixture -Arguments @('show-environment', '-g', $name) -AllowFailure
         Assert-True ($environment.ExitCode -ne 0) "Owned server inherited $name."
     }
-    Assert-True ($env:TMUX -eq '/borrowed/server,123,0') 'Fixture mutated parent TMUX.'
-    Assert-True ($env:TMUX_PANE -eq '%999') 'Fixture mutated parent TMUX_PANE.'
+    Assert-True ($null -eq $env:TMUX -and $null -eq $env:TMUX_PANE) 'Fixture set TMUX in its parent.'
 } finally {
     Remove-OwnedTmuxFixture $fixture
 }
 Assert-CleanedUp $fixture
 Assert-True ($fixture.OwnedProcessIds.Contains($createdPanePid)) 'Teardown did not track the later-created pane process.'
 Remove-OwnedTmuxFixture $fixture
+
+# A process that holds a borrowed TMUX gets no fixture, and a start info built in
+# one still carries none of it.
+$env:TMUX = '/borrowed/server,123,0'
+$env:TMUX_PANE = '%999'
+try {
+    $holder = [pscustomobject]@{ TmuxPath = '/missing-libtmux-powershell'; DirectoryPath = '/'; SocketPath = '/missing' }
+    $startInfo = New-OwnedTmuxStartInfo $holder @('list-sessions')
+    Assert-True (-not $startInfo.Environment.ContainsKey('TMUX') -and -not $startInfo.Environment.ContainsKey('TMUX_PANE')) `
+        'Fixture start info carried a borrowed TMUX.'
+    $refusal = $null
+    try { New-OwnedTmuxFixture -TmuxPath '/missing-libtmux-powershell' | Out-Null } catch { $refusal = $_.Exception }
+    Assert-True ($null -ne $refusal -and $refusal.Message.Contains('TMUX is set; TMUX_PANE is set') -and
+        $null -eq $refusal.Data['OwnedTmuxFixture']) 'Fixture started in a process that holds a borrowed TMUX.'
+    Assert-True (-not $refusal.Message.Contains('borrowed')) 'The refusal printed a borrowed value.'
+} finally {
+    $env:TMUX = $null
+    $env:TMUX_PANE = $null
+}
 
 $emptyFixture = New-OwnedTmuxFixture
 try {
