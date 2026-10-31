@@ -5,6 +5,12 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $root = Split-Path $PSScriptRoot
+# The script runs in this process, so the sandbox it enters shows here. Start with none, and
+# with a selector it must remove.
+foreach ($name in @('TMUX_TMPDIR', 'LIBTMUX_TEST_SANDBOX', 'LIBTMUX_TEST_SANDBOX_OWNER')) {
+    [Environment]::SetEnvironmentVariable($name, $null)
+}
+$env:LIBTMUX_SOCKET_PATH = '/decoy/socket'
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-bootstrap-test-' + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $temporary
 
@@ -44,6 +50,11 @@ try {
     Assert-BootstrapFailure $script $existing 'already exists'
     if ((Get-Content -LiteralPath (Join-Path $existing 'sentinel') -Raw).Trim() -cne 'keep') {
         throw 'Bootstrap changed an existing output directory.'
+    }
+    $sandbox = [Environment]::GetEnvironmentVariable('LIBTMUX_TEST_SANDBOX')
+    if (!$sandbox -or [Environment]::GetEnvironmentVariable('TMUX_TMPDIR') -cne $sandbox -or
+        $null -ne [Environment]::GetEnvironmentVariable('LIBTMUX_SOCKET_PATH')) {
+        throw 'Bootstrap did not enter the test sandbox.'
     }
 
     Add-Content -LiteralPath (Join-Path $checkout 'README.md') -Value 'dirty'

@@ -12,6 +12,9 @@ $coreRevision = '472c2bcfbda6735139849324cc109ad70300001e'
 $coreRemote = 'https://github.com/libtmux/libtmux-dotnet.git'
 $portRemote = 'https://github.com/libtmux/libtmux-powershell.git'
 $root = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot)).Path
+# The smoke below builds a handle with no socket; its child joins this sandbox.
+. "$root/tests/support/Sandbox.ps1"
+$null = Enter-TestSandbox
 $output = [IO.Path]::GetFullPath($OutputDirectory, (Get-Location).Path)
 $git = (Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
