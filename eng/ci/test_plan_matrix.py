@@ -5,6 +5,7 @@ replaced with its absence and the check has to notice. A check that passes
 with its rule removed would prove nothing about the rule.
 """
 
+import json
 import unittest
 from unittest import mock
 
@@ -314,9 +315,9 @@ def check_job_names_follow_the_plan(test):
 
 def needs(plan_result="success", port="success", matrix="success", reject="skipped", old="skipped",
           planned=False):
-    listed = "[1]" if planned else "[]"
+    listed = "true" if planned else "false"
     return {
-        "plan": {"result": plan_result, "outputs": {"reject": listed, "old_daemon": listed}},
+        "plan": {"result": plan_result, "outputs": {"run_reject": listed, "run_old_daemon": listed}},
         "port": {"result": port},
         "matrix": {"result": matrix},
         "reject": {"result": reject},
@@ -429,12 +430,18 @@ def gate_without_lanes(got):
 
 
 def gate_that_always_expects_a_skip(got):
-    planned = {**got, "plan": {**got["plan"], "outputs": {"reject": "[]", "old_daemon": "[]"}}}
+    planned = {
+        **got,
+        "plan": {**got["plan"], "outputs": {"run_reject": "false", "run_old_daemon": "false"}},
+    }
     return RULES["check_needs"](planned)
 
 
 def gate_that_always_expects_a_run(got):
-    planned = {**got, "plan": {**got["plan"], "outputs": {"reject": "[1]", "old_daemon": "[1]"}}}
+    planned = {
+        **got,
+        "plan": {**got["plan"], "outputs": {"run_reject": "true", "run_old_daemon": "true"}},
+    }
     return RULES["check_needs"](planned)
 
 
@@ -584,7 +591,6 @@ class PlanOutputs(unittest.TestCase):
     def test_the_outputs_are_single_line_json(self):
         import contextlib
         import io
-        import json
         import pathlib
         import tempfile
 
@@ -599,13 +605,28 @@ class PlanOutputs(unittest.TestCase):
             self.assertEqual(status, 0)
             lines = output.read_text(encoding="utf-8").splitlines()
             values = dict(line.split("=", 1) for line in lines)
-            self.assertEqual(list(values), ["scope", "matrix", "reject", "old_daemon", "expected_jobs"])
+            self.assertEqual(
+                list(values),
+                ["scope", "matrix", "reject", "run_reject", "old_daemon", "run_old_daemon",
+                 "expected_jobs"],
+            )
             self.assertEqual(len(lines), len(values))
             self.assertEqual(json.loads(values["matrix"])["include"], cells(run("push")))
-            self.assertEqual(json.loads(values["reject"]), [])
+            self.assertEqual(json.loads(values["reject"]), {"include": []})
+            self.assertEqual((values["run_reject"], values["run_old_daemon"]), ("false", "false"))
             self.assertEqual(values["expected_jobs"], str(3 + 2 * len(POWERSHELL)))
             text = summary.read_text(encoding="utf-8")
             self.assertIn(f"PowerShell {POWERSHELL[0]} with tmux {OLDEST}", text)
+
+    def test_a_full_plan_flags_its_lanes(self):
+        flat = plan_matrix.outputs(run("workflow_dispatch", scope="full"))
+        self.assertEqual((flat["run_reject"], flat["run_old_daemon"]), ("true", "true"))
+        self.assertEqual(
+            len(json.loads(flat["reject"])["include"]), len(MANIFEST["rejected"])
+        )
+        self.assertEqual(
+            len(json.loads(flat["old_daemon"])["include"]), len(MANIFEST["oldDaemon"])
+        )
 
     def test_a_refused_plan_exits_nonzero_and_writes_nothing(self):
         import contextlib
@@ -628,7 +649,6 @@ class PlanOutputs(unittest.TestCase):
     def test_the_gate_command_reads_the_needs_context(self):
         import contextlib
         import io
-        import json
         import os
 
         errors = io.StringIO()

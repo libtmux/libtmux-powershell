@@ -293,8 +293,8 @@ def check_needs(needs: dict[str, t.Any]) -> list[str]:
         if result != "success":
             problems.append(f"{job} finished {result or 'missing'}, not success")
     outputs = needs.get(PLAN_JOB, {}).get("outputs", {})
-    for job, output in (("reject", "reject"), ("reject-old-daemon", "old_daemon")):
-        wanted = "success" if outputs.get(output, "[]") != "[]" else "skipped"
+    for job, output in (("reject", "run_reject"), ("reject-old-daemon", "run_old_daemon")):
+        wanted = "success" if outputs.get(output) == "true" else "skipped"
         result = needs.get(job, {}).get("result")
         if result != wanted:
             problems.append(f"{job} finished {result or 'missing'}, not {wanted}")
@@ -324,8 +324,10 @@ def outputs(result: dict[str, t.Any]) -> dict[str, str]:
     return {
         "scope": result["scope"],
         "matrix": json.dumps(result["matrix"], **compact),
-        "reject": json.dumps(result["reject"], **compact),
-        "old_daemon": json.dumps(result["old_daemon"], **compact),
+        "reject": json.dumps({"include": result["reject"]}, **compact),
+        "run_reject": "true" if result["reject"] else "false",
+        "old_daemon": json.dumps({"include": result["old_daemon"]}, **compact),
+        "run_old_daemon": "true" if result["old_daemon"] else "false",
         "expected_jobs": str(result["expected_jobs"]),
     }
 
