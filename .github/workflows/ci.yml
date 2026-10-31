@@ -6,13 +6,52 @@ on:
     branches: [master]
   push:
     branches: [master]
+  workflow_call:
+    inputs:
+      scope:
+        description: How much of the tmux table to cover. The release workflow passes full.
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      scope:
+        description: >-
+          edges runs the oldest and newest tmux, full runs the whole table,
+          tmux master and the refusal lanes, custom runs the refs in tmux-ref.
+          A release is bound to a full run.
+        type: choice
+        options: [edges, full, custom]
+        default: edges
+      tmux-ref:
+        description: >-
+          With scope custom, comma-separated tmux versions, tags, branches or
+          40-hex commit SHAs from github.com/tmux/tmux, such as 3.6b,master.
+        type: string
+        default: ''
+      pwsh:
+        description: >-
+          Comma-separated PowerShell versions from eng/ci/matrix.json, such as
+          7.4.20,7.6.6. Empty runs both.
+        type: string
+        default: ''
+      tmate:
+        description: >-
+          Open a tmate SSH session for the person who started the run, before
+          the tests or only after a failure. It needs scope custom with one
+          tmux-ref and one pwsh version, so that exactly one leg gets it.
+        type: choice
+        # Quoted, because YAML 1.1 reads a bare off as false, which GitHub then
+        # offers as the only allowed value and passes to the plan as 'false'.
+        options: ['off', before-tests, on-failure]
+        default: 'off'
 
 permissions:
   contents: read
 
 concurrency:
-  group: powershell-${{ github.ref }}
+  # A dispatch is a request for that run, so another dispatch on the same ref
+  # does not cancel it and it does not cancel the ref's push run.
+  group: powershell-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 env:
@@ -23,7 +62,45 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 jobs:
+  # What a run covers is decided here from eng/ci/matrix.json and the event, so
+  # no job below lists a version. A push and a pull request test the oldest and
+  # newest tmux release; a dispatch with scope full tests the whole table, and
+  # a Gallery release is bound to such a run.
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      reject: ${{ steps.plan.outputs.reject }}
+      run_reject: ${{ steps.plan.outputs.run_reject }}
+      old_daemon: ${{ steps.plan.outputs.old_daemon }}
+      run_old_daemon: ${{ steps.plan.outputs.run_old_daemon }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: eng/ci
+
+      - name: Plan the run
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          SCOPE: ${{ inputs.scope }}
+          TMUX_REF: ${{ inputs.tmux-ref }}
+          PWSH: ${{ inputs.pwsh }}
+          TMATE: ${{ inputs.tmate }}
+        run: |
+          python3 eng/ci/plan_matrix.py plan \
+            --event "${EVENT}" \
+            --scope "${SCOPE}" \
+            --tmux-ref "${TMUX_REF}" \
+            --pwsh "${PWSH}" \
+            --tmate "${TMATE}" \
+            --github-output "${GITHUB_OUTPUT}" \
+            --summary "${GITHUB_STEP_SUMMARY}"
+
   port:
+    needs: plan
     name: build and pack PowerShell modules
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -101,49 +178,16 @@ jobs:
           retention-days: 7
 
   matrix:
-    needs: port
+    needs: [plan, port]
     name: PowerShell ${{ matrix.powershell }} / tmux ${{ matrix.tmux }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The leg that holds a debugging session gets the time to use it.
+    timeout-minutes: ${{ matrix.tmate == 'off' && 20 || 50 }}
     strategy:
       fail-fast: false
       max-parallel: 8
-      matrix:
-        powershell: ['7.4.20', '7.6.6']
-        tmux:
-          - '3.3a'
-          - '3.4'
-          - '3.5'
-          - '3.6'
-          - '3.7a'
-          - '3.7b'
-          - '3.7c'
-          - '3.8'
-          - 'master'
-        include:
-          - powershell: '7.4.20'
-            powershell_sha256: ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181
-          - powershell: '7.6.6'
-            powershell_sha256: ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
-          - tmux: '3.3a'
-            tmux_commit: 0b355ae8114511e1ff6359272b164f1cdf718e80
-          - tmux: '3.4'
-            tmux_commit: 9ae69c3795ab5ef6b4d760f6398cd9281151f632
-          - tmux: '3.5'
-            tmux_commit: ac44566c9c7e3e94d23be6def4c7ae83472543f5
-          - tmux: '3.6'
-            tmux_commit: 0dac7fe434d029a4f0b819cba8eb7963df291990
-          - tmux: '3.7a'
-            tmux_commit: 0e418b62d259ce8da8970f75732cc6632ee4c3a0
-          - tmux: '3.7b'
-            tmux_commit: e802909de06012a4df6209d55e86487c56223163
-          - tmux: '3.7c'
-            tmux_commit: e476c1230b958df0cb12977517d24b3dc931375b
-          - tmux: '3.8'
-            tmux_commit: 7f2a35ad3321f9ba57a1062ca73b1f3ff26aca53
-          # master floats: the job records the commit it built.
-          - tmux: 'master'
-            tmux_commit: ''
+      # The plan chooses the legs and never leaves this empty.
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -186,14 +230,41 @@ jobs:
           path: core/artifacts/tmux
           key: tmux-${{ matrix.tmux }}-${{ runner.os }}-${{ hashFiles('core/eng/tmux/build-version.sh') }}
 
+      # A tag, branch or commit outside the table is built from source at the
+      # commit it names. The commit is resolved first so that the cache key
+      # holds it and never the branch name.
+      - name: Resolve the tmux ref
+        id: resolve
+        if: matrix.build == 'ref'
+        env:
+          TMUX_REF: ${{ matrix.tmux }}
+        run: eng/ci/build-tmux.sh --resolve "${TMUX_REF}" | tee -a "${GITHUB_OUTPUT}"
+
+      - name: Restore the tmux ref build
+        if: matrix.build == 'ref'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/tmux-ref
+          key: tmux-ref-${{ steps.resolve.outputs.commit }}-${{ runner.os }}-${{ hashFiles('eng/ci/build-tmux.sh') }}
+
+      - name: Build and identify tmux ${{ matrix.tmux }} from a ref
+        if: matrix.build == 'ref'
+        env:
+          TMUX_COMMIT: ${{ steps.resolve.outputs.commit }}
+        run: |
+          eng/ci/build-tmux.sh --ref "${TMUX_COMMIT}" | tee "${RUNNER_TEMP}/tmux-ref.txt"
+          binary="$(sed -n 's/^binary=//p' "${RUNNER_TEMP}/tmux-ref.txt")"
+          dirname "${binary}" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
+
       - name: Build and identify tmux ${{ matrix.tmux }} from source
-        if: matrix.tmux == '3.8' || matrix.tmux == 'master'
+        if: matrix.build == 'clone'
         env:
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
         run: |
           source="${RUNNER_TEMP}/tmux-source"
-          if [ "${TMUX_VERSION}" = master ]; then
+          if [ -z "${TMUX_SOURCE_COMMIT}" ]; then
             git clone --quiet --depth 1 https://github.com/tmux/tmux.git "${source}"
           else
             git clone --quiet --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
@@ -206,7 +277,7 @@ jobs:
             && make --jobs="$(nproc)" \
             && make install)
           binary="${RUNNER_TEMP}/tmux-install/bin/tmux"
-          if [ "${TMUX_VERSION}" = master ]; then
+          if [ -z "${TMUX_SOURCE_COMMIT}" ]; then
             "${binary}" -V | grep -E '^tmux next-[0-9]+\.[0-9]+$'
           else
             test "$("${binary}" -V)" = "tmux ${TMUX_VERSION}"
@@ -216,7 +287,7 @@ jobs:
 
       - name: Build and identify tmux ${{ matrix.tmux }}
         id: tmux
-        if: matrix.tmux != '3.8' && matrix.tmux != 'master'
+        if: matrix.build == 'core'
         env:
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
@@ -235,6 +306,17 @@ jobs:
           name: port-package
           path: ${{ runner.temp }}/port-package
 
+      # A debugging session is for a dispatch, and the plan gives it to exactly
+      # one leg. It is limited to the person who started the run, who needs an
+      # SSH key on their GitHub profile, and it is closed after the step's limit.
+      - name: Debug session before the tests
+        if: github.event_name == 'workflow_dispatch' && matrix.tmate == 'before-tests'
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        timeout-minutes: 30
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
       - name: Check the installed package bytes and run product suites
         run: |
           test "$(command -v tmux)" = "${TMUX_BINARY}"
@@ -252,7 +334,7 @@ jobs:
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
       - name: Discover the separate MCP tool
-        if: matrix.powershell == '7.4.20' && (matrix.tmux == '3.3a' || matrix.tmux == '3.7c')
+        if: matrix.mcp == 'true'
         env:
           MCP_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
         run: |
@@ -271,7 +353,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: evidence-powershell-${{ matrix.powershell }}-tmux-${{ matrix.tmux }}
+          name: evidence-powershell-${{ matrix.powershell }}-tmux-${{ matrix.slug }}
           path: |
             build/test-Product.json
             build/test-Documentation.json
@@ -281,32 +363,38 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Debug session after a failure
+        if: failure() && github.event_name == 'workflow_dispatch' && matrix.tmate == 'on-failure'
+        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true
+
+  # Releases below the floor: the suite asserts refusal with no effects. They
+  # do not depend on which tmux a push touches, so they run where the plan asks
+  # for the whole table.
   reject:
-    needs: port
-    name: PowerShell 7.4.20 / tmux ${{ matrix.tmux }} rejected
+    needs: [plan, port]
+    if: needs.plan.outputs.run_reject == 'true'
+    name: PowerShell ${{ matrix.powershell }} / tmux ${{ matrix.tmux }} rejected
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      matrix:
-        # Releases below the 3.3a floor: the suite asserts refusal with no effects.
-        tmux: ['3.2a', '3.3']
-        include:
-          - tmux: '3.2a'
-            tmux_commit: 3b929f332aafa7f1080eacc31feb11ffbb1d1841
-          - tmux: '3.3'
-            tmux_commit: 87fe00e8b44901240fc22d7120c1b31e4331f6f5
+      matrix: ${{ fromJSON(needs.plan.outputs.reject) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install official PowerShell 7.4.20
+      - name: Install official PowerShell ${{ matrix.powershell }}
+        env:
+          POWERSHELL_VERSION: ${{ matrix.powershell }}
+          POWERSHELL_SHA256: ${{ matrix.powershell_sha256 }}
         run: |
-          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          archive="${RUNNER_TEMP}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz"
           curl --fail --location --retry 3 --silent --show-error \
-            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            "https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz" \
             --output "${archive}"
-          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
-            | sha256sum --check --strict
+          echo "${POWERSHELL_SHA256}  ${archive}" | sha256sum --check --strict
           mkdir -p "${RUNNER_TEMP}/powershell"
           tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
           chmod +x "${RUNNER_TEMP}/powershell/pwsh"
@@ -352,32 +440,30 @@ jobs:
             "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
 
+  # Releases whose daemon cannot report a version: the suite refuses them
+  # promptly. The client is the oldest supported release.
   reject-old-daemon:
-    needs: port
-    name: PowerShell 7.4.20 / tmux ${{ matrix.tmux }} daemon behind a 3.3a client
+    needs: [plan, port]
+    if: needs.plan.outputs.run_old_daemon == 'true'
+    name: PowerShell ${{ matrix.powershell }} / tmux ${{ matrix.tmux }} daemon behind a ${{ matrix.client_tmux }} client
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      matrix:
-        # Releases whose daemon cannot report a version: the suite refuses them promptly.
-        tmux: ['3.0a', '3.1c']
-        include:
-          - tmux: '3.0a'
-            tmux_commit: 25ae02869544b84b639b25b0aa69baa6ea2d3a6a
-          - tmux: '3.1c'
-            tmux_commit: 25cae5d86f01d0deb050243842ed5d967b3dc411
+      matrix: ${{ fromJSON(needs.plan.outputs.old_daemon) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install official PowerShell 7.4.20
+      - name: Install official PowerShell ${{ matrix.powershell }}
+        env:
+          POWERSHELL_VERSION: ${{ matrix.powershell }}
+          POWERSHELL_SHA256: ${{ matrix.powershell_sha256 }}
         run: |
-          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
+          archive="${RUNNER_TEMP}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz"
           curl --fail --location --retry 3 --silent --show-error \
-            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
+            "https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz" \
             --output "${archive}"
-          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
-            | sha256sum --check --strict
+          echo "${POWERSHELL_SHA256}  ${archive}" | sha256sum --check --strict
           mkdir -p "${RUNNER_TEMP}/powershell"
           tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
           chmod +x "${RUNNER_TEMP}/powershell/pwsh"
@@ -389,10 +475,12 @@ jobs:
             autoconf automake bison build-essential \
             libevent-dev libncurses-dev pkg-config
 
-      - name: Build the 3.3a client and the old daemon
+      - name: Build the ${{ matrix.client_tmux }} client and the old daemon
         env:
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
+          CLIENT_VERSION: ${{ matrix.client_tmux }}
+          CLIENT_SOURCE_COMMIT: ${{ matrix.client_commit }}
         run: |
           source="${RUNNER_TEMP}/tmux-source"
           git clone --quiet https://github.com/tmux/tmux.git "${source}"
@@ -407,10 +495,10 @@ jobs:
               && make install)
             test "$("${RUNNER_TEMP}/tmux-$2/bin/tmux" -V)" = "tmux $2"
           }
-          build 0b355ae8114511e1ff6359272b164f1cdf718e80 3.3a
+          build "${CLIENT_SOURCE_COMMIT}" "${CLIENT_VERSION}"
           build "${TMUX_SOURCE_COMMIT}" "${TMUX_VERSION}"
-          echo "${RUNNER_TEMP}/tmux-3.3a/bin" >> "${GITHUB_PATH}"
-          printf 'TMUX_BINARY=%s\n' "${RUNNER_TEMP}/tmux-3.3a/bin/tmux" >> "${GITHUB_ENV}"
+          echo "${RUNNER_TEMP}/tmux-${CLIENT_VERSION}/bin" >> "${GITHUB_PATH}"
+          printf 'TMUX_BINARY=%s\n' "${RUNNER_TEMP}/tmux-${CLIENT_VERSION}/bin/tmux" >> "${GITHUB_ENV}"
           printf 'LIBTMUX_OLD_DAEMON=%s\n' "${RUNNER_TEMP}/tmux-${TMUX_VERSION}/bin/tmux" >> "${GITHUB_ENV}"
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -430,16 +518,21 @@ jobs:
             "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite VersionCheck -PackageRoot "${RUNNER_TEMP}/port-package"
 
+  # A lane the plan left out of scope must be skipped and a lane it planned
+  # must succeed. Accepting a skip for a planned lane would let a failure that
+  # skips its dependents pass.
   gate:
-    needs: [port, matrix, reject, reject-old-daemon]
+    needs: [plan, port, matrix, reject, reject-old-daemon]
     if: always()
     name: powershell gate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every dependency and matrix lane
-        run: |
-          test "${{ needs.port.result }}" = success
-          test "${{ needs.matrix.result }}" = success
-          test "${{ needs.reject.result }}" = success
-          test "${{ needs.reject-old-daemon.result }}" = success
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: eng/ci
+
+      - name: Require every planned job
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 eng/ci/plan_matrix.py gate
