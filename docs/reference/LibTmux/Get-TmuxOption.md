@@ -47,8 +47,9 @@ None.
 
 ## DESCRIPTION
 
-The native owner selects its option table. Scope overrides that choice, and Global
-selects global defaults. A named read emits each native TmuxOption row, preserving
+The native owner selects its option table. Scope overrides that choice, and
+Global requests global defaults; pane-local options still use the pane table.
+A named read emits each native TmuxOption row, preserving
 sparse array indices, inherited markers and TmuxOptionValue fields. Omit Name to
 list the table. IncludeInherited requests inherited values explicitly.
 
@@ -70,7 +71,8 @@ $session | LibTmux\Get-TmuxOption -Name 'status-keys' -IncludeInherited
 
 ### -Global
 
-Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.
+Pass tmux its global flag. Pane-local options still use the pane table.
+For global session defaults from a Server, specify Scope Session and Global.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter

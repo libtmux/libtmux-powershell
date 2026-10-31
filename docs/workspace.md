@@ -175,7 +175,8 @@ $workspacePlan = $workspace | Get-TmuxWorkspacePlan @planOptions
 
 A JSON window layout needs tmux 3.8. On an older server,
 `Get-TmuxWorkspacePlan` fails with a `WorkspaceFormatException` whose inner
-exception is the `layout-json` refusal, and nothing is sent.
+exception is the `layout-json` refusal. Planning may probe the version but sends
+no layout or creation command.
 
 Inspect the ordered actions before applying them. The default view shows each
 action's symbolic target and source, plus a safe summary of its arguments:

@@ -66,7 +66,7 @@ $session | LibTmux\Invoke-TmuxHook -Name 'alert-bell'
 
 ### -Confirm
 
-Ask for confirmation before changing the selected table.
+Ask for confirmation before running the hook.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter
@@ -87,7 +87,8 @@ HelpMessage: ''
 
 ### -Global
 
-Use the global table for the selected scope. For global session defaults from a Server, specify Scope Session and Global.
+Pass tmux its global flag. Immediate hook invocation still uses target-context
+lookup; this flag does not force the global definition.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter
@@ -108,7 +109,8 @@ HelpMessage: ''
 
 ### -Name
 
-The tmux hook name, optionally indexed for a specific entry. tmux expands formats in names.
+The base tmux hook name. An indexed name does not select one entry for immediate
+invocation. tmux expands formats in names.
 
 ```yaml
 Type: System.String
@@ -150,7 +152,8 @@ HelpMessage: ''
 
 ### -Scope
 
-Override the owner scope with Server, Session, Window or Pane. Omission uses the native owner scope.
+Pass an explicit scope to tmux. Immediate hook invocation still uses
+target-context lookup rather than forcing this table.
 
 ```yaml
 Type: LibTmux.OptionScope
@@ -287,9 +290,10 @@ No success output.
 ## NOTES
 
 Server hooks are the global hook table; tmux has no separate server hook table.
-Choose a hook supported by the selected scope. Scope and Global pass through to
-tmux without remapping the owner. Empty pipelines do no I/O. Errors retain the
-native owner and core exception; Continue permits later owners and Stop terminates.
+Scope and Global pass through to tmux without remapping the owner or forcing
+the lookup table for immediate invocation. Empty pipelines do no I/O. Errors
+retain the native owner and core exception; Continue permits later owners and
+Stop terminates.
 Cancellation cannot undo commands already dispatched. Multiple mutations are
 sequential, not an atomic replacement.
 
