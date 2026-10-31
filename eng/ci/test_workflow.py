@@ -43,6 +43,52 @@ def render(template, values):
     return re.sub(r"\$\{\{ matrix\.(\w+) \}\}", lambda m: values[m.group(1)], template)
 
 
+TMATE = "mxschmitt/action-tmate"
+
+
+def steps_of(job):
+    """Split a job's text into its steps."""
+    return re.split(r"(?m)^(?=      - )", job)[1:]
+
+
+def check_debug_sessions(text, jobs):
+    """Return what makes a debugging session unsafe or misplaced."""
+    problems = []
+    found = 0
+    for name, job in jobs.items():
+        for step in steps_of(job):
+            if TMATE not in step:
+                continue
+            found += 1
+            if name != "matrix":
+                problems.append(f"{name}: a debugging session belongs only in the matrix")
+            if not re.search(rf"uses: {TMATE}@[0-9a-f]{{40}} #", step):
+                problems.append("a debugging session must be pinned to a full commit SHA")
+            if "limit-access-to-actor: true" not in step:
+                problems.append("a debugging session must be limited to the actor")
+            if not re.search(r"(?m)^        timeout-minutes: \d+$", step):
+                problems.append("a debugging session needs its own time limit")
+            condition = field_of_step(step, "if") or ""
+            if "github.event_name == 'workflow_dispatch'" not in condition or (
+                "matrix.tmate ==" not in condition
+            ):
+                problems.append(
+                    "a debugging session runs only on a dispatch, on the leg the plan chose"
+                )
+    if found != 2:
+        problems.append("the matrix must offer a debugging session before the tests and after a failure")
+    if field(jobs["matrix"], "timeout-minutes") != "${{ matrix.tmate == 'off' && 20 || 50 }}":
+        problems.append("matrix: the job must cap its time and give the debugging leg more")
+    if "TMATE: ${{ inputs.tmate }}" not in jobs["plan"] or '--tmate "${TMATE}"' not in jobs["plan"]:
+        problems.append("plan: must pass the tmate input through env")
+    return problems
+
+
+def field_of_step(step, key):
+    match = re.search(rf"(?m)^        {re.escape(key)}: (.*)$", step)
+    return match.group(1).strip() if match else None
+
+
 def check(text):
     """Return what ci.yml does that breaks the plan or the release binding."""
     problems = []
@@ -109,7 +155,7 @@ def check(text):
     if "      scope:\n" not in call or "        required: true\n" not in call:
         problems.append("workflow_call: the scope input must be required")
     dispatch = head.partition("\n  workflow_dispatch:\n")[2]
-    for name in ("scope", "tmux-ref", "pwsh"):
+    for name in ("scope", "tmux-ref", "pwsh", "tmate"):
         if not re.search(rf"^      {re.escape(name)}:$", dispatch, re.MULTILINE):
             problems.append(f"workflow_dispatch: missing the {name} input")
 
@@ -119,6 +165,7 @@ def check(text):
         ) and not line.lstrip().startswith("#"):
             problems.append(f"line {number}: pass an input to a script through env")
 
+    problems += check_debug_sessions(text, jobs)
     for each in MANIFEST["supported"] + MANIFEST["rejected"] + MANIFEST["oldDaemon"]:
         if each["commit"] in text:
             problems.append(f"the source commit of tmux {each['tmux']} belongs in the manifest")
@@ -253,6 +300,37 @@ class WorkflowFollowsThePlan(unittest.TestCase):
                      "belongs in the manifest")
         self.mutated("      - name: Resolve the tmux ref\n", "      - name: Resolve '3.8'\n",
                      "tmux 3.8 belongs in the manifest")
+
+    def test_the_debugging_session_stays_pinned_limited_and_bounded(self):
+        sha = "35b54afac29c97fb54faba5b513f8fbd1882f113"
+        self.mutated(f"action-tmate@{sha} # v3.24", "action-tmate@v3.24", "pinned to a full commit SHA")
+        self.mutated("          limit-access-to-actor: true\n", "          limit-access-to-actor: false\n",
+                     "limited to the actor")
+        self.mutated("        timeout-minutes: 30\n        continue-on-error: true\n",
+                     "        continue-on-error: true\n", "own time limit")
+        self.mutated("if: github.event_name == 'workflow_dispatch' && matrix.tmate == 'before-tests'",
+                     "if: matrix.tmate == 'before-tests'", "runs only on a dispatch")
+        self.mutated("if: failure() && github.event_name == 'workflow_dispatch' && matrix.tmate == 'on-failure'",
+                     "if: failure() && github.event_name == 'workflow_dispatch'", "on the leg the plan chose")
+
+    def test_a_debugging_session_cannot_be_dropped_or_moved(self):
+        start = self.text.index("      - name: Debug session after a failure")
+        end = self.text.index("\n\n", start) + 2
+        block = self.text[start:end]
+        dropped = self.text[:start] + self.text[end:]
+        self.assertIn(
+            "the matrix must offer a debugging session before the tests and after a failure",
+            check(dropped),
+        )
+        gate = dropped.index("      - name: Require every planned job")
+        moved = dropped[:gate] + block + dropped[gate:]
+        self.assertIn("gate: a debugging session belongs only in the matrix", check(moved))
+
+    def test_the_job_time_limit_and_the_tmate_input_are_required(self):
+        self.mutated("timeout-minutes: ${{ matrix.tmate == 'off' && 20 || 50 }}", "timeout-minutes: 20",
+                     "give the debugging leg more")
+        self.mutated("          TMATE: ${{ inputs.tmate }}\n", "", "pass the tmate input through env")
+        self.mutated("      tmate:\n", "      debug:\n", "missing the tmate input")
 
     def test_a_removed_job_is_reported(self):
         trimmed = self.text.replace("  reject:\n", "  rejected:\n", 1)
