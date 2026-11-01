@@ -53,6 +53,10 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
     if (!$manifest -or !$nuspec -or !$payload.ContainsKey('LICENSE')) {
         throw 'Release archive is missing module metadata or its license.'
     }
+    # Each module ships the history of its own releases, and its release notes link it.
+    if (!$payload.ContainsKey('CHANGELOG.md')) {
+        throw 'Release archive is missing the module changelog.'
+    }
     if ($ValidateMetadata) {
         $manifestPath = Join-Path $owned "$Name.psd1"
         Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding utf8
@@ -72,6 +76,10 @@ function Read-ReleaseArchive([string] $Path, [string] $Name, [switch] $ValidateM
             'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE' -or
             [string]::IsNullOrWhiteSpace($data.PrivateData.PSData.ReleaseNotes)) {
             throw 'Release package metadata lacks the MIT link or release notes.'
+        }
+        if (!$data.PrivateData.PSData.ReleaseNotes.Contains(
+                "https://github.com/libtmux/libtmux-powershell/blob/master/module/$Name/CHANGELOG.md")) {
+            throw 'Release notes do not link the module changelog.'
         }
         $dependencies = @($metadata.SelectNodes('*[local-name()="dependencies"]//*[local-name()="dependency"]'))
         $required = @(if ($data.ContainsKey('RequiredModules')) { $data.RequiredModules })

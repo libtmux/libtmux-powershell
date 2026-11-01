@@ -29,8 +29,8 @@ with [`Get-TmuxSnapshot`][get-tmuxsnapshot], wait for output with
 with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
 
 Releases are numbered `0.1.N`, and each release increments `N`. The API is not
-settled: any release may change or remove exported identifiers, and the
-changelog marks each break. Pin an exact version to avoid one.
+settled: any release may change or remove exported identifiers, and each
+module's changelog marks its breaks. Pin an exact version to avoid one.
 
 Both modules are available on PowerShell Gallery:
 [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
@@ -646,8 +646,8 @@ default tmux server stays untouched.
 
 - **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
   The API is not settled: any release may change or remove exported
-  identifiers, and the changelog marks each break. Pin an exact version to
-  avoid one.
+  identifiers, and each module's changelog marks its breaks. Pin an exact
+  version to avoid one.
 - **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
 - **tmux.** 3.3a or newer. CI runs 3.3a and 3.8 on every change, and 3.3a
   through 3.8 and tmux master before a release; other releases are
@@ -684,6 +684,9 @@ Browse cmdlets with `Get-Command -Module LibTmux` and examples with
   stream failures
 - [Benchmarks](benchmarks/README.md) — installed-package workloads,
   correctness checks, raw samples and reproduction commands
+- [Changelog](CHANGELOG.md) — changes that span both modules, with a link to
+  the changelog of each: [`LibTmux`](module/LibTmux/CHANGELOG.md) and
+  [`LibTmux.Workspace`](module/LibTmux.Workspace/CHANGELOG.md)
 - [Contributing](.github/CONTRIBUTING.md) — the runners and development checks
 - [Executable guides](examples/Guides.ps1) — run against real tmux through the
   installed modules, and the README blocks run together in the

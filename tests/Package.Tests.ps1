@@ -19,6 +19,11 @@ foreach ($name in @('LibTmux', 'LibTmux.Workspace')) {
         (Get-FileHash -LiteralPath $license).Hash -cne (Get-FileHash -LiteralPath "$PSScriptRoot/../LICENSE").Hash) {
         throw "The $name package does not contain this repository's MIT license."
     }
+    $changelog = Join-Path $ModuleRoot "$name/0.1.0/CHANGELOG.md"
+    if (!(Test-Path -LiteralPath $changelog -PathType Leaf) -or
+        (Get-FileHash -LiteralPath $changelog).Hash -cne (Get-FileHash -LiteralPath "$PSScriptRoot/../module/$name/CHANGELOG.md").Hash) {
+        throw "The $name package does not contain its own changelog."
+    }
 }
 $before = [Environment]::GetEnvironmentVariables()
 $pathBefore = $env:PATH

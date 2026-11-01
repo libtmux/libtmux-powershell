@@ -35,21 +35,23 @@ $reads = [Collections.Generic.List[string]]::new()
 $failureCode = 0
 $failWorkspace = $false
 
-function New-TestPackage([string] $Name, [string] $Path, [string] $Version = $expectedRelease.ModuleVersion, [string] $Payload = 'tested', [string] $Prerelease = $expectedPrerelease, [string] $ManifestPrerelease = $Prerelease) {
+function New-TestPackage([string] $Name, [string] $Path, [string] $Version = $expectedRelease.ModuleVersion, [string] $Payload = 'tested', [string] $Prerelease = $expectedPrerelease, [string] $ManifestPrerelease = $Prerelease, [switch] $NoChangelog, [string] $ReleaseNotes = "Test release; LibTmux .NET alpha.20. https://github.com/libtmux/libtmux-powershell/blob/master/module/$Name/CHANGELOG.md") {
     $packageVersion = if ($Prerelease) { "$Version-$Prerelease" } else { $Version }
     $required = if ($Name -ceq 'LibTmux.Workspace') {
         "RequiredModules = @(@{ ModuleName = 'LibTmux'; RequiredVersion = '$($expectedRelease.ModuleVersion)' })"
     } else { 'RequiredModules = @()' }
     $manifest = "@{ ModuleVersion = '$Version'; $required; PrivateData = @{ PSData = @{ " +
         "LicenseUri = 'https://github.com/libtmux/libtmux-powershell/blob/master/LICENSE'; " +
-        "$(if ($ManifestPrerelease) { "Prerelease = '$ManifestPrerelease'; " })ReleaseNotes = 'Test release; LibTmux .NET alpha.20.' } } }"
+        "$(if ($ManifestPrerelease) { "Prerelease = '$ManifestPrerelease'; " })ReleaseNotes = '$ReleaseNotes' } } }"
     $dependency = if ($Name -ceq 'LibTmux.Workspace') { "<dependency id=`"LibTmux`" version=`"[$packageVersion]`" />" } else { '' }
     $items = @{
         "$Name.psd1" = $manifest
         "$Name.dll" = $Payload
         'LICENSE' = 'MIT'
+        'CHANGELOG.md' = "Notable changes to ``$Name``."
         "$Name.nuspec" = "<package><metadata><id>$Name</id><version>$packageVersion</version><dependencies>$dependency</dependencies></metadata></package>"
     }
+    if ($NoChangelog) { $items.Remove('CHANGELOG.md') }
     $zip = [IO.Compression.ZipFile]::Open($Path, [IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($item in $items.GetEnumerator()) {
@@ -127,6 +129,20 @@ try {
     Set-TestEvidence
     & $publisher -PackageRoot $owned -SourceCommit $source | Out-Null
     if ($reads.Count -or $uploads.Count) { throw 'Dry run performed network I/O.' }
+    # A module ships its own changelog, and its release notes link it.
+    foreach ($case in @(
+        @{ Reason = 'missing the module changelog'; Arguments = @{ NoChangelog = $true } },
+        @{ Reason = 'link the module changelog'; Arguments = @{ ReleaseNotes = 'Test release; only the root changelog.' } })) {
+        $arguments = $case.Arguments
+        Remove-Item -LiteralPath "$owned/LibTmux.Workspace.$expectedVersion.nupkg"
+        New-TestPackage 'LibTmux.Workspace' "$owned/LibTmux.Workspace.$expectedVersion.nupkg" @arguments
+        Set-TestEvidence
+        Assert-PublishFailure $case.Reason
+        Remove-Item -LiteralPath "$owned/LibTmux.Workspace.$expectedVersion.nupkg"
+        New-TestPackage 'LibTmux.Workspace' "$owned/LibTmux.Workspace.$expectedVersion.nupkg"
+        Set-TestEvidence
+    }
+    if ($reads.Count -or $uploads.Count) { throw 'A package without its changelog reached publication.' }
     Assert-PublishFailure 'source' -Revision ('2' * 40)
     Add-Content "$owned/LibTmux.$expectedVersion.nupkg" 'modified'
     Assert-PublishFailure 'hash'
