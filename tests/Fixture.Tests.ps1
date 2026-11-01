@@ -15,6 +15,7 @@ if (-not $Child) {
     $start.Environment['LIBTMUX_SOCKET'] = 'borrowed'
     $start.Environment['LIBTMUX_SOCKET_PATH'] = '/borrowed/socket'
     $start.Environment['LIBTMUX_SOCKET_NAME'] = 'borrowed'
+    $start.Environment['LIBTMUX_SOCKET_OTHER'] = 'borrowed'
     foreach ($name in @('TMUX_TMPDIR', 'LIBTMUX_TEST_SANDBOX', 'LIBTMUX_TEST_SANDBOX_OWNER')) {
         $null = $start.Environment.Remove($name)
     }
@@ -51,7 +52,7 @@ function Assert-CleanedUp($Fixture) {
     }
 }
 
-foreach ($name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME')) {
+foreach ($name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'LIBTMUX_SOCKET_OTHER')) {
     Assert-True ($null -eq [Environment]::GetEnvironmentVariable($name)) "The sandbox left $name set."
 }
 Assert-True (@(Get-TestSandboxViolation).Count -eq 0) 'The sandbox does not hold in the self-check process.'

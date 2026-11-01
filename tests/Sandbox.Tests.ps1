@@ -16,10 +16,11 @@ function Assert-Canary([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw "Sandbox canary: $Message" }
 }
 
-$selectors = @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME')
+# LIBTMUX_SOCKET_OTHER is no variable anything reads: the sandbox removes the whole prefix.
+$selectors = @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'LIBTMUX_SOCKET_OTHER')
 $decoys = [ordered]@{
     TMUX = '/decoy/server,1,0'; TMUX_PANE = '%9'; LIBTMUX_SOCKET = 'decoy'
-    LIBTMUX_SOCKET_PATH = '/decoy/socket'; LIBTMUX_SOCKET_NAME = 'decoy'
+    LIBTMUX_SOCKET_PATH = '/decoy/socket'; LIBTMUX_SOCKET_NAME = 'decoy'; LIBTMUX_SOCKET_OTHER = 'decoy'
 }
 $directory = $env:TMUX_TMPDIR
 $scratch = Join-Path $directory 'canary'
@@ -137,7 +138,7 @@ $body = {
     if ($Mode -eq 'Link') {
         $null = New-Item -ItemType SymbolicLink -Path (Join-Path $directory 'tmux-1/default') -Target $env:LIBTMUX_CANARY_TARGET
     }
-    $held = @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME') |
+    $held = @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'LIBTMUX_SOCKET_OTHER') |
         Where-Object { $null -ne [Environment]::GetEnvironmentVariable($_) }
     @{ Directory = $directory; Held = @($held); Routed = $directory -ceq $env:TMUX_TMPDIR
         Mode = [int] [IO.File]::GetUnixFileMode($directory) } | ConvertTo-Json -Compress
@@ -179,7 +180,7 @@ $runnerText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../eng/Test.ps1')
 $entry = '$sandbox = Enter-TestSandbox'
 Assert-Canary ($runnerText.Contains($entry)) 'eng/Test.ps1 no longer enters the sandbox where this check expects it.'
 $lateText = $runnerText.Replace($entry, $entry + "`n" +
-    "foreach (`$name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME')) {`n" +
+    "foreach (`$name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'LIBTMUX_SOCKET_OTHER')) {`n" +
     "    [Environment]::SetEnvironmentVariable(`$name, 'decoy')`n}")
 # A server that appears after the end-of-run scan is not one the scan could have seen.
 $afterText = $runnerText.Replace("    `$passed = `$true`n}", "    `$passed = `$true`n" +
@@ -267,9 +268,16 @@ $reportAfter = Join-Path $scratch 'after.report'
 $loose = Join-Path (Split-Path $directory) ('lt-ps-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 $setgidParent = Join-Path '/tmp' ('lt-sg-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
 $readOnly = Join-Path '/tmp' ('lt-ro-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
+# The longest directory a socket path leaves room for: 40 bytes, with the prefix.
+$exact = '/tmp/lt-ps-' + [Guid]::NewGuid().ToString('N').Substring(0, 29)
+# The exit removes a directory only when its name carries the prefix, whatever else matches.
+$unprefixed = Join-Path $scratch 'not-a-sandbox'
+$prefixed = Join-Path $scratch 'lt-ps-00000000'
 $staleTree = Join-Path $scratch 'sockets'
-$null = New-Item -ItemType Directory -Path $loose, $setgidParent, $readOnly, (Join-Path $staleTree 'deep/er'), `
-    (Join-Path $staleTree 'outside'), (Join-Path $staleTree 'viewed') -Force
+$null = New-Item -ItemType Directory -Path $loose, $setgidParent, $readOnly, $exact, $unprefixed, $prefixed, `
+    (Join-Path $staleTree 'deep/er'), (Join-Path $staleTree 'outside'), (Join-Path $staleTree 'viewed') -Force
+foreach ($owned in @($exact, $unprefixed, $prefixed)) { [IO.File]::SetUnixFileMode($owned, $ownerOnly) }
+Set-Content -LiteralPath (Join-Path $unprefixed 'marker') -Value ''
 [IO.File]::SetUnixFileMode($loose, [IO.UnixFileMode] 511)
 [IO.File]::SetUnixFileMode($setgidParent, [IO.UnixFileMode] 1472)
 [IO.File]::SetUnixFileMode($readOnly, [IO.UnixFileMode] 320)
@@ -298,14 +306,25 @@ try {
         '[Net.Sockets.UnixDomainSocketEndPoint]::new($env:LIBTMUX_CANARY_STALE))')) { $staleStart.ArgumentList.Add($argument) }
     $staleStart.Environment['LIBTMUX_CANARY_STALE'] = Join-Path $staleTree 'deep/stale.sock'
     $runs.Stale = Start-Capture $staleStart
+    foreach ($removal in @(@{ Run = 'Unprefixed'; Directory = $unprefixed }, @{ Run = 'Prefixed'; Directory = $prefixed })) {
+        $removalStart = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
+        foreach ($argument in @('-NoLogo', '-NoProfile', '-Command', '. "$env:LIBTMUX_CANARY_LIBRARY"; ' +
+            '[Environment]::SetEnvironmentVariable("LIBTMUX_TEST_SANDBOX_OWNER", [string] $PID); $null = Exit-TestSandbox')) {
+            $removalStart.ArgumentList.Add($argument)
+        }
+        $removalStart.Environment['LIBTMUX_CANARY_LIBRARY'] = Join-Path $PSScriptRoot 'support/Sandbox.ps1'
+        $removalStart.Environment['TMUX_TMPDIR'] = $removal.Directory
+        $removalStart.Environment['LIBTMUX_TEST_SANDBOX'] = $removal.Directory
+        $runs[$removal.Run] = Start-Capture $removalStart
+    }
 
     # --- Checks that need no process of their own ---------------------------------------
 
     # The findings function reports every route to a server outside the sandbox, by name.
     $dirty = @{ TMUX_PANE = '%9'; TMUX = '/decoy/server,1,0'; LIBTMUX_SOCKET = 'decoy'
-        LIBTMUX_SOCKET_PATH = '/decoy/socket'; LIBTMUX_SOCKET_NAME = 'decoy' }
+        LIBTMUX_SOCKET_PATH = '/decoy/socket'; LIBTMUX_SOCKET_NAME = 'decoy'; LIBTMUX_SOCKET_OTHER = 'decoy' }
     $findings = @(Get-TestSandboxViolation $dirty)
-    Assert-Canary (($findings -join '|') -ceq ('LIBTMUX_SOCKET is set|LIBTMUX_SOCKET_NAME is set|' +
+    Assert-Canary (($findings -join '|') -ceq ('LIBTMUX_SOCKET is set|LIBTMUX_SOCKET_NAME is set|LIBTMUX_SOCKET_OTHER is set|' +
         'LIBTMUX_SOCKET_PATH is set|TMUX is set|TMUX_PANE is set|TMUX_TMPDIR is unset')) 'a dirty environment was not reported by name.'
     Assert-Canary (-not ($findings -join '|').Contains('decoy')) 'a finding printed a value.'
     $known = [Environment]::GetEnvironmentVariables()
@@ -316,12 +335,17 @@ try {
     foreach ($case in @(
         @{ Directory = 'relative/dir'; Expected = 'TMUX_TMPDIR is not an absolute path' }
         @{ Directory = '/' + ('x' * 40); Expected = 'TMUX_TMPDIR is longer than 40 bytes' }
+        @{ Directory = $exact + 'x'; Expected = 'TMUX_TMPDIR is longer than 40 bytes' }
         @{ Directory = $directory; Marker = $null; Expected = 'TMUX_TMPDIR is not the sandbox directory of this run' }
         @{ Directory = '/tmp/lt-ps-missing'; Marker = '/tmp/lt-ps-missing'; Expected = 'the sandbox directory is missing' })) {
         $variables = @{ TMUX_TMPDIR = $case.Directory }
         if ($case.ContainsKey('Marker') -and $case.Marker) { $variables['LIBTMUX_TEST_SANDBOX'] = $case.Marker }
         Assert-Canary ((@(Get-TestSandboxViolation $variables) -join '|') -ceq $case.Expected) "TMUX_TMPDIR was not refused: $($case.Expected)"
     }
+
+    Assert-Canary ([Text.Encoding]::UTF8.GetByteCount($exact) -eq 40 -and
+        @(Get-TestSandboxViolation @{ TMUX_TMPDIR = $exact; LIBTMUX_TEST_SANDBOX = $exact }).Count -eq 0) `
+        'a sandbox directory of exactly 40 bytes was refused.'
 
     # A process that was never sandboxed is refused by name. This one is, so a selector is
     # set for the length of the call and put back.
@@ -447,24 +471,30 @@ try {
             "a library call addressed a socket outside the sandbox$passed."
     }
 
-    # A client that names no socket looks only in the sandbox, and moving TMUX_TMPDIR moves it.
-    function Invoke-BareClient([string] $Directory) {
+    # A client that names no socket looks only in the sandbox: this process's own environment
+    # is all it is given. Two controls show what the look would find if the sandbox leaked: a
+    # different TMUX_TMPDIR moves it, and a TMUX that names a server is followed.
+    function Invoke-BareClient([string] $Directory, [string] $Pane) {
         $start = [Diagnostics.ProcessStartInfo]::new($tmux)
-        Clear-TestSandboxSelector $start
-        $start.Environment['TMUX_TMPDIR'] = $Directory
+        if ($Directory) { $start.Environment['TMUX_TMPDIR'] = $Directory }
+        if ($Pane) { $start.Environment['TMUX'] = $Pane }
         foreach ($argument in @('-N', '-f', '/dev/null', 'list-sessions')) { $start.ArgumentList.Add($argument) }
         Invoke-Capture $start
     }
-    $own = Invoke-BareClient $directory
+    $own = Invoke-BareClient
     $default = [regex]::Match($own.Text, [regex]::Escape("$directory/tmux-") + '(?<uid>[0-9]+)/default')
     Assert-Canary ($own.ExitCode -ne 0 -and $default.Success) `
         'a client that names no socket did not look for the default socket in the sandbox.'
     $uid = $default.Groups['uid'].Value
-    $moved = Join-Path $scratch 'elsewhere'
-    $null = New-Item -ItemType Directory -Path $moved -Force
-    $elsewhere = Invoke-BareClient $moved
-    Assert-Canary ($elsewhere.Text.Contains("$moved/tmux-$uid/default") -and
+    $other = Join-Path $scratch 'elsewhere'
+    $null = New-Item -ItemType Directory -Path $other -Force
+    $elsewhere = Invoke-BareClient $other
+    Assert-Canary ($elsewhere.Text.Contains("$other/tmux-$uid/default") -and
         -not $elsewhere.Text.Contains("$directory/tmux-$uid/default")) 'the client check cannot tell one TMUX_TMPDIR from another.'
+    $named = Join-Path $scratch 'named-server'
+    $followed = Invoke-BareClient -Pane "$named,1,0"
+    Assert-Canary ($followed.Text.Contains($named) -and -not $followed.Text.Contains("$directory/tmux-$uid/default")) `
+        'the client check cannot tell a client that follows TMUX from one that does not.'
 
     # --- Read back what was started -----------------------------------------------------
 
@@ -508,6 +538,13 @@ try {
         'a process refused, or left, a TMPDIR with the setgid bit.'
     Assert-Canary (([int] $report.Mode -band 1024) -ne 0 -or -not $IsLinux) `
         'the new directory did not inherit the setgid bit, so the check proves nothing.'
+
+    # The recursive removal is scoped by the prefix of the directory's name.
+    $unremoved = $results.Unprefixed
+    Assert-Canary ($unremoved.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $unprefixed 'marker'))) `
+        'the exit removed a directory that does not carry the sandbox prefix.'
+    Assert-Canary ($results.Prefixed.ExitCode -eq 0 -and -not (Test-Path -LiteralPath $prefixed)) `
+        'the exit did not remove a directory that carries the sandbox prefix, so the check proves nothing.'
 
     # The exit hook cleans up after a script that entered inside a function, which leaves
     # nothing behind to call by name.
@@ -635,7 +672,7 @@ try {
     Clear-ServedSandbox $reportSlow
     Clear-ServedSandbox $reportDrop
     Clear-ServedSandbox $reportAfter
-    foreach ($leftover in @($loose, $setgidParent, $readOnly)) {
+    foreach ($leftover in @($loose, $setgidParent, $readOnly, $exact)) {
         if (Test-Path -LiteralPath $leftover) { Remove-Item -LiteralPath $leftover -Recurse -Force }
     }
 }
