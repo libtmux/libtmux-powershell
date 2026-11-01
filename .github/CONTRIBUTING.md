@@ -436,6 +436,14 @@ belong to the selected source commit, and that the called CI has every job of
 the whole table, tmux master and the refusal jobs. A run of the CI workflow
 dispatched by hand cannot stand in for it.
 
+Each module archive carries its own `CHANGELOG.md`, and the publisher refuses
+an archive without it, or one whose release notes do not link it. Before a
+release, date the unreleased section of the root changelog and of each
+module's changelog and open the next one;
+[WRITING.md](WRITING.md#pull-requests-changelogs-and-releases) says which file
+an entry goes in. `tests/Changelog.Tests.ps1` fails when a module loses its
+changelog, its unreleased section, or the links to it.
+
 Validate a release without uploading:
 
 ```console

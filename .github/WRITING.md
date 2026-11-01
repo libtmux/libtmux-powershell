@@ -198,6 +198,19 @@ section. State changed defaults and incompatibilities with migration
 guidance. Do not invent versions or release dates. Mention old behavior only
 when users of a published release experienced it.
 
+Each module keeps its own `CHANGELOG.md` in its `module/` directory, which the
+build copies into the package: `module/LibTmux/CHANGELOG.md` for `LibTmux` and
+`module/LibTmux.Workspace/CHANGELOG.md` for `LibTmux.Workspace`. An entry goes
+in the file of the module it changes. The root `CHANGELOG.md` holds what
+belongs to no single module: a change that spans both, and documentation,
+development and packaging. An entry lives in exactly one file. The modules
+share one version, so every release has a section in each file, and a release
+with nothing for a module says ``No entries for `LibTmux`.`` under its heading.
+The unreleased heading of every file is dated at the release. A module's
+`PSData.ReleaseNotes` links its changelog, and the publisher refuses a package
+that ships none. When the first entry lands in a release that says ``No entries
+for `LibTmux`.``, delete that line.
+
 Release notes explain why an upgrader should care and what action is needed.
 Link the detailed changelog instead of repeating it. Internal refactors and
 branch history belong in commits unless they affect users.
