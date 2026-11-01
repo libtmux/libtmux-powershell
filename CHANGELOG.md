@@ -13,6 +13,15 @@
 - Preserve blank lines in native help examples without displaying control
   characters.
 
+### Development
+
+- Run the test suites in a sandbox, so that a test, example or documentation
+  check that names no socket cannot reach the tmux server you work in.
+  `eng/Test.ps1` and each script that builds a handle remove `TMUX`,
+  `TMUX_PANE` and every `LIBTMUX_SOCKET*` variable, point `TMUX_TMPDIR` at a
+  private owner-only directory and refuse to run without it. When a run ends,
+  any server left in that directory is stopped and fails the run. (#63)
+
 ### Documentation
 
 - State first-use version requirements and distinguish polling, completion
