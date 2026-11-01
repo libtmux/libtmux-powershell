@@ -266,11 +266,13 @@ $reportAfter = Join-Path $scratch 'after.report'
 # a socket path, which a directory under the sandbox is not.
 $loose = Join-Path (Split-Path $directory) ('lt-ps-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 $setgidParent = Join-Path '/tmp' ('lt-sg-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
+$readOnly = Join-Path '/tmp' ('lt-ro-' + [Guid]::NewGuid().ToString('N').Substring(0, 6))
 $staleTree = Join-Path $scratch 'sockets'
-$null = New-Item -ItemType Directory -Path $loose, $setgidParent, (Join-Path $staleTree 'deep/er'), `
+$null = New-Item -ItemType Directory -Path $loose, $setgidParent, $readOnly, (Join-Path $staleTree 'deep/er'), `
     (Join-Path $staleTree 'outside'), (Join-Path $staleTree 'viewed') -Force
 [IO.File]::SetUnixFileMode($loose, [IO.UnixFileMode] 511)
 [IO.File]::SetUnixFileMode($setgidParent, [IO.UnixFileMode] 1472)
+[IO.File]::SetUnixFileMode($readOnly, [IO.UnixFileMode] 320)
 
 try {
     $runs = @{}
@@ -362,6 +364,17 @@ try {
     }
     Assert-Canary ((Get-TestSandboxAccessProblem $private -User 'not-the-owner') -ceq 'the sandbox directory is not owned by the current user') `
         'a directory of another user was not refused.'
+
+    # A directory that cannot be made is reported as that, and one with no room for a socket
+    # path as that. A user who can write anywhere has no unwritable directory to try.
+    $tooLong = '/' + ('x' * 50)
+    $refused = try { Initialize-TestSandboxDirectory -Parent $tooLong; '' } catch { $_.Exception.Message }
+    Assert-Canary ($refused.Contains('short enough') -and -not $refused.Contains($tooLong)) 'a directory with no room for a socket path was not reported as that.'
+    if ([Environment]::UserName -cne 'root') {
+        $refused = try { Initialize-TestSandboxDirectory -Parent $readOnly; '' } catch { $_.Exception.Message }
+        Assert-Canary ($refused.Contains('creating its directory failed') -and -not $refused.Contains('short enough') -and
+            -not $refused.Contains($readOnly)) 'a directory that could not be written was not reported as that.'
+    }
 
     # A start info loses the selectors and keeps what is not one.
     $start = [Diagnostics.ProcessStartInfo]::new('/bin/sh')
@@ -622,7 +635,7 @@ try {
     Clear-ServedSandbox $reportSlow
     Clear-ServedSandbox $reportDrop
     Clear-ServedSandbox $reportAfter
-    foreach ($leftover in @($loose, $setgidParent)) {
+    foreach ($leftover in @($loose, $setgidParent, $readOnly)) {
         if (Test-Path -LiteralPath $leftover) { Remove-Item -LiteralPath $leftover -Recurse -Force }
     }
 }

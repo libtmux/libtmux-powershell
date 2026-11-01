@@ -129,9 +129,10 @@ function Get-TestSandboxLeak {
 
 function Initialize-TestSandboxDirectory {
     [CmdletBinding()]
-    param()
+    param([string[]] $Parent = @([IO.Path]::GetTempPath().TrimEnd('/'), '/tmp'))
 
-    foreach ($root in @([IO.Path]::GetTempPath().TrimEnd('/'), '/tmp')) {
+    $failure = $null
+    foreach ($root in $Parent) {
         if (-not $root -or [Text.Encoding]::UTF8.GetByteCount($root) + 15 -gt 40 -or
             -not [IO.Directory]::Exists($root)) { continue }
         for ($attempt = 0; $attempt -lt 8; $attempt++) {
@@ -142,7 +143,7 @@ function Initialize-TestSandboxDirectory {
             try {
                 $null = [IO.Directory]::CreateDirectory($path, [IO.UnixFileMode]::UserRead -bor
                     [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
-            } catch { continue }
+            } catch { $failure = $_.Exception.GetType().Name; continue }
             $problem = Get-TestSandboxAccessProblem $path
             if ($problem) {
                 [IO.Directory]::Delete($path)
@@ -150,6 +151,10 @@ function Initialize-TestSandboxDirectory {
             }
             return $path
         }
+    }
+    # Name the failure that stopped the last try, not a length that was fine.
+    if ($failure) {
+        throw "The test sandbox could not be made: creating its directory failed ($failure). Set TMPDIR to a directory you own."
     }
     throw 'No temporary directory is short enough for a tmux socket path. Set TMPDIR to a shorter one.'
 }
