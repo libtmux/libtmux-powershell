@@ -86,6 +86,10 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
 ```
 
+Without a socket, a handle passes tmux none, so tmux picks the server: the one
+in `TMUX` inside a pane, otherwise its default. `LIBTMUX_SOCKET_PATH` or
+`LIBTMUX_SOCKET` chooses one instead; [read more](docs/read.md).
+
 [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] runs a command in a pane and
 returns a [`LibTmux.PaneRunResult`][panerunresult].
 [`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally` block

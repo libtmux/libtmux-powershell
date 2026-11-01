@@ -5051,7 +5051,15 @@ LibTmux\New-TmuxQuery -Target Pane -Criteria @{ Width = @{ Ge = 80 } }
     <maml:description>
       <maml:para>Choose a socket name or absolute socket path. Construction performs no tmux I/O
 and does not start or own a daemon. A later command explicitly acquires data or
-changes tmux. Omitting both socket selectors uses the core default endpoint.
+changes tmux.
+
+Omitting both socket parameters passes tmux no socket, so tmux picks the
+server: the one the TMUX variable names inside a tmux pane, otherwise its
+default socket. Two variables choose a socket for such a handle.
+LIBTMUX_SOCKET_PATH becomes -S and LIBTMUX_SOCKET becomes -L; when both are set
+the path wins, and a blank value counts as unset. A parameter beats both
+variables. The handle reads the variables when it is made.
+LIBTMUX_SOCKET_NAME, which earlier versions read, selects nothing.
 
 What is on here. Most cmdlets in the module start from the handle this one
 returns. They take it directly, or take a session, window, pane or client that
@@ -5178,7 +5186,8 @@ Invoke-TmuxControlCommand sends one over a control client.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SocketName</maml:name>
         <maml:description>
-          <maml:para>The tmux socket name.</maml:para>
+          <maml:para>The tmux socket name, passed as -L. It beats LIBTMUX_SOCKET and
+LIBTMUX_SOCKET_PATH.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>
@@ -5188,7 +5197,8 @@ Invoke-TmuxControlCommand sends one over a control client.</maml:para>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SocketPath</maml:name>
         <maml:description>
-          <maml:para>The absolute socket path.</maml:para>
+          <maml:para>The absolute socket path, passed as -S. It beats LIBTMUX_SOCKET and
+LIBTMUX_SOCKET_PATH.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         <dev:type>

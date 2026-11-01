@@ -37,7 +37,15 @@ None.
 
 Choose a socket name or absolute socket path. Construction performs no tmux I/O
 and does not start or own a daemon. A later command explicitly acquires data or
-changes tmux. Omitting both socket selectors uses the core default endpoint.
+changes tmux.
+
+Omitting both socket parameters passes tmux no socket, so tmux picks the
+server: the one the TMUX variable names inside a tmux pane, otherwise its
+default socket. Two variables choose a socket for such a handle.
+LIBTMUX_SOCKET_PATH becomes -S and LIBTMUX_SOCKET becomes -L; when both are set
+the path wins, and a blank value counts as unset. A parameter beats both
+variables. The handle reads the variables when it is made.
+LIBTMUX_SOCKET_NAME, which earlier versions read, selects nothing.
 
 **What is on here.** Most cmdlets in the module start from the handle this one
 returns. They take it directly, or take a session, window, pane or client that
@@ -129,7 +137,8 @@ HelpMessage: ''
 
 ### -SocketName
 
-The tmux socket name.
+The tmux socket name, passed as -L. It beats LIBTMUX_SOCKET and
+LIBTMUX_SOCKET_PATH.
 
 ```yaml
 Type: System.String
@@ -150,7 +159,8 @@ HelpMessage: ''
 
 ### -SocketPath
 
-The absolute socket path.
+The absolute socket path, passed as -S. It beats LIBTMUX_SOCKET and
+LIBTMUX_SOCKET_PATH.
 
 ```yaml
 Type: System.String

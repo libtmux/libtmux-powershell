@@ -6,6 +6,13 @@ The cmdlets return native objects from
 
 Create an endpoint with `New-TmuxServer -SocketPath` or `-SocketName`, then
 pipe it to a read command. Constructing the endpoint performs no I/O.
+
+With neither parameter the endpoint passes tmux no socket, and tmux picks the
+server: the one `TMUX` names inside a tmux pane, otherwise its default socket.
+`LIBTMUX_SOCKET_PATH` (`-S`) or `LIBTMUX_SOCKET` (`-L`) chooses a socket for
+such an endpoint instead, the path first; a blank value counts as unset, and a
+parameter beats both. The endpoint reads the variables when it is made.
+
 `Connect-TmuxServer` discovers an unmaterialized endpoint and returns its
 connected replacement. An already connected handle is returned unchanged.
 
