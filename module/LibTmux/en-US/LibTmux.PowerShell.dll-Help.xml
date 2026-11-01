@@ -5062,16 +5062,25 @@ the live server behind it and returns a connected replacement, and
 Get-TmuxServer reads the daemon's identity and version without starting one.
 Connect-TmuxControl opens a control client and Disconnect-TmuxControl closes it.
 
+New-TmuxServer, Connect-TmuxServer, Get-TmuxServer, Connect-TmuxControl and
+Disconnect-TmuxControl
+
 Finding one thing. Get-TmuxSession and Get-TmuxWindow select by id or name,
 Get-TmuxPane by id, and Get-TmuxClient by name. A selector that matches nothing
 emits nothing. Get-TmuxClientAttachment resolves the session, window and pane a
 client is viewing.
+
+Get-TmuxSession, Get-TmuxWindow, Get-TmuxPane, Get-TmuxClient and
+Get-TmuxClientAttachment
 
 Listing everything. Get-TmuxSession, Get-TmuxWindow, Get-TmuxPane and
 Get-TmuxClient list everything on the server when given no selector. A missing
 daemon writes an error instead of returning an empty list. Get-TmuxSnapshot
 captures the hierarchy to a depth you choose and returns a replacement server.
 Update-TmuxPane and Update-TmuxClient read one object again into a new capture.
+
+Get-TmuxSession, Get-TmuxWindow, Get-TmuxPane, Get-TmuxClient, Get-TmuxSnapshot,
+Update-TmuxPane and Update-TmuxClient
 
 Querying things and getting around. New-TmuxQuery builds reusable criteria.
 Select-TmuxSession, Select-TmuxWindow and Select-TmuxPane filter objects you
@@ -5081,11 +5090,19 @@ fields and operators, Get-TmuxQueryPlan shows how a query will run, and
 ConvertTo-TmuxQueryJson serializes one. To move down the hierarchy, pass a
 session to Get-TmuxWindow or Get-TmuxPane, or a window to Get-TmuxPane.
 
+New-TmuxQuery, Select-TmuxSession, Select-TmuxWindow, Select-TmuxPane,
+Invoke-TmuxQuery, Get-TmuxQueryField, Get-TmuxQueryPlan,
+ConvertTo-TmuxQueryJson, Get-TmuxWindow and Get-TmuxPane
+
 Changing things. New-TmuxSession, New-TmuxWindow, Split-TmuxPane and
 New-TmuxWindowLink create, and New-TmuxSession can start a daemon that is not
 running yet. Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize and
 Set-TmuxWindowSize rearrange. Remove-TmuxSession, Remove-TmuxWindow,
 Remove-TmuxWindowLink and Remove-TmuxPane delete.
+
+New-TmuxSession, New-TmuxWindow, Split-TmuxPane, New-TmuxWindowLink,
+Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize, Set-TmuxWindowSize,
+Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink and Remove-TmuxPane
 
 Options and hooks. Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
 read, write and unset options on a server, session, window or pane.
@@ -5093,20 +5110,33 @@ Get-TmuxHook, Set-TmuxHook and Remove-TmuxHook do the same for hooks, and
 Invoke-TmuxHook runs one now. Get-TmuxEnvironment, Set-TmuxEnvironment and
 Remove-TmuxEnvironment manage the environment table of a server or session.
 
+Get-TmuxOption, Set-TmuxOption, Remove-TmuxOption, Get-TmuxHook, Set-TmuxHook,
+Remove-TmuxHook, Invoke-TmuxHook, Get-TmuxEnvironment, Set-TmuxEnvironment and
+Remove-TmuxEnvironment
+
 Everything else tmux keeps. Send-TmuxText and Send-TmuxKey type into a pane,
 Get-TmuxPaneContent reads what it shows, and Wait-TmuxPaneText waits for text to
 appear. Invoke-TmuxPaneCommand runs a shell command in a pane and reports its
 exit status. Wait-TmuxChannel waits for a channel signal, and Watch-TmuxEvent
 streams events from a control client.
 
+Send-TmuxText, Send-TmuxKey, Get-TmuxPaneContent, Wait-TmuxPaneText,
+Invoke-TmuxPaneCommand, Wait-TmuxChannel and Watch-TmuxEvent
+
 Things that need a terminal. Enter-TmuxSession attaches your foreground
 terminal to a session and returns when you detach. Run it outside tmux; it
 rejects redirected input.
 
-Anything tmux can do that is not here is reachable through Invoke-TmuxCommand,
-which runs literal tmux arguments and returns the result. Invoke-TmuxChain runs
-several commands in order, New-TmuxCommand builds one without running it, and
-Invoke-TmuxControlCommand sends one over a control client.</maml:para>
+Enter-TmuxSession
+
+Running a command. Anything tmux can do that is not here is reachable
+through Invoke-TmuxCommand, which runs literal tmux arguments and returns the
+result. Invoke-TmuxChain runs several commands in order, New-TmuxCommand builds
+one without running it, and Invoke-TmuxControlCommand sends one over a control
+client.
+
+Invoke-TmuxCommand, Invoke-TmuxChain, New-TmuxCommand and
+Invoke-TmuxControlCommand</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
