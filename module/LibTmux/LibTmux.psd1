@@ -44,6 +44,8 @@ The API is not settled: pin an exact version.
 https://github.com/libtmux/libtmux-dotnet
 
 Release details:
+https://github.com/libtmux/libtmux-powershell/blob/master/module/LibTmux/CHANGELOG.md
+Changes that span both modules:
 https://github.com/libtmux/libtmux-powershell/blob/master/CHANGELOG.md
 '@
         }

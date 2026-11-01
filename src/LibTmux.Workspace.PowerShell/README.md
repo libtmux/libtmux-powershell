@@ -153,15 +153,19 @@ holds the full rules.
 
 - **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
   The API is not settled: any release may change or remove exported
-  identifiers, and the changelog marks each break. Pin an exact version to
-  avoid one.
+  identifiers, and each module's changelog marks its breaks. Pin an exact
+  version to avoid one.
 - **Versions.** Install both modules at the same version.
 - **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
   runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master.
 - **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
   environment. CI runs Linux x64 on every change and macOS as an advisory trial
   whose failures never fail the check. CI has no Windows job.
+- **Changelog.** [What each release of `LibTmux.Workspace` changed][changelog];
+  the [main changelog][changelog-main] holds what spans both modules.
 
+[changelog]: https://github.com/libtmux/libtmux-powershell/blob/master/module/LibTmux.Workspace/CHANGELOG.md
+[changelog-main]: https://github.com/libtmux/libtmux-powershell/blob/master/CHANGELOG.md
 [module]: https://libtmux.org/en/powershell/latest/workspace/reference/
 [new-tmuxserver]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxserver/
 [get-tmuxworkspace]: https://libtmux.org/en/powershell/latest/workspace/reference/libtmux-workspace-get-tmuxworkspace/
