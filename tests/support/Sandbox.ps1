@@ -173,7 +173,13 @@ function Exit-TestSandbox {
         -not [IO.Path]::GetFileName($directory).StartsWith('lt-ps-', [StringComparison]::Ordinal) -or
         -not [IO.Directory]::Exists($directory)) { return }
     $leaks = @(Get-TestSandboxLeak $directory)
-    $tmux = Get-Command tmux -CommandType Application -ErrorAction Ignore | Select-Object -First 1
+    # The tmux that was first on PATH when the sandbox was made: a test may have changed PATH
+    # since, and a different tmux could not stop the servers this run started.
+    $tmux = [Environment]::GetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_TMUX')
+    if (-not $tmux -or -not [IO.File]::Exists($tmux)) {
+        $found = Get-Command tmux -CommandType Application -ErrorAction Ignore | Select-Object -First 1
+        $tmux = if ($found) { $found.Source }
+    }
     $answering = [Collections.Generic.List[string]]::new()
     foreach ($leak in $leaks) {
         $socket = Join-Path $directory $leak
@@ -181,7 +187,7 @@ function Exit-TestSandbox {
         # A link would take the kill to a server this run does not own.
         if ($item -and $item.LinkType) { continue }
         if ($tmux) {
-            $start = [Diagnostics.ProcessStartInfo]::new($tmux.Source)
+            $start = [Diagnostics.ProcessStartInfo]::new($tmux)
             $start.UseShellExecute = $false
             $start.RedirectStandardOutput = $true
             $start.RedirectStandardError = $true
@@ -249,6 +255,9 @@ function Enter-TestSandbox {
         [Environment]::SetEnvironmentVariable('TMUX_TMPDIR', $created)
         [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX', $created)
         [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_OWNER', [string] $PID)
+        $first = Get-Command tmux -CommandType Application -ErrorAction Ignore | Select-Object -First 1
+        if ($first) { [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_TMUX', $first.Source) }
+        else { [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_TMUX', [NullString]::Value) }
     }
     $found = @(Get-TestSandboxViolation)
     if ($found.Count) {

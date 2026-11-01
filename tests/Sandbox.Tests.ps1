@@ -182,6 +182,10 @@ Assert-Canary ($runnerText.Contains($entry)) 'eng/Test.ps1 no longer enters the 
 $lateText = $runnerText.Replace($entry, $entry + "`n" +
     "foreach (`$name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME', 'LIBTMUX_SOCKET_OTHER')) {`n" +
     "    [Environment]::SetEnvironmentVariable(`$name, 'decoy')`n}")
+# The stop at exit uses the tmux that was first on PATH when the sandbox was made, so a PATH
+# that a test emptied does not leave the servers it started running.
+$movedText = $runnerText.Replace($entry, $entry + "`n`$env:PATH = ''")
+Assert-Canary ($movedText -cne $runnerText) 'eng/Test.ps1 no longer enters the sandbox where this check expects it.'
 # A server that appears after the end-of-run scan is not one the scan could have seen.
 $afterText = $runnerText.Replace("    `$passed = `$true`n}", "    `$passed = `$true`n" +
     "    `$custom = Join-Path `$env:TMUX_TMPDIR 'custom.sock'`n" +
@@ -261,6 +265,7 @@ exec "$LIBTMUX_CANARY_TMUX" "$@"
 $reportSlow = Join-Path $scratch 'slow.report'
 $reportDrop = Join-Path $scratch 'drop.report'
 $reportAfter = Join-Path $scratch 'after.report'
+$reportMoved = Join-Path $scratch 'moved.report'
 
 # A directory others can enter, to be refused as a sandbox to join; and a parent with the
 # setgid bit as TMPDIR, whose children inherit that bit. TMPDIR has to be short enough for
@@ -297,6 +302,7 @@ try {
     $runs.Slow = Start-StandInRunner 'slow' (Join-Path $scratch 'slow.record') -Plant 'server' -Bin $binSlow -Report $reportSlow
     $runs.Drop = Start-StandInRunner 'drop' (Join-Path $scratch 'drop.record') -Plant 'server' -Bin $binDrop -Report $reportDrop
     $runs.Settling = Start-StandInRunner 'settling' (Join-Path $scratch 'settling.record') -Plant 'settling'
+    $runs.Moved = Start-StandInRunner 'moved' (Join-Path $scratch 'moved.record') -Plant 'server' -Bin $binSlow -Report $reportMoved -Text $movedText
     $runs.After = Start-StandInRunner 'after' (Join-Path $scratch 'after.record') -Bin $binSlow -Report $reportAfter -Text $afterText
     # A socket file that nothing listens on is what a server leaves when it is killed
     # outright: the file stays when the process that bound it exits without closing it.
@@ -642,6 +648,12 @@ try {
     $settling = $results.Settling
     Assert-Canary ($settling.ExitCode -eq 0) "the runner failed a server that was on its way out: $($settling.Text.Trim())"
 
+    $moved = $results.Moved
+    $served = @(Get-Content -LiteralPath $reportMoved)
+    Assert-Canary ($moved.ExitCode -ne 0 -and $moved.Text.Contains('custom.sock')) 'a server in a run that emptied PATH did not fail the run.'
+    Assert-Canary (Wait-ProcessGone ([int] $served[0])) 'the runner could not stop a server after PATH changed.'
+    Assert-Canary (-not (Test-Path -LiteralPath $served[1])) 'the runner left its sandbox directory behind after PATH changed.'
+
     # A server that starts after the scan fails the run, is stopped, and does not leave a pass.
     $after = $results.After
     $served = @(Get-Content -LiteralPath $reportAfter)
@@ -672,6 +684,7 @@ try {
     Clear-ServedSandbox $reportSlow
     Clear-ServedSandbox $reportDrop
     Clear-ServedSandbox $reportAfter
+    Clear-ServedSandbox $reportMoved
     foreach ($leftover in @($loose, $setgidParent, $readOnly, $exact)) {
         if (Test-Path -LiteralPath $leftover) { Remove-Item -LiteralPath $leftover -Recurse -Force }
     }
