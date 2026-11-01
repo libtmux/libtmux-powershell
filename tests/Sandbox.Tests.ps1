@@ -181,6 +181,13 @@ Assert-Canary ($runnerText.Contains($entry)) 'eng/Test.ps1 no longer enters the 
 $lateText = $runnerText.Replace($entry, $entry + "`n" +
     "foreach (`$name in @('TMUX', 'TMUX_PANE', 'LIBTMUX_SOCKET', 'LIBTMUX_SOCKET_PATH', 'LIBTMUX_SOCKET_NAME')) {`n" +
     "    [Environment]::SetEnvironmentVariable(`$name, 'decoy')`n}")
+# A server that appears after the end-of-run scan is not one the scan could have seen.
+$afterText = $runnerText.Replace("    `$passed = `$true`n}", "    `$passed = `$true`n" +
+    "    `$custom = Join-Path `$env:TMUX_TMPDIR 'custom.sock'`n" +
+    "    & `$env:LIBTMUX_CANARY_TMUX -S `$custom -f /dev/null new-session -d 'exec /bin/sleep 120'`n" +
+    "    `$serverPid = & `$env:LIBTMUX_CANARY_TMUX -S `$custom display-message -p '#{pid}'`n" +
+    "    Set-Content -LiteralPath `$env:LIBTMUX_CANARY_REPORT -Value `$serverPid, `$env:TMUX_TMPDIR`n}")
+Assert-Canary ($afterText -cne $runnerText) 'eng/Test.ps1 no longer ends where this check plants a late server.'
 $stub = @'
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/support/Sandbox.ps1"
@@ -196,6 +203,10 @@ switch ($env:LIBTMUX_CANARY_PLANT) {
         if ($LASTEXITCODE) { throw 'The stub could not start its server.' }
         $serverPid = & $env:LIBTMUX_CANARY_TMUX -S $custom display-message -p '#{pid}'
         Set-Content -LiteralPath $env:LIBTMUX_CANARY_REPORT -Value $serverPid, $env:TMUX_TMPDIR
+    }
+    'settling' {
+        & $env:LIBTMUX_CANARY_TMUX -S $custom -f /dev/null new-session -d 'exec /bin/sleep 1'
+        if ($LASTEXITCODE) { throw 'The stub could not start its server.' }
     }
     'stale' {
         $null = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix, [Net.Sockets.SocketType]::Stream,
@@ -248,6 +259,7 @@ exec "$LIBTMUX_CANARY_TMUX" "$@"
 '@
 $reportSlow = Join-Path $scratch 'slow.report'
 $reportDrop = Join-Path $scratch 'drop.report'
+$reportAfter = Join-Path $scratch 'after.report'
 
 # A directory others can enter, to be refused as a sandbox to join; and a parent with the
 # setgid bit as TMPDIR, whose children inherit that bit. TMPDIR has to be short enough for
@@ -274,6 +286,8 @@ try {
     $runs.Default = Start-StandInRunner 'default' (Join-Path $scratch 'runner.record') -Plant 'default'
     $runs.Slow = Start-StandInRunner 'slow' (Join-Path $scratch 'slow.record') -Plant 'server' -Bin $binSlow -Report $reportSlow
     $runs.Drop = Start-StandInRunner 'drop' (Join-Path $scratch 'drop.record') -Plant 'server' -Bin $binDrop -Report $reportDrop
+    $runs.Settling = Start-StandInRunner 'settling' (Join-Path $scratch 'settling.record') -Plant 'settling'
+    $runs.After = Start-StandInRunner 'after' (Join-Path $scratch 'after.record') -Bin $binSlow -Report $reportAfter -Text $afterText
     # A socket file that nothing listens on is what a server leaves when it is killed
     # outright: the file stays when the process that bound it exits without closing it.
     $staleStart = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
@@ -573,6 +587,20 @@ try {
     Assert-Canary (Wait-ProcessGone ([int] $served[0])) 'the runner left a server running on a socket of its own.'
     Assert-Canary (-not (Test-Path -LiteralPath $served[1])) 'the runner left its sandbox directory behind after stopping its server.'
 
+    # A server that has been told to stop, or has nothing left to do, may still hold its socket
+    # when the scan runs; the run waits for it and passes.
+    $settling = $results.Settling
+    Assert-Canary ($settling.ExitCode -eq 0) "the runner failed a server that was on its way out: $($settling.Text.Trim())"
+
+    # A server that starts after the scan fails the run, is stopped, and does not leave a pass.
+    $after = $results.After
+    $served = @(Get-Content -LiteralPath $reportAfter)
+    Assert-Canary ($after.ExitCode -ne 0 -and $after.Text.Contains('after the end-of-run scan') -and $after.Text.Contains('custom.sock')) `
+        'a server that appeared after the scan did not fail the run.'
+    Assert-Canary (Wait-ProcessGone ([int] $served[0])) 'the runner left a server that appeared after the scan running.'
+    Assert-Canary ((Get-Content -LiteralPath (Join-Path $runs.After.Root 'build/test-Fixture.json') -Raw | ConvertFrom-Json).status -ceq 'FAIL') `
+        'the runner recorded a pass for a run that left a late server.'
+
     $drop = $results.Drop
     $served = @(Get-Content -LiteralPath $reportDrop)
     Assert-Canary ($drop.ExitCode -ne 0 -and $drop.Text.Contains('kept') -and $drop.Text.Contains('custom.sock')) `
@@ -593,6 +621,7 @@ try {
     }
     Clear-ServedSandbox $reportSlow
     Clear-ServedSandbox $reportDrop
+    Clear-ServedSandbox $reportAfter
     foreach ($leftover in @($loose, $setgidParent)) {
         if (Test-Path -LiteralPath $leftover) { Remove-Item -LiteralPath $leftover -Recurse -Force }
     }

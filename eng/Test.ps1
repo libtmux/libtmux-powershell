@@ -352,14 +352,25 @@ try {
         }
     }
     $leaks = @(Get-TestSandboxLeak $sandbox)
+    # A server on its way out may not have removed its socket yet; allow it as long as the
+    # stop at exit allows a server it has just been told to stop.
+    $settle = [Diagnostics.Stopwatch]::StartNew()
+    while ($leaks.Count -and $settle.ElapsedMilliseconds -lt 3000) {
+        Start-Sleep -Milliseconds 100
+        $leaks = @(Get-TestSandboxLeak $sandbox)
+    }
     if ($leaks.Count) { throw "A default socket or a server was left in the test sandbox: $($leaks -join ', ')." }
     $passed = $true
 } finally {
-    $null = Exit-TestSandbox
+    # What the exit finds was not there when the scan ran, so a pass does not stand.
+    $late = @(Exit-TestSandbox)
+    $appeared = $passed -and $late.Count -gt 0
+    if ($appeared) { $passed = $false }
     $null = New-Item "$root/build" -ItemType Directory -Force
     @{ suite = $Suite; status = $(if ($passed) { 'PASS' } else { 'FAIL' });
         seconds = $timer.Elapsed.TotalSeconds; commands = @($records.ToArray());
         retainedModule = $retainedModule; unreapedChildProcessIds = @($unreapedChildren.ToArray());
         workerFailures = @($workerFailures | ForEach-Object { $_.Exception.Message }) } |
         ConvertTo-Json -Depth 8 | Set-Content "$root/build/test-$Suite.json"
+    if ($appeared) { throw "A server appeared in the test sandbox after the end-of-run scan: $($late -join ', ')." }
 }
