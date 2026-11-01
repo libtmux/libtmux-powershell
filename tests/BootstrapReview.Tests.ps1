@@ -8,7 +8,7 @@ $root = Split-Path $PSScriptRoot
 # The script runs in this process, so the sandbox it enters shows here. Start with none, and
 # with a selector it must remove.
 foreach ($name in @('TMUX_TMPDIR', 'LIBTMUX_TEST_SANDBOX', 'LIBTMUX_TEST_SANDBOX_OWNER')) {
-    [Environment]::SetEnvironmentVariable($name, $null)
+    [Environment]::SetEnvironmentVariable($name, [NullString]::Value)
 }
 $env:LIBTMUX_SOCKET_PATH = '/decoy/socket'
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-bootstrap-test-' + [Guid]::NewGuid().ToString('N'))

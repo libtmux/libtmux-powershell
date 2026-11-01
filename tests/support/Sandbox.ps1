@@ -191,7 +191,7 @@ function Exit-TestSandbox {
         Remove-Item -LiteralPath $directory -Recurse -Force
     }
     # The exit hook runs this again; it has nothing left to do, and must not wait out another stop.
-    [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_OWNER', $null)
+    [Environment]::SetEnvironmentVariable('LIBTMUX_TEST_SANDBOX_OWNER', [NullString]::Value)
     $leaks
 }
 
@@ -226,8 +226,10 @@ function Enter-TestSandbox {
     [CmdletBinding()]
     param()
 
+    # PowerShell 7.6 hands $null to a string parameter as an empty string, and on .NET 10
+    # that sets the variable instead of removing it. [NullString]::Value removes it on both.
     foreach ($name in @([Environment]::GetEnvironmentVariables().Keys)) {
-        if (Test-TestSandboxSelector $name) { [Environment]::SetEnvironmentVariable($name, $null) }
+        if (Test-TestSandboxSelector $name) { [Environment]::SetEnvironmentVariable($name, [NullString]::Value) }
     }
     $created = $null
     if (Get-TestSandboxRouteProblem ([Environment]::GetEnvironmentVariables())) {

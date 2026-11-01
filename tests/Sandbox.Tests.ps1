@@ -313,7 +313,7 @@ try {
     try {
         $refusal = try { Assert-TestSandbox; '' } catch { $_.Exception.Message }
     } finally {
-        [Environment]::SetEnvironmentVariable('TMUX', $null)
+        [Environment]::SetEnvironmentVariable('TMUX', [NullString]::Value)
     }
     Assert-Canary ($refusal.Contains('TMUX is set') -and -not $refusal.Contains('decoy')) 'a dirty process was not refused by name.'
 
