@@ -222,6 +222,64 @@ def release_problems(text):
     return problems
 
 
+APT_WRAPPER = "eng/ci/apt-get.sh"
+RAW_APT = re.compile(
+    r"(?:^|[;&|(`])\s*(?:\w+=\S*\s+)*"
+    r"(?:(?:sudo|env|time|timeout|nice)\s+(?:(?:-\S+|\w+=\S*|\d+[smh]?)\s+)*)*"
+    r"(apt(?:-get)?)(?![\w./-])"
+)
+
+
+def run_lines(text):
+    """List (line number, job, step, line) for each line of each `run` script."""
+    lines = text.splitlines()
+    found, job, step, in_jobs, index = [], None, None, False, 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+        in_jobs = in_jobs or line == "jobs:"
+        header = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if in_jobs and header:
+            job, step = header.group(1), None
+        named = re.match(r"^\s*- name: (.*)$", line)
+        if named:
+            step = named.group(1).strip()
+        start = re.match(r"^(\s*)(- )?run:\s*(.*)$", line)
+        if not start:
+            continue
+        if start.group(2):
+            step = None
+        indent = len(start.group(1)) + (2 if start.group(2) else 0)
+        if re.match(r"^[|>][+-]?\d*\s*(#.*)?$", start.group(3)):
+            while index < len(lines) and (
+                not lines[index].strip() or len(lines[index]) - len(lines[index].lstrip()) > indent
+            ):
+                found.append((index + 1, job, step, lines[index]))
+                index += 1
+        else:
+            found.append((index, job, step, start.group(3).lstrip("'\"")))
+    return [each for each in found if not each[3].lstrip().startswith("#")]
+
+
+def raw_apt_problems(path, text):
+    """Return each `run` line that calls apt or apt-get without the wrapper."""
+    problems = []
+    for number, job, step, line in run_lines(text):
+        call = RAW_APT.search(line.strip())
+        if call:
+            where = (f"job {job}, " if job else "") + (f"step {step!r}" if step else "an unnamed step")
+            problems.append(
+                f"{path}:{number}: {where} calls {call.group(1)} directly; run it through {APT_WRAPPER}"
+            )
+    return problems
+
+
+def apt_scanned_files():
+    """List the workflows and composite actions whose scripts must use the wrapper."""
+    github = ROOT / ".github"
+    return sorted(github.glob("workflows/*.y*ml")) + sorted(github.glob("actions/*/action.y*ml"))
+
+
 class WorkflowFollowsThePlan(unittest.TestCase):
     def setUp(self):
         self.text = WORKFLOW.read_text(encoding="utf-8")
@@ -405,6 +463,79 @@ class ReleaseCallsTheCi(unittest.TestCase):
     def test_a_release_outside_master_is_reported(self):
         self.mutated("  ci:\n    if: github.repository == 'libtmux/libtmux-powershell' && github.ref == 'refs/heads/master'\n",
                      "  ci:\n", "ci: a release runs from master only")
+
+
+class AptGoesThroughTheWrapper(unittest.TestCase):
+    def test_no_workflow_or_action_calls_apt_directly(self):
+        files = apt_scanned_files()
+        self.assertIn(WORKFLOW, files)
+        problems = []
+        for path in files:
+            problems += raw_apt_problems(
+                path.relative_to(ROOT), path.read_text(encoding="utf-8")
+            )
+        self.assertEqual(problems, [])
+
+    def test_a_raw_apt_get_is_reported_with_its_place_and_the_fix(self):
+        text = (
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - name: Install tmux\n"
+            "        run: |\n"
+            "          sudo apt-get update\n"
+        )
+        self.assertEqual(
+            raw_apt_problems("ci.yml", text),
+            [
+                "ci.yml:6: job build, step 'Install tmux' calls apt-get directly; "
+                "run it through eng/ci/apt-get.sh"
+            ],
+        )
+
+    def test_every_way_to_call_apt_is_reported(self):
+        for command in (
+            "apt-get install --yes tmux",
+            "sudo apt install tmux",
+            "sudo -E apt-get update",
+            "DEBIAN_FRONTEND=noninteractive apt-get update",
+            "sudo timeout 60 apt-get update",
+            "sudo apt-get update || true",
+            "true && sudo apt-get update",
+        ):
+            with self.subTest(command=command):
+                text = f"jobs:\n  a:\n    steps:\n      - run: {command}\n"
+                problems = raw_apt_problems("ci.yml", text)
+                self.assertEqual(len(problems), 1, problems)
+                self.assertIn("run it through eng/ci/apt-get.sh", problems[0])
+
+    def test_a_composite_action_is_scanned_too(self):
+        text = "runs:\n  using: composite\n  steps:\n    - run: sudo apt-get update\n      shell: bash\n"
+        self.assertEqual(
+            raw_apt_problems("action.yml", text),
+            [
+                "action.yml:4: an unnamed step calls apt-get directly; "
+                "run it through eng/ci/apt-get.sh"
+            ],
+        )
+
+    def test_the_wrapper_comments_and_other_commands_pass(self):
+        text = (
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - name: Install tmux\n"
+            "        run: |\n"
+            "          # sudo apt-get update\n"
+            "          ./eng/ci/apt-get.sh update\n"
+            "          eng/ci/apt-get.sh install --yes \\\n"
+            "            apt-utils libevent-dev\n"
+            "          echo \"apt is slow\"\n"
+            "      - name: Not a script\n"
+            "        with:\n"
+            "          note: sudo apt-get update\n"
+        )
+        self.assertEqual(raw_apt_problems("ci.yml", text), [])
 
 
 if __name__ == "__main__":

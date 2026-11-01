@@ -220,8 +220,8 @@ jobs:
 
       - name: Install tmux build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          ./eng/ci/apt-get.sh update
+          ./eng/ci/apt-get.sh install --yes \
             autoconf automake bison build-essential jq \
             libevent-dev libncurses-dev pkg-config
 
@@ -401,8 +401,8 @@ jobs:
 
       - name: Install tmux build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          ./eng/ci/apt-get.sh update
+          ./eng/ci/apt-get.sh install --yes \
             autoconf automake bison build-essential \
             libevent-dev libncurses-dev pkg-config
 
@@ -470,8 +470,8 @@ jobs:
 
       - name: Install tmux build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes \
+          ./eng/ci/apt-get.sh update
+          ./eng/ci/apt-get.sh install --yes \
             autoconf automake bison build-essential \
             libevent-dev libncurses-dev pkg-config
 
