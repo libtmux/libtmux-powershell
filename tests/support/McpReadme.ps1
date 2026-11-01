@@ -172,14 +172,34 @@ function Test-McpReadme($Fixture, [string] $Command, $Documents) {
         $seen[$key] = $true
         $plan.Add(@{ Role = 'page'; Settings = $settings })
     }
-    $plan.Add(@{ Role = 'both'; Settings = @{ LIBTMUX_SOCKET = $owned; LIBTMUX_SOCKET_PATH = $Fixture.SocketPath } })
-    $plan.Add(@{ Role = 'tools'; Settings = @{ LIBTMUX_SOCKET_PATH = $Fixture.SocketPath; LIBTMUX_TOOLSETS = 'inspect,manage,execute,teardown' } })
+    $plan.Add(@{ Role = 'both'; Settings = @{ LIBTMUX_TMUX = $Fixture.TmuxPath; LIBTMUX_SOCKET = $owned; LIBTMUX_SOCKET_PATH = $Fixture.SocketPath } })
+    $plan.Add(@{ Role = 'neither'; Settings = @{ LIBTMUX_TMUX = $Fixture.TmuxPath } })
+    $plan.Add(@{ Role = 'retired'; Settings = @{ LIBTMUX_SOCKET_NAME = $owned } })
+    $plan.Add(@{ Role = 'tools'; Settings = @{ LIBTMUX_TMUX = $Fixture.TmuxPath; LIBTMUX_SOCKET_PATH = $Fixture.SocketPath; LIBTMUX_TOOLSETS = 'inspect,manage,execute,teardown' } })
     foreach ($item in $plan) { $item.Process = Start-McpServer $Fixture $Command $item.Settings }
     $tools = $null
     foreach ($item in $plan) {
+        # The path wins when both are set; with neither the server drives the one tmux picks
+        # and says so; the retired name alone selects nothing and stops startup. The messages
+        # name the rule and never a socket.
         if ($item.Role -ceq 'both') {
+            $session = Complete-McpServerSession $item.Process
+            if ($session.Capabilities.socket.selector -cne ('path:' + $Fixture.SocketPath)) {
+                throw 'The server did not let LIBTMUX_SOCKET_PATH win over LIBTMUX_SOCKET.'
+            }
+            continue
+        }
+        if ($item.Role -ceq 'neither') {
+            $session = Complete-McpServerSession $item.Process
+            if ($session.Capabilities.socket.selector -cne 'default') { throw 'The server chose a socket of its own when none was set.' }
+            if ($session.Capabilities.toolsets -contains 'teardown') { throw 'The server offered teardown on a server it did not start.' }
+            continue
+        }
+        if ($item.Role -ceq 'retired') {
             $refusal = Get-McpServerRefusal $item.Process
-            if (!$refusal.Contains('mutually exclusive')) { throw 'The server accepted both LIBTMUX_SOCKET and LIBTMUX_SOCKET_PATH.' }
+            if (!$refusal.Contains('LIBTMUX_SOCKET_NAME') -or $refusal -cnotmatch '\bLIBTMUX_SOCKET\b') {
+                throw 'The server did not refuse LIBTMUX_SOCKET_NAME alone and name LIBTMUX_SOCKET.'
+            }
             continue
         }
         $session = Complete-McpServerSession $item.Process

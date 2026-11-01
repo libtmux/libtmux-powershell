@@ -18,7 +18,7 @@ public sealed class RemoveTmuxWindowCommand : TmuxCmdlet
     protected override void ProcessRecord()
     {
         Server server = Window.Server;
-        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         if (ShouldProcess($"{endpoint} window {Window.Id}", "Remove tmux window and all its links"))
         {
             ExecuteOperation(token => Window.KillAsync(cancellationToken: token), "Tmux.WindowRemoveFailed", Window);

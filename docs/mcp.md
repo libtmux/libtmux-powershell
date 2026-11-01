@@ -9,12 +9,12 @@ which documents this server.
 
 ## Install and select a server
 
-Install the published 0.1.0 tool on the Unix host running tmux:
+Install the published 0.1.1 tool on the Unix host running tmux:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.1.0 \
+    --version 0.1.1 \
     --framework net8.0
 ```
 
@@ -66,8 +66,16 @@ $ claude mcp add tmux \
     -- /absolute/tool-directory/libtmux-mcp
 ```
 
-- Set only one of `LIBTMUX_SOCKET` and `LIBTMUX_SOCKET_PATH`, including in
-  inherited environment variables. The server refuses to start with both.
+- To choose a socket, set `LIBTMUX_SOCKET`, a name, or `LIBTMUX_SOCKET_PATH`,
+  an absolute path. With both, including when one is inherited, the path wins.
+  A blank value stops the server, where a PowerShell handle ignores it.
+  `LIBTMUX_SOCKET_NAME` selects nothing, and the server refuses to start with
+  it alone.
+- With neither, the server drives the server tmux picks: the one `TMUX` names,
+  otherwise your default socket. A client started from a tmux pane therefore
+  works on the panes you are using. The server starts no server of its own and
+  leaves `teardown` off, and `tmux://capabilities` reports the selector
+  `default`. Set `LIBTMUX_SOCKET` to keep an assistant on a server of its own.
 - The choice is fixed at startup; calls cannot switch sockets.
 - Shut down the client connection when finished. The server leaves a borrowed
   tmux daemon running.

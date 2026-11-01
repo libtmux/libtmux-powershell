@@ -18,7 +18,7 @@ public sealed class RemoveTmuxPaneCommand : TmuxCmdlet
     protected override void ProcessRecord()
     {
         Server server = Pane.Server;
-        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         if (ShouldProcess($"{endpoint} pane {Pane.Id}", "Remove tmux pane"))
         {
             ExecuteOperation(token => Pane.KillAsync(cancellationToken: token), "Tmux.PaneRemoveFailed", Pane);

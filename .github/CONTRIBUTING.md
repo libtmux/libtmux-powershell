@@ -52,7 +52,7 @@ Install the pinned tools with mise from the repository root:
 $ mise install
 ```
 
-Both modules consume published .NET 0.1.0 packages, pinned in
+Both modules consume published .NET 0.1.1 packages, pinned in
 [Directory.Packages.props](../Directory.Packages.props). Restore uses NuGet.org,
 the optional `build/nuget` feed, and an isolated `build/packages` cache.
 Restore checks the committed lockfiles and stages both modules:
@@ -113,7 +113,7 @@ its full Git revision, `REVIEW_VERSION` to the new identifier, and
 `CORE_PACKAGES` to a new output directory. Use absolute directory paths.
 The checkout uses its own SDK pin; avoid running this recipe while another
 task builds in that checkout. Its
-[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.1.0/eng/package_review.py)
+[review package recipe](https://github.com/libtmux/libtmux-dotnet/blob/v0.1.1/eng/package_review.py)
 packs the shared packages, runs their native inspector and writes archive
 hashes to `provenance.json`:
 
@@ -193,8 +193,8 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Sandbox`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`,
-`Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
+The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`,
+`Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
 `Formatting`, `Runtime`, `Help` and `Examples` suites use the same artifact
 argument. Run `Product` and `Documentation` separately for the complete
 implemented checks within the outer-loop budget. `All` combines those
@@ -490,12 +490,12 @@ Workspace-only installation from PSGallery and executes installed examples.
 
 The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
 Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Install the published 0.1.0 tool in a fresh directory:
+module package. Install the published 0.1.1 tool in a fresh directory:
 
 ```console
 $ dotnet tool install LibTmux.Mcp \
     --tool-path build/mcp \
-    --version 0.1.0 \
+    --version 0.1.1 \
     --framework net8.0
 ```
 
@@ -529,7 +529,10 @@ client. Tool installation and client compilation are setup/outer-loop work.
 
 The same run starts the tool with the `LIBTMUX_` settings that the README and
 MCP guide show, using the fixture's tmux and socket or a socket name of its
-own, and links every tool name on those pages to a tool the server has.
+own, and links every tool name on those pages to a tool the server has. It
+also starts the tool with both socket variables, where the path wins, with
+neither, where the server reports the selector `default` and offers no
+`teardown`, and with `LIBTMUX_SOCKET_NAME` alone, which it refuses.
 
 ## Checks
 
@@ -645,6 +648,13 @@ The stop at the end cannot run in a process that is killed. A run ended by
 SIGTERM or SIGKILL leaves its `lt-ps-` directory, and any server in it, under
 `TMPDIR` or `/tmp`. Stop such a server with `tmux -S <path> kill-server` and
 remove the directory. Ctrl-C runs the stop.
+
+A handle that names no socket passes tmux none, so a REPL session or a script
+of your own, started by hand outside the sandbox, reaches the server `TMUX`
+names, otherwise your default one. Start it with a socket of your own, for
+example `LIBTMUX_SOCKET=libtmux-dev pwsh`. The `Socket` suite runs
+`tests/Socket.Tests.ps1` against the recording tmux to show which flag a handle
+passes for each variable, parameter and `TMUX`.
 
 The `Sandbox` suite runs `tests/Sandbox.Tests.ps1` against a recording tmux,
 [tests/support/RecordingTmux.sh](../tests/support/RecordingTmux.sh), which

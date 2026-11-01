@@ -86,6 +86,10 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
 ```
 
+Without a socket, a handle passes tmux none, so tmux picks the server: the one
+in `TMUX` inside a pane, otherwise its default. `LIBTMUX_SOCKET_PATH` or
+`LIBTMUX_SOCKET` chooses one instead; [read more](docs/read.md).
+
 [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] runs a command in a pane and
 returns a [`LibTmux.PaneRunResult`][panerunresult].
 [`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally` block
@@ -504,7 +508,7 @@ Install the tool on the Unix host that runs tmux:
 
 ```console
 $ dotnet tool install --global LibTmux.Mcp \
-    --version 0.1.0 \
+    --version 0.1.1 \
     --framework net8.0
 ```
 
@@ -563,7 +567,7 @@ $ tmux -V
 ```
 
 From the checkout root, restore the published
-[.NET 0.1.0 packages](https://www.nuget.org/packages/LibTmux/0.1.0)
+[.NET 0.1.1 packages](https://www.nuget.org/packages/LibTmux/0.1.1)
 and build both PowerShell modules:
 
 ```console

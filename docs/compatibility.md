@@ -220,10 +220,10 @@ the refusals and that nothing changed. The guards for exactly 3.7, a release
 the workflow does not run, are tested by reporting that version to the
 version probe.
 
-Choose the tmux executable and socket explicitly with
-[New-TmuxServer](read.md). A handle alone starts no daemon. The module does
-not change `TMUX` or `TMUX_PANE` in the calling process, and it does not
-connect to an implicit global server during import or formatting.
+Choose the tmux executable and socket with [New-TmuxServer](read.md), or leave
+the socket out and tmux picks the server. A handle alone starts no daemon. The
+module does not change `TMUX` or `TMUX_PANE` in the calling process, and it
+does not connect to a server during import or formatting.
 
 Some tmux flags and format expressions vary by version. The typed API
 checks capabilities where it can; [query plans](query.md) show source

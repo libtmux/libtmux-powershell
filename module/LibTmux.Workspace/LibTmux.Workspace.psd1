@@ -24,7 +24,7 @@
             ReleaseNotes = @'
 Requires tmux 3.3a or newer, as the core module does.
 
-Requires the LibTmux package of the same version. Built on libtmux for .NET 0.1.0.
+Requires the LibTmux package of the same version. Built on libtmux for .NET 0.1.1.
 The API is not settled: pin an exact version.
 https://github.com/libtmux/libtmux-dotnet
 

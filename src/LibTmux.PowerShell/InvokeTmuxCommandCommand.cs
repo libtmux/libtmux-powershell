@@ -40,7 +40,7 @@ public sealed class InvokeTmuxCommandCommand : TmuxCmdlet
     /// <inheritdoc />
     protected override void ProcessRecord()
     {
-        string endpoint = Server.ConnectionOptions.SocketPath ?? Server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = Server.ConnectionOptions.SocketPath ?? Server.ConnectionOptions.SocketName ?? "tmux-selected server";
         if (ShouldProcess(endpoint, $"Invoke tmux command {commandArguments[0]}"))
         {
             ReadResult(ExecuteAsync, "Tmux.CommandFailed", Server);

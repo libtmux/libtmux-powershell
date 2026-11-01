@@ -10,6 +10,7 @@ param([Parameter(Mandatory)] [string] $ModuleRoot)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . "$PSScriptRoot/support/Sandbox.ps1"
+. "$PSScriptRoot/support/RecordingTmux.ps1"
 Assert-TestSandbox
 
 function Assert-Canary([bool] $Condition, [string] $Message) {
@@ -29,24 +30,6 @@ $recorder = Join-Path $PSScriptRoot 'support/RecordingTmux.sh'
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $ownerOnly = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute
 $started = [Collections.Generic.List[object]]::new()
-
-function Read-RecordedCall([string] $Path) {
-    $calls = [Collections.Generic.List[object]]::new()
-    if (-not (Test-Path -LiteralPath $Path)) { return }
-    foreach ($line in [IO.File]::ReadAllLines($Path)) {
-        $kind, $value = $line.Split("`t", 2)
-        switch ($kind) {
-            'call' {
-                $calls.Add([pscustomobject]@{ Arguments = [Collections.Generic.List[string]]::new()
-                    Set = [Collections.Generic.List[string]]::new(); TmpDir = '' })
-            }
-            'arg' { $calls[$calls.Count - 1].Arguments.Add($value) }
-            'set' { $calls[$calls.Count - 1].Set.Add($value) }
-            'tmpdir' { $calls[$calls.Count - 1].TmpDir = $value }
-        }
-    }
-    $calls.ToArray()
-}
 
 function Start-Capture([Diagnostics.ProcessStartInfo] $Start) {
     $Start.UseShellExecute = $false
@@ -452,8 +435,8 @@ try {
     Assert-Canary ($calls.Count -eq 1 -and $calls[0].Set.Count -eq 0 -and $calls[0].TmpDir -ceq 'sandbox') `
         'a cleared start info was handed a selector or a TMUX_TMPDIR outside the sandbox.'
 
-    # A bare handle reaches tmux through the sandbox only. Whether it passes -L, -S or
-    # nothing depends on the pinned core, so the check allows any route that stays inside.
+    # A bare handle reaches tmux through the sandbox only. Which flag it passes is the
+    # business of tests/Socket.Tests.ps1, so the check allows any route that stays inside.
     $record = Join-Path $scratch 'library.record'
     Import-Module (Join-Path (Resolve-Path -LiteralPath $ModuleRoot).Path 'LibTmux/0.1.0/LibTmux.psd1')
     $env:LIBTMUX_CONTROL_TRANSPORT = '0'

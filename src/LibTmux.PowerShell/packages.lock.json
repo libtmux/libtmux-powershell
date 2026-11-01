@@ -4,20 +4,20 @@
     "net8.0": {
       "LibTmux": {
         "type": "Direct",
-        "requested": "[0.1.0, 0.1.0]",
-        "resolved": "0.1.0",
-        "contentHash": "cjfxW3WF0jS1vL1dRbGcSJfdUNod7MrxZD5Su3+y6MGLW0S6DywNdy2bEFkSBl9WIW6gELUoOC3yvPt+cvOKpQ==",
+        "requested": "[0.1.1, 0.1.1]",
+        "resolved": "0.1.1",
+        "contentHash": "yhzB0gLVV8enHxPRZQ4J1HMWc3OOcyJGePAHGZhoOOwSw+sPQdbndkfR238b3evdCdhQ++qJyw59ShyXHE8zSQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0"
         }
       },
       "LibTmux.Query.Json": {
         "type": "Direct",
-        "requested": "[0.1.0, 0.1.0]",
-        "resolved": "0.1.0",
-        "contentHash": "3gt35C+hu76/xTgS5JlHGHL+emi7/ZefZgEASWleV99lCTDyV38qSPMdZ44xbkp1p5G379DcN6y5RAue7l0VAw==",
+        "requested": "[0.1.1, 0.1.1]",
+        "resolved": "0.1.1",
+        "contentHash": "0zzlQV31T7i6gwZ6kD065zu/vEKNbOhl3rXkyaNXSSvhA/ssj83mhTF61eSgIm7hUJuEjIEayJpd39uTAby3MA==",
         "dependencies": {
-          "LibTmux": "0.1.0"
+          "LibTmux": "0.1.1"
         }
       },
       "System.Management.Automation": {

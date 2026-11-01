@@ -62,7 +62,7 @@ public sealed class InvokeTmuxPaneCommandCommand : TmuxCmdlet
     {
         string endpoint = Pane.Server.ConnectionOptions.SocketPath
             ?? Pane.Server.ConnectionOptions.SocketName
-            ?? "default tmux endpoint";
+            ?? "tmux-selected server";
         if (ShouldProcess($"{endpoint} pane {Pane.Id}", "Run shell command"))
         {
             ReadResult(

@@ -43,7 +43,7 @@ public sealed class SendTmuxTextCommand : TmuxCmdlet
     protected override void ProcessRecord()
     {
         Server server = Pane.Server;
-        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         string action = request.Enter ? "Send literal text followed by Enter" : "Send literal text";
         if (ShouldProcess($"{endpoint} pane {Pane.Id}", action))
         {
