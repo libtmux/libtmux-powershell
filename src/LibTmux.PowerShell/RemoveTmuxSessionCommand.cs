@@ -18,7 +18,7 @@ public sealed class RemoveTmuxSessionCommand : TmuxCmdlet
     protected override void ProcessRecord()
     {
         Server server = Session.Server;
-        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         if (ShouldProcess($"{endpoint} session {Session.Id}", "Remove tmux session"))
         {
             ExecuteOperation(token => Session.KillAsync(cancellationToken: token), "Tmux.SessionRemoveFailed", Session);

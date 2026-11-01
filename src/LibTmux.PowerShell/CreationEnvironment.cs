@@ -5,7 +5,7 @@ namespace LibTmux.PowerShell;
 internal static class CreationEnvironment
 {
     internal static string Endpoint(Server server) =>
-        server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
 
     internal static IReadOnlyDictionary<string, string>? Copy(IDictionary? environment)
     {

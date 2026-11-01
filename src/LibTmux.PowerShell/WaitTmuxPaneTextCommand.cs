@@ -88,7 +88,7 @@ public sealed class WaitTmuxPaneTextCommand : TmuxCmdlet
         Pane pane = Pane;
         string endpoint = pane.Server.ConnectionOptions.SocketPath
             ?? pane.Server.ConnectionOptions.SocketName
-            ?? "default tmux endpoint";
+            ?? "tmux-selected server";
         if (!ShouldProcess($"{endpoint} pane {pane.Id}", "Wait for rendered pane text"))
         {
             return;

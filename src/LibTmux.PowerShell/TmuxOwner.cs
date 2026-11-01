@@ -40,7 +40,7 @@ internal static class TmuxOwner
             Pane pane => pane.Server,
             _ => throw new ArgumentException("Expected a native tmux owner.", nameof(owner)),
         };
-        string endpointName = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpointName = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         return owner switch
         {
             Session session => $"{endpointName} session {session.Id}",

@@ -39,7 +39,7 @@ public sealed class SendTmuxKeyCommand : TmuxCmdlet
     protected override void ProcessRecord()
     {
         Server server = Pane.Server;
-        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "default tmux endpoint";
+        string endpoint = server.ConnectionOptions.SocketPath ?? server.ConnectionOptions.SocketName ?? "tmux-selected server";
         if (ShouldProcess($"{endpoint} pane {Pane.Id}", "Send tmux key tokens"))
         {
             ExecuteOperation(token => server.Chain()

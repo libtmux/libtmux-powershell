@@ -20,7 +20,7 @@ public sealed class InvokeTmuxWorkspaceCommand : TmuxCmdlet
     {
         WorkspacePlan plan = Plan;
         ServerConnectionOptions endpoint = plan.Endpoint.ConnectionOptions;
-        string socket = endpoint.SocketPath ?? endpoint.SocketName ?? "default tmux endpoint";
+        string socket = endpoint.SocketPath ?? endpoint.SocketName ?? "tmux-selected server";
         bool hostScript = plan.Actions.Any(action => action.Kind == WorkspaceActionKind.RunHostScript);
         bool globalOptions = plan.Actions.OfType<WorkspaceAction<SetOptionRequest>>()
             .Any(action => action.Request.Global);
