@@ -2,6 +2,41 @@
 
 ## 0.1.1 - Unreleased
 
+### Breaking changes
+
+#### Pass no socket to tmux unless a variable is set
+
+Both modules now build on libtmux for .NET 0.1.1. A server handle that names no
+socket passes tmux neither `-L` nor `-S`, so tmux picks the server: the one
+`TMUX` names inside a tmux pane, otherwise its default socket. Before,
+`New-TmuxServer` with no parameter passed `-L default` and gave tmux no `TMUX`,
+so a handle made inside a pane still reached the default socket.
+`LIBTMUX_SOCKET_PATH` becomes `-S` and `LIBTMUX_SOCKET` becomes `-L`; the path
+wins when both are set, a blank value counts as unset and `-SocketName` or
+`-SocketPath` beats both. The handle reads the variables when it is made.
+`LIBTMUX_SOCKET_NAME`, which 0.1.0 read, now selects nothing.
+
+To keep code on a server of its own, pass `-SocketName` or `-SocketPath`, or
+set `LIBTMUX_SOCKET` or `LIBTMUX_SOCKET_PATH`; code that set
+`LIBTMUX_SOCKET_NAME` should set `LIBTMUX_SOCKET`. Confirmation and `-WhatIf`
+text calls a handle with no socket "tmux-selected server", not "default tmux
+endpoint". (#65)
+
+#### Choose a socket for the 0.1.1 MCP tool
+
+The separate `LibTmux.Mcp` tool, which the MCP guide and CI now install at
+0.1.1, follows the same rule. With neither variable it drives the server tmux
+picks, so an assistant started from a tmux pane works on the panes you are
+using. It offers no `teardown` toolset and reports the selector `default`,
+where 0.1.0 started a daemon on a `libtmux-mcp` socket of its own. With both
+variables set the path wins, where 0.1.0 refused to start.
+
+To keep an assistant on a server of its own, set `LIBTMUX_SOCKET` or
+`LIBTMUX_SOCKET_PATH` in its configuration, as the guide shows. Unlike a
+handle, the tool does not ignore a blank value: a blank `LIBTMUX_SOCKET` or
+`LIBTMUX_SOCKET_PATH` stops startup, as `LIBTMUX_SOCKET_NAME` alone still does.
+(#65)
+
 ### Bug fixes
 
 - `Set-TmuxLayout` and `Get-TmuxWorkspacePlan` now refuse a JSON layout on a
@@ -21,9 +56,16 @@
   `TMUX_PANE` and every `LIBTMUX_SOCKET*` variable, point `TMUX_TMPDIR` at a
   private owner-only directory and refuse to run without it. When a run ends,
   any server left in that directory is stopped and fails the run. (#63)
+- Add a `Socket` suite that starts a process for each rule of the no-socket
+  default against a recording tmux, and shows that its check fails on calls
+  that break each one. (#65)
 
 ### Documentation
 
+- Say what a server handle passes tmux with no socket parameter, and which
+  variable becomes `-S` and which `-L`, in the `New-TmuxServer` reference, the
+  read guide, the README, the troubleshooting guide and the MCP guide, and show
+  in CONTRIBUTING how to start a session by hand on a socket of your own. (#65)
 - State first-use version requirements and distinguish polling, completion
   signals, version probes, control-client ownership and native table lookup.
 
