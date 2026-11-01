@@ -353,9 +353,11 @@ try {
     }
     $leaks = @(Get-TestSandboxLeak $sandbox)
     # A server on its way out may not have removed its socket yet; allow it as long as the
-    # stop at exit allows a server it has just been told to stop.
+    # stop at exit allows a server it has just been told to stop. A leftover file that nothing
+    # answers on will not go by waiting.
     $settle = [Diagnostics.Stopwatch]::StartNew()
-    while ($leaks.Count -and $settle.ElapsedMilliseconds -lt 3000) {
+    while (@($leaks | Where-Object { Test-TestSandboxServer (Join-Path $sandbox $_) }).Count -and
+        $settle.ElapsedMilliseconds -lt 3000) {
         Start-Sleep -Milliseconds 100
         $leaks = @(Get-TestSandboxLeak $sandbox)
     }
