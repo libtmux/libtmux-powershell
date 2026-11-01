@@ -193,8 +193,8 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Sandbox`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`,
-`Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
+The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`,
+`Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
 `Formatting`, `Runtime`, `Help` and `Examples` suites use the same artifact
 argument. Run `Product` and `Documentation` separately for the complete
 implemented checks within the outer-loop budget. `All` combines those
@@ -640,6 +640,13 @@ The stop at the end cannot run in a process that is killed. A run ended by
 SIGTERM or SIGKILL leaves its `lt-ps-` directory, and any server in it, under
 `TMPDIR` or `/tmp`. Stop such a server with `tmux -S <path> kill-server` and
 remove the directory. Ctrl-C runs the stop.
+
+A handle that names no socket passes tmux none, so a REPL session or a script
+of your own, started by hand outside the sandbox, reaches the server `TMUX`
+names, otherwise your default one. Start it with a socket of your own, for
+example `LIBTMUX_SOCKET=libtmux-dev pwsh`. The `Socket` suite runs
+`tests/Socket.Tests.ps1` against the recording tmux to show which flag a handle
+passes for each variable, parameter and `TMUX`.
 
 The `Sandbox` suite runs `tests/Sandbox.Tests.ps1` against a recording tmux,
 [tests/support/RecordingTmux.sh](../tests/support/RecordingTmux.sh), which
