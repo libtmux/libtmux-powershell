@@ -524,6 +524,30 @@ try {
     }
     Assert-Canary (@(Get-TestSandboxLeak $staleTree).Count -eq 0) 'the scan reported a socket after its server was gone.'
 
+    # A listener whose queue is full refuses a connect with "would block" and still holds the
+    # socket, so it answers; deleting its directory would leave a server nothing can reach.
+    $wedged = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix, [Net.Sockets.SocketType]::Stream,
+        [Net.Sockets.ProtocolType]::Unspecified)
+    $fillers = [Collections.Generic.List[object]]::new()
+    try {
+        $wedgedPath = Join-Path $staleTree 'wedged.sock'
+        $wedged.Bind([Net.Sockets.UnixDomainSocketEndPoint]::new($wedgedPath))
+        $wedged.Listen(1)
+        for ($index = 0; $index -lt 8; $index++) {
+            $filler = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix, [Net.Sockets.SocketType]::Stream,
+                [Net.Sockets.ProtocolType]::Unspecified)
+            $fillers.Add($filler)
+            try {
+                $null = [Net.Sockets.SocketTaskExtensions]::ConnectAsync($filler,
+                    [Net.Sockets.UnixDomainSocketEndPoint]::new($wedgedPath)).Wait(200)
+            } catch { $null = $_ }
+        }
+        Assert-Canary (Test-TestSandboxServer $wedgedPath) 'a listener with a full queue was taken for none.'
+    } finally {
+        foreach ($filler in $fillers) { $filler.Dispose() }
+        $wedged.Dispose()
+    }
+
     # The runner. A socket that nothing answers on does not fail it, and it hands its child a
     # sandbox, even when the process picks up selectors after it enters.
     $stale = $results.Entered

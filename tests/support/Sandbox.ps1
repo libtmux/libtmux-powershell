@@ -81,7 +81,9 @@ function Clear-TestSandboxSelector {
 }
 
 # Whether anything accepts a connection on a socket path. A server too busy to accept
-# still holds the socket, so a connect that does not finish counts as answering.
+# still holds the socket, so a connect that does not finish, or that would block because
+# its queue is full, counts as answering. Only a refusal, a missing socket or a path that
+# is no socket says that nothing does.
 function Test-TestSandboxServer {
     [CmdletBinding()]
     param([Parameter(Mandatory, Position = 0)] [string] $Path)
@@ -92,7 +94,12 @@ function Test-TestSandboxServer {
         $connect = [Net.Sockets.SocketTaskExtensions]::ConnectAsync($socket, [Net.Sockets.UnixDomainSocketEndPoint]::new($Path))
         $null = $connect.Wait(1000)
         $true
-    } catch { $false } finally { $socket.Dispose() }
+    } catch {
+        $failure = $_.Exception
+        while ($failure.InnerException) { $failure = $failure.InnerException }
+        $failure -is [Net.Sockets.SocketException] -and
+            $failure.SocketErrorCode -notin @('ConnectionRefused', 'AddressNotAvailable', 'NotSocket')
+    } finally { $socket.Dispose() }
 }
 
 # What a run leaves in the sandbox that it must not: anything at tmux-<uid>/default,
