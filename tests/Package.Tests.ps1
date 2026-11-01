@@ -6,6 +6,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# A bare handle reads its socket from the environment; enter before the snapshot below.
+. "$PSScriptRoot/support/Sandbox.ps1"
+$null = Enter-TestSandbox
 $core = Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1'
 $workspace = Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1'
 if (!(Test-Path $core)) { throw 'Core module artifact is missing.' }

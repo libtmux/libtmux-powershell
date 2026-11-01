@@ -193,17 +193,18 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`, `Options`,
-`Hooks`, `Environment`, `Layout`, `Placement`, `Clients`, `Formatting`,
-`Runtime`, `Help` and `Examples` suites use the same artifact argument. Run
-`Product` and `Documentation` separately for the complete implemented checks
-within the outer-loop budget. `All` combines those selections; none establishes
-the full architecture or compatibility matrix.
-The runner removes ambient `TMUX` and `TMUX_PANE` only from test child
-processes. It sets `LIBTMUX_CONTROL_TRANSPORT=0` only for the scripts that
-wrap tmux to trace or inject invocations and so need to see each command
-(`$processTransportScripts` in `eng/Test.ps1`); every other script runs on the
-library's default transport. `Create` verifies native creation plus
+The `Sandbox`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`, `Wait`,
+`Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
+`Formatting`, `Runtime`, `Help` and `Examples` suites use the same artifact
+argument. Run `Product` and `Documentation` separately for the complete
+implemented checks within the outer-loop budget. `All` combines those
+selections; none establishes the full architecture or compatibility matrix.
+The runner enters the [test sandbox](#test-sandbox), so every test child
+process starts without `TMUX`, `TMUX_PANE` or `LIBTMUX_SOCKET*`. It sets
+`LIBTMUX_CONTROL_TRANSPORT=0` only for the scripts that wrap tmux to trace or
+inject invocations and so need to see each command (`$processTransportScripts`
+in `eng/Test.ps1`); every other script runs on the library's default
+transport. `Create` verifies native creation plus
 first-daemon cleanup on success and injected consumer failure in separate
 disposable processes.
 
@@ -576,7 +577,9 @@ Each test or probe must own an isolated socket and temporary directory with a
 `libtmux-powershell-` prefix. Address that socket explicitly with `-S` or `-L`,
 clear inherited `TMUX` and `TMUX_PANE` for child commands, and clean up only
 the server and files created by that run, including on failure. Never use the
-default tmux server or sweep another port's temporary files.
+default tmux server or sweep another port's temporary files. The suites run in
+the [test sandbox](#test-sandbox), which takes the same variables, and
+`LIBTMUX_SOCKET*`, out of every test process.
 
 Record the actual tmux version when behavior depends on it. A passing subset
 does not establish support for an entire version range.
@@ -589,6 +592,62 @@ the tmux first on `PATH`:
 $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -Suite VersionCheck \
     -PackageRoot "$PACKAGE_ROOT"
+```
+
+## Test sandbox
+
+A tmux command that names no socket goes to the server an inherited `TMUX`
+names, and otherwise to the default socket under `TMUX_TMPDIR`. A suite started
+from a tmux pane, or from a shell that exports `LIBTMUX_SOCKET` or
+`LIBTMUX_SOCKET_PATH`, would hand those to any test that builds a handle
+without a socket. [tests/support/Sandbox.ps1](../tests/support/Sandbox.ps1)
+closes that route:
+
+- `Enter-TestSandbox` removes `TMUX`, `TMUX_PANE` and every `LIBTMUX_SOCKET*`
+  variable, then points `TMUX_TMPDIR` at a new owner-only `lt-ps-` directory
+  under `TMPDIR`, or under `/tmp` when `TMPDIR` is too long for a socket path.
+  A process that joins a sandbox refuses it unless the directory is a plain
+  one that its user owns and nobody else can enter. A setgid bit inherited
+  from `TMPDIR` is allowed; a group or other permission bit is not.
+- `eng/Test.ps1` enters first and its children join that sandbox. A script run
+  directly enters when it loads `tests/support/OwnedTmux.ps1`; a script that
+  builds a handle without loading the fixture calls `Enter-TestSandbox` itself.
+- `New-OwnedTmuxFixture` refuses to start in a process that still holds a
+  variable the sandbox removes.
+- At the end of a run, the process that made the directory scans the whole
+  tree for a `tmux-<uid>/default` and for a server that answers on any socket,
+  such as a `-S` path a test chose inside it. It stops each server with
+  `tmux -S <path> kill-server`, checks for up to three seconds that nothing
+  answers any more, and fails the run, naming what it found, even when every
+  test passed. The stop uses the `tmux` that was first on `PATH` when the
+  directory was made. `eng/Test.ps1` scans again for up to three seconds before
+  it fails on a server that is on its way out, and fails the run on a server
+  that appears after the scan. The directory is removed only when no server
+  answers; otherwise it is kept and the message says so. A `tmux-<uid>` or
+  `default` that is a link is reported, no link is ever followed, and a socket
+  file that nothing answers on is left to the removal.
+
+Messages name variables and never their values, because a `TMUX` value names
+a server; the one message that names a kept directory gives its last component,
+`lt-ps-` and eight hex digits, and not its path. The directory is capped at 40
+bytes, so that `tmux-<uid>/<name>` fits the 104 bytes a unix socket address
+holds on macOS; a `TMPDIR` too long for that sends the sandbox to `/tmp`.
+
+The stop at the end cannot run in a process that is killed. A run ended by
+SIGTERM or SIGKILL leaves its `lt-ps-` directory, and any server in it, under
+`TMPDIR` or `/tmp`. Stop such a server with `tmux -S <path> kill-server` and
+remove the directory. Ctrl-C runs the stop.
+
+The `Sandbox` suite runs `tests/Sandbox.Tests.ps1` against a recording tmux,
+[tests/support/RecordingTmux.sh](../tests/support/RecordingTmux.sh), which
+keeps argument lists and variable names and nothing else. It plants a dirty
+environment and a default socket, and runs a copy of `eng/Test.ps1` against a
+stub suite, to show that each check can fail:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
+    -Suite Sandbox \
+    -PackageRoot artifacts/local-build
 ```
 
 ## Pull requests

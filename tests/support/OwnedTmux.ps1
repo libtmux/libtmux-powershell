@@ -1,3 +1,6 @@
+. "$PSScriptRoot/Sandbox.ps1"
+$null = Enter-TestSandbox
+
 if (-not ('LibTmux.Testing.SocketCreatedSignal' -as [type])) {
     Add-Type -Path "$PSScriptRoot/SocketCreatedSignal.cs"
 }
@@ -23,8 +26,7 @@ function New-OwnedTmuxStartInfo {
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $start.WorkingDirectory = $Fixture.DirectoryPath
-    $null = $start.Environment.Remove('TMUX')
-    $null = $start.Environment.Remove('TMUX_PANE')
+    Clear-TestSandboxSelector $start
     $start.Environment['SHELL'] = '/bin/sh'
     foreach ($argument in @('-S', $Fixture.SocketPath, '-f', '/dev/null') + $Arguments) {
         $start.ArgumentList.Add($argument)
@@ -168,6 +170,7 @@ function New-OwnedTmuxFixture {
         [System.Threading.Tasks.Task] $SocketReadyTask
     )
 
+    Assert-TestSandbox
     if ($CancellationToken.IsCancellationRequested) {
         throw [System.OperationCanceledException]::new($CancellationToken)
     }

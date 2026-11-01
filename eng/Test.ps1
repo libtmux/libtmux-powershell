@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Sandbox', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
     [string] $McpCommand,
     [string] $McpVersion,
@@ -12,6 +12,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $root = Split-Path $PSScriptRoot
+. "$root/tests/support/Sandbox.ps1"
+$sandbox = Enter-TestSandbox
 $pwsh = [Environment]::ProcessPath
 $records = [Collections.Generic.List[object]]::new()
 $passed = $false
@@ -79,8 +81,7 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
     $start.UseShellExecute = $false
     $start.WorkingDirectory = $root
-    $null = $start.Environment.Remove('TMUX')
-    $null = $start.Environment.Remove('TMUX_PANE')
+    Clear-TestSandboxSelector $start
     # Wrapper doubles that trace or inject tmux invocations must see every command. Reads on the library's
     # shared control client start no process, so those scripts use the process transport.
     if ($Script -in $processTransportScripts) { $start.Environment['LIBTMUX_CONTROL_TRANSPORT'] = '0' }
@@ -155,7 +156,7 @@ try {
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
     if ($Suite -eq 'Fixture') { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
-    if ($Suite -in @('Package', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
+    if ($Suite -in @('Package', 'Sandbox', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
         $installed = Join-Path ([IO.Path]::GetTempPath()) ('libtmux-powershell-install-' + [Guid]::NewGuid().ToString('N'))
@@ -189,6 +190,9 @@ try {
                 }
             }
             $parallelTests = $runProduct
+            if ($Suite -eq 'Sandbox' -or $runProduct) {
+                Invoke-TestScript 'tests/Sandbox.Tests.ps1' @('-ModuleRoot', $installed) $installed
+            }
             if ($Suite -eq 'VersionCheck' -or $runProduct) {
                 Invoke-TestScript 'tests/VersionCheck.Tests.ps1' @('-ModuleRoot', $installed) $installed
             }
@@ -347,12 +351,28 @@ try {
             }
         }
     }
+    $leaks = @(Get-TestSandboxLeak $sandbox)
+    # A server on its way out may not have removed its socket yet; allow it as long as the
+    # stop at exit allows a server it has just been told to stop. A leftover file that nothing
+    # answers on will not go by waiting.
+    $settle = [Diagnostics.Stopwatch]::StartNew()
+    while (@($leaks | Where-Object { Test-TestSandboxServer (Join-Path $sandbox $_) }).Count -and
+        $settle.ElapsedMilliseconds -lt 3000) {
+        Start-Sleep -Milliseconds 100
+        $leaks = @(Get-TestSandboxLeak $sandbox)
+    }
+    if ($leaks.Count) { throw "A default socket or a server was left in the test sandbox: $($leaks -join ', ')." }
     $passed = $true
 } finally {
+    # What the exit finds was not there when the scan ran, so a pass does not stand.
+    $late = @(Exit-TestSandbox)
+    $appeared = $passed -and $late.Count -gt 0
+    if ($appeared) { $passed = $false }
     $null = New-Item "$root/build" -ItemType Directory -Force
     @{ suite = $Suite; status = $(if ($passed) { 'PASS' } else { 'FAIL' });
         seconds = $timer.Elapsed.TotalSeconds; commands = @($records.ToArray());
         retainedModule = $retainedModule; unreapedChildProcessIds = @($unreapedChildren.ToArray());
         workerFailures = @($workerFailures | ForEach-Object { $_.Exception.Message }) } |
         ConvertTo-Json -Depth 8 | Set-Content "$root/build/test-$Suite.json"
+    if ($appeared) { throw "A server appeared in the test sandbox after the end-of-run scan: $($late -join ', ')." }
 }
