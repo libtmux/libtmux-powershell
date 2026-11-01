@@ -210,7 +210,7 @@ switch ($env:LIBTMUX_CANARY_PLANT) {
         Set-Content -LiteralPath $env:LIBTMUX_CANARY_REPORT -Value $serverPid, $env:TMUX_TMPDIR
     }
     'settling' {
-        & $env:LIBTMUX_CANARY_TMUX -S $custom -f /dev/null new-session -d 'exec /bin/sleep 1'
+        & $env:LIBTMUX_CANARY_TMUX -S $custom -f /dev/null new-session -d 'exec /bin/sleep 2'
         if ($LASTEXITCODE) { throw 'The stub could not start its server.' }
     }
     'stale' {
@@ -312,17 +312,19 @@ try {
         '[Net.Sockets.UnixDomainSocketEndPoint]::new($env:LIBTMUX_CANARY_STALE))')) { $staleStart.ArgumentList.Add($argument) }
     $staleStart.Environment['LIBTMUX_CANARY_STALE'] = Join-Path $staleTree 'deep/stale.sock'
     $runs.Stale = Start-Capture $staleStart
-    foreach ($removal in @(@{ Run = 'Unprefixed'; Directory = $unprefixed }, @{ Run = 'Prefixed'; Directory = $prefixed })) {
-        $removalStart = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
-        foreach ($argument in @('-NoLogo', '-NoProfile', '-Command', '. "$env:LIBTMUX_CANARY_LIBRARY"; ' +
-            '[Environment]::SetEnvironmentVariable("LIBTMUX_TEST_SANDBOX_OWNER", [string] $PID); $null = Exit-TestSandbox')) {
-            $removalStart.ArgumentList.Add($argument)
-        }
-        $removalStart.Environment['LIBTMUX_CANARY_LIBRARY'] = Join-Path $PSScriptRoot 'support/Sandbox.ps1'
-        $removalStart.Environment['TMUX_TMPDIR'] = $removal.Directory
-        $removalStart.Environment['LIBTMUX_TEST_SANDBOX'] = $removal.Directory
-        $runs[$removal.Run] = Start-Capture $removalStart
+    # One process makes the exit run for each directory in turn, as the owner of both.
+    $removalStart = [Diagnostics.ProcessStartInfo]::new([Environment]::ProcessPath)
+    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command', '. "$env:LIBTMUX_CANARY_LIBRARY"; ' +
+        'foreach ($directory in @($env:LIBTMUX_CANARY_FIRST, $env:LIBTMUX_CANARY_SECOND)) { ' +
+        '[Environment]::SetEnvironmentVariable("TMUX_TMPDIR", $directory); ' +
+        '[Environment]::SetEnvironmentVariable("LIBTMUX_TEST_SANDBOX", $directory); ' +
+        '[Environment]::SetEnvironmentVariable("LIBTMUX_TEST_SANDBOX_OWNER", [string] $PID); $null = Exit-TestSandbox }')) {
+        $removalStart.ArgumentList.Add($argument)
     }
+    $removalStart.Environment['LIBTMUX_CANARY_LIBRARY'] = Join-Path $PSScriptRoot 'support/Sandbox.ps1'
+    $removalStart.Environment['LIBTMUX_CANARY_FIRST'] = $unprefixed
+    $removalStart.Environment['LIBTMUX_CANARY_SECOND'] = $prefixed
+    $runs.Removal = Start-Capture $removalStart
 
     # --- Checks that need no process of their own ---------------------------------------
 
@@ -546,10 +548,9 @@ try {
         'the new directory did not inherit the setgid bit, so the check proves nothing.'
 
     # The recursive removal is scoped by the prefix of the directory's name.
-    $unremoved = $results.Unprefixed
-    Assert-Canary ($unremoved.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $unprefixed 'marker'))) `
+    Assert-Canary ($results.Removal.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $unprefixed 'marker'))) `
         'the exit removed a directory that does not carry the sandbox prefix.'
-    Assert-Canary ($results.Prefixed.ExitCode -eq 0 -and -not (Test-Path -LiteralPath $prefixed)) `
+    Assert-Canary (-not (Test-Path -LiteralPath $prefixed)) `
         'the exit did not remove a directory that carries the sandbox prefix, so the check proves nothing.'
 
     # The exit hook cleans up after a script that entered inside a function, which leaves
@@ -589,6 +590,11 @@ try {
         Assert-Canary (((@(Get-TestSandboxLeak $staleTree) | Sort-Object) -join '|') -ceq 'deep/er/custom.sock|outside/beyond.sock') `
             'the scan did not report exactly the sockets with a server on them.'
         Assert-Canary (@(Get-TestSandboxLeak (Join-Path $staleTree 'viewed')).Count -eq 0) 'the scan followed a link to a socket outside its tree.'
+        # connect follows a link, so the probe itself refuses one: a link to a server that answers does not.
+        $viewed = Join-Path $staleTree 'viewed/link.sock'
+        $null = New-Item -ItemType SymbolicLink -Path $viewed -Target (Join-Path $staleTree 'deep/er/custom.sock')
+        Assert-Canary (-not (Test-TestSandboxServer $viewed) -and (Test-TestSandboxServer (Join-Path $staleTree 'deep/er/custom.sock'))) `
+            'the probe followed a link to a server that answers.'
     } finally {
         foreach ($listener in $listeners) { $listener.Dispose() }
     }
@@ -596,6 +602,7 @@ try {
 
     # A listener whose queue is full refuses a connect with "would block" and still holds the
     # socket, so it answers; deleting its directory would leave a server nothing can reach.
+    # Only Linux says so; the BSDs refuse the connect, which cannot be told from no server.
     $wedged = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix, [Net.Sockets.SocketType]::Stream,
         [Net.Sockets.ProtocolType]::Unspecified)
     $fillers = [Collections.Generic.List[object]]::new()
@@ -612,7 +619,7 @@ try {
                     [Net.Sockets.UnixDomainSocketEndPoint]::new($wedgedPath)).Wait(200)
             } catch { $null = $_ }
         }
-        Assert-Canary (Test-TestSandboxServer $wedgedPath) 'a listener with a full queue was taken for none.'
+        Assert-Canary ((Test-TestSandboxServer $wedgedPath) -or -not $IsLinux) 'a listener with a full queue was taken for none.'
     } finally {
         foreach ($filler in $fillers) { $filler.Dispose() }
         $wedged.Dispose()

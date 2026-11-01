@@ -9,7 +9,8 @@ record=${LIBTMUX_TEST_RECORD:?LIBTMUX_TEST_RECORD must name the file to append t
     [ -n "${TMUX+set}" ] && printf 'set\tTMUX\n'
     [ -n "${TMUX_PANE+set}" ] && printf 'set\tTMUX_PANE\n'
     # Every variable with the prefix, by name: sed keeps the name and drops the value.
-    for name in $(env | sed -n 's/^\(LIBTMUX_SOCKET[A-Za-z0-9_]*\)=.*/\1/p'); do printf 'set\t%s\n' "$name"; done
+    # A PATH that holds only this script would find neither tool, so the lookup brings its own.
+    for name in $(PATH=/usr/bin:/bin; env | sed -n 's/^\(LIBTMUX_SOCKET[A-Za-z0-9_]*\)=.*/\1/p'); do printf 'set\t%s\n' "$name"; done
     if [ -z "${TMUX_TMPDIR+set}" ]; then printf 'tmpdir\tunset\n'
     elif [ "$TMUX_TMPDIR" = "${LIBTMUX_TEST_SANDBOX-}" ]; then printf 'tmpdir\tsandbox\n'
     else printf 'tmpdir\tother\n'; fi

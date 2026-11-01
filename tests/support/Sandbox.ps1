@@ -88,6 +88,9 @@ function Test-TestSandboxServer {
     [CmdletBinding()]
     param([Parameter(Mandatory, Position = 0)] [string] $Path)
 
+    # connect(2) follows a link, and a link is never followed out of the sandbox.
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Ignore
+    if ($item -and $item.LinkType) { return $false }
     $socket = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix, [Net.Sockets.SocketType]::Stream,
         [Net.Sockets.ProtocolType]::Unspecified)
     try {
