@@ -98,6 +98,27 @@ $captured.Windows |
 $captured.Windows |
     Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
     } }
+    'readme.refresh' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name refresh -Command 'exec /bin/cat'
+    try {
+        $id = ($session | Get-TmuxPane).Id.ToString()
+        $retitle = { param($text)
+            $null = $server | Invoke-TmuxCommand -Confirm:$false `
+                -Arguments 'select-pane', '-t', $id, '-T', $text
+        }
+        & $retitle editor
+        $held = $session | Get-TmuxPane
+        & $retitle build
+        $fresh = $held | Update-TmuxPane
+        '{0} {1}' -f $held.Title, $fresh.Title
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'readme.input' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'

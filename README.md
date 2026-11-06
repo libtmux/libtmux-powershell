@@ -205,6 +205,41 @@ It returns the `editor` window, the same object as `$captured.Windows[0]`.
 [The query guide](docs/query.md) shows native predicates, Boolean and
 relationship criteria, and explicit fresh source queries.
 
+### [`Update-TmuxPane`][update-tmuxpane]: read a held pane again
+
+A captured [`Pane`][pane] is what tmux said when it was read. Python libtmux's
+`.refresh()` updates it in place; [`Update-TmuxPane`][update-tmuxpane] returns
+a replacement and leaves the original as it was.
+
+This example retitles a pane with [`Invoke-TmuxCommand`][invoke-tmuxcommand]
+after `$held` was read:
+
+<!-- example: readme.refresh -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name refresh -Command 'exec /bin/cat'
+    try {
+        $id = ($session | Get-TmuxPane).Id.ToString()
+        $retitle = { param($text)
+            $null = $server | Invoke-TmuxCommand -Confirm:$false `
+                -Arguments 'select-pane', '-t', $id, '-T', $text
+        }
+        & $retitle editor
+        $held = $session | Get-TmuxPane
+        & $retitle build
+        $fresh = $held | Update-TmuxPane
+        '{0} {1}' -f $held.Title, $fresh.Title
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+It prints `editor build`. A session or window has no such cmdlet: read it again
+with [`Get-TmuxSession`][get-tmuxsession] or [`Get-TmuxWindow`][get-tmuxwindow].
+
 ## Wait for service readiness
 
 ### [`Wait-TmuxPaneText`][wait-tmuxpanetext]: wait for a readiness line
@@ -714,6 +749,9 @@ for bundled dependencies.
 [wait-tmuxpanetext]: https://libtmux.org/en/powershell/latest/reference/libtmux-wait-tmuxpanetext/
 [send-tmuxtext]: https://libtmux.org/en/powershell/latest/reference/libtmux-send-tmuxtext/
 [send-tmuxkey]: https://libtmux.org/en/powershell/latest/reference/libtmux-send-tmuxkey/
+[update-tmuxpane]: https://libtmux.org/en/powershell/latest/reference/libtmux-update-tmuxpane/
+[get-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxsession/
+[get-tmuxwindow]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxwindow/
 [get-tmuxpanecontent]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxpanecontent/
 [wait-tmuxchannel]: https://libtmux.org/en/powershell/latest/reference/libtmux-wait-tmuxchannel/
 [connect-tmuxcontrol]: https://libtmux.org/en/powershell/latest/reference/libtmux-connect-tmuxcontrol/

@@ -216,6 +216,12 @@ $assertions = @{
                 $o.Result[0].Panes.Count -eq 2 -and
                 (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'local captured pane-count selection'
         } }
+    'readme.refresh' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -ceq 'editor build') 'README held pane keeps its title and the refresh reads the new one'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'refresh' -and $sessions -ccontains 'fixture') 'refresh session cleanup and unrelated session'
+        } }
     'readme.input' = @{ Group = 'Readme'; Count = -1; Assert = {
             param($o)
             Assert-Guide ($o.Result -ccontains 'hello from PowerShell' -and
