@@ -1,4 +1,7 @@
-param([Parameter(Mandatory)] [string] $ModuleRoot)
+param(
+    [Parameter(Mandatory)] [string] $ModuleRoot,
+    [string] $CatalogFixtureRoot = (Join-Path $PSScriptRoot 'fixtures/workspace')
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -130,4 +133,53 @@ windows:
     $env:PATH = $oldPath
     $directory.Delete($true)
 }
-'PASS workspace files: strict bounded UTF-8, literal paths, native resolution, variables and pipeline errors'
+
+# tmuxp example catalog: every example tmuxp ships loads through
+# Import-TmuxWorkspace or fails with the error recorded here. A change in the
+# loader fails the case until its entry is updated or removed.
+$catalogLoaded = @(
+    'tmuxp-v1.74.0-2-pane-synchronized.yaml'
+    'tmuxp-v1.74.0-2-pane-vertical.yaml'
+    'tmuxp-v1.74.0-3-pane.yaml'
+    'tmuxp-v1.74.0-4-pane.yaml'
+    'tmuxp-v1.74.0-blank-panes.yaml'
+    'tmuxp-v1.74.0-env-variables.yaml'
+    'tmuxp-v1.74.0-focus-window-and-panes.yaml'
+    'tmuxp-v1.74.0-main-pane-height-percentage.yaml'
+    'tmuxp-v1.74.0-main-pane-height.yaml'
+    'tmuxp-v1.74.0-minimal.yaml'
+    'tmuxp-v1.74.0-options.yaml'
+    'tmuxp-v1.74.0-session-environment.yaml'
+    'tmuxp-v1.74.0-shorthands.yaml'
+    'tmuxp-v1.74.0-skip-send-pane-level.yaml'
+    'tmuxp-v1.74.0-skip-send.yaml'
+    'tmuxp-v1.74.0-start-directory.yaml'
+    'tmuxp-v1.74.0-window-index.yaml'
+)
+$catalogRefused = [ordered] @{
+    'tmuxp-v1.74.0-pane-shell.yaml' = 'Workspace path ''windows[0]'' contains unsupported key ''window_shell''. At line 4, column 5.'
+    'tmuxp-v1.74.0-plugin-system.yaml' = 'Workspace path ''$'' contains unsupported key ''plugins''. At line 2, column 1.'
+    'tmuxp-v1.74.0-sleep-pane-level.yaml' = 'Workspace path ''windows[0].panes[0]'' contains unsupported key ''sleep_before''. At line 5, column 9.'
+    'tmuxp-v1.74.0-sleep-virtualenv.yaml' = 'Workspace path ''shell_command_before[0]'' contains unsupported key ''sleep_before''. At line 6, column 5.'
+    'tmuxp-v1.74.0-sleep.yaml' = 'Workspace path ''windows[0].panes[0].shell_command[1]'' contains unsupported key ''sleep_before''. At line 9, column 13.'
+    'tmuxp-v1.74.0-suppress-history.yaml' = 'Workspace path ''$'' contains unsupported key ''suppress_history''. At line 2, column 1.'
+}
+$catalogFound = @(Get-ChildItem -LiteralPath $CatalogFixtureRoot -Filter 'tmuxp-v1.74.0-*.yaml' |
+    ForEach-Object Name)
+$catalogNamed = @($catalogLoaded) + @($catalogRefused.Keys)
+$catalogUnclassified = @($catalogFound | Where-Object { $_ -cnotin $catalogNamed -and
+    $_ -cnotmatch '^tmuxp-v1\.74\.0-(two_windows|three_windows|first_pane_start_directory|environment_vars|window_options|window_index)\.yaml$' })
+Assert-WorkspaceFile ($catalogUnclassified.Count -eq 0 -and $catalogNamed.Count -ge 20 -and
+    @($catalogNamed | Where-Object { $_ -cnotin $catalogFound }).Count -eq 0) "tmuxp example catalog: files not classified: $($catalogUnclassified -join ', ')"
+foreach ($name in $catalogLoaded) {
+    $example = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $CatalogFixtureRoot $name) -ErrorAction Stop
+    Assert-WorkspaceFile ($example -is [LibTmux.Workspace.WorkspaceFile]) "tmuxp example catalog: $name did not load"
+}
+foreach ($name in $catalogRefused.Keys) {
+    $failure = $null
+    try { $null = LibTmux.Workspace\Import-TmuxWorkspace -LiteralPath (Join-Path $CatalogFixtureRoot $name) -ErrorAction Stop } catch { $failure = $_ }
+    Assert-WorkspaceFile ($null -ne $failure -and
+        $failure.Exception -is [LibTmux.Workspace.WorkspaceFormatException] -and
+        $failure.Exception.Message -ceq $catalogRefused[$name]) "tmuxp example catalog: $name did not fail as recorded: $($failure.Exception.Message)"
+}
+'PASS workspace files: strict bounded UTF-8, literal paths, native resolution, variables, pipeline errors and the tmuxp example catalog'
