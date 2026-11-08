@@ -69,6 +69,10 @@ handle, the tool does not ignore a blank value: a blank `LIBTMUX_SOCKET` or
 - Add a `Socket` suite that starts a process for each rule of the no-socket
   default against a recording tmux, and shows that its check fails on calls
   that break each one. (#65)
+- Import tmuxp's example catalog, kept with its license under
+  `tests/fixtures/workspace/`, in the `WorkspaceFiles` suite. The docs site shows
+  the files `Import-TmuxWorkspace` accepts as workspace presets, and each file it
+  refuses fails with the error the test records.
 
 ### Documentation
 
