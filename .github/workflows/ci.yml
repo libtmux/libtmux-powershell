@@ -56,7 +56,6 @@ concurrency:
 
 env:
   CORE_REVISION: 8d47af7d89638ad267528ac56897cec67df597f7
-  CORE_PACKAGE_VERSION: '0.1.1'
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -334,23 +333,6 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
             -Suite Documentation -PackageRoot "${RUNNER_TEMP}/port-package"
 
-      - name: Discover the separate MCP tool
-        if: matrix.mcp == 'true'
-        env:
-          MCP_VERSION: ${{ env.CORE_PACKAGE_VERSION }}
-        run: |
-          dotnet tool install LibTmux.Mcp \
-            --tool-path "${RUNNER_TEMP}/mcp-tool" \
-            --version "${MCP_VERSION}" \
-            --framework net8.0
-          dotnet restore tests/support/McpDiscovery/McpDiscovery.csproj --locked-mode
-          dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
-            --configuration Release --no-restore --warnaserror
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Test.ps1 \
-            -Suite Mcp \
-            -McpCommand "${RUNNER_TEMP}/mcp-tool/libtmux-mcp" \
-            -McpVersion "${MCP_VERSION}"
-
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -359,7 +341,6 @@ jobs:
             build/test-Product.json
             build/test-Documentation.json
             build/guide-skips-*.json
-            build/test-Mcp.json
             ${{ runner.temp }}/port-package/package-evidence.json
           if-no-files-found: warn
           retention-days: 7

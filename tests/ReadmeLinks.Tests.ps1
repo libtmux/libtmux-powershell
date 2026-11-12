@@ -1,6 +1,6 @@
 param([switch] $Online)
 
-# Mid loop: the README pages link their packages, public APIs and MCP tools.
+# Mid loop: the README pages link their packages and public APIs.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot
@@ -40,7 +40,6 @@ function Get-PageProblem($Document, [bool] $IsRoot) {
     Test-ReadmeCodeLink $Document
     Test-ReadmeAnchor $Document $root
     Test-ReadmeRepositoryLink $Document $tracked
-    Test-ReadmeToolLink $Document @()
     if ($IsRoot) {
         Test-ReadmePackageHeading $Document $headingLinks
         Test-ReadmeTypeLinked $Document
@@ -68,9 +67,9 @@ foreach ($directory in $projectDirectories) {
 if ($problems.Count) { throw ("README links:`n" + ($problems -join "`n")) }
 
 # Negative controls: each planted fault must produce its named problem, and a clean page none.
-function Assert-Planted([string] $Name, [string] $Markdown, [string] $Expected, [bool] $IsRoot = $false, [string[]] $Tools = @()) {
+function Assert-Planted([string] $Name, [string] $Markdown, [string] $Expected, [bool] $IsRoot = $false) {
     $document = Get-MarkdownDocument (Join-Path $root 'planted.md') $Markdown
-    $found = @(Get-PageProblem $document $IsRoot) + @(Test-ReadmeToolLink $document $Tools)
+    $found = @(Get-PageProblem $document $IsRoot)
     if ($Expected -and !($found | Where-Object { $_.Contains($Expected) })) {
         throw "README links control '$Name' did not report '$Expected'. Reported: $($found -join '; ')"
     }
@@ -89,12 +88,6 @@ Assert-Planted 'link in code' "Text.`n`n${fence}powershell`n# https://libtmux.or
 Assert-Planted 'missing heading' "See [it](#nowhere).`n" 'no heading for #nowhere'
 Assert-Planted 'untracked path' "See [dir](https://github.com/libtmux/libtmux-powershell/tree/master/src/Nope).`n" 'src/Nope is not tracked'
 Assert-Planted 'missing package heading' "### Plain`n" 'no package heading links' $true
-$toolUrl = Get-ToolPageUrl 'list_panes'
-Assert-Planted 'linked tool' "Use [``list_panes``][t].`n`n[t]: $toolUrl`n" '' $false @('list_panes')
-Assert-Planted 'unlinked tool' "Use ``list_panes`` now.`n" 'tool `list_panes` is not linked' $false @('list_panes')
-Assert-Planted 'bare tool' "Use list_panes now.`n" 'tool name list_panes is outside backticks' $false @('list_panes')
-Assert-Planted 'tool link names another' "Use [``list_panes``](https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/).`n" 'does not name list_windows' $false @('list_panes')
-Assert-Planted 'unknown tool' "Use [``no_such``][t].`n`n[t]: $(Get-ToolPageUrl 'no_such')`n" 'no_such is not a tool of the installed server' $false @('list_panes')
 
 # Structure controls: each planted fault is reported; a short, complete page passes.
 function Assert-PlantedStructure([string] $Name, [string[]] $Lines, [string] $Expected) {
@@ -198,4 +191,4 @@ if ($Online) {
     "PASS $($urls.Count) README URLs answer 200 ($($redirected.Count) after a redirect)"
 }
 
-"PASS README links: $($pages.Count) pages, package headings, anchors, repository paths, API and tool links, controls"
+"PASS README links: $($pages.Count) pages, package headings, anchors, repository paths, API links, controls"

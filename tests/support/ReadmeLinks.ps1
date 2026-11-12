@@ -1,4 +1,4 @@
-# Markdown link checks shared by tests/ReadmeLinks.Tests.ps1 and tests/Mcp.Tests.ps1.
+# Markdown link checks for tests/ReadmeLinks.Tests.ps1.
 # Each check returns problem strings; callers decide whether any problem fails.
 Set-StrictMode -Version Latest
 
@@ -109,8 +109,6 @@ function Get-TypeReferenceUrl([string] $FullName) {
     "$script:SiteRoot/csharp/latest/reference/$slug/"
 }
 
-function Get-ToolPageUrl([string] $Tool) { "$script:SiteRoot/csharp/latest/mcp/tools/$Tool/" }
-
 function Get-MarkdownCodeSpan($Document) {
     foreach ($match in [regex]::Matches($Document.Text, '`(?<code>[^`\n]+)`')) {
         $line = Get-MarkdownLineNumber $Document $match.Index
@@ -166,42 +164,6 @@ function Test-ReadmeTypeLinked($Document) {
     })
     if (!$types) { return @("$($Document.Path): no public type is linked to its libtmux.org page") }
     @()
-}
-
-# Every MCP tool name links to its page; every linked tool exists on the server.
-function Test-ReadmeToolLink($Document, [string[]] $ToolNames) {
-    $problems = [Collections.Generic.List[string]]::new()
-    foreach ($link in $Document.Links) {
-        if ($link.Url -cnotmatch '^https://libtmux\.org/en/[a-z]+/latest/mcp/tools/(?<tool>[a-z_]+)/$') { continue }
-        $tool = $Matches.tool
-        if ($link.Url -cne (Get-ToolPageUrl $tool)) {
-            $problems.Add("$($Document.Path): $($link.Url) is not the csharp page of $tool")
-        }
-        if ($link.Text -cne ('`' + $tool + '`')) {
-            $problems.Add("$($Document.Path): link text $($link.Text) does not name $tool")
-        }
-        if ($ToolNames -and $tool -cnotin $ToolNames) {
-            $problems.Add("$($Document.Path): $tool is not a tool of the installed server")
-        }
-    }
-    if (!$ToolNames) { return $problems }
-    foreach ($span in Get-MarkdownCodeSpan $Document) {
-        if ($span.Heading -or $span.Code -cnotin $ToolNames) { continue }
-        $expected = Get-ToolPageUrl $span.Code
-        if ($null -eq $span.Link -or $span.Link.Url -cne $expected) {
-            $problems.Add("$($Document.Path):$($span.Line): tool ``$($span.Code)`` is not linked to $expected")
-        }
-    }
-    # A tool name outside backticks and outside a URL is still a name to link.
-    $withoutCode = [regex]::Replace($Document.Text, '`[^`\n]+`|<!--[\s\S]*?-->', { param($m) ' ' * $m.Length })
-    $withoutUrls = [regex]::Replace($withoutCode, '\]\([^)]*\)|\]\[[^\]]*\]', { param($m) ' ' * $m.Length })
-    foreach ($tool in $ToolNames) {
-        foreach ($match in [regex]::Matches($withoutUrls, "(?<![\w/.-])$([regex]::Escape($tool))(?![\w/-])")) {
-            $line = Get-MarkdownLineNumber $Document $match.Index
-            $problems.Add("$($Document.Path):${line}: tool name $tool is outside backticks")
-        }
-    }
-    $problems
 }
 
 # Links never sit inside a code block: the introducing sentence carries them.

@@ -1,9 +1,7 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Mcp', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
-    [string] $McpCommand,
-    [string] $McpVersion,
     [ValidateSet('1.1.1', '1.2.0')]
     [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
 )
@@ -146,10 +144,6 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
 }
 
 try {
-    if ($Suite -eq 'Mcp') {
-        if (!$McpCommand -or !$McpVersion) { throw '-McpCommand and -McpVersion must identify the independently installed tool.' }
-        Invoke-TestScript 'tests/Mcp.Tests.ps1' @('-McpCommand', $McpCommand, '-McpVersion', $McpVersion)
-    }
     if ($Suite -eq 'Install') {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
