@@ -8,7 +8,7 @@ $root = Split-Path $PSScriptRoot
 
 $tracked = @(git -C $root ls-files --cached --others --exclude-standard)
 if ($LASTEXITCODE) { throw 'git ls-files failed.' }
-$pages = @('README.md', 'docs/mcp.md') + @($tracked | Where-Object {
+$pages = @('README.md') + @($tracked | Where-Object {
     $_ -cmatch '^src/[^/]+/README\.md$'
 })
 $cmdlets = @{}
@@ -19,11 +19,10 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
 }
 if ($cmdlets.Count -eq 0) { throw 'No cmdlet reference pages found.' }
 
-# Products: every src project directory that builds a module, plus the separate MCP tool.
+# Products: every src project directory that builds a module.
 $projectDirectories = @($tracked | Where-Object { $_ -cmatch '^src/[^/]+/[^/]+\.csproj$' } |
     ForEach-Object { Split-Path $_ })
-$headingLinks = @($projectDirectories | ForEach-Object { "$script:RepositoryTree/tree/master/$_" }) +
-    'https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp'
+$headingLinks = @($projectDirectories | ForEach-Object { "$script:RepositoryTree/tree/master/$_" })
 
 # Each README shows its product's art; a package without an entry here has no alt text.
 $logoAlt = @{

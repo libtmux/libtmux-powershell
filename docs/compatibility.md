@@ -193,9 +193,6 @@ the connection it returns.
 `Invoke-TmuxCommand kill-server` against an endpoint where no daemon answers
 returns an empty successful result without dispatching anything.
 
-The separate [MCP tool](mcp.md) is built on the same package and refuses the
-same daemons.
-
 One registry in the module holds these requirements, and it writes
 [`capabilities.json`](../capabilities.json) for the capabilities page of the
 documentation site. The module reads the daemon's version and infers what that
@@ -234,10 +231,7 @@ whose availability depends on tmux. Use an explicit
 operations and inspect its result or error record.
 
 The workspace module is a separate PowerShell package over the shared .NET
-workspace engine. The [MCP server](mcp.md) is a separate .NET tool that does
-not require PowerShell. Its client protocol, toolsets, and task support must
-be discovered from the installed executable rather than inferred from the
-PowerShell module version.
+workspace engine.
 
 See [troubleshooting](troubleshooting.md) for endpoint, package, input and
 stream failures.
