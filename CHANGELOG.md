@@ -32,21 +32,6 @@ set `LIBTMUX_SOCKET` or `LIBTMUX_SOCKET_PATH`; code that set
 text calls a handle with no socket "tmux-selected server", not "default tmux
 endpoint". (#65)
 
-#### Choose a socket for the 0.1.1 MCP tool
-
-The separate `LibTmux.Mcp` tool, which the MCP guide and CI now install at
-0.1.1, follows the same rule. With neither variable it drives the server tmux
-picks, so an assistant started from a tmux pane works on the panes you are
-using. It offers no `teardown` toolset and reports the selector `default`,
-where 0.1.0 started a daemon on a `libtmux-mcp` socket of its own. With both
-variables set the path wins, where 0.1.0 refused to start.
-
-To keep an assistant on a server of its own, set `LIBTMUX_SOCKET` or
-`LIBTMUX_SOCKET_PATH` in its configuration, as the guide shows. Unlike a
-handle, the tool does not ignore a blank value: a blank `LIBTMUX_SOCKET` or
-`LIBTMUX_SOCKET_PATH` stops startup, as `LIBTMUX_SOCKET_NAME` alone still does.
-(#65)
-
 ### Bug fixes
 
 - `Set-TmuxLayout` and `Get-TmuxWorkspacePlan` now refuse a JSON layout on a
@@ -78,8 +63,8 @@ handle, the tool does not ignore a blank value: a blank `LIBTMUX_SOCKET` or
 
 - Say what a server handle passes tmux with no socket parameter, and which
   variable becomes `-S` and which `-L`, in the `New-TmuxServer` reference, the
-  read guide, the README, the troubleshooting guide and the MCP guide, and show
-  in CONTRIBUTING how to start a session by hand on a socket of your own. (#65)
+  read guide, the README and the troubleshooting guide, and show in
+  CONTRIBUTING how to start a session by hand on a socket of your own. (#65)
 - State first-use version requirements and distinguish polling, completion
   signals, version probes, control-client ownership and native table lookup.
 

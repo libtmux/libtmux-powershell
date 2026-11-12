@@ -486,54 +486,6 @@ validates an artifact directory without network access or credentials.
 After publication, `tests/ResourceInstall.Tests.ps1 -Gallery` verifies
 Workspace-only installation from PSGallery and executes installed examples.
 
-## MCP discovery
-
-The [MCP guide](../docs/mcp.md) uses the separate `LibTmux.Mcp` .NET tool.
-Its discovery suite is opt-in and is not part of `All`; it needs no PowerShell
-module package. Install the published 0.1.1 tool in a fresh directory:
-
-```console
-$ dotnet tool install LibTmux.Mcp \
-    --tool-path build/mcp \
-    --version 0.1.1 \
-    --framework net8.0
-```
-
-For shared source changes, set `CORE_PACKAGES` to `packageFeed` and
-`MCP_VERSION` to `version` from the review bootstrap's `bootstrap.json`.
-Use a separate tool directory and add `--add-source "$CORE_PACKAGES"` to the
-installation command, replacing its version with `"$MCP_VERSION"`.
-
-The test client pins the official `ModelContextProtocol` SDK in its own
-project and lockfile. Restore it during setup:
-
-```console
-$ dotnet restore tests/support/McpDiscovery/McpDiscovery.csproj \
-    --locked-mode
-```
-
-Build the client before running the suite:
-
-```console
-$ dotnet build tests/support/McpDiscovery/McpDiscovery.csproj \
-    --configuration Release \
-    --no-restore
-```
-
-Set `MCP_COMMAND` to the installed tool's absolute path and `MCP_VERSION` to
-its exact version, then run the
-[client workflow](../docs/mcp.md#check-the-client-workflow-from-this-checkout).
-The runner requires the existing executable and built probe; it does not
-install, restore or build. It starts only its own tmux fixture and stdio
-client. Tool installation and client compilation are setup/outer-loop work.
-
-The same run starts the tool with the `LIBTMUX_` settings that the README and
-MCP guide show, using the fixture's tmux and socket or a socket name of its
-own, and links every tool name on those pages to a tool the server has. It
-also starts the tool with both socket variables, where the path wins, with
-neither, where the server reports the selector `default` and offers no
-`teardown`, and with `LIBTMUX_SOCKET_NAME` alone, which it refuses.
-
 ## Checks
 
 For repository changes, review the complete diff, check relative Markdown

@@ -53,8 +53,7 @@ See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#releas
 
 **Reference** — [Cmdlet reference](docs/reference/README.md) ·
 [Compatibility](docs/compatibility.md) ·
-[Troubleshooting](docs/troubleshooting.md) ·
-[MCP](docs/mcp.md#discover-before-calling) · [License](#license)
+[Troubleshooting](docs/troubleshooting.md) · [License](#license)
 
 ## Quick start
 
@@ -490,7 +489,6 @@ into a starting declaration.
 | --- | --- |
 | [LibTmux](docs/reference/README.md) | Typed cmdlets, snapshots, input, capture, control clients and event streams |
 | [LibTmux.Workspace](docs/workspace.md#plan-and-review) [![LibTmux.Workspace](https://img.shields.io/powershellgallery/v/LibTmux.Workspace?label=LibTmux.Workspace)](https://www.powershellgallery.com/packages/LibTmux.Workspace) | Discover YAML/JSON declarations, resolve directories, review plans and create workspaces |
-| [LibTmux.Mcp](docs/mcp.md#discover-before-calling) | Give an assistant tmux tools through the separately installed .NET MCP server |
 
 ### [LibTmux](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell): typed cmdlets for tmux
 
@@ -530,60 +528,6 @@ in this order:
 [Install it](#build-a-workspace-from-a-file) with the core module, at the same
 version. Reference: [every LibTmux.Workspace cmdlet][workspace-module] and the
 [PowerShell Gallery page](https://www.powershellgallery.com/packages/LibTmux.Workspace).
-
-### [LibTmux.Mcp](https://github.com/libtmux/libtmux-dotnet/tree/master/src/LibTmux.Mcp): tmux tools for assistants
-
-A separate .NET tool that lets an MCP client list, read and drive tmux panes. It
-needs no PowerShell. Reference: the
-[MCP guide](https://libtmux.org/en/powershell/latest/guides/mcp/), the
-[tool reference](https://libtmux.org/en/csharp/latest/mcp/tools/) and
-[NuGet](https://www.nuget.org/packages/LibTmux.Mcp).
-
-Install the tool on the Unix host that runs tmux:
-
-```console
-$ dotnet tool install --global LibTmux.Mcp \
-    --version 0.1.1 \
-    --framework net8.0
-```
-
-Register it with Claude Code. This names the tmux socket `work` and offers only
-the tools that read tmux:
-
-```console
-$ claude mcp add tmux \
-    -e LIBTMUX_SOCKET=work \
-    -e LIBTMUX_TOOLSETS=inspect \
-    -- libtmux-mcp
-```
-
-A client that reads a JSON configuration takes the same command and settings:
-
-```json
-{
-  "mcpServers": {
-    "tmux": {
-      "command": "libtmux-mcp",
-      "env": { "LIBTMUX_SOCKET": "work", "LIBTMUX_TOOLSETS": "inspect" }
-    }
-  }
-}
-```
-
-- Find a pane with [`list_sessions`][mcp-list_sessions],
-  [`list_windows`][mcp-list_windows] and [`list_panes`][mcp-list_panes].
-- Read it with [`capture_pane`][mcp-capture_pane], or
-  [`snapshot_pane`][mcp-snapshot_pane] for structured state.
-- Wait for output with [`wait_for_text`][mcp-wait_for_text] and a finite timeout.
-- Read the selected tools and socket from the
-  [`tmux://capabilities` resource][mcp-capabilities] before calling any tool.
-
-The [MCP guide](docs/mcp.md) covers
-[client configuration](docs/mcp.md#install-and-select-a-server),
-[discovery before calling](docs/mcp.md#discover-before-calling), finite waits
-and the other toolsets.
-[Its test](docs/mcp.md#check-the-client-workflow-from-this-checkout) starts the
-installed tool with these settings and checks what it reports.
 
 ## Install from source
 
@@ -677,9 +621,6 @@ default tmux server stays untouched.
 - **Native Windows.** Run PowerShell and tmux inside WSL, in one Linux
   environment. Native Windows and psmux are outside this port
   ([compatibility](docs/compatibility.md)).
-- **The MCP server.** LibTmux.Mcp is a separate .NET tool that needs no
-  PowerShell, and the modules install none of its tools
-  ([MCP guide](docs/mcp.md)).
 
 ## Support and status
 
@@ -710,7 +651,6 @@ default tmux server stays untouched.
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
   [event streams, jobs and parallel workers](docs/watch.md).
-- **Assistants:** [install and configure the MCP server](docs/mcp.md).
 - **Workspaces:** [load, review and apply](docs/workspace.md),
   [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
   [edit a declaration](docs/workspace.md#edit-the-declaration).
@@ -782,10 +722,3 @@ for bundled dependencies.
 [workspaceaction-request]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceaction-request/
 [workspaceactionkind-createsession]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-createsession/
 [workspaceactionkind-captureresult]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspaceactionkind-captureresult/
-[mcp-list_sessions]: https://libtmux.org/en/csharp/latest/mcp/tools/list_sessions/
-[mcp-list_windows]: https://libtmux.org/en/csharp/latest/mcp/tools/list_windows/
-[mcp-list_panes]: https://libtmux.org/en/csharp/latest/mcp/tools/list_panes/
-[mcp-capture_pane]: https://libtmux.org/en/csharp/latest/mcp/tools/capture_pane/
-[mcp-snapshot_pane]: https://libtmux.org/en/csharp/latest/mcp/tools/snapshot_pane/
-[mcp-wait_for_text]: https://libtmux.org/en/csharp/latest/mcp/tools/wait_for_text/
-[mcp-capabilities]: https://libtmux.org/en/csharp/latest/mcp/resources/tmux_capabilities/

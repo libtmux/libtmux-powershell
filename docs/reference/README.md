@@ -20,6 +20,3 @@ In a shell with the modules installed, `Get-Command -Module LibTmux` and
 `Get-Help LibTmux\Get-TmuxPane -Examples` shows pane-selection examples;
 `Get-Help LibTmux\Get-TmuxPane -Full` includes parameters and pipeline binding.
 Help for the workspace module works the same way.
-
-The [MCP server](../mcp.md) is a separate .NET tool. Its tools are discovered
-through the MCP client rather than these PowerShell modules.

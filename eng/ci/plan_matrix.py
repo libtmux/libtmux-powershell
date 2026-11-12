@@ -160,21 +160,8 @@ def cell(powershell: dict[str, str], tmux: dict[str, str]) -> dict[str, str]:
         "build": tmux["build"],
         # Artifact names cannot hold a slash, which a branch name can.
         "slug": tmux["tmux"].replace("/", "-"),
-        "mcp": "false",
         "tmate": "off",
     }
-
-
-def mark_mcp(manifest: dict[str, t.Any], cells: list[dict[str, str]]) -> None:
-    """Run the MCP discovery check on the edge releases, on the first PowerShell.
-
-    The check does not depend on the tmux version, so it follows the edges
-    instead of a middle release, and it runs once per edge.
-    """
-    first = manifest["powershell"][0]["version"]
-    edges = edge_versions([each["tmux"] for each in manifest["supported"]])
-    for each in cells:
-        each["mcp"] = "true" if each["powershell"] == first and each["tmux"] in edges else "false"
 
 
 def select_lanes(manifest: dict[str, t.Any], scope: str) -> dict[str, list[dict[str, str]]]:
@@ -243,7 +230,6 @@ def plan(
         for powershell in select_powershell(manifest, pwsh)
     ]
     require_cells(cells)
-    mark_mcp(manifest, cells)
     lanes = select_lanes(manifest, chosen)
     assign_tmate(event, tmate or "off", cells, lanes)
 

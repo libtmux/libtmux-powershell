@@ -16,7 +16,6 @@ stop a script.
 | A watcher reports dropped events | The [event stream](watch.md) bounds count and text bytes. A loss marker means history is incomplete; acquire a fresh snapshot when current topology matters. Rendered capture is a screen view, not a reconstruction of missed events. |
 | Interactive attach fails from a script or CI job | [Enter-TmuxSession](reference/LibTmux/Enter-TmuxSession.md) needs a foreground terminal with stdin and must run outside another tmux client. Workspace apply is detached; pass its successful native `Session` to the attach command in a terminal. |
 | Workspace apply stops partway through | Inspect the native [`WorkspaceBuildException`][workspacebuildexception] journal and partial result described in the [workspace guide](workspace.md#startup-host-effects-and-failures). Review the original plan and live server before another apply; host scripts and sent pane commands are not rolled back. |
-| MCP tools or waits are unavailable | The [MCP server](mcp.md) is an independently installed .NET tool. Check the configured executable, socket and `LIBTMUX_TOOLSETS`, then initialize the client and read `tools/list` and `tmux://capabilities`. A cursor or task from an earlier process is not durable. |
 
 For repeatable failures, record the command, PowerShell and tmux versions,
 selected socket kind, error ID and original exception. Avoid including pane

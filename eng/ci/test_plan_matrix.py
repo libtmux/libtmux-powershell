@@ -179,21 +179,6 @@ def check_an_unknown_pwsh_is_refused(test):
     refused(test, "pwsh must name versions", pwsh="7.2.0")
 
 
-def check_mcp_discovery_follows_the_edges(test):
-    expected = sorted(
-        (tmux, POWERSHELL[0]) for tmux in (OLDEST, NEWEST)
-    )
-    for result in (run("push"), run("workflow_dispatch", scope="full")):
-        marked = sorted(
-            (each["tmux"], each["powershell"]) for each in cells(result) if each["mcp"] == "true"
-        )
-        test.assertEqual(marked, expected)
-    middle = run("workflow_dispatch", scope="custom", tmux_ref=SUPPORTED[1])
-    test.assertEqual({each["mcp"] for each in cells(middle)}, {"false"})
-    ref = run("workflow_dispatch", scope="custom", tmux_ref="3.6b")
-    test.assertEqual({each["mcp"] for each in cells(ref)}, {"false"})
-
-
 def check_one_leg_gets_the_debug_session(test):
     result = run(
         "workflow_dispatch",
@@ -403,15 +388,6 @@ def unchecked_shell(manifest, requested):
     return [available[v] for v in chosen if v in available] or list(manifest["powershell"])
 
 
-def no_mcp(manifest, got_cells):
-    return None
-
-
-def mcp_everywhere(manifest, got_cells):
-    for each in got_cells:
-        each["mcp"] = "true"
-
-
 def no_debug_session(*arguments):
     return None
 
@@ -497,9 +473,6 @@ DELIBERATE_BREAKS = [
      check_a_pwsh_input_narrows_the_stack),
     ("an unknown pwsh is accepted", "select_powershell", unchecked_shell,
      check_an_unknown_pwsh_is_refused),
-    ("no leg runs MCP discovery", "mark_mcp", no_mcp, check_mcp_discovery_follows_the_edges),
-    ("every leg runs MCP discovery", "mark_mcp", mcp_everywhere,
-     check_mcp_discovery_follows_the_edges),
     ("no leg gets the debug session", "assign_tmate", no_debug_session,
      check_one_leg_gets_the_debug_session),
     ("every leg gets the debug session", "assign_tmate", debug_session_everywhere,
@@ -542,7 +515,6 @@ ALL_CHECKS = [
     check_too_many_refs_are_refused,
     check_a_pwsh_input_narrows_the_stack,
     check_an_unknown_pwsh_is_refused,
-    check_mcp_discovery_follows_the_edges,
     check_one_leg_gets_the_debug_session,
     check_no_debug_session_by_default,
     check_several_legs_cannot_share_a_debug_session,
