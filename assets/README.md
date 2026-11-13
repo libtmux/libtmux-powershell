@@ -11,3 +11,6 @@ The source libtmux and tmuxp artwork belongs to the project owner.
 Package-specific artwork sits beside its README where the package format
 supports it. `.github/social-preview.png` is the cog sharing card, ready to
 upload under the repository's **Settings → Social preview**.
+
+The sharing card comes from `assets/powershell/library/opengraph-light.png`
+at kit revision `4b86a9d9158d7c6d52cd635d59c92a04b48b960f`.
