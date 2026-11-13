@@ -3,6 +3,11 @@
 # copies instead. It does not run on pull requests: a change to the shared
 # rules lands here and in docs as separate pull requests, so a PR check
 # would fail until the other one merges.
+#
+# libtmux/docs has the checker only once its shared example rules have landed,
+# which its WRITING.md shows with the shared:examples markers. Until then there
+# is nothing to compare and the job says so. After that, a missing checker or a
+# different digest fails it.
 name: shared examples
 
 on:
@@ -22,14 +27,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Fetch the docs checker and WRITING.md
+        id: docs
         run: |
           mkdir -p "${RUNNER_TEMP}/docs"
           cd "${RUNNER_TEMP}/docs"
           base=https://raw.githubusercontent.com/libtmux/docs/HEAD
-          curl -fsSLO --retry 3 "${base}/scripts/check_example_width.py"
           curl -fsSLO --retry 3 "${base}/WRITING.md"
+          if grep -qF '<!-- shared:examples -->' WRITING.md; then
+            curl -fsSLO --retry 3 "${base}/scripts/check_example_width.py"
+            echo "adopted=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::notice title=Nothing to compare::libtmux/docs WRITING.md has no shared:examples section yet, so it has no shared example rules to compare."
+          fi
 
       - name: Compare digests
+        if: steps.docs.outputs.adopted == 'true'
         shell: bash
         run: |
           diff <(python3 eng/check_example_width.py --digest) \
