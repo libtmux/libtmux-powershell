@@ -173,6 +173,48 @@ It returns `editor`, the same object as `$captured.Windows[0]`.
 
 More: [filter and query](docs/query.md).
 
+### [`Get-TmuxQueryPlan`][get-tmuxqueryplan]: see what runs in tmux
+
+[`New-TmuxQuery`][new-tmuxquery] builds criteria once. A plan shows which part
+tmux evaluates and which part runs in PowerShell, and reads nothing:
+
+<!-- example: readme.plan -->
+```powershell
+$query = New-TmuxQuery -Target Window -Criteria ([ordered]@{
+    IsActive = $true
+    Name = 'editor'
+})
+$plan = $query | Get-TmuxQueryPlan -DaemonVersion '3.6'
+'in tmux: {0}; here: {1}' -f
+    ($null -ne $plan.PushedPredicate), ($null -ne $plan.ResidualPredicate)
+```
+
+It prints `in tmux: True; here: True`: tmux evaluates `IsActive` and PowerShell
+evaluates `Name`. The split depends on the tmux release the plan names.
+`-Pushdown Never` keeps everything local, and `Require` fails if any part must
+stay local.
+
+[`Invoke-TmuxQuery`][invoke-tmuxquery] runs the query against a server and
+returns fresh objects:
+
+<!-- example: readme.query -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name query -WindowName editor -Command 'exec /bin/cat'
+    try {
+        $server | Invoke-TmuxQuery -Query $query | ForEach-Object Name
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+It prints `editor`.
+
+More: [store a query or acquire a fresh result](docs/query.md#store-a-query-or-acquire-a-fresh-result).
+
 ### [`Update-TmuxPane`][update-tmuxpane]: read a held pane again
 
 It returns a fresh copy of a held [`Pane`][pane] and leaves the original as it
@@ -288,13 +330,43 @@ they are given, not strings nested in it (`if-shell`, `bind-key`, braces).
 [What the checks do not read](docs/compatibility.md#what-the-checks-do-not-read)
 lists the rest.
 
+### [`Invoke-TmuxChain`][invoke-tmuxchain]: several commands, one tmux call
+
+[`New-TmuxCommand`][new-tmuxcommand] builds each command with literal
+arguments. A chain runs them in order and stops at the first failure; earlier
+changes stay. This example renames a window and reads the new name:
+
+<!-- example: readme.chain -->
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name chain -Command 'exec /bin/cat'
+    try {
+        $rename = New-TmuxCommand -Name rename-window -Arguments @(
+            '-t', 'chain:0', 'build'
+        )
+        $show = New-TmuxCommand -Name display-message -Arguments @(
+            '-p', '-t', 'chain:0', '#{window_name}'
+        )
+        $result = $server | Invoke-TmuxChain -Command @($rename, $show)
+        $result.StandardOutputLines
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+```
+
+It prints `build`.
+
+More: [execute an ordered chain](docs/commands.md#execute-an-ordered-chain).
+
 ### [`Connect-TmuxControl`][connect-tmuxcontrol]: one client for repeated commands
 
-It attaches one control client. [`New-TmuxCommand`][new-tmuxcommand] builds a
-command, [`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand] sends it
-through the client, and [`Disconnect-TmuxControl`][disconnect-tmuxcontrol] ends
-it. This example reads a session name, then disconnects and removes its
-session:
+It attaches one control client. [`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand]
+sends a command through it, and
+[`Disconnect-TmuxControl`][disconnect-tmuxcontrol] ends it. This example reads a
+session name, then disconnects and removes its session:
 
 <!-- example: readme.control -->
 ```powershell
@@ -326,12 +398,19 @@ the inner `try` block.
 
 More: [reuse a control client](docs/commands.md#reuse-a-control-client).
 
+### [`Watch-TmuxEvent`][watch-tmuxevent]: react to notifications
+
+It streams tmux notifications and pane output from a control client, with
+event-count and text-byte limits. A server handle needs tmux 3.7 or newer.
+
+More: [observe one owned change](docs/watch.md#observe-one-owned-change), a
+complete program that starts its own server and cleans up.
+
 The other modes:
 
 - [`Enter-TmuxSession`][enter-tmuxsession] attaches your terminal to a session.
 - Foreground cmdlets and `ForEach-Object -Parallel` occupy their pipeline.
 - Thread jobs return the prompt while they run.
-- [`Watch-TmuxEvent`][watch-tmuxevent] takes event-count and text-byte limits.
 
 More: [commands and control clients](docs/commands.md).
 
@@ -626,6 +705,9 @@ for bundled dependencies.
 [invoke-tmuxcontrolcommand]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxcontrolcommand/
 [disconnect-tmuxcontrol]: https://libtmux.org/en/powershell/latest/reference/libtmux-disconnect-tmuxcontrol/
 [invoke-tmuxchain]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxchain/
+[get-tmuxqueryplan]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxqueryplan/
+[new-tmuxquery]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxquery/
+[invoke-tmuxquery]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxquery/
 [invoke-tmuxcommand]: https://libtmux.org/en/powershell/latest/reference/libtmux-invoke-tmuxcommand/
 [watch-tmuxevent]: https://libtmux.org/en/powershell/latest/reference/libtmux-watch-tmuxevent/
 [enter-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-enter-tmuxsession/

@@ -94,7 +94,8 @@ $windows = @($session.Windows | ForEach-Object {
 
 $blocks = @{}
 foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
-    'readme.related', 'readme.refresh', 'input.run', 'input.http-ready', 'readme.control',
+    'readme.related', 'readme.plan', 'readme.query', 'readme.refresh', 'readme.chain',
+    'input.run', 'input.http-ready', 'readme.control',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
     'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
     $blocks[$id] = Get-ReadmeBlock $id
@@ -133,6 +134,13 @@ try {
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
     $refreshed = @(. $blocks['readme.refresh'])
     Assert-Readme ($refreshed.Count -eq 1 -and $refreshed[0] -ceq 'editor build') 'the held pane did not keep its title across a refresh'
+    $planned = @(. $blocks['readme.plan'])
+    Assert-Readme ($planned.Count -eq 1 -and $planned[0] -ceq 'in tmux: True; here: True' -and
+        $query -is [LibTmux.Query.QueryDocument]) 'the query plan did not split tmux and local work'
+    $queried = @(. $blocks['readme.query'])
+    Assert-Readme ($queried.Count -eq 1 -and $queried[0] -ceq 'editor') 'the fresh query did not return the editor window'
+    $chained = @(. $blocks['readme.chain'])
+    Assert-Readme ($chained.Count -eq 1 -and $chained[0] -ceq 'build') 'the chain did not rename the window and read its name'
     if (Test-TmuxFeature NamedBuffers) {
         $paneRun = @(. $blocks['input.run'])
         Assert-Readme ($paneRun.Count -eq 1 -and

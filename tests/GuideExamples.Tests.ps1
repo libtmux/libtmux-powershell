@@ -222,6 +222,27 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'refresh' -and $sessions -ccontains 'fixture') 'refresh session cleanup and unrelated session'
         } }
+    'readme.plan' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -ceq 'in tmux: True; here: True' -and
+                $o.Query -is [LibTmux.Query.QueryDocument] -and
+                (Get-GuideTraceCount $o.Context) -eq $o.BeforeDispatch) 'README plan splits tmux and local work without reading tmux'
+            $o.Context.Query = $o.Query
+        } }
+    'readme.query' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -ceq 'editor' -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'README fresh query returned the active editor window'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'query' -and $sessions -ccontains 'fixture') 'query cleanup and unrelated session'
+        } }
+    'readme.chain' = @{ Group = 'Readme'; Count = 1; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -ceq 'build' -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'README chain renamed the window and read the new name'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'chain' -and $sessions -ccontains 'fixture') 'chain cleanup and unrelated session'
+        } }
     'readme.input' = @{ Group = 'Readme'; Count = -1; Assert = {
             param($o)
             Assert-Guide ($o.Result -ccontains 'hello from PowerShell' -and

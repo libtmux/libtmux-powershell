@@ -67,7 +67,8 @@ endpoint". (#65)
   CONTRIBUTING how to start a session by hand on a socket of your own. (#65)
 - State first-use version requirements and distinguish polling, completion
   signals, version probes, control-client ownership and native table lookup.
-- Start the first example of each README section with `Import-Module`.
+- Start the first example of each README section with `Import-Module`, and
+  add README examples for query plans, fresh queries and command chains.
 
 ## 0.1.0 - 2026-10-25
 

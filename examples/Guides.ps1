@@ -100,6 +100,46 @@ $captured.Windows |
 $captured.Windows |
     Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
     } }
+    'readme.plan' = @{ Requires = @(); Code = {
+$query = New-TmuxQuery -Target Window -Criteria ([ordered]@{
+    IsActive = $true
+    Name = 'editor'
+})
+$plan = $query | Get-TmuxQueryPlan -DaemonVersion '3.6'
+'in tmux: {0}; here: {1}' -f
+    ($null -ne $plan.PushedPredicate), ($null -ne $plan.ResidualPredicate)
+    } }
+    'readme.query' = @{ Requires = @('server', 'query'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name query -WindowName editor -Command 'exec /bin/cat'
+    try {
+        $server | Invoke-TmuxQuery -Query $query | ForEach-Object Name
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
+    'readme.chain' = @{ Requires = @('server'); Code = {
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server |
+        New-TmuxSession -Name chain -Command 'exec /bin/cat'
+    try {
+        $rename = New-TmuxCommand -Name rename-window -Arguments @(
+            '-t', 'chain:0', 'build'
+        )
+        $show = New-TmuxCommand -Name display-message -Arguments @(
+            '-p', '-t', 'chain:0', '#{window_name}'
+        )
+        $result = $server | Invoke-TmuxChain -Command @($rename, $show)
+        $result.StandardOutputLines
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'readme.refresh' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'
