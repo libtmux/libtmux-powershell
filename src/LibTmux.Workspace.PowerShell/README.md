@@ -51,6 +51,7 @@ your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null
@@ -63,6 +64,7 @@ declaration has two panes in one window:
 
 <!-- example: readme.workspace.01-import -->
 ```powershell
+Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
 windows:

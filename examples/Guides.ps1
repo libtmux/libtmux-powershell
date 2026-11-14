@@ -57,6 +57,7 @@ $captured.Sessions |
     Select-TmuxSession -Criteria @{ Name = 'development' } -ExactlyOne
     } }
     'read.endpoint' = @{ Requires = @(); Code = {
+Import-Module -Name LibTmux -ErrorAction Stop
 $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null
@@ -75,6 +76,7 @@ Import-Module -Name @(
 }
     } }
     'readme.create' = @{ Requires = @('server'); Code = {
+Import-Module -Name LibTmux -ErrorAction Stop
 $captured = & {
     $ErrorActionPreference = 'Stop'
     $session = $server |
@@ -147,6 +149,7 @@ $captured.Windows |
 }
     } }
     'input.http-ready' = @{ Requires = @('server'); Code = {
+Import-Module -Name LibTmux -ErrorAction Stop
 & {
     $ErrorActionPreference = 'Stop'
     $session = $server | New-TmuxSession `
@@ -186,6 +189,7 @@ $captured.Windows |
 }
     } }
     'readme.control' = @{ Requires = @('server'); Code = {
+Import-Module -Name LibTmux -ErrorAction Stop
 & {
     $ErrorActionPreference = 'Stop'
     $session = $server |
@@ -573,6 +577,7 @@ windows:
 }
     } }
     'readme.workspace.01-import' = @{ Requires = @(); Code = {
+Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
 windows:

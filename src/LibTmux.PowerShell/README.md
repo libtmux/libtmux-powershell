@@ -50,6 +50,7 @@ your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null

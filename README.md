@@ -58,6 +58,7 @@ your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 $server = LibTmux\New-TmuxServer `
     -SocketName ('libtmux-readme-' + [Guid]::NewGuid().ToString('N')) `
     -ConfigurationFile /dev/null
@@ -107,6 +108,7 @@ it, and removes it. `cat` keeps the panes open:
 
 <!-- example: readme.create -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 $captured = & {
     $ErrorActionPreference = 'Stop'
     $session = $server |
@@ -222,6 +224,7 @@ port, waits for its readiness line, then requests a page:
 
 <!-- example: input.http-ready -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 & {
     $ErrorActionPreference = 'Stop'
     $session = $server | New-TmuxSession `
@@ -295,6 +298,7 @@ session:
 
 <!-- example: readme.control -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 & {
     $ErrorActionPreference = 'Stop'
     $session = $server |
@@ -356,6 +360,7 @@ two panes in one window:
 
 <!-- example: readme.workspace.01-import -->
 ```powershell
+Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml @'
 session_name: readme-workspace-preview
 windows:

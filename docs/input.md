@@ -112,6 +112,7 @@ removes the session and stops the server process:
 
 <!-- example: input.http-ready -->
 ```powershell
+Import-Module -Name LibTmux -ErrorAction Stop
 & {
     $ErrorActionPreference = 'Stop'
     $session = $server | New-TmuxSession `
