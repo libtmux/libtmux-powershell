@@ -1,14 +1,13 @@
 # Capture, refresh and raw commands
 
-`Get-TmuxPaneContent` reads rendered text from a native `LibTmux.Pane`.
-`Update-TmuxPane` reads current pane metadata into a replacement handle.
-Both accept a pane directly or through the pipeline and borrow its daemon.
-`Invoke-TmuxCommand` accepts a native `LibTmux.Server` and literal tmux
-arguments for operations that do not yet have a dedicated cmdlet.
+- `Get-TmuxPaneContent` reads rendered text from a `LibTmux.Pane`.
+- `Update-TmuxPane` reads current pane metadata into a replacement handle.
+- `Invoke-TmuxCommand` sends literal tmux arguments to a `LibTmux.Server`, for
+  operations that have no dedicated cmdlet.
 
-Use the explicit endpoint and pane selection described in
-[Read tmux objects](read.md). The examples below assume `$pane` and `$server`
-refer to that selected pane and server. None chooses a global active server.
+The pane cmdlets accept a pane directly or from the pipeline and borrow its
+daemon. The examples assume `$pane` and `$server` are the pane and server
+selected as in [Read tmux objects](read.md); none picks a global active server.
 
 ## Capture text
 
@@ -27,26 +26,26 @@ $pane | Get-TmuxPaneContent -History -JoinWrappedLines -Raw
 ```
 
 Capture an inclusive range, from ten lines before the visible screen through
-its fifth line. Zero identifies the top visible line; negative values address
-scrollback. Omitted bounds use tmux's normal visible-screen bounds.
+its fifth line. Zero is the top visible line and negative values address
+scrollback. Omitted bounds use the visible screen.
 
 <!-- example: capture.range -->
 ```powershell
 $pane | Get-TmuxPaneContent -StartLine -10 -EndLine 4
 ```
 
-`-History` selects the oldest retained history and cannot be combined with
-`-StartLine`. It can be combined with `-EndLine`. `-Raw` emits exactly one
-string per pane, joining the core's captured lines with LF and adding no
-extra trailing newline. Internal empty lines remain empty lines. An empty
-capture emits no objects normally and one empty string with `-Raw`.
+- `-History` selects the oldest retained history. It combines with `-EndLine`
+  but not `-StartLine`.
+- `-Raw` emits one string per pane, joining lines with LF and adding no
+  trailing newline. Internal empty lines stay. An empty capture emits nothing,
+  or one empty string with `-Raw`.
 
-This is rendered terminal text, not original process output or a byte-exact
-stream. Sending input or receiving a pane-output event does not establish
-command completion. Use an explicit completion signal from the application,
-such as a cooperative wait channel, or
-[Invoke-TmuxPaneCommand](input.md#run-a-command-to-completion) before asserting
-completed command output.
+The result is rendered terminal text, not the process's original output or a
+byte-exact stream. Sending input or receiving a pane-output event does not mean
+a command finished. Wait for a completion signal from the application, such as a
+cooperative wait channel, or use
+[Invoke-TmuxPaneCommand](input.md#run-a-command-to-completion), before relying
+on its output.
 
 | Switch | Effect |
 | --- | --- |
@@ -63,10 +62,9 @@ completed command output.
 | [`LineNumbers`][-linenumbers] | Include supported line-number metadata. |
 | [`LineFlags`][-lineflags] | Include supported line-flag metadata. |
 
-`-PreserveTrailingSpaces` and `-TrimTrailingSpaces` together terminate with
-[`Tmux.InvalidCapture`][gettmuxpanecontentcommand] before dispatch.
-Version-dependent switches retain the core's capability policy; availability
-depends on the tmux version and the core connection's configuration.
+`-PreserveTrailingSpaces` and `-TrimTrailingSpaces` together fail with
+[`Tmux.InvalidCapture`][gettmuxpanecontentcommand] before dispatch. Some
+switches depend on the tmux version and the core connection's configuration.
 
 ## Refresh captured metadata
 
@@ -77,16 +75,15 @@ Retain the replacement returned by an explicit refresh:
 $currentPane = $pane | Update-TmuxPane
 ```
 
-The original `$pane` keeps its previously captured values. Refresh observes
-tmux and returns another native `LibTmux.Pane`; it does not mutate terminal
-state or acquire ownership of the daemon. It uses the core's refresh and
-identity rules. Repeated linked-window placement refresh remains subject to
-the core's contextual-target limitations.
+The original `$pane` keeps its captured values. Refresh reads tmux and returns
+another `LibTmux.Pane`; it changes no terminal state and takes no ownership of
+the daemon. Refreshing a pane in a repeatedly linked window is subject to the
+core's contextual-target limits.
 
 ## Run literal tmux arguments
 
-Pass each argument as a separate array element. The adapter does not join
-arguments into a shell command or expand their contents.
+Pass each argument as a separate array element. Nothing joins them into a shell
+command or expands their contents.
 
 <!-- example: capture.raw-list -->
 ```powershell
@@ -95,11 +92,10 @@ $server | Invoke-TmuxCommand -Arguments @(
 )
 ```
 
-For tmux features without a dedicated cmdlet, use the same literal argument
-boundary. This creates a named paste buffer, reads its text and removes only
-that buffer. Deleting a buffer by name needs tmux 3.4 or newer; earlier
-releases act on an unrelated buffer when the name is missing, so
-`Invoke-TmuxCommand` refuses the command there:
+The same literal arguments reach features without a cmdlet. This creates a
+named paste buffer, reads it and removes only that buffer. Deleting a buffer by
+name needs tmux 3.4 or newer, because earlier releases act on another buffer
+when the name is missing; `Invoke-TmuxCommand` refuses it there:
 
 <!-- example: capture.buffer -->
 ```powershell
@@ -123,49 +119,49 @@ releases act on an unrelated buffer when the name is missing, so
 }
 ```
 
-This returns `hello from PowerShell`. `StandardOutput` retains bytes when
-line projection is unsuitable. For copy mode, use raw `copy-mode` and
-`send-keys -X` commands with an explicit pane ID.
-`Get-TmuxPaneContent -ModeScreen` reads its rendered screen. Copy-mode
-commands change the pane's mode, so leave it explicitly with
-`send-keys -X cancel` when finished.
+This returns `hello from PowerShell`. `StandardOutput` keeps the bytes when
+lines do not fit.
 
-Empty non-command arguments are preserved. The first argument must name a
-command or alias. An empty, whitespace or leading-option argument terminates
-with [`Tmux.InvalidCommand`][invoketmuxcommandcommand] before confirmation or
-dispatch. Select the socket on the server handle; global options such as `-S`,
-`-L` and `-f` cannot replace the command name. Pipeline input must be a native
-`LibTmux.Server`; an object with similarly named properties does not bind as an
-endpoint.
+For copy mode, send raw `copy-mode` and `send-keys -X` commands with an
+explicit pane ID, and read the screen with
+`Get-TmuxPaneContent -ModeScreen`. Copy mode changes the pane's mode, so leave
+it with `send-keys -X cancel`.
 
-Raw commands can mutate tmux or execute shell work. They always support
-`-WhatIf` and `-Confirm`, including for commands the caller knows are reads.
-Confirmation precedes discovery and dispatch. Preview shows the endpoint and
-command name; argument contents are not included in the confirmation text.
+- **Arguments:** empty non-command arguments are kept. The first must name a
+  command or alias; an empty, whitespace or leading-option first argument fails
+  with [`Tmux.InvalidCommand`][invoketmuxcommandcommand] before confirmation or
+  dispatch.
+- **Socket:** select it on the server handle. Global options such as `-S`, `-L`
+  and `-f` cannot replace the command name.
+- **Pipeline:** input must be a `LibTmux.Server`; an object with similar
+  property names does not bind.
+- **Confirmation:** raw commands can mutate tmux or run shell work, so they
+  always support `-WhatIf` and `-Confirm`, even for reads. Confirmation comes
+  before discovery and dispatch, and shows the endpoint and command name but not
+  the arguments.
 
 <!-- example: capture.raw-preview -->
 ```powershell
 $server | Invoke-TmuxCommand -Arguments @('kill-session', '-t', '$3') -WhatIf
 ```
 
-Successful execution emits a native `LibTmux.TmuxCommandResult` with exit code,
-logical arguments, stdout/stderr bytes and projected lines. A nonzero exit emits
-no success result and writes [`Tmux.CommandFailed`][invoketmuxcommandcommand].
-Its original `TmuxCommandException.Result` retains those diagnostics, and its
-`Dispatch` is `Dispatched`. Transport failures preserve their original exception
-and dispatch uncertainty. No mutation is automatically retried.
+## Results and errors
 
-Capture and refresh failures use
-[`Tmux.PaneCaptureFailed`][gettmuxpanecontentcommand] and
-[`Tmux.PaneRefreshFailed`][updatetmuxpanecommand]. Each error retains the failed
-owner, allowing later pipeline owners to continue unless `-ErrorAction Stop` is
-selected. Cancellation uses the same core token and pipeline lifecycle as the
-read cmdlets; it does not imply rollback or termination of shell work.
-
-The [capture integration test](../tests/Capture.Tests.ps1) exercises these
-contracts against an owned daemon with explicit output readiness, literal
-argument round trips, error results, refresh replacement and zero-dispatch
-`-WhatIf`. It owns its sockets, child processes and temporary files.
+- **Success:** a `LibTmux.TmuxCommandResult` with the exit code, logical
+  arguments, stdout and stderr bytes, and projected lines.
+- **Nonzero exit:** no success result; it writes
+  [`Tmux.CommandFailed`][invoketmuxcommandcommand]. The
+  `TmuxCommandException.Result` keeps the diagnostics, and its `Dispatch` is
+  `Dispatched`.
+- **Transport failure:** keeps the original exception and whether dispatch is
+  uncertain. No mutation is retried.
+- **Capture and refresh:** failures use
+  [`Tmux.PaneCaptureFailed`][gettmuxpanecontentcommand] and
+  [`Tmux.PaneRefreshFailed`][updatetmuxpanecommand]. The error keeps the failed
+  owner, and later pipeline owners continue unless you pass
+  `-ErrorAction Stop`.
+- **Cancellation:** uses the read cmdlets' token and lifecycle. It does not roll
+  back or stop shell work.
 
 [-joinwrappedlines]: reference/LibTmux/Get-TmuxPaneContent.md#-joinwrappedlines
 [-escapesequences]: reference/LibTmux/Get-TmuxPaneContent.md#-escapesequences

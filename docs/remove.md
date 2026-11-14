@@ -1,14 +1,13 @@
 # Remove sessions, windows and panes
 
-`Remove-TmuxSession`, `Remove-TmuxWindow` and `Remove-TmuxPane` accept native
-core handles directly or through the pipeline. Each removes its target and
-emits no success output. Select the target using the
-[explicit endpoint and read commands](read.md).
+`Remove-TmuxSession`, `Remove-TmuxWindow` and `Remove-TmuxPane` take handles
+directly or from the pipeline. Each removes its target and emits nothing on
+success. Choose the target with the [explicit endpoint and read commands](read.md).
 
-These commands have high confirmation impact. The default PowerShell
-confirmation preference prompts before removal. Review the endpoint and ID
-in that prompt; use `-Confirm:$false` when an unattended caller has already
-chosen the target. `-WhatIf` describes the removal without contacting tmux:
+Removal has high confirmation impact, so the default preference prompts. Check
+the endpoint and ID in the prompt, and use `-Confirm:$false` when an unattended
+caller has already chosen the target. `-WhatIf` describes the removal without
+contacting tmux:
 
 <!-- example: remove.preview -->
 ```powershell
@@ -22,11 +21,12 @@ Remove an owned session after its work finishes:
 $session | Remove-TmuxSession -Confirm:$false
 ```
 
-An empty pipeline does nothing. A pipeline with several targets processes
-them in input order. A successful removal emits no handles, Boolean values
-or task objects, so `@($pane | Remove-TmuxPane -Confirm:$false)` is empty.
-Captured fields on an old handle remain an observation of the removed
-object; removal does not rewrite that snapshot.
+- An empty pipeline does nothing, and several targets are processed in input
+  order.
+- Success emits no handles, Booleans or task objects, so
+  `@($pane | Remove-TmuxPane -Confirm:$false)` is empty.
+- An old handle keeps its captured fields as an observation of the removed
+  object.
 
 ## Linked windows and cascading removal
 
@@ -43,13 +43,12 @@ $window | Remove-TmuxWindow -Confirm:$false
 To remove one session placement while preserving other links, use
 [Remove-TmuxWindowLink](placement.md).
 
-Removing a session destroys windows that are no longer linked elsewhere. A
-window still linked to another session survives with its panes.
-
-Removing the last pane destroys its window. Removing the last window from a
-session also removes that session; tmux may exit when no sessions remain.
-These commands do not give the module ownership of the daemon or arrange
-cleanup for other resources.
+- Removing a session destroys windows linked nowhere else. A window still linked
+  to another session survives with its panes.
+- Removing the last pane destroys its window. Removing a session's last window
+  removes the session, and tmux may exit when no sessions remain.
+- None of this gives the module ownership of the daemon or cleans up other
+  resources.
 
 <!-- example: remove.pane -->
 ```powershell
@@ -58,25 +57,18 @@ $pane | Remove-TmuxPane -Confirm:$false
 
 ## Errors and cancellation
 
-Failures retain the native owner and original core exception in the PowerShell
-error record. The stable error IDs are
-[`Tmux.SessionRemoveFailed`][removetmuxsessioncommand],
-[`Tmux.WindowRemoveFailed`][removetmuxwindowcommand] and
-[`Tmux.PaneRemoveFailed`][removetmuxpanecommand]. Core exceptions retain their
-available dispatch metadata. A missing target remains an error;
-`-ErrorAction Continue` permits later pipeline targets to run, while
-`-ErrorAction Stop` stops before the next target.
-
-Handles belong to a specific endpoint and daemon generation. The core
-rejects an old-generation handle after daemon replacement instead of resolving
-the same numeric ID against the replacement. Removal is never retried.
-Stopping the pipeline cancels the active client operation; a removal already
-accepted by tmux is not rolled back.
-
-The [installed removal test](../tests/Remove.Tests.ps1) checks previews,
-zero-output pipelines, per-owner errors, linked-window destruction, session
-sharing, last-pane cascades, isolated endpoints and real daemon replacement
-on owned tmux servers.
+- **Error IDs:** [`Tmux.SessionRemoveFailed`][removetmuxsessioncommand],
+  [`Tmux.WindowRemoveFailed`][removetmuxwindowcommand] and
+  [`Tmux.PaneRemoveFailed`][removetmuxpanecommand]. The error record keeps the
+  native owner, the original core exception and its dispatch metadata.
+- **Missing target:** an error. `-ErrorAction Continue` lets later targets run,
+  and `-ErrorAction Stop` stops before the next one.
+- **Stale handles:** a handle belongs to one endpoint and daemon generation. After
+  the daemon is replaced, the core rejects an old handle instead of resolving
+  its numeric ID against the replacement.
+- **Retries and cancellation:** removal is never retried. Stopping the pipeline
+  cancels the active client operation; a removal tmux already accepted is not
+  rolled back.
 
 [removetmuxsessioncommand]: ../src/LibTmux.PowerShell/RemoveTmuxSessionCommand.cs
 [removetmuxwindowcommand]: ../src/LibTmux.PowerShell/RemoveTmuxWindowCommand.cs

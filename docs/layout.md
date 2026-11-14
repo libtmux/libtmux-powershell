@@ -1,9 +1,9 @@
 # Arrange panes and resize windows
 
-Select native `$window` and `$pane` handles with `Get-TmuxWindow` and
-`Get-TmuxPane`. Layout and size changes support `-WhatIf` and `-Confirm`.
-Without `-PassThru`, they emit no success output. With it, they return a native
-replacement handle; previously captured objects remain unchanged.
+Select `$window` and `$pane` with `Get-TmuxWindow` and `Get-TmuxPane`. Layout
+and size changes support `-WhatIf` and `-Confirm`. They emit nothing on success;
+with `-PassThru` they return a replacement handle, and earlier captured objects
+stay as they were.
 
 Give a window explicit dimensions in cells:
 
@@ -12,11 +12,11 @@ Give a window explicit dimensions in cells:
 $window | Set-TmuxWindowSize -Width 120 -Height 40 -PassThru
 ```
 
-At least one dimension is required. Resizing switches `window-size` to
-`manual`, so the window stops following its clients. Alternatively, use
-`-Direction Right -Adjustment 5` to grow an edge, or `-Mode Expand` / `Shrink`
-to use the largest / smallest attached client. These forms are mutually
-exclusive.
+At least one dimension is required. Resizing sets `window-size` to `manual`, so
+the window stops following its clients. The alternatives are mutually exclusive:
+
+- `-Direction Right -Adjustment 5` grows an edge.
+- `-Mode Expand` or `Shrink` uses the largest or smallest attached client.
 
 Arrange existing panes side by side:
 
@@ -25,16 +25,15 @@ Arrange existing panes side by side:
 $window | Set-TmuxLayout -Layout 'even-horizontal' -PassThru
 ```
 
-Other presets include `even-vertical`, `main-horizontal`, `main-vertical` and
-`tiled`. Unambiguous prefixes are accepted; unknown or ambiguous names fail
-before dispatch. Use `-Mode Next`, `Previous` or `Spread` instead of `-Layout`
-to cycle layouts or spread panes.
-
-A captured [`$window.Layout`][window-layout] can be passed back as `-Layout`. On
-tmux 3.7 and earlier, restoring its sizes can rotate which pane occupies a
-position; it does not guarantee pane identity at each position.
-
-A JSON layout needs tmux 3.8; see [compatibility](compatibility.md).
+- **Presets:** `even-vertical`, `main-horizontal`, `main-vertical` and `tiled`
+  also work. Unambiguous prefixes are accepted; unknown or ambiguous names fail
+  before dispatch.
+- **Modes:** `-Mode Next`, `Previous` or `Spread` replaces `-Layout` to cycle
+  layouts or spread panes.
+- **Restore:** pass a captured [`$window.Layout`][window-layout] back as
+  `-Layout`. On tmux 3.7 and earlier the sizes come back but panes can rotate
+  between positions.
+- **JSON layout:** needs tmux 3.8; see [compatibility](compatibility.md).
 
 Set a pane's width in a window with a horizontal split:
 
@@ -43,9 +42,9 @@ Set a pane's width in a window with a horizontal split:
 $pane | Set-TmuxPaneSize -Width '40' -PassThru
 ```
 
-Pane dimensions also accept percentages such as `'50%'`. tmux clamps sizes
-that do not fit; inspect the replacement handle for the observed dimensions.
-`-Direction` with `-Adjustment` moves a pane edge instead.
+Dimensions also accept percentages such as `'50%'`. tmux clamps sizes that do
+not fit, so read the replacement handle for the result. `-Direction` with
+`-Adjustment` moves a pane edge instead.
 
 Toggle a pane's zoom:
 
@@ -54,9 +53,9 @@ Toggle a pane's zoom:
 $pane | Set-TmuxPaneSize -Zoom
 ```
 
-Repeating the command turns zoom off. `-Zoom` cannot be combined with a size
-or direction. A stale or disappeared target writes a per-target error;
-`-ErrorAction Stop` terminates the pipeline. Cancellation does not roll back
-an already dispatched change.
+Repeating the command turns zoom off. `-Zoom` cannot combine with a size or
+direction. A stale or missing target writes a per-target error, and
+`-ErrorAction Stop` ends the pipeline. Cancellation does not roll back a change
+already sent.
 
 [window-layout]: https://libtmux.org/en/csharp/latest/reference/libtmux-window-layout/

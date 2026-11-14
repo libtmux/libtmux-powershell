@@ -8,22 +8,23 @@ Read the terminal and control clients already attached to a selected native
 $server | Get-TmuxClient
 ```
 
-Results are native `Client` objects with [`Name`][client-name],
-[`Tty`][client-tty], `IsControlClient`, `AttachedSessionId` and
-[`Generation`][client-generation]. `-Name` selects an exact, case-sensitive
-name; it does not interpret wildcards. No clients or no match produces no
-objects. An unavailable server produces an error.
+Each result is a `Client` with [`Name`][client-name], [`Tty`][client-tty],
+`IsControlClient`, `AttachedSessionId` and [`Generation`][client-generation].
 
-Captured fields stay unchanged when a client switches sessions. Refresh a
-previously selected `$client` to obtain a new observation:
+- `-Name` matches an exact, case-sensitive name, with no wildcards.
+- No clients, or no match, produces no objects.
+- An unavailable server produces an error.
+
+Captured fields do not change when a client switches sessions. Refresh a
+selected `$client` to observe it again:
 
 <!-- example: clients.refresh -->
 ```powershell
 $client | Update-TmuxClient
 ```
 
-This reads current data; it does not redraw the terminal. Refreshing a client
-that has detached writes the native missing-object error.
+This reads current data and does not redraw the terminal. Refreshing a
+detached client writes the native missing-object error.
 
 Resolve the client's current session, window and pane together:
 
@@ -32,14 +33,15 @@ Resolve the client's current session, window and pane together:
 $client | Get-TmuxClientAttachment
 ```
 
-The result is a native `ClientAttachment`. A detached client or missing
-session produces no output; `Window` or `Pane` can be null. The operation
-performs several tmux reads and does not promise an atomic observation.
-Transport failures remain errors, not empty results.
+The result is a `ClientAttachment`.
 
-These commands only inspect clients. Detachment, locking and suspension
-remain available through explicit raw tmux commands. Closing or removing a
-client must not be confused with removing its session or daemon.
+- A detached client or missing session produces no output, and `Window` or
+  `Pane` can be null.
+- It makes several tmux reads and is not an atomic observation.
+- Transport failures are errors, not empty results.
+
+These commands only inspect clients. To detach, lock or suspend one, send a raw
+tmux command. Closing a client does not remove its session or daemon.
 
 [client-name]: https://libtmux.org/en/csharp/latest/reference/libtmux-client-name/
 [client-tty]: https://libtmux.org/en/csharp/latest/reference/libtmux-client-tty/
