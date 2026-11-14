@@ -16,26 +16,22 @@
 
 The core module of
 [libtmux for PowerShell](https://github.com/libtmux/libtmux-powershell#readme).
-Its cmdlets create, read, arrange and remove tmux [sessions][session],
-[windows][window] and [panes][pane], send input and capture output as native
-objects.
+Create, read, arrange and remove tmux [sessions][session], [windows][window]
+and [panes][pane], send input and capture output as native objects.
 
 </div>
 
-Reference: [every cmdlet][module], the
-[getting started guide](https://libtmux.org/en/powershell/latest/guides/getting-started/)
-and the [PowerShell Gallery page](https://www.powershellgallery.com/packages/LibTmux).
+Reference: [every cmdlet][module],
+[getting started](https://libtmux.org/en/powershell/latest/guides/getting-started/),
+[PowerShell Gallery](https://www.powershellgallery.com/packages/LibTmux).
 
 **Contents** — [Quick start](#quick-start) · [Find a cmdlet](#find-a-cmdlet) ·
 [Leaves out](#what-it-leaves-out) · [Support](#support-and-status)
 
 ## Quick start
 
-The command-completion example below needs tmux 3.4 or newer. Ordinary reads
-and writes support tmux 3.3a; see [optional features][guide-compatibility].
-
-Install the module on PowerShell 7.4 or later, with tmux on the same Linux
-host, including WSL:
+Install the module with `pwsh` 7.4 or newer and tmux 3.3a or newer, on Linux
+or WSL:
 
 ```console
 $ Install-PSResource -Name LibTmux
@@ -49,8 +45,8 @@ $ Import-Module -Name LibTmux -ErrorAction Stop
 
 ### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server
 
-It creates a handle for a private socket and an empty tmux configuration. It
-contacts nothing, so your default server stays untouched:
+It names a socket and an empty tmux configuration, and contacts nothing, so
+your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
@@ -59,12 +55,11 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
 ```
 
-### [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand]: a command's exit status
+### [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand]: run a command, read its exit status
 
-It runs a command in a pane and returns a
-[`LibTmux.PaneRunResult`][panerunresult].
-[`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally` block
-removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
+It returns a [`LibTmux.PaneRunResult`][panerunresult] and needs tmux 3.4 or
+newer. [`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally`
+block removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
 
 <!-- example: input.run -->
 ```powershell
@@ -82,15 +77,12 @@ removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
 }
 ```
 
-The result has `ExitStatus = 7` and `TimedOut = False`. A nonzero exit status
-comes back in `ExitStatus` and raises no error. If the timeout passes first, the
-command may still be running and the result has no exit status.
+It prints `ExitStatus = 7` and `TimedOut = False`. A nonzero exit status
+raises no error. On timeout the command may still run and the result has no
+exit status.
 
-The blocks above are copies of tested sources. The
-[guide test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/GuideExamples.Tests.ps1)
-fails when a copy drifts, and the
-[installed workflow test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/ReadmeWorkflow.Tests.ps1)
-runs the same code on an owned tmux server.
+More: [send input][guide-input]. Some cmdlets need a newer tmux:
+[optional features][guide-compatibility].
 
 ## Find a cmdlet
 
@@ -105,35 +97,30 @@ runs the same code on an owned tmux server.
   watch events with [`Watch-TmuxEvent`][watch-tmuxevent].
 
 The [repository README](https://github.com/libtmux/libtmux-powershell#readme)
-walks through each of these, and the
+walks through each of these. The
 [workspace module](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.Workspace.PowerShell)
-builds sessions from YAML or JSON declarations.
+builds sessions from YAML or JSON.
 
 ## What it leaves out
 
-- **Live objects.** A captured object keeps what tmux reported when you read it.
-  [`Get-TmuxSnapshot`][get-tmuxsnapshot] reads again, and the
+- **Live objects.** A captured object keeps what tmux said when you read it.
+  [`Get-TmuxSnapshot`][get-tmuxsnapshot] reads again; the
   [read guide][guide-read] lists what a capture cannot know.
 - **An implicit server.** A handle from [`New-TmuxServer`][new-tmuxserver]
-  starts no daemon, and importing the module connects to none. The module
-  leaves `TMUX` and `TMUX_PANE` in your session as they are
-  ([compatibility][guide-compatibility]).
-- **Shell quoting.** [`Send-TmuxText`][send-tmuxtext] sends its text literally
-  and does not quote it for the shell that receives it
-  ([send input][guide-input]).
+  starts no daemon, and importing the module connects to none. `TMUX` and
+  `TMUX_PANE` stay as they are ([compatibility][guide-compatibility]).
+- **Shell quoting.** [`Send-TmuxText`][send-tmuxtext] sends its text literally;
+  quote it for the receiving shell yourself ([send input][guide-input]).
 
 ## Support and status
 
-- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
-  The API is not settled: any release may change or remove exported
-  identifiers, and each module's changelog marks its breaks. Pin an exact
-  version to avoid one.
-- **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
-  runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master;
-  [compatibility][guide-compatibility] holds the contract.
-- **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
-  environment. CI runs Linux x64 on every change and macOS as an advisory trial
-  whose failures never fail the check. CI has no Windows job.
+- **Pre-1.0.** Any release may change or remove exported identifiers; the
+  changelog marks breaks. Pin an exact version.
+- **PowerShell.** 7.4 or newer. Windows PowerShell 5.1 cannot load the module.
+- **tmux.** 3.3a or newer. Some cmdlets need more:
+  [optional features][guide-compatibility].
+- **Systems.** Linux and WSL, with PowerShell and tmux in the same Linux
+  environment.
 - **Changelog.** [What each release of `LibTmux` changed][changelog]; the
   [main changelog][changelog-main] holds what spans both modules.
 

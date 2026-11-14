@@ -16,23 +16,23 @@
 
 The workspace module of
 [libtmux for PowerShell](https://github.com/libtmux/libtmux-powershell#readme).
-Describe a tmux session in YAML or JSON, review the plan, then apply it. The
-module needs the matching [`LibTmux`](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell)
-core module, and installing it also installs that dependency.
+Describe a tmux session in YAML or JSON, review the plan, then apply it. It
+needs the [`LibTmux`](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell)
+core module, and installing it installs that too.
 
 </div>
 
-Reference: [every cmdlet][module], the
-[workspace guide](https://libtmux.org/en/powershell/latest/workspace/source-guide/)
-and the [PowerShell Gallery page](https://www.powershellgallery.com/packages/LibTmux.Workspace).
+Reference: [every cmdlet][module],
+[workspace guide](https://libtmux.org/en/powershell/latest/workspace/source-guide/),
+[PowerShell Gallery](https://www.powershellgallery.com/packages/LibTmux.Workspace).
 
 **Contents** — [Quick start](#quick-start) · [Commands](#commands) ·
 [Leaves out](#what-it-leaves-out) · [Support](#support-and-status)
 
 ## Quick start
 
-Install the module on PowerShell 7.4 or later, with tmux on the same Linux
-host, including WSL:
+Install the module with `pwsh` 7.4 or newer and tmux 3.3a or newer, on Linux
+or WSL:
 
 ```console
 $ Install-PSResource -Name LibTmux.Workspace
@@ -46,8 +46,8 @@ $ Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 
 ### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server
 
-It creates a handle for a private socket and an empty tmux configuration. It
-contacts nothing, so your default server stays untouched:
+It names a socket and an empty tmux configuration, and contacts nothing, so
+your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
@@ -58,8 +58,8 @@ $server = LibTmux\New-TmuxServer `
 
 ### [`Import-TmuxWorkspace`][import-tmuxworkspace]: read a declaration
 
-It parses YAML or JSON without contacting tmux or running the commands in it.
-This declaration has two panes in one window:
+It parses YAML or JSON without contacting tmux or running its commands. This
+declaration has two panes in one window:
 
 <!-- example: readme.workspace.01-import -->
 ```powershell
@@ -78,7 +78,7 @@ nothing.
 
 ### [`Get-TmuxWorkspacePlan`][get-tmuxworkspaceplan]: review before anything runs
 
-It plans on the private endpoint. Planning may read tmux state and creates
+It plans against the private server. Planning may read tmux and creates
 nothing:
 
 <!-- example: readme.workspace.02-plan -->
@@ -96,10 +96,10 @@ $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 
-It prints a `What if:` line followed by the plan's actions. Apply that exact
-plan, then remove only the session it created. The result is a
-[`LibTmux.Workspace.WorkspaceResult`][workspaceresult], and it stays readable
-after cleanup:
+It prints a `What if:` line and the plan's actions. Apply that plan, then
+remove only the session it created. The result is a
+[`LibTmux.Workspace.WorkspaceResult`][workspaceresult] and stays readable after
+cleanup:
 
 <!-- example: readme.workspace.05-apply -->
 ```powershell
@@ -114,12 +114,6 @@ $workspaceResult = & {
 
 `$workspaceResult.Windows` holds `editor` with two panes.
 
-The blocks above are copies of tested sources. The
-[guide test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/GuideExamples.Tests.ps1)
-fails when a copy drifts, and the
-[installed workflow test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/ReadmeWorkflow.Tests.ps1)
-applies the workspace on an owned tmux server.
-
 ## Commands
 
 - [`Get-TmuxWorkspace`][get-tmuxworkspace] finds declaration files.
@@ -133,34 +127,29 @@ applies the workspace on an owned tmux server.
 - [`ConvertTo-TmuxWorkspace`][convertto-tmuxworkspace] turns a captured session
   into a starting declaration.
 
-The [workspace guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md)
-covers failure recovery, attaching and exporting a declaration.
+More: the [workspace guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md)
+covers failure recovery, attaching and exporting.
 
 ## What it leaves out
 
-- **Host scripts by default.** A declaration's `before_script` runs only when
-  planning admits it with `-AllowHostScripts`. Validation, planning and
-  `-WhatIf` never run it.
-- **Readiness inference.** The default `-Readiness Immediate` sends configured
-  commands as literal input and does not infer shell readiness or completion.
+- **Host scripts by default.** A declaration's `before_script` runs only with
+  `-AllowHostScripts`. Validation, planning and `-WhatIf` never run it.
+- **Readiness inference.** `-Readiness Immediate`, the default, sends commands
+  as literal input and does not wait for the shell.
 - **Partial success objects.** A failed apply writes an error that carries the
   journal and any partial result, and emits no success object.
 
-The [workspace guide](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#startup-host-effects-and-failures)
-holds the full rules.
+More: [startup, host effects and failures](https://github.com/libtmux/libtmux-powershell/blob/master/docs/workspace.md#startup-host-effects-and-failures).
 
 ## Support and status
 
-- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
-  The API is not settled: any release may change or remove exported
-  identifiers, and each module's changelog marks its breaks. Pin an exact
-  version to avoid one.
+- **Pre-1.0.** Any release may change or remove exported identifiers; the
+  changelog marks breaks. Pin an exact version.
 - **Versions.** Install both modules at the same version.
-- **PowerShell and tmux.** PowerShell 7.4 or later and tmux 3.3a or newer. CI
-  runs PowerShell 7.4.20 and 7.6.6 with tmux 3.3a through 3.8 and master.
-- **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
-  environment. CI runs Linux x64 on every change and macOS as an advisory trial
-  whose failures never fail the check. CI has no Windows job.
+- **PowerShell.** 7.4 or newer. Windows PowerShell 5.1 cannot load the module.
+- **tmux.** 3.3a or newer.
+- **Systems.** Linux and WSL, with PowerShell and tmux in the same Linux
+  environment.
 - **Changelog.** [What each release of `LibTmux.Workspace` changed][changelog];
   the [main changelog][changelog-main] holds what spans both modules.
 
