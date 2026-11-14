@@ -27,6 +27,7 @@ cmdlets need a newer tmux; [compatibility](docs/compatibility.md) lists them.
 
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
+[Panes](#split-resize-type-into-and-read-panes) ·
 [Service readiness](#wait-for-service-readiness) ·
 [Choose how to run](#choose-how-to-run) ·
 [Workspaces](#build-a-workspace-from-a-file) · [Packages](#packages) ·
@@ -247,6 +248,17 @@ was. This example retitles a pane with
 It prints `editor build`. For a session or window, read again with
 [`Get-TmuxSession`][get-tmuxsession] or [`Get-TmuxWindow`][get-tmuxwindow].
 
+## Split, resize, type into and read panes
+
+### [`Split-TmuxPane`][split-tmuxpane]: add a pane and work in it
+
+[`Send-TmuxText`][send-tmuxtext] and [`Send-TmuxKey`][send-tmuxkey] type into
+a pane, and [`Get-TmuxPaneContent`][get-tmuxpanecontent] reads its screen.
+
+[`Set-TmuxWindowSize`][set-tmuxwindowsize] and
+[`Set-TmuxPaneSize`][set-tmuxpanesize] resize. `cat` echoes what it receives,
+and [`Wait-TmuxPaneText`][wait-tmuxpanetext] waits for the echo:
+
 <!-- example: readme.panes -->
 ```powershell
 Import-Module -Name LibTmux -ErrorAction Stop
@@ -267,6 +279,11 @@ Import-Module -Name LibTmux -ErrorAction Stop
     }
 }
 ```
+
+It prints `hello`, the first screen line, then `30`, the left pane's width.
+
+More: [send text and keys](docs/input.md), [pane contents](docs/capture.md)
+and [arrange and resize](docs/layout.md).
 
 ## Wait for service readiness
 
@@ -708,6 +725,8 @@ for bundled dependencies.
 [new-tmuxserver]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxserver/
 [new-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxsession/
 [split-tmuxpane]: https://libtmux.org/en/powershell/latest/reference/libtmux-split-tmuxpane/
+[set-tmuxpanesize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxpanesize/
+[set-tmuxwindowsize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxwindowsize/
 [new-tmuxwindow]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxwindow/
 [get-tmuxsnapshot]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxsnapshot/
 [remove-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-remove-tmuxsession/

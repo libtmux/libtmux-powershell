@@ -68,7 +68,8 @@ endpoint". (#65)
 - State first-use version requirements and distinguish polling, completion
   signals, version probes, control-client ownership and native table lookup.
 - Start the first example of each README section with `Import-Module`, and
-  add README examples for query plans, fresh queries and command chains.
+  add README examples for query plans, fresh queries, command chains, and
+  splitting, resizing, typing into and reading panes.
 - Shorten the guides to short sections and bullets, and drop their notes on
   which tests cover them.
 
