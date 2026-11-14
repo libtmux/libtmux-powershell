@@ -686,8 +686,9 @@ server stays untouched.
   [pane contents and scrollback](docs/capture.md), [attached clients](docs/clients.md).
 - **Automate:** [create](docs/create.md), [send text and keys](docs/input.md),
   [arrange and resize](docs/layout.md), [link and move windows](docs/placement.md),
-  [remove](docs/remove.md).
-- **Configure:** [options](docs/options.md), [hooks](docs/hooks.md),
+  [remove sessions, windows and panes](docs/remove.md).
+- **Configure:** [options](docs/options.md) with [`Set-TmuxOption`][set-tmuxoption],
+  [hooks](docs/hooks.md) with [`Set-TmuxHook`][set-tmuxhook],
   [environment for new panes](docs/environment.md).
 - **Coordinate:** [chains and control clients](docs/commands.md),
   [event streams, jobs and parallel workers](docs/watch.md).
@@ -726,6 +727,8 @@ for bundled dependencies.
 [new-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxsession/
 [split-tmuxpane]: https://libtmux.org/en/powershell/latest/reference/libtmux-split-tmuxpane/
 [set-tmuxpanesize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxpanesize/
+[set-tmuxoption]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxoption/
+[set-tmuxhook]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxhook/
 [set-tmuxwindowsize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxwindowsize/
 [new-tmuxwindow]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxwindow/
 [get-tmuxsnapshot]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxsnapshot/

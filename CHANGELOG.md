@@ -69,7 +69,8 @@ endpoint". (#65)
   signals, version probes, control-client ownership and native table lookup.
 - Start the first example of each README section with `Import-Module`, and
   add README examples for query plans, fresh queries, command chains, and
-  splitting, resizing, typing into and reading panes.
+  splitting, resizing, typing into and reading panes. Link `Set-TmuxOption`
+  and `Set-TmuxHook` from the documentation index.
 - Shorten the guides to short sections and bullets, and drop their notes on
   which tests cover them.
 
