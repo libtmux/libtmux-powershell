@@ -222,6 +222,14 @@ $assertions = @{
             $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
             Assert-Guide ($sessions -cnotcontains 'refresh' -and $sessions -ccontains 'fixture') 'refresh session cleanup and unrelated session'
         } }
+    'readme.panes' = @{ Group = 'Readme'; Count = 2; Assert = {
+            param($o)
+            Assert-Guide ($o.Result[0] -is [string] -and $o.Result[0] -ceq 'hello' -and
+                $o.Result[1] -is [int] -and $o.Result[1] -eq 30 -and
+                (Get-GuideTraceCount $o.Context) -gt $o.BeforeDispatch) 'README panes typed text, captured it and resized the split pane'
+            $sessions = (Invoke-OwnedTmux $o.Context.Fixture -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Split("`n")
+            Assert-Guide ($sessions -cnotcontains 'panes' -and $sessions -ccontains 'fixture') 'panes session cleanup and unrelated session'
+        } }
     'readme.plan' = @{ Group = 'Readme'; Count = 1; Assert = {
             param($o)
             Assert-Guide ($o.Result[0] -ceq 'in tmux: True; here: True' -and

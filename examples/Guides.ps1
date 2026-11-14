@@ -161,6 +161,25 @@ $plan = $query | Get-TmuxQueryPlan -DaemonVersion '3.6'
     }
 }
     } }
+    'readme.panes' = @{ Requires = @('server'); Code = {
+Import-Module -Name LibTmux -ErrorAction Stop
+& {
+    $ErrorActionPreference = 'Stop'
+    $session = $server | New-TmuxSession -Name panes -Command 'exec /bin/cat'
+    try {
+        $session | Get-TmuxWindow | Set-TmuxWindowSize -Width 100 -Height 30
+        $left = $session | Get-TmuxPane
+        $right = $left | Split-TmuxPane -Horizontal -Command 'exec /bin/cat'
+        $right | Send-TmuxText -Text hello
+        $right | Send-TmuxKey -Key Enter
+        $null = $right | Wait-TmuxPaneText -Pattern '^hello$' -Timeout 10
+        $right | Get-TmuxPaneContent | Select-Object -First 1
+        ($left | Set-TmuxPaneSize -Width 30 -PassThru).Width
+    } finally {
+        $session | Remove-TmuxSession -Confirm:$false
+    }
+}
+    } }
     'readme.input' = @{ Requires = @('server'); Code = {
 & {
     $ErrorActionPreference = 'Stop'

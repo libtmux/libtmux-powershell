@@ -94,7 +94,7 @@ $windows = @($session.Windows | ForEach-Object {
 
 $blocks = @{}
 foreach ($id in @('readme.install.import', 'readme.quickstart', 'read.endpoint', 'readme.create', 'readme.filter',
-    'readme.related', 'readme.plan', 'readme.query', 'readme.refresh', 'readme.chain',
+    'readme.related', 'readme.plan', 'readme.query', 'readme.refresh', 'readme.panes', 'readme.chain',
     'input.run', 'input.http-ready', 'readme.control',
     'readme.workspace.01-import', 'readme.workspace.02-plan', 'readme.workspace.03-review', 'readme.workspace.04-preview',
     'readme.workspace.05-apply', 'readme.workspace.06-graph')) {
@@ -134,6 +134,9 @@ try {
         [object]::ReferenceEquals($related[0], $captured.Windows[0])) 'the graph predicate selected a different window'
     $refreshed = @(. $blocks['readme.refresh'])
     Assert-Readme ($refreshed.Count -eq 1 -and $refreshed[0] -ceq 'editor build') 'the held pane did not keep its title across a refresh'
+    $arranged = @(. $blocks['readme.panes'])
+    Assert-Readme ($arranged.Count -eq 2 -and $arranged[0] -ceq 'hello' -and
+        $arranged[1] -eq 30) 'the split pane did not echo its typed text and take its new width'
     $planned = @(. $blocks['readme.plan'])
     Assert-Readme ($planned.Count -eq 1 -and $planned[0] -ceq 'in tmux: True; here: True' -and
         $query -is [LibTmux.Query.QueryDocument]) 'the query plan did not split tmux and local work'
