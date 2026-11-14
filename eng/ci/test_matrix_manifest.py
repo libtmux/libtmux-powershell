@@ -10,6 +10,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MANIFEST = plan_matrix.load_manifest()
 SUPPORTED = [each["tmux"] for each in MANIFEST["supported"]]
 POWERSHELL = [each["version"] for each in MANIFEST["powershell"]]
+POWERSHELL_FLOOR = ".".join(POWERSHELL[0].split(".")[:2])
 
 
 def missing(text, versions):
@@ -46,12 +47,19 @@ class DocumentsAgreeWithTheTable(unittest.TestCase):
         row = next(line for line in text.splitlines() if line.startswith("| Linux x64"))
         self.assertEqual(missing(row, [*SUPPORTED, *POWERSHELL, "master"]), [])
 
-    def test_the_readme_names_the_tested_range(self):
+    def test_the_readme_names_the_floors_and_leaves_the_table_to_the_guide(self):
         text = (ROOT / "README.md").read_text(encoding="utf-8")
-        tmux = bullet(text, "- **tmux.** 3.3a or newer")
-        self.assertEqual(missing(tmux, [SUPPORTED[0], SUPPORTED[-1], "master"]), [])
+        tmux = bullet(text, "- **tmux.**")
+        self.assertEqual(missing(tmux, [SUPPORTED[0]]), [])
         shells = bullet(text, "- **PowerShell.**")
-        self.assertEqual(missing(shells, POWERSHELL), [])
+        self.assertEqual(missing(shells, [POWERSHELL_FLOOR]), [])
+        self.assertIn("docs/compatibility.md", text)
+
+    def test_a_readme_floor_that_drifted_is_reported(self):
+        self.assertEqual(missing("- **tmux.** 3.4 or newer.", [SUPPORTED[0]]), [SUPPORTED[0]])
+        self.assertEqual(
+            missing("- **PowerShell.** 7.2 or newer.", [POWERSHELL_FLOOR]), [POWERSHELL_FLOOR]
+        )
 
     def test_the_floor_is_the_first_supported_release(self):
         text = (ROOT / "docs/compatibility.md").read_text(encoding="utf-8")

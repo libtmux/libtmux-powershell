@@ -18,30 +18,12 @@
 
 Drive [tmux](https://github.com/tmux/tmux) from PowerShell with native cmdlets.
 [Sessions][session], [windows][window] and [panes][pane] come back as typed
-objects that an ordinary pipeline can filter.
+objects that a pipeline can filter.
 
 </div>
 
-Run a command and read its exit status with
-[`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand], find what a server holds
-with [`Get-TmuxSnapshot`][get-tmuxsnapshot], wait for output with
-[`Wait-TmuxPaneText`][wait-tmuxpanetext], and apply a reviewed workspace file
-with [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace].
-
-Releases are numbered `0.1.N`, and each release increments `N`. The API is not
-settled: any release may change or remove exported identifiers, and each
-module's changelog marks its breaks. Pin an exact version to avoid one.
-
-Both modules are available on PowerShell Gallery:
-[LibTmux](https://www.powershellgallery.com/packages/LibTmux)
-and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace).
-
-It needs PowerShell 7.4 or later and tmux 3.3a or newer on the same Linux
-host, including WSL. [Compatibility](docs/compatibility.md) lists what CI runs.
-
-tmux release candidates are not supported: a feature can require one only
-until its release ships, and a candidate such as `X.Y-rcN` ranks below `X.Y`.
-See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#release-candidates).
+Needs PowerShell 7.4 or newer and tmux 3.3a or newer, on Linux or WSL. Some
+cmdlets need a newer tmux; [compatibility](docs/compatibility.md) lists them.
 
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
@@ -57,12 +39,7 @@ See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#releas
 
 ## Quick start
 
-The command-completion example below needs tmux 3.4 or newer. Ordinary reads
-and writes support tmux 3.3a; see [optional features](docs/compatibility.md#optional-features).
-
-Install the module from the PowerShell Gallery in PowerShell 7.4 or later
-(`pwsh`) on Linux, including WSL. `Install-PSResource` ships with PowerShell
-7.4; Windows PowerShell 5.1 has no such command and cannot load the module:
+Install the module from the PowerShell Gallery with `pwsh`:
 
 ```console
 $ Install-PSResource -Name LibTmux
@@ -74,9 +51,10 @@ Import it:
 $ Import-Module -Name LibTmux -ErrorAction Stop
 ```
 
-[`New-TmuxServer`][new-tmuxserver] makes a handle on a socket and an empty tmux
-configuration of its own. It contacts nothing, so your default server stays
-untouched:
+### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server
+
+It names a socket and an empty tmux configuration, and contacts nothing, so
+your default server stays untouched:
 
 <!-- example: read.endpoint -->
 ```powershell
@@ -85,14 +63,15 @@ $server = LibTmux\New-TmuxServer `
     -ConfigurationFile /dev/null
 ```
 
-Without a socket, a handle passes tmux none, so tmux picks the server: the one
-in `TMUX` inside a pane, otherwise its default. `LIBTMUX_SOCKET_PATH` or
-`LIBTMUX_SOCKET` chooses one instead; [read more](docs/read.md).
+Without a socket, tmux picks the server: the one in `TMUX` inside a pane,
+otherwise its default. `LIBTMUX_SOCKET_PATH` or `LIBTMUX_SOCKET` chooses one.
+More: [read tmux objects](docs/read.md).
 
-[`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] runs a command in a pane and
-returns a [`LibTmux.PaneRunResult`][panerunresult].
-[`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally` block
-removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
+### [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand]: run a command, read its exit status
+
+It returns a [`LibTmux.PaneRunResult`][panerunresult] and needs tmux 3.4 or
+newer. [`New-TmuxSession`][new-tmuxsession] starts the shell, and the `finally`
+block removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
 
 <!-- example: input.run -->
 ```powershell
@@ -110,30 +89,21 @@ removes only that session with [`Remove-TmuxSession`][remove-tmuxsession]:
 }
 ```
 
-The result has `ExitStatus = 7` and `TimedOut = False`. A nonzero exit status
-comes back in `ExitStatus` and raises no error. If the timeout passes first, the
-command may still be running and the result has no exit status.
+It prints `ExitStatus = 7` and `TimedOut = False`. A nonzero exit status
+raises no error. On timeout the command may still run and the result has no
+exit status.
 
-[Command completion](docs/input.md#run-a-command-to-completion) covers
-concurrency and output behavior.
-
-Every PowerShell block on this page is a copy of a tested source. The
-[guide test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/GuideExamples.Tests.ps1)
-fails when a copy drifts, and the
-[installed workflow test](https://github.com/libtmux/libtmux-powershell/blob/master/tests/ReadmeWorkflow.Tests.ps1)
-runs the blocks in order on an owned tmux server. Later sections reuse
-`$server`.
+More: [command completion](docs/input.md#run-a-command-to-completion). Later
+sections reuse `$server`.
 
 ## Find sessions, windows, and panes
 
 ### [`Get-TmuxSnapshot`][get-tmuxsnapshot]: what tmux holds, in one read
 
-One call returns every session, window and pane as native objects.
-
-This example builds a tree with [`New-TmuxSession`][new-tmuxsession],
-[`Split-TmuxPane`][split-tmuxpane] and [`New-TmuxWindow`][new-tmuxwindow],
-reads it, and removes it with [`Remove-TmuxSession`][remove-tmuxsession]. `cat`
-keeps the panes open:
+One call returns every session, window and pane as native objects. This
+example builds a tree with [`New-TmuxSession`][new-tmuxsession],
+[`Split-TmuxPane`][split-tmuxpane] and [`New-TmuxWindow`][new-tmuxwindow], reads
+it, and removes it. `cat` keeps the panes open:
 
 <!-- example: readme.create -->
 ```powershell
@@ -154,8 +124,7 @@ $captured = & {
 
 `$captured` is a [`LibTmux.Session`][session] that stays readable after
 cleanup. Its [`Windows`][session-windows] hold [`LibTmux.Window`][window]
-objects, and each window's [`Panes`][window-panes] hold
-[`LibTmux.Pane`][pane] objects:
+objects, and their [`Panes`][window-panes] hold [`LibTmux.Pane`][pane] objects:
 
 | Expression | Captured result |
 | --- | --- |
@@ -163,15 +132,14 @@ objects, and each window's [`Panes`][window-panes] hold
 | [`$captured.Windows`][session-windows] | Two `Window` objects: `editor` and `logs` |
 | [`$captured.Windows[0].Panes`][window-panes] | Two `Pane` objects in `editor`; `logs` has one |
 
-A captured object keeps what tmux reported when you read it. Call
+A captured object keeps what tmux said when you read it. Call
 [`Get-TmuxSnapshot`][get-tmuxsnapshot] again to see a later change.
-[Snapshots and linked windows](docs/read.md) cover IDs, active children and
-captured versus unavailable fields.
+
+More: [snapshots and linked windows](docs/read.md).
 
 ### Filter the captured graph
 
-Walk it with ordinary PowerShell. `Where-Object`, navigation, formatting and
-property access use the captured data and start no tmux client:
+`Where-Object` reads the capture and starts no tmux client:
 
 <!-- example: readme.filter -->
 ```powershell
@@ -190,9 +158,8 @@ editor         2
 
 ### [`Select-TmuxWindow`][select-tmuxwindow]: pick windows by criteria
 
-The structured equivalent selects the one window with at least two captured
-panes. `-ExactlyOne` reports zero or multiple matches. This query performs no
-I/O either:
+Criteria select the one window with two or more panes; `-ExactlyOne` fails on
+zero or several matches. It starts no tmux client either:
 
 <!-- example: readme.related -->
 ```powershell
@@ -200,18 +167,15 @@ $captured.Windows |
     Select-TmuxWindow -Criteria @{ 'Panes.Count' = @{ Ge = 2 } } -ExactlyOne
 ```
 
-It returns the `editor` window, the same object as `$captured.Windows[0]`.
-[The query guide](docs/query.md) shows native predicates, Boolean and
-relationship criteria, and explicit fresh source queries.
+It returns `editor`, the same object as `$captured.Windows[0]`.
+
+More: [filter and query](docs/query.md).
 
 ### [`Update-TmuxPane`][update-tmuxpane]: read a held pane again
 
-A captured [`Pane`][pane] is what tmux said when it was read. Python libtmux's
-`.refresh()` updates it in place; [`Update-TmuxPane`][update-tmuxpane] returns
-a replacement and leaves the original as it was.
-
-This example retitles a pane with [`Invoke-TmuxCommand`][invoke-tmuxcommand]
-after `$held` was read:
+It returns a fresh copy of a held [`Pane`][pane] and leaves the original as it
+was. This example retitles a pane with
+[`Invoke-TmuxCommand`][invoke-tmuxcommand] after `$held` was read:
 
 <!-- example: readme.refresh -->
 ```powershell
@@ -236,26 +200,25 @@ after `$held` was read:
 }
 ```
 
-It prints `editor build`. A session or window has no such cmdlet: read it again
-with [`Get-TmuxSession`][get-tmuxsession] or [`Get-TmuxWindow`][get-tmuxwindow].
+It prints `editor build`. For a session or window, read again with
+[`Get-TmuxSession`][get-tmuxsession] or [`Get-TmuxWindow`][get-tmuxwindow].
 
 ## Wait for service readiness
 
 ### [`Wait-TmuxPaneText`][wait-tmuxpanetext]: wait for a readiness line
 
-It watches a pane's rendered text and returns a
-[`LibTmux.PaneWaitResult`][panewaitresult]. On tmux 3.7 or newer it uses a
-temporary control client; on earlier supported releases it polls instead.
+It watches a pane's text and returns a
+[`LibTmux.PaneWaitResult`][panewaitresult]. It uses a control client on tmux 3.7
+or newer and polls on older releases.
 
 [`Send-TmuxText`][send-tmuxtext] and [`Send-TmuxKey`][send-tmuxkey] type into
 the pane first, and [`Get-TmuxPaneContent`][get-tmuxpanecontent] reads its
-screen. When the application can signal completion itself, use
+screen. If the application can signal completion itself, use
 [`Wait-TmuxChannel`][wait-tmuxchannel] with
-[a cooperative channel](docs/input.md#send-a-command-and-wait-for-its-output).
+[a channel](docs/input.md#send-a-command-and-wait-for-its-output).
 
 With Python 3 on `PATH`, this example starts an HTTP server on a free loopback
-port, waits for its readiness line, then requests a page. The session's cleanup
-also stops the server:
+port, waits for its readiness line, then requests a page:
 
 <!-- example: input.http-ready -->
 ```powershell
@@ -284,17 +247,14 @@ also stops the server:
 }
 ```
 
-The outcome is `PresentAtEntry` or `Matched`, followed by HTTP status 200. The
-wait closes any control client it creates, and the example removes only its
-own session.
+It prints the wait result, outcome `PresentAtEntry` or `Matched`, then HTTP
+status 200.
 
-A text match shows the readiness line; the HTTP request checks the service.
-[Pane-text waits](docs/input.md#wait-for-an-applications-readiness-line) cover
-stop patterns, bounded tails, cancellation and disclosed event loss.
+More: [pane-text waits](docs/input.md#wait-for-an-applications-readiness-line).
 
 ## Choose how to run
 
-Pick a mode by who owns the client and how a failure is reported:
+Pick a mode by who owns the client and how failures are reported:
 
 | Task | Use | Example |
 | --- | --- | --- |
@@ -308,37 +268,30 @@ Pick a mode by who owns the client and how a failure is reported:
 | Keep the prompt available | `Start-ThreadJob` | [Bounded background jobs](docs/watch.md#bound-background-output) |
 | Run commands concurrently | `ForEach-Object -Parallel` | [Independent clients](docs/watch.md#run-independent-commands-concurrently) |
 
-An older daemon refuses these before anything changes:
-[`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand] needs tmux 3.4, and
-[`Connect-TmuxControl`][connect-tmuxcontrol] and
-[`Watch-TmuxEvent`][watch-tmuxevent] with a server need 3.7.
+A cmdlet refuses before it changes anything when tmux is too old:
 
-Other commands are refused on the releases they harm. The
-[optional features](docs/compatibility.md#optional-features) table lists each
-one, and [`capabilities.json`](capabilities.json) holds the same list for an
-assistant or a script to read.
+- **tmux 3.4:** [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand].
+- **tmux 3.7:** [`Connect-TmuxControl`][connect-tmuxcontrol] and
+  [`Watch-TmuxEvent`][watch-tmuxevent] with a server.
+
+[Optional features](docs/compatibility.md#optional-features) lists every
+refusal, and [`capabilities.json`](capabilities.json) holds the list for a
+script to read.
 
 The raw-command cmdlets [`Invoke-TmuxCommand`][invoke-tmuxcommand],
 [`Invoke-TmuxChain`][invoke-tmuxchain] and
 [`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand] check the command
-they are given and nothing nested in it, such as an `if-shell` string, a
-`bind-key` command or a brace block.
-
-On exactly tmux 3.7, name every `break-pane`, including the one `prefix !`
-runs, or upgrade to 3.7a: a nested nameless one ends the server.
+they are given, not strings nested in it (`if-shell`, `bind-key`, braces).
 [What the checks do not read](docs/compatibility.md#what-the-checks-do-not-read)
-lists the other failures.
+lists the rest.
 
 ### [`Connect-TmuxControl`][connect-tmuxcontrol]: one client for repeated commands
 
-It connects one control client. [`New-TmuxCommand`][new-tmuxcommand] builds a
+It attaches one control client. [`New-TmuxCommand`][new-tmuxcommand] builds a
 command, [`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand] sends it
 through the client, and [`Disconnect-TmuxControl`][disconnect-tmuxcontrol] ends
-it. [`Invoke-TmuxChain`][invoke-tmuxchain] sends an ordered batch in one
-invocation.
-
-This example uses the private endpoint from above, reads a session name, then
-disconnects and removes the session it created:
+it. This example reads a session name, then disconnects and removes its
+session:
 
 <!-- example: readme.control -->
 ```powershell
@@ -364,26 +317,24 @@ disconnects and removes the session it created:
 }
 ```
 
-The reply is `control-demo`. The client stays connected across commands inside
-the inner `try` block. The [control guide](docs/commands.md#reuse-a-control-client)
-covers multiple commands and cancellation.
+The reply is `control-demo`. The client stays connected for every command in
+the inner `try` block.
 
-The other modes in short:
+More: [reuse a control client](docs/commands.md#reuse-a-control-client).
 
-- [`Enter-TmuxSession`][enter-tmuxsession] attaches your foreground terminal to
-  a session.
-- Foreground cmdlets and `ForEach-Object -Parallel` occupy their calling
-  pipeline.
+The other modes:
+
+- [`Enter-TmuxSession`][enter-tmuxsession] attaches your terminal to a session.
+- Foreground cmdlets and `ForEach-Object -Parallel` occupy their pipeline.
 - Thread jobs return the prompt while they run.
-- [`Watch-TmuxEvent`][watch-tmuxevent] accepts event-count and text-byte limits.
+- [`Watch-TmuxEvent`][watch-tmuxevent] takes event-count and text-byte limits.
 
-The [mode guide](docs/commands.md) explains when chains merge failure
-attribution.
+More: [commands and control clients](docs/commands.md).
 
 ## Build a workspace from a file
 
 Describe a session once in YAML or JSON, review the plan, then apply it.
-Installing the workspace module also installs its exact core dependency:
+Installing the workspace module also installs `LibTmux`:
 
 ```console
 $ Install-PSResource -Name LibTmux.Workspace
@@ -397,8 +348,7 @@ $ Import-Module -Name LibTmux, LibTmux.Workspace -ErrorAction Stop
 
 ### [`Import-TmuxWorkspace`][import-tmuxworkspace]: read a declaration
 
-It parses YAML or JSON without contacting tmux or running the commands in it.
-
+It parses YAML or JSON without contacting tmux or running its commands.
 [`Get-TmuxWorkspace`][get-tmuxworkspace] finds declaration files,
 [`Resolve-TmuxWorkspace`][resolve-tmuxworkspace] expands directories and
 [`Test-TmuxWorkspace`][test-tmuxworkspace] validates one. This declaration has
@@ -421,7 +371,7 @@ nothing.
 
 ### [`Get-TmuxWorkspacePlan`][get-tmuxworkspaceplan]: review before anything runs
 
-It plans on the same private endpoint. Planning may read tmux state and creates
+It plans against the same private server. Planning may read tmux and creates
 nothing:
 
 <!-- example: readme.workspace.02-plan -->
@@ -430,8 +380,8 @@ $workspacePlan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan `
     -Server $server -ServerStartup CreateOrJoin -ExistingSession Error
 ```
 
-Review the actions. Their default view keeps command text, option values, paths
-and environment values hidden; inspect an action's
+Review the actions. The default view hides command text, option values, paths
+and environment values; read an action's
 [`Request`][workspaceaction-request] only in a trusted terminal:
 
 <!-- example: readme.workspace.03-review -->
@@ -441,8 +391,8 @@ $workspacePlan.Actions
 
 It lists the actions in order, from
 [`CreateSession`][workspaceactionkind-createsession] to
-[`CaptureResult`][workspaceactionkind-captureresult], with command text shown
-as `[redacted]`.
+[`CaptureResult`][workspaceactionkind-captureresult], with `[redacted]` for
+command text.
 
 ### [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace]: preview, then apply
 
@@ -453,9 +403,8 @@ as `[redacted]`.
 $workspacePlan | LibTmux.Workspace\Invoke-TmuxWorkspace -WhatIf
 ```
 
-It prints a `What if:` line followed by the plan's actions. Apply that exact
-plan, then remove only the session it created. The captured result stays
-readable after cleanup:
+It prints a `What if:` line and the plan's actions. Apply that plan, then remove
+only the session it created. The result stays readable after cleanup:
 
 <!-- example: readme.workspace.05-apply -->
 ```powershell
@@ -477,11 +426,11 @@ $workspaceResult.Windows |
     Select-Object Name, @{ Name = 'PaneCount'; Expression = { $_.Panes.Count } }
 ```
 
-This returns `editor` with two panes. The
-[workspace guide](docs/workspace.md#apply-the-reviewed-plan) covers failure
-recovery, attaching and exporting a declaration;
+It returns `editor` with two panes.
 [`ConvertTo-TmuxWorkspace`][convertto-tmuxworkspace] turns a captured session
 into a starting declaration.
+
+More: [apply the reviewed plan](docs/workspace.md#apply-the-reviewed-plan).
 
 ## Packages
 
@@ -493,70 +442,47 @@ into a starting declaration.
 ### [LibTmux](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.PowerShell): typed cmdlets for tmux
 
 Read, create, arrange and remove sessions, windows and panes, send input and
-capture output as native objects. The walkthroughs above run on the installed
-module:
+capture output as native objects.
 
-- [Read an object graph](#find-sessions-windows-and-panes) with
-  [`Get-TmuxSnapshot`][get-tmuxsnapshot] and
-  [`Select-TmuxWindow`][select-tmuxwindow].
-- [Check a command's exit status](#quick-start) with
-  [`Invoke-TmuxPaneCommand`][invoke-tmuxpanecommand].
-- [Wait for a readiness line](#wait-for-service-readiness) with
-  [`Wait-TmuxPaneText`][wait-tmuxpanetext].
-- [Choose an execution mode](#choose-how-to-run), including
-  [`Watch-TmuxEvent`][watch-tmuxevent].
-
-Reference: [every LibTmux cmdlet][libtmux-module] and the
-[PowerShell Gallery page](https://www.powershellgallery.com/packages/LibTmux).
+Reference: [every LibTmux cmdlet][libtmux-module],
+[PowerShell Gallery](https://www.powershellgallery.com/packages/LibTmux),
+[changelog](module/LibTmux/CHANGELOG.md).
 
 ### [LibTmux.Workspace](https://github.com/libtmux/libtmux-powershell/tree/master/src/LibTmux.Workspace.PowerShell): workspaces from YAML or JSON
 
-Describe a session once, review the plan, then apply it. The commands below run
-in this order:
+Describe a session once, review the plan, then apply it.
+[Install it](#build-a-workspace-from-a-file) at the same version as `LibTmux`.
 
-- [`Get-TmuxWorkspace`][get-tmuxworkspace] finds declaration files.
-- [`Import-TmuxWorkspace`][import-tmuxworkspace] parses YAML or JSON without
-  contacting tmux.
-- [`Resolve-TmuxWorkspace`][resolve-tmuxworkspace] expands directories and
-  [`Test-TmuxWorkspace`][test-tmuxworkspace] validates the declaration.
-- [`Get-TmuxWorkspacePlan`][get-tmuxworkspaceplan] plans against a server and
-  [`Invoke-TmuxWorkspace`][invoke-tmuxworkspace] applies the reviewed plan;
-  `-WhatIf` previews it.
-- [`ConvertTo-TmuxWorkspace`][convertto-tmuxworkspace] turns a captured session
-  into a starting declaration.
-
-[Install it](#build-a-workspace-from-a-file) with the core module, at the same
-version. Reference: [every LibTmux.Workspace cmdlet][workspace-module] and the
-[PowerShell Gallery page](https://www.powershellgallery.com/packages/LibTmux.Workspace).
+Reference: [every LibTmux.Workspace cmdlet][workspace-module],
+[PowerShell Gallery](https://www.powershellgallery.com/packages/LibTmux.Workspace),
+[changelog](module/LibTmux.Workspace/CHANGELOG.md).
 
 ## Install from source
 
-Install the pinned PowerShell and .NET SDK from [.tool-versions](.tool-versions)
-with [mise](https://mise.jdx.dev/):
+Install PowerShell and the .NET SDK from [.tool-versions](.tool-versions) with
+[mise](https://mise.jdx.dev/):
 
 ```console
 $ mise install
 ```
 
-Install tmux with your operating system's package manager and check that it
-is on `PATH`:
+Install tmux with your package manager and check that it is on `PATH`:
 
 ```console
 $ tmux -V
 ```
 
-From the checkout root, restore the published
-[.NET 0.1.1 packages](https://www.nuget.org/packages/LibTmux/0.1.1)
-and build both PowerShell modules:
+From the checkout root, restore the
+[libtmux for .NET packages](https://www.nuget.org/packages/LibTmux) and build
+both modules:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
     -Restore
 ```
 
-Restore checks the committed lockfiles and stages both modules under
-`build/Modules`. Developing shared .NET changes uses the optional
-[review-package workflow](.github/CONTRIBUTING.md#review-package-builds).
+The build stages both modules under `build/Modules`. For shared .NET changes,
+see [review package builds](.github/CONTRIBUTING.md#review-package-builds).
 Start PowerShell with the staged module path:
 
 ```console
@@ -566,8 +492,7 @@ $ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/build/Modules" \
     -NoProfile
 ```
 
-Import the exact staged manifests so an older installed module cannot shadow
-the new build:
+Import the staged manifests so an installed module cannot shadow the build:
 
 <!-- example: readme.install.import -->
 ```powershell
@@ -580,9 +505,9 @@ Import-Module -Name @(
 
 ### [`examples/QuickStart.ps1`](examples/QuickStart.ps1): a private server and three panes
 
-Run the [quick start](examples/QuickStart.ps1) from the checkout root. It
-creates a private server, splits the `editor` window, adds `logs`, and returns
-a captured [`LibTmux.Session`][session]. Show each window's pane IDs:
+Run it from the checkout root. It starts a private server, splits the `editor`
+window, adds `logs`, and returns a captured [`LibTmux.Session`][session]. Show
+each window's pane IDs:
 
 <!-- example: readme.quickstart -->
 ```powershell
@@ -592,7 +517,7 @@ a captured [`LibTmux.Session`][session]. Show each window's pane IDs:
 }
 ```
 
-It prints the pane IDs from the private server:
+It prints:
 
 ```text
 Name   PaneIds
@@ -601,44 +526,37 @@ editor %0, %1
 logs   %2
 ```
 
-Assign `./examples/QuickStart.ps1` to a variable to keep the session object. Its
-[`Windows`][session-windows] and [`Panes`][session-panes] remain readable after
-the script removes its session. The script uses a unique socket, so your
-default tmux server stays untouched.
+Assign the script's output to a variable to keep the session. Its
+[`Windows`][session-windows] and [`Panes`][session-panes] stay readable after
+the script removes its session. It uses a unique socket, so your default tmux
+server stays untouched.
 
 ## What it leaves out
 
-- **Live objects.** A captured object keeps what tmux reported when you read it.
-  [`Get-TmuxSnapshot`][get-tmuxsnapshot] reads again, and
-  [snapshots and linked windows](docs/read.md) list what a capture cannot know.
+- **Live objects.** A captured object keeps what tmux said when you read it.
+  [`Get-TmuxSnapshot`][get-tmuxsnapshot] reads again; [snapshots and linked
+  windows](docs/read.md) list what a capture cannot know.
 - **An implicit server.** A handle from [`New-TmuxServer`][new-tmuxserver]
-  starts no daemon, and importing the module connects to none. The module
-  leaves `TMUX` and `TMUX_PANE` in your session as they are
-  ([compatibility](docs/compatibility.md)).
-- **Shell quoting.** [`Send-TmuxText`][send-tmuxtext] sends its text literally
-  and does not quote it for the shell that receives it
-  ([send input](docs/input.md)).
-- **Native Windows.** Run PowerShell and tmux inside WSL, in one Linux
-  environment. Native Windows and psmux are outside this port
-  ([compatibility](docs/compatibility.md)).
+  starts no daemon, and importing the module connects to none. `TMUX` and
+  `TMUX_PANE` stay as they are ([compatibility](docs/compatibility.md)).
+- **Shell quoting.** [`Send-TmuxText`][send-tmuxtext] sends its text literally;
+  quote it for the receiving shell yourself ([send input](docs/input.md)).
+- **Native Windows.** Run PowerShell and tmux inside WSL. Native Windows and
+  psmux are outside this port ([compatibility](docs/compatibility.md)).
 
 ## Support and status
 
-- **Releases.** Releases are numbered `0.1.N`, and each release increments `N`.
-  The API is not settled: any release may change or remove exported
-  identifiers, and each module's changelog marks its breaks. Pin an exact
-  version to avoid one.
-- **PowerShell.** 7.4 or later. CI runs 7.4.20 and 7.6.6.
-- **tmux.** 3.3a or newer. CI runs 3.3a and 3.8 on every change, and 3.3a
-  through 3.8 and tmux master before a release; other releases are
-  unverified. [Compatibility](docs/compatibility.md) holds the contract.
-- **Systems.** Linux, including WSL: run PowerShell and tmux in the same Linux
-  environment. CI runs Linux x64 on every change and macOS as an advisory trial
-  whose failures never fail the check. CI has no Windows job.
+- **Pre-1.0.** Any release may change or remove exported identifiers; each
+  module's changelog marks breaks. Pin an exact version.
+- **PowerShell.** 7.4 or newer. Windows PowerShell 5.1 cannot load the modules.
+- **tmux.** 3.3a or newer. Some cmdlets need more: [optional
+  features](docs/compatibility.md#optional-features).
+- **Systems.** Linux and WSL, with PowerShell and tmux in the same Linux
+  environment. macOS is a trial; [compatibility](docs/compatibility.md) has the
+  detail.
 - **Built on [libtmux for .NET](https://github.com/libtmux/libtmux-dotnet).**
-  It lives in the same [libtmux organization](https://github.com/libtmux) with
-  the same main author. The cmdlets return its native objects and add
-  PowerShell parameter binding, help, formatting and `-WhatIf` / `-Confirm`.
+  The cmdlets return its native objects and add parameter binding, help,
+  formatting and `-WhatIf` / `-Confirm`.
 
 ## Documentation
 
@@ -658,18 +576,15 @@ default tmux server stays untouched.
 Browse cmdlets with `Get-Command -Module LibTmux` and examples with
 `Get-Help LibTmux\New-TmuxSession -Examples`. Further reading:
 
-- [Compatibility](docs/compatibility.md) — what CI runs and the support contract
-- [Troubleshooting](docs/troubleshooting.md) — endpoint, package, input and
+- [Compatibility](docs/compatibility.md): the support contract
+- [Troubleshooting](docs/troubleshooting.md): endpoint, package, input and
   stream failures
-- [Benchmarks](benchmarks/README.md) — installed-package workloads,
-  correctness checks, raw samples and reproduction commands
-- [Changelog](CHANGELOG.md) — changes that span both modules, with a link to
-  the changelog of each: [`LibTmux`](module/LibTmux/CHANGELOG.md) and
+- [Benchmarks](benchmarks/README.md): workloads and how to rerun them
+- [Changelog](CHANGELOG.md): changes across both modules, plus
+  [`LibTmux`](module/LibTmux/CHANGELOG.md) and
   [`LibTmux.Workspace`](module/LibTmux.Workspace/CHANGELOG.md)
-- [Contributing](.github/CONTRIBUTING.md) — the runners and development checks
-- [Executable guides](examples/Guides.ps1) — run against real tmux through the
-  installed modules, and the README blocks run together in the
-  [installed workflow test](tests/ReadmeWorkflow.Tests.ps1)
+- [Contributing](.github/CONTRIBUTING.md): runners and development checks
+- [Example sources](examples/Guides.ps1): the code behind every block here
 
 ## AI policy
 
