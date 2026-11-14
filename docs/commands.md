@@ -1,23 +1,22 @@
 # Commands and control clients
 
-Use native command values when composing operations. `New-TmuxCommand` keeps
-literal argv boundaries, including empty arguments, spaces and punctuation;
-it does no I/O. Commands can still invoke tmux features that deliberately run
-a shell, such as `run-shell`. Shell programs inside those arguments retain
-those features' normal semantics.
+`New-TmuxCommand` builds a command value that keeps literal argv boundaries,
+including empty arguments, spaces and punctuation, and does no I/O. A command
+can still run a tmux feature that starts a shell, such as `run-shell`, and shell
+programs in its arguments keep that feature's normal meaning.
 
-`Connect-TmuxControl` needs tmux 3.7 or newer and is refused on an older
-daemon before a client attaches; chains and raw commands need only 3.3a.
-Literal `delete-buffer -b` and `set-buffer -n` items need tmux 3.4; see
-[optional features](compatibility.md#optional-features).
+- **`Connect-TmuxControl`:** needs tmux 3.7 or newer and is refused on an older
+  daemon before a client attaches. Chains and raw commands need only 3.3a.
+- **Buffers:** literal `delete-buffer -b` and `set-buffer -n` items need tmux
+  3.4. See [optional features](compatibility.md#optional-features).
 
-Select `$server` first using [explicit endpoint selection](read.md). These
-examples require an existing session named `fixture` and borrow its lifetime.
+Select `$server` first ([endpoint selection](read.md)). The examples need an
+existing session named `fixture` and borrow its lifetime.
 
 ## Execute an ordered chain
 
-Construct the complete array, then execute it once. The result is one native
-`TmuxCommandResult`; read its `StandardOutputLines` or byte-valued
+Build the whole array, then run it once. The result is one
+`TmuxCommandResult`; read its `StandardOutputLines` or its byte-valued
 `StandardOutput`. Generation and placement guards on typed request commands
 survive chaining.
 
@@ -28,22 +27,20 @@ $second = New-TmuxCommand -Name 'display-message' -Arguments @('-p', 'second')
 $server | Invoke-TmuxChain -Command @($first, $second)
 ```
 
-A failure stops later commands, but leaves earlier mutations in place.
-Output is merged; the result does not attribute separate receipts to each
-command. Cancellation does not roll back dispatched work. Do not retry a
-mutation merely because its caller stopped waiting.
-
-Admission defaults to 1024 commands and 1048576 UTF-8 bytes of command names
-and argument text, counting a NUL terminator per item. `-MaxCommands` and
-`-MaxInputBytes` adjust those limits. Native transport and operating-system
-limits also apply. These admission limits are not memory or reply-size bounds.
+- A failure stops later commands and leaves earlier changes in place.
+- Output is merged; the result does not attribute receipts to each command.
+- Cancellation does not roll back work already sent, so do not retry a mutation
+  just because its caller stopped waiting.
+- Admission defaults to 1024 commands and 1048576 UTF-8 bytes of command names
+  and argument text, plus a NUL per item. `-MaxCommands` and `-MaxInputBytes`
+  change them. Transport and operating-system limits also apply, and none of
+  these bound memory or reply size.
 
 ## Reuse a control client
 
-An explicit client avoids starting a new tmux client for every command. The
-native core correlates concurrent replies. Keep its ownership scope visible:
-this example closes the client on success or failure and leaves the tmux
-server and session running.
+An explicit client avoids starting a tmux client for every command, and the core
+correlates concurrent replies. This example closes the client on success or
+failure and leaves the server and session running.
 
 <!-- example: commands.control -->
 ```powershell
@@ -62,33 +59,30 @@ server and session running.
 }
 ```
 
-`-Target` is raw tmux target syntax, resolved at attachment time. It does not
-carry the identity captured by a native `Session`. A command constructed
-from raw text likewise has no entity identity guard; pass a native typed
-request's command directly when it supplies one.
-
-`Invoke-TmuxControlCommand` emits native reply strings and emits nothing for
-an empty reply. Ctrl+C cancels the current wait; a command already dispatched
-may still run. The borrowed client remains usable when that command finishes.
-`Disconnect-TmuxControl` explicitly closes the supplied client, including for
-other callers sharing it. Its native disposal has no cancellation token, so
-cleanup is awaited.
-
-`-WhatIf` performs no dispatch. Previewing a supplied control connection names
-that connection; its native interface exposes no endpoint metadata to display.
-The cmdlets run on the calling pipeline. They do not return Tasks or claim
-that a foreground command leaves the prompt available.
+- `-Target` is raw tmux target syntax, resolved when the client attaches. It
+  does not carry the identity a `Session` captured. A command built from raw
+  text has no identity guard either; pass a typed request's command directly
+  when it supplies one.
+- `Invoke-TmuxControlCommand` emits reply strings, and nothing for an empty
+  reply. Ctrl+C cancels the wait, and a command already sent may still run. The
+  borrowed client stays usable when it finishes.
+- `Disconnect-TmuxControl` closes the client you give it, including for other
+  callers sharing it. Disposal cannot be cancelled, so cleanup is awaited.
+- `-WhatIf` sends nothing. A preview names the connection; the native interface
+  exposes no endpoint metadata to show.
+- The cmdlets run on the calling pipeline. They return no Tasks and do not free
+  the prompt.
 
 ## Collect concurrent command results
 
 Use the [finite concurrent-command recipe](../examples/ConcurrentCommands.ps1)
-when independent commands need separate results. Run it from the repository
-root after importing `LibTmux`. It accepts native command values, preserves
-their identity guards and starts at most `-MaxPending` calls at once.
+when independent commands need separate results. Run it from the repository root
+after importing `LibTmux`. It takes command values, keeps their identity guards
+and starts at most `-MaxPending` calls at once.
 
-By default, each bounded wave finishes before its results are emitted in input
-order. The next wave then starts. This bounds reordering storage but can leave a
-slot idle while another command in the wave finishes. Each result carries its
+By default each bounded wave finishes, and its results are emitted in input
+order, before the next wave starts. That bounds reordering storage but can leave
+a slot idle while one command in the wave finishes. Each result carries its
 zero-based [`Index`][command-example], [`Name`][command-example], `ExitCode`,
 output lines, error lines and [`Utf8Bytes`][command-example].
 
@@ -102,9 +96,9 @@ $commands = @(foreach ($name in @('api', 'worker', 'scheduler')) {
 ```
 
 Pass a borrowed control client to reuse its connection. `-CompletionOrder` emits
-each result as the caller harvests a completed task; simultaneous completions
-have no guaranteed order. [`Index`][command-example] still identifies its input.
-The recipe leaves the client open; its owner closes it here.
+each result as a task completes; simultaneous completions have no guaranteed
+order, and [`Index`][command-example] still names the input. The recipe leaves
+the client open, and this example closes it:
 
 <!-- example: commands.concurrent-control -->
 ```powershell
@@ -127,33 +121,42 @@ The recipe leaves the client open; its owner closes it here.
 }
 ```
 
-On tmux 3.7 and newer, commands from one server handle share a single control
-client, so a command that blocks while the client waits holds the commands
-behind it. A command that is a `wait-for` on its own runs in its own process
-and leaves the others free. A `wait-for` nested in a list, such as
-`if-shell -F 1 'wait-for release ; display-message -p done'`, is not seen and
-blocks the shared client until it is released. Keep a blocking command at the
-top level, or set `LIBTMUX_CONTROL_TRANSPORT=0` before creating the server
-handle to send every command from its own process.
+### Blocking commands
 
-The recipe admits 1–64 commands and 1–16 pending calls; the default is four
-pending calls. Its cumulative result-text budget defaults to 64 KiB, counting
-UTF-8 command names and output/error lines plus one byte per item. A result
-that exceeds the remaining budget is rejected before being retained or
-emitted. This excludes exception diagnostics, object overhead and downstream
-consumer storage. Native buffers are separate: process transport allows
-64 MiB per output/error stream; default control limits allow 4 MiB per block
-and 16 MiB per reply. High concurrency with large replies can therefore use
-substantially more memory than `-MaxResultBytes`.
+On tmux 3.7 or newer, commands from one server handle share a single control
+client, so a command that blocks holds the commands behind it.
 
-`-Timeout` supplies one deadline for the entire batch, defaulting to one
-second. Supply `-CancellationToken` for caller-managed cancellation. The
-script waits synchronously on the calling runspace; it does not promise
-immediate Ctrl+C handling. On failure, cancellation or consumer termination,
-it cancels and observes every started task before returning; native cleanup
-may extend beyond the deadline. Previously emitted results and dispatched
-mutations remain. Command failures retain the native exception and identify
-their input with `Exception.Data['LibTmux.ConcurrentCommandIndex']`. Do not
-automatically retry canceled mutations.
+- A top-level `wait-for` runs in its own process and leaves the others free.
+- A `wait-for` nested in a list, such as
+  `if-shell -F 1 'wait-for release ; display-message -p done'`, is not seen and
+  blocks the shared client until released.
+- Keep a blocking command at the top level, or set `LIBTMUX_CONTROL_TRANSPORT=0`
+  before creating the server handle to send every command from its own process.
+
+### Limits
+
+- **Admission:** 1 to 64 commands and 1 to 16 pending calls, four by default.
+- **Result text:** a cumulative budget of 64 KiB by default, counting UTF-8
+  command names and output and error lines plus one byte per item. A result
+  over the remaining budget is rejected before it is kept or emitted. The
+  budget excludes exception diagnostics, object overhead and what a consumer
+  stores.
+- **Native buffers:** separate. Process transport allows 64 MiB per output or
+  error stream, and the default control limits allow 4 MiB per block and 16 MiB
+  per reply, so many large replies can use far more memory than
+  `-MaxResultBytes`.
+
+### Deadlines and failure
+
+- **`-Timeout`:** one deadline for the whole batch, one second by default.
+  `-CancellationToken` supplies caller-managed cancellation.
+- The script waits synchronously on the calling runspace and does not promise
+  immediate Ctrl+C handling.
+- On failure, cancellation or consumer termination it cancels and observes every
+  started task before returning. Native cleanup can run past the deadline.
+- Results already emitted and mutations already sent stay.
+- A command failure keeps the native exception and names its input in
+  `Exception.Data['LibTmux.ConcurrentCommandIndex']`. Do not retry canceled
+  mutations automatically.
 
 [command-example]: ../examples/ConcurrentCommands.ps1

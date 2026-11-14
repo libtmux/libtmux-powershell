@@ -1,36 +1,39 @@
 # Watch events and use runspaces
 
-`Watch-TmuxEvent` emits native notifications and pane output fragments as they
-arrive. One application write may span several events, and one event may
-contain multiple lines. Use [rendered capture](capture.md) when you need the
-pane's current screen.
-The stream is not a durable or byte-exact log.
+`Watch-TmuxEvent` emits notifications and pane output fragments as they arrive.
+One application write can span several events, and one event can hold several
+lines. The stream is not a durable or byte-exact log; use
+[rendered capture](capture.md) for the pane's current screen.
 
-Supply a control connection to borrow it, or a server and raw `-Target` to let
-the watcher own a temporary client. Stop, early pipeline exit and module removal
-end the reader; only an internally created client is disposed. The tmux daemon
-and sessions remain running. Removing the module cancels active watchers only
-in that runspace, and does not close handles returned by `Connect-TmuxControl`.
-
-One connection has one event consumer. The package rejects competing watchers;
-callers must also avoid directly enumerating the same native `Events` stream.
-Each event is delivered on the pipeline callback before another is fetched.
-Downstream code may synchronously send a control command on that connection:
-reply processing does not wait for notification delivery.
+- **Ownership:** pass a control connection to borrow it, or a server and a raw
+  `-Target` to let the watcher own a temporary client. Stop, an early pipeline
+  exit and module removal end the reader, and only a client the watcher created
+  is disposed. The daemon and sessions keep running.
+- **Module removal:** cancels active watchers in that runspace only, and does not
+  close handles from `Connect-TmuxControl`.
+- **One consumer:** a connection has one event consumer. The package rejects
+  competing watchers, and callers must not enumerate the same native `Events`
+  stream directly.
+- **Delivery:** each event reaches the pipeline callback before the next is
+  fetched. Downstream code may send a control command on that connection,
+  because reply processing does not wait for notification delivery.
 
 ## Observe one owned change
 
-`Watch-TmuxEvent` attaches a control client, which needs tmux 3.7 or newer.
-With a server it is refused on an older daemon before anything attaches.
+`Watch-TmuxEvent` attaches a control client, which needs tmux 3.7 or newer. With
+a server on an older daemon it is refused before anything attaches.
 
-After [installing libtmux for PowerShell](../README.md#install-from-source),
-paste this script into PowerShell. It creates one session on a socket in a
-private temporary directory. It connects a control client before renaming the
-window, so tmux queues the notification even if the job reads it later. The job
-emits that native event. An event limit, byte budget and five-second deadline
-bound the observation. The finally block removes the job, client, session and
-socket directory. If session removal fails, the directory remains so the
-server is reachable. The default tmux server is untouched.
+[Install libtmux for PowerShell](../README.md#install-from-source), then paste
+this script into PowerShell. It starts a server on a socket in a private
+temporary directory and leaves your default tmux server alone.
+
+- It connects a control client before renaming the window, so tmux queues the
+  notification even if the job reads it later.
+- The job emits that event, bounded by an event limit, a byte budget and a
+  five-second deadline.
+- The `finally` block removes the job, client, session and socket directory. If
+  removing the session fails, the directory stays so the server remains
+  reachable.
 
 <!-- example: watch.owned-rename -->
 ```powershell
@@ -100,17 +103,16 @@ server is reachable. The default tmux server is untouched.
 ## Bound background output
 
 A foreground watcher occupies its pipeline until it ends or you press Ctrl+C.
-`Start-ThreadJob` returns a job immediately and runs the watcher in another
-runspace. Select `$server` with an absolute socket path and an executable path
-available to that runspace; the following example watches an existing session
-named `fixture`. It creates its client inside the job.
+`Start-ThreadJob` returns a job at once and runs the watcher in another runspace.
+Select `$server` with an absolute socket path and an executable path that runspace
+can reach. This example watches an existing session named `fixture` and creates
+its client inside the job.
 
-Retained Job output needs both a count and a text-byte budget, even if nobody
-calls `Receive-Job`. Budgets reset for each input connection or server;
-piping N owners can emit N times `-MaxEvents`. This example uses one client
-and retains at most one event and 1048576 UTF-8
-text bytes. The job completes after the initial notification; increase both
-limits deliberately for a longer observation.
+Retained Job output needs a count and a text-byte budget, even if nobody calls
+`Receive-Job`. Budgets reset for each input connection or server, so piping N
+owners can emit N times `-MaxEvents`. This example uses one client and keeps at
+most one event and 1048576 UTF-8 text bytes. The job completes after the first
+notification; raise both limits on purpose for a longer observation.
 
 <!-- example: watch.job-create -->
 ```powershell
@@ -125,9 +127,9 @@ $job = & {
 }
 ```
 
-Collect the result when needed. Always stop and remove the job in cleanup,
-including after a failed receive. Thread jobs preserve native objects in this
-process; process jobs serialize results and do not preserve live handles.
+Collect the result when needed, and always stop and remove the job in cleanup,
+even after a failed receive. Thread jobs keep native objects in this process;
+process jobs serialize results and lose live handles.
 
 <!-- example: watch.job-receive -->
 ```powershell
@@ -141,33 +143,42 @@ process; process jobs serialize results and do not preserve live handles.
 }
 ```
 
-`-MaxEventBytes` defaults to 1048576 and bounds the single event held by the
-handoff. `-MaxOutputBytes` counts decoded UTF-8 text in output data, pane IDs,
-notification names and arguments, and exit reasons. Numeric loss counts carry
-no text bytes. These limits bound text payload, not object overhead or the
-size of serialized Job data. An event that cannot fit produces an explicit
-error before output; earlier events remain valid.
+### Cmdlet limits
 
-The native upstream queue separately defaults to 512 events and 4 MiB of
-decoded UTF-8 payload. `ServerConnectionOptions.ControlModeEventBufferCapacity`
-and `ControlModeEventBufferMaxBytes` configure those positive limits before
-connecting. Its byte accounting includes output data, notification names and
-arguments, and exit reasons; it excludes pane IDs and object overhead.
-Under count pressure, the queue discards the oldest output from the pane with
-the most queued output events. Under byte pressure, it selects the pane with
-the most queued output bytes. If no output remains, it discards the oldest
-notification. An oversized
-event is dropped; an oversized exit reason is omitted while the exit event
-is retained. `TmuxEventsDroppedEvent` reports each loss without blocking
-command replies. Use a fresh snapshot when current topology matters after
-loss. Stopping may consume a record that has not reached the pipeline.
+- **`-MaxEventBytes`:** 1048576 by default; bounds the single event held by the
+  handoff.
+- **`-MaxOutputBytes`:** counts decoded UTF-8 text in output data, pane IDs,
+  notification names and arguments, and exit reasons. Numeric loss counts carry
+  no text bytes.
+- These limits bound text payload, not object overhead or serialized Job data.
+  An event that cannot fit produces an explicit error before output, and earlier
+  events stay valid.
+
+### Native event queue
+
+The native queue separately defaults to 512 events and 4 MiB of decoded UTF-8
+payload. `ServerConnectionOptions.ControlModeEventBufferCapacity` and
+`ControlModeEventBufferMaxBytes` set those positive limits before connecting.
+Its bytes count output data, notification names and arguments, and exit reasons,
+but not pane IDs or object overhead.
+
+- **Count pressure:** drops the oldest output from the pane with the most queued
+  output events.
+- **Byte pressure:** drops from the pane with the most queued output bytes.
+- **No output left:** drops the oldest notification.
+- **Oversized:** an oversized event is dropped, and an oversized exit reason is
+  omitted while its exit event stays.
+- **Reporting:** `TmuxEventsDroppedEvent` reports each loss without blocking
+  command replies. After a loss, take a fresh snapshot if you need current
+  topology.
+- Stopping may consume a record that had not reached the pipeline.
 
 ## Run independent commands concurrently
 
-`ForEach-Object -Parallel` creates worker runspaces. Create and close each
-client in the worker that uses it. This finite example emits two short replies,
-and `-ThrottleLimit 2` bounds concurrent workers. Results arrive in completion
-order; include an identifier in your real workload if input order matters.
+`ForEach-Object -Parallel` creates worker runspaces, so create and close each
+client in the worker that uses it. This example emits two short replies, and
+`-ThrottleLimit 2` bounds the workers. Results arrive in completion order; add an
+identifier to a real workload if input order matters.
 
 <!-- example: watch.parallel -->
 ```powershell
