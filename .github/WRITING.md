@@ -165,6 +165,47 @@ Good, name the value first:
     $session = $server | New-TmuxSession -Name $name -Command 'exec /bin/sh'
 ```
 
+## README shape
+
+A README reads at a glance: tasks, the API for each, and an example. The root
+README and each module README follow this shape.
+
+- **Header:** the logo block, a centred title, the badge row (CI, PowerShell
+  Gallery version, libtmux.org, license) and one sentence, all as Markdown
+  inside the centred block. A badge or link points at a page that exists; a
+  package with no Gallery page gets no badge.
+- **Sections:** a `##` heading names a task in the reader's words, such as
+  "Find sessions, windows, and panes".
+- **API headings:** a `###` heading names a cmdlet or type as a link to its
+  libtmux.org reference page, then a colon and its job in plain words.
+- **Under a heading:** a line or two that link sibling APIs, the example, what
+  it prints, at most one short note, and a More link to the guide.
+- **Length:** no paragraph over three lines. A list of facts is a bullet list.
+  The README links test fails a paragraph or list item over 240 characters.
+- **No inventory:** do not list features. Sections and examples show them.
+- **Floors:** state requirements as floors a reader can act on, such as "tmux
+  3.3a or newer". Leave out toolchain patch versions, CI matrix narration and
+  kernel details, and link the compatibility guide.
+- **Assumed facts:** do not say that examples are tested, how docs are built or
+  what the checks cover.
+- **Packages:** keep the table. Give each module one heading that links its
+  directory on the trunk branch, a one-line description and a link line for the
+  reference, the Gallery page and the changelog. A product with no published
+  package gets no page, link or section.
+- **Closing:** "What it leaves out" and "Support and status" are short bullets
+  with a bold lead.
+- **Imports first:** the first example in each README section starts with its
+  `Import-Module` line.
+- **Own server:** an example starts its server through `New-TmuxServer` on a
+  unique socket and cleans up through the cmdlets, not with `tmux` shell
+  commands.
+- **Run in CI:** every displayed example is a copy of a region of
+  `examples/Guides.ps1`, or a script under `examples/`, that the guide tests
+  run.
+- **Headline features:** the root README shows the query and filter cmdlets, the
+  query plan, command chains and control-mode clients and events, each under an
+  API heading with an example, or links the guide's complete tested program.
+
 ## Commit messages
 
 Use `Scope(type[detail]): Description`. The detail qualifier is optional.
