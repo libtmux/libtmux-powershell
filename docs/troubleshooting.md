@@ -1,9 +1,8 @@
 # Troubleshooting
 
-Start with the endpoint and operation that failed. The cmdlets keep native
-objects and errors, so an empty result, a failed tmux command and a cancelled
-wait have different meanings. Use `-ErrorAction Stop` when one failure should
-stop a script.
+Start with the endpoint and operation that failed. An empty result, a failed
+tmux command and a cancelled wait mean different things. Use `-ErrorAction Stop`
+when one failure should stop a script.
 
 | Symptom | Check and next action |
 | --- | --- |
@@ -17,10 +16,10 @@ stop a script.
 | Interactive attach fails from a script or CI job | [Enter-TmuxSession](reference/LibTmux/Enter-TmuxSession.md) needs a foreground terminal with stdin and must run outside another tmux client. Workspace apply is detached; pass its successful native `Session` to the attach command in a terminal. |
 | Workspace apply stops partway through | Inspect the native [`WorkspaceBuildException`][workspacebuildexception] journal and partial result described in the [workspace guide](workspace.md#startup-host-effects-and-failures). Review the original plan and live server before another apply; host scripts and sent pane commands are not rolled back. |
 
-For repeatable failures, record the command, PowerShell and tmux versions,
-selected socket kind, error ID and original exception. Avoid including pane
-contents, secrets or private socket paths in a public report. The
-[contributor guide](../.github/CONTRIBUTING.md#testing-tmux-behavior) runs
-integration checks on owned sockets without touching your default server.
+To report a repeatable failure, record the command, the PowerShell and tmux
+versions, the kind of socket, the error ID and the original exception. Leave
+pane contents, secrets and private socket paths out of a public report. The
+[contributor guide](../.github/CONTRIBUTING.md#testing-tmux-behavior) shows how
+to run integration checks on owned sockets without touching your default server.
 
 [workspacebuildexception]: https://libtmux.org/en/csharp/latest/workspace/reference/libtmux-workspace-workspacebuildexception/

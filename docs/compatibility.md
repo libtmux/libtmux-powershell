@@ -1,13 +1,13 @@
 # Compatibility
 
 This source checkout targets PowerShell 7.4 and .NET 8. The Linux workflow
-tests the specific PowerShell and tmux versions below; other combinations
-remain unverified. [LibTmux](https://www.powershellgallery.com/packages/LibTmux)
-and [LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
-are published on PowerShell Gallery. Both pin
-[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet).
-See the [install guide](../README.md#quick-start) for package-manager commands
-and source builds. Publication does not expand the tested platforms below.
+tests the PowerShell and tmux versions below; other combinations are unverified.
+[LibTmux](https://www.powershellgallery.com/packages/LibTmux) and
+[LibTmux.Workspace](https://www.powershellgallery.com/packages/LibTmux.Workspace)
+are on PowerShell Gallery and pin
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet). The
+[install guide](../README.md#quick-start) has package-manager commands and
+source builds.
 
 | Environment | Contract |
 | --- | --- |
@@ -147,75 +147,60 @@ this page lists as refused.
 ## How the check works
 
 Every cmdlet that talks to tmux goes through the
-[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) package, which
-reads the version of the connected daemon first and refuses an older or
-unreadable one before it sends the requested operation. The client executable
-does not decide this: an older daemon is refused even when the selected executable
-reports a newer version. Operations return a `LibTmux.TmuxVersionTooLowException`
-error rather than an empty result. When no daemon answers, the executable's own
-version is checked before it can start one; a read, which starts nothing,
-reports the missing daemon instead. The check adds no tmux hook activity: it
-asks for a `run-shell -C` expansion that tmux rejects while parsing, so no
-`after-*` hook and no `command-error` hook fires for it.
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet) package. It reads
+the connected daemon's version first and refuses an older or unreadable one
+before sending the operation.
 
-Every command list the package sends starts with a guard on the checked
-version. If a different daemon replaced the first one in between, the list
-fails before any command runs. A replacement that is supported is checked
-again and the command is sent once more; one below the floor is refused; a
-second mismatch reports that the daemon changed and that the command did not
-run. A client that finds the checked daemon gone starts none.
+- The daemon's version decides, not the client executable's: an older daemon is
+  refused even when the selected executable reports a newer version.
+- A refusal is a `LibTmux.TmuxVersionTooLowException` error, not an empty result.
+- When no daemon answers, the executable's own version is checked before it can
+  start one. A read starts nothing and reports the missing daemon instead.
+- The check fires no tmux hooks. It asks for a `run-shell -C` expansion that tmux
+  rejects while parsing, so no `after-*` or `command-error` hook runs.
 
-The Linux workflow keeps tmux 3.2a and unpatched 3.3 as rejection lanes. They
-run only the version check suite, which checks that reads, creation, raw commands
-and chains are refused and that nothing changed.
+Every command list the package sends starts with a guard on the checked version.
 
-A daemon older than 3.2 cannot report its version through that check: a 3.1c
-daemon answers with the `run-shell` usage line, and a 3.0a daemon makes the
-client print `server version is too old for client`. A client older than 3.2
-rejects the `-N` flag the check passes, so its own version decides. All three
-are refused with `TmuxVersionTooLowException`, which says what to do: upgrade
-tmux and restart the tmux server, or use an older release. The message names
-the last libtmux for .NET release that supports older tmux, 0.0.0-alpha.21;
-for these modules it is 0.1.0-alpha2.
+- If a different daemon replaced the first one in between, the list fails before
+  any command runs.
+- A supported replacement is checked again and the command is sent once more.
+- One below the floor is refused.
+- A second mismatch reports that the daemon changed and the command did not run.
+- A client that finds the checked daemon gone starts none.
 
-The Linux workflow also runs real 3.0a and 3.1c daemons behind a 3.3a client
-and requires the refusal to come back promptly.
+A daemon older than 3.2 cannot report its version through that check:
 
-A refusal is a non-terminating error, like every other operation failure in
-the module, so it follows `-ErrorAction`. Use `-ErrorAction Stop` where a
-refused daemon must not fall through as no output, as in
-`Get-TmuxSession -ErrorAction SilentlyContinue`, which hides it.
+- A 3.1c daemon answers with the `run-shell` usage line.
+- A 3.0a daemon makes the client print `server version is too old for client`.
+- A client older than 3.2 rejects the `-N` flag the check passes, so its own
+  version decides.
 
-`Connect-TmuxControl` attaches only after the same check, so
-`Invoke-TmuxControlCommand` and `Watch-TmuxEvent` need no check of their own on
-the connection it returns.
+All three are refused with `TmuxVersionTooLowException`. It says to upgrade tmux
+and restart the tmux server, or to use an older release, and names the last
+libtmux for .NET release that supports older tmux, 0.0.0-alpha.21; for these
+modules it is 0.1.0-alpha2.
 
-`Invoke-TmuxCommand kill-server` against an endpoint where no daemon answers
-returns an empty successful result without dispatching anything.
-
-One registry in the module holds these requirements, and it writes
-[`capabilities.json`](../capabilities.json) for the capabilities page of the
-documentation site. The module reads the daemon's version and infers what that
-release can do; tmux does not report its capabilities, so a patched build is
-judged as the release it names.
-
-The module checks the typed operations and workspace plans itself. Literal
-command items sent through `Invoke-TmuxCommand`, `Invoke-TmuxChain` and
-`Invoke-TmuxControlCommand` are checked by the libtmux for .NET package, which
-reads a command word the way tmux does, by alias, name or unique prefix, and
-reads a `;` list one command at a time.
-[What the checks do not read](#what-the-checks-do-not-read) lists the nested
-commands they skip.
-
-The version a guard reads is the daemon's, taken just before the command is
-sent. A daemon replaced in that moment is not caught by the guard, though the
-package's own check still refuses one below the floor.
-
-Sections of the suites that need a control client or a pane command report
-SKIP below their releases rather than pass, and the features suite asserts
-the refusals and that nothing changed. The guards for exactly 3.7, a release
-the workflow does not run, are tested by reporting that version to the
-version probe.
+- **`-ErrorAction`:** a refusal is a non-terminating error, like every other
+  operation failure. Use `-ErrorAction Stop` where a refused daemon must not fall
+  through as no output; `Get-TmuxSession -ErrorAction SilentlyContinue` hides it.
+- **Control clients:** `Connect-TmuxControl` attaches only after the same check,
+  so `Invoke-TmuxControlCommand` and `Watch-TmuxEvent` need none on its
+  connection.
+- **`kill-server`:** `Invoke-TmuxCommand kill-server` against an endpoint where
+  no daemon answers returns an empty successful result and dispatches nothing.
+- **Registry:** one registry in the module holds these requirements and writes
+  [`capabilities.json`](../capabilities.json) for the documentation site. The
+  module infers what a release can do from the daemon's version, because tmux
+  reports no capabilities, so a patched build counts as the release it names.
+- **Literal commands:** the module checks typed operations and workspace plans.
+  The libtmux for .NET package checks literal items sent through
+  `Invoke-TmuxCommand`, `Invoke-TmuxChain` and `Invoke-TmuxControlCommand`,
+  reading a command word as tmux does, by alias, name or unique prefix, and a
+  `;` list one command at a time. [What the checks do not read](#what-the-checks-do-not-read)
+  lists the nested commands it skips.
+- **Timing:** a guard reads the daemon's version just before the command is sent.
+  A daemon replaced in that moment slips past the guard, though the package's own
+  check still refuses one below the floor.
 
 Choose the tmux executable and socket with [New-TmuxServer](read.md), or leave
 the socket out and tmux picks the server. A handle alone starts no daemon. The

@@ -69,6 +69,8 @@ endpoint". (#65)
   signals, version probes, control-client ownership and native table lookup.
 - Start the first example of each README section with `Import-Module`, and
   add README examples for query plans, fresh queries and command chains.
+- Shorten the guides to short sections and bullets, and drop their notes on
+  which tests cover them.
 
 ## 0.1.0 - 2026-10-25
 
