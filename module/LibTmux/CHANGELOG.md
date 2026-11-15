@@ -9,7 +9,25 @@ changelog](https://github.com/libtmux/libtmux-powershell/blob/master/CHANGELOG.m
 
 ## 0.1.1 - Unreleased
 
-No entries for `LibTmux`.
+### What's new
+
+#### Stop a server with `Stop-TmuxServer`
+
+`Stop-TmuxServer` stops the tmux server that a `LibTmux.Server` handle names,
+with `kill-server`, and emits nothing. Before, only `Invoke-TmuxCommand` with
+the command as a string could end a server. Like the `Remove-` cmdlets it asks
+for confirmation by default and `-WhatIf` contacts nothing. A server that is
+already gone counts as stopped. A failure uses the error ID
+`Tmux.ServerStopFailed`. (#89)
+
+#### Rename a session or window
+
+`Rename-TmuxSession` and `Rename-TmuxWindow` rename the session or window a
+handle names, which they take from the pipeline, such as the output of
+`Get-TmuxSession` or `Get-TmuxWindow`. They emit nothing unless `-PassThru`
+asks for the replacement handle, which carries the new name. Before, a rename
+needed `Invoke-TmuxCommand` or `Invoke-TmuxChain` with a literal target. The
+error IDs are `Tmux.SessionRenameFailed` and `Tmux.WindowRenameFailed`. (#90)
 
 ## 0.1.0 - 2026-10-25
 
