@@ -130,6 +130,15 @@ foreach ($command in 'apt-get install --yes tmux', 'sudo apt install tmux', 'sud
 $clean = "jobs:`n  build:`n    steps:`n      - name: Install tmux`n        run: |`n          # sudo apt-get update`n          echo `"apt is slow`"`n      - name: Not a script`n        with:`n          note: sudo apt-get update`n"
 Assert-Empty (Get-RawAptProblem 'ci.yml' $clean) 'A comment, an echo and a non-script line'
 
+# No workflow starts Python.
+foreach ($file in Get-ChildItem -LiteralPath (Join-Path $Root '.github/workflows') -Filter '*.yml') {
+    Assert-Empty (Get-PythonProblem $file.Name (Get-Content -LiteralPath $file.FullName -Raw)) "$($file.Name) Python rule"
+}
+$python = "jobs:`n  a:`n    steps:`n      - name: Check`n        run: python3 -c 'print(1)'`n"
+Assert-That (@(Get-PythonProblem 'x.yml' $python).Count -eq 1) 'A python3 call went unreported.'
+Assert-That (@(Get-PythonProblem 'x.yml' "      - uses: actions/setup-python@abc`n").Count -eq 1) 'A setup-python step went unreported.'
+Assert-Empty (Get-PythonProblem 'x.yml' "      - run: echo pythonic`n") 'A word that only starts with python'
+
 # A shared action is pinned to a full commit.
 Assert-Empty (Get-UnpinnedActionProblem 'ci.yml' $ci) 'ci.yml pins'
 foreach ($ref in 'main', 'v1', 'bd3bae7', '') {

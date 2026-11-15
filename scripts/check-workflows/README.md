@@ -20,7 +20,8 @@ It prints each problem and exits 1 when there is one. The rules:
   a commit, limited to the actor, bounded in time, and only in the matrix.
 - `release.yml` calls the CI of its own commit at scope `full`, from `master`,
   and takes the packages from that run, not from a run someone passes in.
-- No `run` line calls `apt` or `apt-get`. The shared `apt-get` action runs apt.
+- No `run` line calls `apt` or `apt-get`, and no workflow starts Python or sets
+  it up. The shared `apt-get` action runs apt.
 - A `libtmux/.github` action is pinned to a full commit SHA.
 
 ## Tests

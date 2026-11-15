@@ -1,6 +1,6 @@
 # Checks that ci.yml takes its jobs from the plan and stays bound to the release
 # gate, that release.yml proves the full set itself, and that no workflow calls
-# apt-get directly or pins a shared action to a moving ref. The
+# apt-get or Python directly or pins a shared action to a moving ref. The
 # workflows are read as text, because the CI step that runs this has no YAML
 # parser. CheckWorkflows.ps1 is the command line; tests/CheckWorkflows.Tests.ps1
 # plants each fault and expects it reported.
@@ -253,6 +253,20 @@ function Get-RawAptProblem([string] $Path, [string] $Text) {
     }
 }
 
+# Returns each `run` line that starts Python, and each setup-python step.
+function Get-PythonProblem([string] $Path, [string] $Text) {
+    foreach ($row in Get-RunLine $Text) {
+        if ($row.Line -cmatch '(^|[\s;&|(`/])python3?(\s|$)') {
+            "${Path}:$($row.Number): $(Get-Where $row) starts Python; write the step in PowerShell"
+        }
+    }
+    $number = 0
+    foreach ($line in $Text -split "`n") {
+        $number++
+        if ($line -cmatch '^\s*(- )?uses: actions/setup-python@') { "${Path}:${number}: sets up Python; no step needs it" }
+    }
+}
+
 # Returns each use of a libtmux/.github action that is not pinned to a full commit.
 function Get-UnpinnedActionProblem([string] $Path, [string] $Text) {
     $number = 0
@@ -278,7 +292,7 @@ function Test-RepositoryWorkflows([string] $Root) {
     foreach ($file in Get-ChildItem -LiteralPath $workflows -Filter '*.yml') {
         $text = Get-Content -LiteralPath $file.FullName -Raw
         $path = ".github/workflows/$($file.Name)"
-        foreach ($problem in @(Get-RawAptProblem $path $text) + @(Get-UnpinnedActionProblem $path $text)) {
+        foreach ($problem in @(Get-RawAptProblem $path $text) + @(Get-PythonProblem $path $text) + @(Get-UnpinnedActionProblem $path $text)) {
             if ($problem) { $problems.Add($problem) }
         }
     }
@@ -286,4 +300,4 @@ function Test-RepositoryWorkflows([string] $Root) {
 }
 
 Export-ModuleMember -Function Get-WorkflowJobs, Test-CiWorkflow, Test-ReleaseWorkflow, Get-RawAptProblem,
-    Get-UnpinnedActionProblem, Test-RepositoryWorkflows
+    Get-PythonProblem, Get-UnpinnedActionProblem, Test-RepositoryWorkflows
