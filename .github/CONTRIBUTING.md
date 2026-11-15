@@ -193,7 +193,7 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Input`,
+The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Rename`, `Input`,
 `Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
 `Formatting`, `Runtime`, `Help` and `Examples` suites use the same artifact
 argument. Run `Product` and `Documentation` separately for the complete

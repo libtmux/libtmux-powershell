@@ -5104,15 +5104,15 @@ ConvertTo-TmuxQueryJson, Get-TmuxWindow and Get-TmuxPane
 
 Changing things. New-TmuxSession, New-TmuxWindow, Split-TmuxPane and
 New-TmuxWindowLink create, and New-TmuxSession can start a daemon that is not
-running yet. Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize and
-Set-TmuxWindowSize rearrange. Remove-TmuxSession, Remove-TmuxWindow,
-Remove-TmuxWindowLink and Remove-TmuxPane delete, and Stop-TmuxServer ends the
-whole server.
+running yet. Rename-TmuxSession and Rename-TmuxWindow rename, and
+Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize and Set-TmuxWindowSize
+rearrange. Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink and
+Remove-TmuxPane delete, and Stop-TmuxServer ends the whole server.
 
 New-TmuxSession, New-TmuxWindow, Split-TmuxPane, New-TmuxWindowLink,
-Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize, Set-TmuxWindowSize,
-Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink, Remove-TmuxPane
-and Stop-TmuxServer
+Rename-TmuxSession, Rename-TmuxWindow, Move-TmuxWindow, Set-TmuxLayout,
+Set-TmuxPaneSize, Set-TmuxWindowSize, Remove-TmuxSession, Remove-TmuxWindow,
+Remove-TmuxWindowLink, Remove-TmuxPane and Stop-TmuxServer
 
 Options and hooks. Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
 read, write and unset options on a server, session, window or pane.
@@ -7653,6 +7653,344 @@ $window | LibTmux\Remove-TmuxWindowLink -Confirm:$false
       <maml:navigationLink>
         <maml:linkText>Link a window into another session</maml:linkText>
         <maml:uri>New-TmuxWindowLink.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Rename-TmuxSession</command:name>
+      <maml:description>
+        <maml:para>Rename a native session and optionally emit its replacement.</maml:para>
+      </maml:description>
+      <command:verb>Rename</command:verb>
+      <command:noun>TmuxSession</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Rename the supplied native LibTmux.Session. The endpoint and daemon generation come
+from that handle, so the session is named by its ID and not by its old name.
+Only that session changes.
+
+With PassThru, return a new Session handle that carries the new name. The original
+handle keeps the name it captured and is stale after the rename. Without
+PassThru, emit no success object. tmux expands the name as a format, so a
+number sign in it does not survive verbatim. WhatIf performs no tmux I/O.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Rename-TmuxSession</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Session</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Session</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Session</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>PassThru</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>The new session name. An empty name is rejected before tmux is called.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>PassThru</maml:name>
+        <maml:description>
+          <maml:para>Emit a new Session handle that carries the new name, read back after the rename.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Session</maml:name>
+        <maml:description>
+          <maml:para>The native session to rename. Select it with Get-TmuxSession on the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Session</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Session selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Session</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>With PassThru, one replacement handle for each input. Otherwise no success
+objects are emitted.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.SessionRenameFailed and retain the original core exception, its
+dispatch information and the failed owner. ErrorAction Continue permits later
+owners to be processed; ErrorAction Stop stops on the first failure. A missing
+target remains an error. No mutation is retried.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Rename the previously selected $session and emit the replacement handle. Assign
+the output for subsequent operations.</maml:para>
+          <maml:para />
+          <maml:para>```powershell
+$session | LibTmux\Rename-TmuxSession -Name release -PassThru
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Rename-TmuxSession.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Create sessions, windows and panes</maml:linkText>
+        <maml:uri>../../create.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Rename-TmuxWindow</command:name>
+      <maml:description>
+        <maml:para>Rename a native window and optionally emit its replacement.</maml:para>
+      </maml:description>
+      <command:verb>Rename</command:verb>
+      <command:noun>TmuxWindow</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Rename the supplied native LibTmux.Window. The endpoint and daemon generation come
+from that handle, so the window is named by its ID and not by its old name.
+Only that window changes.
+
+With PassThru, return a new Window handle that carries the new name. The original
+handle keeps the name it captured and is stale after the rename. Without
+PassThru, emit no success object. tmux expands the name as a format, so a
+number sign in it does not survive verbatim. WhatIf performs no tmux I/O.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Rename-TmuxWindow</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Window</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Window</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Window</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+          <maml:name>Name</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">string</command:parameterValue>
+          <dev:type>
+            <maml:name>System.String</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>PassThru</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="1" aliases="none">
+        <maml:name>Name</maml:name>
+        <maml:description>
+          <maml:para>The new window name. An empty name is rejected before tmux is called.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        <dev:type>
+          <maml:name>System.String</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>PassThru</maml:name>
+        <maml:description>
+          <maml:para>Emit a new Window handle that carries the new name, read back after the rename.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Window</maml:name>
+        <maml:description>
+          <maml:para>The native window to rename. Select it with Get-TmuxWindow on the endpoint you intend to change.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Window</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Window selected from an explicit endpoint.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>LibTmux.Window</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>With PassThru, one replacement handle for each input. Otherwise no success
+objects are emitted.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.WindowRenameFailed and retain the original core exception, its
+dispatch information and the failed owner. ErrorAction Continue permits later
+owners to be processed; ErrorAction Stop stops on the first failure. A missing
+target remains an error. No mutation is retried.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Rename the previously selected $window and emit the replacement handle. Assign
+the output for subsequent operations.</maml:para>
+          <maml:para />
+          <maml:para>```powershell
+$window | LibTmux\Rename-TmuxWindow -Name logs -PassThru
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Rename-TmuxWindow.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Create sessions, windows and panes</maml:linkText>
+        <maml:uri>../../create.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

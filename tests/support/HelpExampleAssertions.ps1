@@ -667,6 +667,33 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.ContainsKey('Stopped')) { Remove-OwnedTmuxFixture $Context.Stopped }
             } }
+        'LibTmux\Rename-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
+                $session = $server | LibTmux\New-TmuxSession -Name 'help-rename-session' -Command 'exec /bin/sh' -Confirm:$false
+                $Context.TargetId = $session.Id.ToString()
+            }; Assert = {
+                param($Result, $Context)
+                $name = (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Context.TargetId, '#{session_name}')).StdOut.Trim()
+                if ($Result[0] -isnot [LibTmux.Session] -or $Result[0].Id.ToString() -cne $Context.TargetId -or
+                    $Result[0].Name -cne 'release' -or $name -cne 'release') {
+                    throw 'Session rename example did not return and apply the new name.'
+                }
+            } }
+        'LibTmux\Rename-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
+                param($Context)
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
+                $window = $server | LibTmux\Get-TmuxSession -Name 'fixture' |
+                    LibTmux\New-TmuxWindow -Name 'help-rename-window' -Command 'exec /bin/sh' -Confirm:$false
+                $Context.TargetId = $window.Id.ToString()
+            }; Assert = {
+                param($Result, $Context)
+                $name = (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Context.TargetId, '#{window_name}')).StdOut.Trim()
+                if ($Result[0] -isnot [LibTmux.Window] -or $Result[0].Id.ToString() -cne $Context.TargetId -or
+                    $Result[0].Name -cne 'logs' -or $name -cne 'logs') {
+                    throw 'Window rename example did not return and apply the new name.'
+                }
+            } }
         'LibTmux\Remove-TmuxPane#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath

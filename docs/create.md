@@ -30,6 +30,20 @@ $session = $server |
 - Names and working directories keep tmux's format expansion, including the
   meaning of `#`.
 
+## Rename a session or window
+
+[`Rename-TmuxSession`](reference/LibTmux/Rename-TmuxSession.md) and
+[`Rename-TmuxWindow`](reference/LibTmux/Rename-TmuxWindow.md) take a handle
+from the pipeline, as a read such as `Get-TmuxSession` or `Get-TmuxWindow`
+returns it, and a new `-Name`. They emit nothing unless `-PassThru` asks for the
+replacement handle, which carries the new name. The handle you passed in keeps
+the name it captured, so assign the replacement when you need the new one.
+
+A rename supports `-WhatIf`, which contacts nothing, and an empty name is
+rejected before tmux is called. As with creation, tmux expands the name as a
+format. The error IDs are `Tmux.SessionRenameFailed` and
+`Tmux.WindowRenameFailed`.
+
 ## Create a window or split
 
 Create a window at an explicit nonnegative index and make it current:
