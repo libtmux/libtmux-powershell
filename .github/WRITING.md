@@ -137,7 +137,8 @@ Change it in all of them together.
   (`PSScriptAnalyzerSettings.psd1`, installed by `eng/Setup.ps1`) checks
   braces and whitespace but never wraps, and `dotnet format` never wraps
   either. The example files and pages are held to 80 columns by the width
-  check, `python3 eng/check_example_width.py`.
+  check, the `check-example-width` action of libtmux/.github, which
+  [CONTRIBUTING](CONTRIBUTING.md#build-and-check-modules) shows how to run.
 - **Not formatted:** every example: README and `docs/` fences,
   `examples/*.ps1`, and the `docs/reference/` help examples. Hold them to
   80 by hand.

@@ -252,10 +252,14 @@ $ pwsh -NoLogo -NoProfile -File eng/Lint.ps1
 ```
 
 Check that code blocks in every Markdown page and the example programs stay
-within 80 columns:
+within 80 columns. CI runs the shared
+[check-example-width](https://github.com/libtmux/.github/blob/bd3bae79572512da032287202d74c8da03b5967b/actions/check-example-width/README.md)
+action of libtmux/.github, pinned in `ci.yml`. Run its helper with uv, at the
+same commit, from the repository root:
 
 ```console
-$ python3 eng/check_example_width.py
+$ uv run \
+    https://raw.githubusercontent.com/libtmux/.github/bd3bae79572512da032287202d74c8da03b5967b/actions/check-example-width/check_example_width.py
 ```
 
 Check that the README pages link each package directory, link the first
