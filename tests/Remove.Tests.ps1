@@ -10,7 +10,7 @@ function Assert-True([bool] $Condition, [string] $Message) {
     if (-not $Condition) { throw $Message }
 }
 
-foreach ($name in @('Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane')) {
+foreach ($name in @('Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane', 'Stop-TmuxServer')) {
     Assert-True ($null -ne (Get-Command "LibTmux\$name" -ErrorAction SilentlyContinue)) "Installed module does not export $name."
 }
 
@@ -214,4 +214,44 @@ Invoke-WithOwnedTmux {
     }
 }
 
-'PASS: installed native removals, zero output, confirmation previews, target errors, shared topology and generation isolation'
+# Stopping a server ends its daemon, and only that daemon.
+Invoke-WithOwnedTmux {
+    param($fixture)
+    $trace = Join-Path $fixture.DirectoryPath 'calls'
+    $wrapper = Join-Path $fixture.DirectoryPath 'tmux'
+    $quotedTmux = "'" + $fixture.TmuxPath.Replace("'", "'\''") + "'"
+    $quotedTrace = "'" + $trace.Replace("'", "'\''") + "'"
+    @"
+#!/bin/sh
+case "`$*" in
+*"run-shell -C libtmux-version-"*|"-V") ;;
+*) printf '%s\n' tmux >> $quotedTrace ;;
+esac
+exec $quotedTmux "`$@"
+"@ | Set-Content -LiteralPath $wrapper
+    [IO.File]::SetUnixFileMode($wrapper, [IO.UnixFileMode]::UserRead -bor
+        [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $wrapper -ConfigurationFile '/dev/null'
+    $null = $server | LibTmux\Get-TmuxSession
+    $before = [IO.File]::ReadAllLines($trace).Length
+    $output = @($server | LibTmux\Stop-TmuxServer -WhatIf)
+    $output += @(@() | LibTmux\Stop-TmuxServer -Confirm:$false)
+    Assert-True ($output.Count -eq 0 -and [IO.File]::ReadAllLines($trace).Length -eq $before -and
+        !$fixture.ServerProcess.HasExited) 'Stop-TmuxServer preview or empty pipeline dispatched, emitted output or stopped the daemon.'
+    $stopped = $fixture
+    Invoke-WithOwnedTmux {
+        param($other)
+        $output = @($server | LibTmux\Stop-TmuxServer -Confirm:$false)
+        Assert-True ($output.Count -eq 0) 'Stop-TmuxServer emitted a success object.'
+        Assert-True ($stopped.ServerProcess.WaitForExit(1000)) 'Stop-TmuxServer left its daemon running.'
+        $answer = Invoke-OwnedTmux $stopped -Arguments @('-N', 'list-sessions') -AllowFailure -CancellationToken ([Threading.CancellationToken]::None)
+        Assert-True ($answer.ExitCode -ne 0) 'Stop-TmuxServer left a daemon answering on its socket.'
+        $survivors = (Invoke-OwnedTmux $other -Arguments @('list-sessions', '-F', '#{session_name}')).StdOut.Trim()
+        Assert-True ($survivors -ceq 'fixture') 'Stop-TmuxServer reached another server.'
+        $again = @($server | LibTmux\Stop-TmuxServer -Confirm:$false -ErrorAction Stop)
+        $answer = Invoke-OwnedTmux $stopped -Arguments @('-N', 'list-sessions') -AllowFailure -CancellationToken ([Threading.CancellationToken]::None)
+        Assert-True ($again.Count -eq 0 -and $answer.ExitCode -ne 0) 'Stopping a server that is already gone failed or started one.'
+    }
+}
+
+'PASS: installed native removals, zero output, confirmation previews, target errors, shared topology, generation isolation and server stop'

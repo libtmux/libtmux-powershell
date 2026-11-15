@@ -628,8 +628,8 @@ Import-Module -Name @(
 ### [`examples/QuickStart.ps1`](examples/QuickStart.ps1): a private server and three panes
 
 Run it from the checkout root. It starts a private server, splits the `editor`
-window, adds `logs`, and returns a captured [`LibTmux.Session`][session]. Show
-each window's pane IDs:
+window, adds `logs`, stops the server, and returns a captured
+[`LibTmux.Session`][session]. Show each window's pane IDs:
 
 <!-- example: readme.quickstart -->
 ```powershell

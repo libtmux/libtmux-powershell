@@ -92,11 +92,13 @@ Invoke-TmuxQuery, Get-TmuxQueryField, Get-TmuxQueryPlan,
 New-TmuxWindowLink create, and New-TmuxSession can start a daemon that is not
 running yet. Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize and
 Set-TmuxWindowSize rearrange. Remove-TmuxSession, Remove-TmuxWindow,
-Remove-TmuxWindowLink and Remove-TmuxPane delete.
+Remove-TmuxWindowLink and Remove-TmuxPane delete, and Stop-TmuxServer ends the
+whole server.
 
 New-TmuxSession, New-TmuxWindow, Split-TmuxPane, New-TmuxWindowLink,
 Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize, Set-TmuxWindowSize,
-Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink and Remove-TmuxPane
+Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink, Remove-TmuxPane
+and Stop-TmuxServer
 
 **Options and hooks.** Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
 read, write and unset options on a server, session, window or pane.

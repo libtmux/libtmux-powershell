@@ -655,6 +655,18 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 Assert-HelpRemovalOutcome $Context @('list-windows', '-a', '-F', '#{window_id}')
             } }
+        'LibTmux\Stop-TmuxServer#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
+                param($Context)
+                # The example stops its own server, so it gets one beside the shared fixture.
+                $Context.Stopped = New-OwnedTmuxFixture
+                $server = LibTmux\New-TmuxServer -SocketPath $Context.Stopped.SocketPath -TmuxBinaryPath $Context.Stopped.TmuxPath
+            }; Assert = {
+                param($Result, $Context)
+                if (-not $Context.Stopped.ServerProcess.WaitForExit(1000)) { throw 'Server stop example left its daemon running.' }
+            }; Cleanup = {
+                param($Context)
+                if ($Context.ContainsKey('Stopped')) { Remove-OwnedTmuxFixture $Context.Stopped }
+            } }
         'LibTmux\Remove-TmuxPane#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath

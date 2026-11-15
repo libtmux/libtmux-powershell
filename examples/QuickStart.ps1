@@ -19,5 +19,5 @@ try {
         Select-TmuxSession -Criteria @{ Name = 'demo' } -ExactlyOne
     $captured
 } finally {
-    if ($session) { $session | Remove-TmuxSession -Confirm:$false }
+    $server | Stop-TmuxServer -Confirm:$false
 }

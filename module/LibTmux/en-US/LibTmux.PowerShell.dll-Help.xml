@@ -5106,11 +5106,13 @@ Changing things. New-TmuxSession, New-TmuxWindow, Split-TmuxPane and
 New-TmuxWindowLink create, and New-TmuxSession can start a daemon that is not
 running yet. Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize and
 Set-TmuxWindowSize rearrange. Remove-TmuxSession, Remove-TmuxWindow,
-Remove-TmuxWindowLink and Remove-TmuxPane delete.
+Remove-TmuxWindowLink and Remove-TmuxPane delete, and Stop-TmuxServer ends the
+whole server.
 
 New-TmuxSession, New-TmuxWindow, Split-TmuxPane, New-TmuxWindowLink,
 Move-TmuxWindow, Set-TmuxLayout, Set-TmuxPaneSize, Set-TmuxWindowSize,
-Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink and Remove-TmuxPane
+Remove-TmuxSession, Remove-TmuxWindow, Remove-TmuxWindowLink, Remove-TmuxPane
+and Stop-TmuxServer
 
 Options and hooks. Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
 read, write and unset options on a server, session, window or pane.
@@ -11142,6 +11144,142 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
       <maml:navigationLink>
         <maml:linkText>Task guide</maml:linkText>
         <maml:uri>../../create.md</maml:uri>
+      </maml:navigationLink>
+    </command:relatedLinks>
+  </command:command>
+  <command:command>
+    <command:details>
+      <command:name>Stop-TmuxServer</command:name>
+      <maml:description>
+        <maml:para>Stop a native tmux server without emitting an object.</maml:para>
+      </maml:description>
+      <command:verb>Stop</command:verb>
+      <command:noun>TmuxServer</command:noun>
+    </command:details>
+    <maml:description>
+      <maml:para>Stop the tmux server that the supplied native LibTmux.Server handle names, with
+the tmux kill-server command. Every session, window and pane on that server is
+destroyed and its daemon exits. Use it to end a private server you started, such
+as one named by New-TmuxServer on a socket of its own.
+
+A server that is already gone is the requested outcome, so an absent daemon
+succeeds and nothing is stopped. This high-impact operation requests
+confirmation by default. WhatIf performs no tmux I/O. Cancellation does not
+restore a stopped server.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Stop-TmuxServer</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="0" aliases="none">
+          <maml:name>Server</maml:name>
+          <maml:description />
+          <command:parameterValue required="true" variableLength="false">Server</command:parameterValue>
+          <dev:type>
+            <maml:name>LibTmux.Server</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="cf">
+        <maml:name>Confirm</maml:name>
+        <maml:description>
+          <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByValue)" position="0" aliases="none">
+        <maml:name>Server</maml:name>
+        <maml:description>
+          <maml:para>The native server to stop. Create it with New-TmuxServer, or select it with
+Get-TmuxServer, on the endpoint you intend to end.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">LibTmux.Server</command:parameterValue>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="wi">
+        <maml:name>WhatIf</maml:name>
+        <maml:description>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+    </command:parameters>
+    <command:inputTypes>
+      <command:inputType>
+        <dev:type>
+          <maml:name>LibTmux.Server</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>A native LibTmux.Server naming the endpoint to stop.</maml:para>
+        </maml:description>
+      </command:inputType>
+    </command:inputTypes>
+    <command:returnValues>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>None</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para>No success objects are emitted. An empty input pipeline performs no work.</maml:para>
+        </maml:description>
+      </command:returnValue>
+    </command:returnValues>
+    <maml:alertSet>
+      <maml:alert>
+        <maml:para>Failures use Tmux.ServerStopFailed and retain the original core exception, its
+dispatch information and the failed server. The stop is never retried. Session,
+window and pane handles read from the stopped server no longer name anything.</maml:para>
+      </maml:alert>
+    </maml:alertSet>
+    <command:examples>
+      <command:example>
+        <maml:title>--------- Example 1 ---------</maml:title>
+        <maml:introduction>
+          <maml:para>Stop the previously created $server, a private endpoint you own. This example
+explicitly suppresses confirmation; omitting Confirm uses the normal
+high-impact confirmation behavior.</maml:para>
+          <maml:para />
+          <maml:para>```powershell
+$server | LibTmux\Stop-TmuxServer -Confirm:$false
+```</maml:para>
+        </maml:introduction>
+        <dev:code />
+        <dev:remarks />
+      </command:example>
+    </command:examples>
+    <command:relatedLinks>
+      <maml:navigationLink>
+        <maml:linkText>Online Version</maml:linkText>
+        <maml:uri>https://github.com/libtmux/libtmux-powershell/blob/master/docs/reference/LibTmux/Stop-TmuxServer.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Remove sessions, windows and panes</maml:linkText>
+        <maml:uri>../../remove.md</maml:uri>
+      </maml:navigationLink>
+      <maml:navigationLink>
+        <maml:linkText>Choose endpoints and owners</maml:linkText>
+        <maml:uri>../../read.md</maml:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

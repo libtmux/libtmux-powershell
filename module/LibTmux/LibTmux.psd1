@@ -17,7 +17,7 @@
         'Select-TmuxSession', 'Select-TmuxWindow', 'Select-TmuxPane',
         'Get-TmuxPaneContent', 'Invoke-TmuxCommand', 'Update-TmuxPane',
         'New-TmuxSession', 'New-TmuxWindow', 'Split-TmuxPane',
-        'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane',
+        'Remove-TmuxSession', 'Remove-TmuxWindow', 'Remove-TmuxPane', 'Stop-TmuxServer',
         'New-TmuxWindowLink', 'Move-TmuxWindow', 'Remove-TmuxWindowLink',
         'Send-TmuxText', 'Send-TmuxKey', 'Invoke-TmuxPaneCommand', 'Wait-TmuxChannel', 'Wait-TmuxPaneText',
         'Get-TmuxOption', 'Set-TmuxOption', 'Remove-TmuxOption',

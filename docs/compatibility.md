@@ -186,8 +186,9 @@ modules it is 0.1.0-alpha2.
 - **Control clients:** `Connect-TmuxControl` attaches only after the same check,
   so `Invoke-TmuxControlCommand` and `Watch-TmuxEvent` need none on its
   connection.
-- **`kill-server`:** `Invoke-TmuxCommand kill-server` against an endpoint where
-  no daemon answers returns an empty successful result and dispatches nothing.
+- **`kill-server`:** `Stop-TmuxServer`, and `Invoke-TmuxCommand kill-server`,
+  against an endpoint where no daemon answers return an empty successful result
+  and dispatch nothing.
 - **Registry:** one registry in the module holds these requirements and writes
   [`capabilities.json`](../capabilities.json) for the documentation site. The
   module infers what a release can do from the daemon's version, because tmux

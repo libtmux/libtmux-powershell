@@ -225,7 +225,8 @@ try {
         $quickStartView[1].Name -ceq 'logs' -and $quickStartView[1].PaneIds -ceq '%2') 'the README quick start view does not match its output'
 } finally {
     if ($socketName -and (Invoke-NamedTmux $tmux $socketName 'list-sessions') -eq 0) {
-        $null = Invoke-NamedTmux $tmux $socketName 'kill-server'
+        LibTmux\New-TmuxServer -SocketName $socketName -TmuxBinaryPath $tmux -ConfigurationFile /dev/null |
+            LibTmux\Stop-TmuxServer -Confirm:$false
     }
 }
 

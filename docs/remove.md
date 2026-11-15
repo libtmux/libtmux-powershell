@@ -55,6 +55,19 @@ To remove one session placement while preserving other links, use
 $pane | Remove-TmuxPane -Confirm:$false
 ```
 
+## Stop a server
+
+[`Stop-TmuxServer`](reference/LibTmux/Stop-TmuxServer.md) stops the whole server
+that a `LibTmux.Server` handle names, with `kill-server`: every session, window
+and pane on it ends. Use it to finish with a private server you started, such as
+one [`New-TmuxServer`](reference/LibTmux/New-TmuxServer.md) named with a socket
+of its own, instead of removing its sessions one by one.
+
+It follows the same rules as the removals above: high confirmation impact, no
+success object, `-WhatIf` contacts nothing, and an empty pipeline does nothing.
+A server that is already gone counts as stopped, so it is not an error. The
+other error rules below apply with the ID `Tmux.ServerStopFailed`.
+
 ## Errors and cancellation
 
 - **Error IDs:** [`Tmux.SessionRemoveFailed`][removetmuxsessioncommand],
