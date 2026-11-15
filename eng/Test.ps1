@@ -143,19 +143,13 @@ function Invoke-TestScript([string] $Script, [string[]] $Arguments = @(), [strin
     }
 }
 
-# Socket and Sandbox start the recording tmux for every call they check. Building it takes
-# several seconds, so it starts now, beside the suites that run first, and neither waits for it.
-$recorderBuild = $null
-if ($Suite -in @('Sandbox', 'Socket', 'Product', 'All')) {
-    $start = [Diagnostics.ProcessStartInfo]::new($pwsh)
-    $start.UseShellExecute = $false
-    Clear-TestSandboxSelector $start
-    foreach ($argument in @('-NoLogo', '-NoProfile', '-Command',
-        ". '$root/tests/support/RecordingTmux.ps1'; `$null = Get-RecordingTmuxBuild")) { $start.ArgumentList.Add($argument) }
-    $recorderBuild = [Diagnostics.Process]::Start($start)
-}
-
 try {
+    # Socket and Sandbox start the recording tmux for every call they check. It builds here,
+    # once, before any suite starts, so the build never competes with them for the CPU.
+    if ($Suite -in @('Sandbox', 'Socket', 'Product', 'All')) {
+        . "$root/tests/support/RecordingTmux.ps1"
+        $null = Get-RecordingTmuxBuild
+    }
     if ($Suite -eq 'Install') {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
@@ -376,9 +370,6 @@ try {
     if ($leaks.Count) { throw "A default socket or a server was left in the test sandbox: $($leaks -join ', ')." }
     $passed = $true
 } finally {
-    if ($recorderBuild) {
-        try { if (!$recorderBuild.WaitForExit(120000)) { $recorderBuild.Kill($true) } } finally { $recorderBuild.Dispose() }
-    }
     # What the exit finds was not there when the scan ran, so a pass does not stand.
     $late = @(Exit-TestSandbox)
     $appeared = $passed -and $late.Count -gt 0
