@@ -379,13 +379,39 @@ build-only check. An immutable version must still identify its original
 source and package version. Inspect the build provenance and hosted page
 after publishing; a successful native export alone is not publication proof.
 
+## Support scripts
+
+CI and release helpers are PowerShell scripts under `scripts/<name>/`, run with
+`pwsh -File`. Each has a README that says what it does and who runs it, and a
+`tests/` directory. The tests are plain scripts that throw on a failure, like
+the others here, and plant each fault they guard against. `eng/Lint.ps1`
+analyses the scripts, and the `port` job in `ci.yml` runs their tests.
+[SCRIPTS.md](SCRIPTS.md) is the policy.
+
+| Script | What it does |
+| --- | --- |
+| [plan-matrix](../scripts/plan-matrix/README.md) | Plans the Linux jobs from the tmux table, and checks the gate |
+| [release-artifacts](../scripts/release-artifacts/README.md) | Binds a release to the packages CI tested |
+| [check-workflows](../scripts/check-workflows/README.md) | Checks the workflows against the plan, the release gate and the shared actions |
+
+Run one script's tests, for example the planner's:
+
+```console
+$ pwsh -NoLogo -NoProfile -File scripts/plan-matrix/tests/PlanMatrix.Tests.ps1
+```
+
+CI runs the shared actions of
+[libtmux/.github](https://github.com/libtmux/.github) for `apt-get`, the tmux
+build and the example-width check, each pinned to a full commit SHA. A change
+to one of them lands there, and a workflow here moves its pin to take it.
+
 ## Running CI against any tmux
 
 A push and a pull request run the oldest and the newest tmux release in
-[`eng/ci/matrix.json`](../eng/ci/matrix.json), each on both PowerShell
+[`matrix.json`](../scripts/plan-matrix/matrix.json), each on both PowerShell
 versions. The whole table, tmux master and the refusal lanes run only when a
-dispatch asks for `scope=full`. `eng/ci/plan_matrix.py` decides this from the
-manifest and the event, so the workflow lists no version.
+dispatch asks for `scope=full`. [`PlanMatrix.ps1`](../scripts/plan-matrix/README.md)
+decides this from the manifest and the event, so the workflow lists no version.
 
 A dispatch runs any branch against a tmux outside the table. The workflow file
 has to be on the default branch before `gh workflow run` finds it. This builds

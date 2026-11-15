@@ -30,7 +30,7 @@ on:
         default: ''
       pwsh:
         description: >-
-          Comma-separated PowerShell versions from eng/ci/matrix.json, such as
+          Comma-separated PowerShell versions from scripts/plan-matrix/matrix.json, such as
           7.4.20,7.6.6. Empty runs both.
         type: string
         default: ''
@@ -61,10 +61,10 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
 jobs:
-  # What a run covers is decided here from eng/ci/matrix.json and the event, so
-  # no job below lists a version. A push and a pull request test the oldest and
-  # newest tmux release; a dispatch with scope full tests the whole table, and
-  # a Gallery release is bound to such a run.
+  # What a run covers is decided here from scripts/plan-matrix/matrix.json and
+  # the event, so no job below lists a version. A push and a pull request test
+  # the oldest and newest tmux release; a dispatch with scope full tests the
+  # whole table, and a Gallery release is bound to such a run.
   plan:
     name: plan
     runs-on: ubuntu-24.04
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: eng/ci
+          sparse-checkout: scripts/plan-matrix
 
       - name: Plan the run
         id: plan
@@ -89,14 +89,14 @@ jobs:
           PWSH: ${{ inputs.pwsh }}
           TMATE: ${{ inputs.tmate }}
         run: |
-          python3 eng/ci/plan_matrix.py plan \
-            --event "${EVENT}" \
-            --scope "${SCOPE}" \
-            --tmux-ref "${TMUX_REF}" \
-            --pwsh "${PWSH}" \
-            --tmate "${TMATE}" \
-            --github-output "${GITHUB_OUTPUT}" \
-            --summary "${GITHUB_STEP_SUMMARY}"
+          pwsh -NoLogo -NoProfile -File scripts/plan-matrix/PlanMatrix.ps1 plan \
+            -EventName "${EVENT}" \
+            -Scope "${SCOPE}" \
+            -TmuxRef "${TMUX_REF}" \
+            -Pwsh "${PWSH}" \
+            -Tmate "${TMATE}" \
+            -GithubOutput "${GITHUB_OUTPUT}" \
+            -Summary "${GITHUB_STEP_SUMMARY}"
 
   port:
     needs: plan
@@ -123,6 +123,14 @@ jobs:
           chmod +x "${RUNNER_TEMP}/powershell/pwsh"
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
             "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
+
+      - name: Test the support scripts
+        run: |
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/PlanMatrix.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/MatrixManifest.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/release-artifacts/tests/ReleaseArtifacts.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/tests/CheckWorkflows.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/CheckWorkflows.ps1
 
       - name: Test optional review dependency helpers
         run: python3 -m unittest discover -s eng/ci -p 'test_*.py'
@@ -509,9 +517,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: eng/ci
+          sparse-checkout: scripts/plan-matrix
 
       - name: Require every planned job
         env:
           NEEDS: ${{ toJSON(needs) }}
-        run: python3 eng/ci/plan_matrix.py gate
+        run: pwsh -NoLogo -NoProfile -File scripts/plan-matrix/PlanMatrix.ps1 gate

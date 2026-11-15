@@ -14,7 +14,7 @@ try {
     # Analyzer command discovery must not scan arbitrary mounted executable paths.
     $env:PATH = ''
     $env:PSModulePath = @("$root/build/tool-modules", "$root/build/Modules", "$PSHOME/Modules") -join [IO.Path]::PathSeparator
-    $diagnostics = @(foreach ($directory in @('eng', 'module', 'tests', 'examples')) {
+    $diagnostics = @(foreach ($directory in @('eng', 'module', 'scripts', 'tests', 'examples')) {
         Invoke-ScriptAnalyzer -Path "$root/$directory" -Recurse -Settings $settings -Severity Error, Warning
     })
 } finally {
