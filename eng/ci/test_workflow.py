@@ -372,9 +372,9 @@ class WorkflowFollowsThePlan(unittest.TestCase):
 
     def test_a_pin_copied_back_into_the_workflow_is_reported(self):
         commit = MANIFEST["supported"][0]["commit"]
-        self.mutated("run: eng/ci/build-tmux.sh --resolve", f"run: echo {commit}; eng/ci/build-tmux.sh --resolve",
-                     "belongs in the manifest")
-        self.mutated("      - name: Resolve the tmux ref\n", "      - name: Resolve '3.8'\n",
+        run = "run: printf 'TMUX_BINARY=%s\\n' \"${REF_BINARY}\""
+        self.mutated(run, f"run: echo {commit}; {run[5:]}", "belongs in the manifest")
+        self.mutated("      - name: Select the ref build\n", "      - name: Select the '3.8' build\n",
                      "tmux 3.8 belongs in the manifest")
 
     def test_the_debugging_session_stays_pinned_limited_and_bounded(self):

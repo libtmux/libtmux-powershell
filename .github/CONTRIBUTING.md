@@ -403,8 +403,9 @@ $ gh workflow run ci.yml \
 [github.com/tmux/tmux](https://github.com/tmux/tmux), separated by commas, and
 needs `scope=custom`. A name in the manifest keeps its pinned commit and build
 path. Any other ref is resolved to a commit, cached by that commit, and built
-from source. Reproduce that build locally with
-`eng/ci/build-tmux.sh --ref 3.6b`.
+from source, by the shared
+[build-tmux](https://github.com/libtmux/.github/blob/bd3bae79572512da032287202d74c8da03b5967b/actions/build-tmux/README.md)
+action. Its README says how to run the same build locally.
 `pwsh` takes versions listed in the manifest, because each needs an archive
 hash, and an empty value runs both. The Linux jobs have no macOS option; the
 [macOS trial](workflows/macos-trial.yml) is a separate advisory workflow.

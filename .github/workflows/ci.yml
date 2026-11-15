@@ -234,31 +234,21 @@ jobs:
           key: tmux-${{ matrix.tmux }}-${{ runner.os }}-${{ hashFiles('core/eng/tmux/build-version.sh') }}
 
       # A tag, branch or commit outside the table is built from source at the
-      # commit it names. The commit is resolved first so that the cache key
-      # holds it and never the branch name.
-      - name: Resolve the tmux ref
-        id: resolve
-        if: matrix.build == 'ref'
-        env:
-          TMUX_REF: ${{ matrix.tmux }}
-        run: eng/ci/build-tmux.sh --resolve "${TMUX_REF}" | tee -a "${GITHUB_OUTPUT}"
-
-      - name: Restore the tmux ref build
-        if: matrix.build == 'ref'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: build/tmux-ref
-          key: tmux-ref-${{ steps.resolve.outputs.commit }}-${{ runner.os }}-${{ hashFiles('eng/ci/build-tmux.sh') }}
-
+      # commit it names. The action resolves the commit first, so its cache key
+      # holds the commit and never the branch name.
       - name: Build and identify tmux ${{ matrix.tmux }} from a ref
+        id: ref-tmux
+        if: matrix.build == 'ref'
+        uses: libtmux/.github/actions/build-tmux@bd3bae79572512da032287202d74c8da03b5967b
+        with:
+          ref: ${{ matrix.tmux }}
+          add-to-path: 'true'
+
+      - name: Select the ref build
         if: matrix.build == 'ref'
         env:
-          TMUX_COMMIT: ${{ steps.resolve.outputs.commit }}
-        run: |
-          eng/ci/build-tmux.sh --ref "${TMUX_COMMIT}" | tee "${RUNNER_TEMP}/tmux-ref.txt"
-          binary="$(sed -n 's/^binary=//p' "${RUNNER_TEMP}/tmux-ref.txt")"
-          dirname "${binary}" >> "${GITHUB_PATH}"
-          printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
+          REF_BINARY: ${{ steps.ref-tmux.outputs.binary }}
+        run: printf 'TMUX_BINARY=%s\n' "${REF_BINARY}" >> "${GITHUB_ENV}"
 
       - name: Build and identify tmux ${{ matrix.tmux }} from source
         if: matrix.build == 'clone'
