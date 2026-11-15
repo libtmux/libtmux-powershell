@@ -5,12 +5,17 @@ param(
     [Parameter(Mandatory)] [string] $SessionId,
     [Parameter(Mandatory)] [ValidateSet('Detach', 'ReadOnly', 'Cancel', 'Nested', 'WhatIf', 'Redirected')] [string] $Mode,
     [string] $CancelChannel,
-    [long] $ReadyHandle = -1,
+    # The owner's tmux, socket and channel: the child signals the channel once it has prepared.
+    [string] $ReadyBinary,
+    [string] $ReadySocket,
+    [string] $ReadyChannel,
     [Parameter(Mandatory)] [string] $ResultPath
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# The owner's tmux pane hands this process its own TMUX; the attachment is to the borrowed daemon.
+foreach ($name in @('TMUX', 'TMUX_PANE')) { [Environment]::SetEnvironmentVariable($name, $null) }
 $module = Join-Path $ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1'
 Import-Module $module
 $server = LibTmux\New-TmuxServer -SocketPath $Socket -TmuxBinaryPath $Binary
@@ -19,18 +24,18 @@ $report = @{ mode = $Mode; outcome = 'NotStarted'; powershell = $PSVersionTable.
 $runspace = $null
 $pipeline = $null
 function Send-AttachmentPrepared {
-    param([long] $Descriptor)
-    if ($Descriptor -lt 0) { return }
-    $handle = [Microsoft.Win32.SafeHandles.SafeFileHandle]::new([IntPtr] $Descriptor, $true)
-    $stream = $null
-    try {
-        $stream = [IO.FileStream]::new($handle, [IO.FileAccess]::Write)
-        $stream.WriteByte(1)
-        $stream.Flush()
-    } finally {
-        if ($stream) { $stream.Dispose() } else { $handle.Dispose() }
-    }
+    if (!$ReadyChannel) { return }
+    & $ReadyBinary -S $ReadySocket -f /dev/null wait-for -S $ReadyChannel
+    if ($LASTEXITCODE) { throw 'The owner did not accept the readiness signal.' }
 }
+# The terminal settings stty reports, so the owner can see that attaching restored them.
+function Get-TerminalState {
+    if ([Console]::IsInputRedirected) { return $null }
+    $state = & stty -g
+    if ($LASTEXITCODE) { throw 'Cannot read the terminal settings.' }
+    "$state"
+}
+$report.terminalBefore = Get-TerminalState
 try {
     if ($Mode -ceq 'Detach') {
         Import-Module (Join-Path $ModuleRoot 'LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1')
@@ -68,7 +73,7 @@ windows:
         $pipeline = [PowerShell]::Create()
         $pipeline.Runspace = $runspace
         $null = $pipeline.AddCommand('LibTmux\Enter-TmuxSession').AddParameter('Session', $session)
-        Send-AttachmentPrepared $ReadyHandle
+        Send-AttachmentPrepared
         $invocation = $pipeline.BeginInvoke()
         $wait = $server.OpenWaitChannel($CancelChannel)
         try {
@@ -118,13 +123,13 @@ windows:
             $code = Get-HelpExampleCode @($help.examples.example)[1] 'Enter-TmuxSession'
             $assertion = (Get-HelpExampleAssertion)[$id]
             $script = [scriptblock]::Create($code)
-            Send-AttachmentPrepared $ReadyHandle
+            Send-AttachmentPrepared
             $result = @(& $script)
             & $assertion.Assert $result @{ Session = $session }
             $report.example = $id
             $report.codeSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($code)))
         } else {
-            Send-AttachmentPrepared $ReadyHandle
+            Send-AttachmentPrepared
             $result = @($session | LibTmux\Enter-TmuxSession)
         }
         if ($result.Count -ne 1 -or $result[0] -isnot [LibTmux.Session] -or
@@ -140,6 +145,7 @@ windows:
     throw
 } finally {
     try {
+        $report.terminalAfter = Get-TerminalState
         if ($pipeline) { $pipeline.Dispose() }
     } finally {
         try { if ($runspace) { $runspace.Dispose() } } finally {

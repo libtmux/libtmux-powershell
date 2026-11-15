@@ -138,17 +138,10 @@ jobs:
           path: core
           persist-credentials: false
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.13.15'
-          architecture: ${{ matrix.asset_arch }}
-
-      - name: Verify Python PTY support and runner architecture
+      - name: Verify the runner architecture
         env:
           EXPECTED_ARCH: ${{ matrix.arch }}
-        run: |
-          test "$(uname -m)" = "${EXPECTED_ARCH}"
-          python3 -c 'import os, platform, sys; assert sys.version_info[:3] == (3, 13, 15); assert platform.machine() == os.environ["EXPECTED_ARCH"]; assert hasattr(os, "waitid") and hasattr(os, "WNOWAIT")'
+        run: test "$(uname -m)" = "${EXPECTED_ARCH}"
 
       - name: Install official PowerShell ${{ matrix.powershell }}
         env:
@@ -249,14 +242,13 @@ jobs:
             --arg tmux "${TMUX_VERSION}" \
             --arg tmuxCommit "${TMUX_SOURCE_COMMIT}" \
             --arg tmuxSha256 "$(shasum -a 256 "${TMUX_BINARY}" | awk '{print $1}')" \
-            --arg python "$(python3 --version)" \
             --rawfile buildDependencies "${RUNNER_TEMP}/tmux-build-dependencies.txt" \
             --slurpfile packages "${RUNNER_TEMP}/port-package/package-evidence.json" \
             '{runner:$runner,arch:$arch,coreRevision:$core,corePackageVersion:$corePackageVersion,
               powershell:$powershell,powershellSha256:$powershellSha256,
               powershellBinarySha256:$powershellBinarySha256,
               tmux:$tmux,tmuxCommit:$tmuxCommit,tmuxSha256:$tmuxSha256,
-              python:$python,buildDependencies:$buildDependencies,packages:$packages[0].packages}' \
+              buildDependencies:$buildDependencies,packages:$packages[0].packages}' \
             > build/macos-provenance.json
 
       - name: Run installed version check suite
