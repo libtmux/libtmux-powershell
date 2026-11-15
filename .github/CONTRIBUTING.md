@@ -193,10 +193,10 @@ $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
     -PackageRoot artifacts/local-build
 ```
 
-The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Rename`, `Input`,
-`Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Placement`, `Clients`,
-`Formatting`, `Runtime`, `Help` and `Examples` suites use the same artifact
-argument. Run `Product` and `Documentation` separately for the complete
+The `Sandbox`, `Socket`, `Snapshot`, `Capture`, `Create`, `Remove`, `Rename`,
+`Input`, `Wait`, `Options`, `Hooks`, `Environment`, `Layout`, `Placement`,
+`Clients`, `Formatting`, `Runtime`, `Help` and `Examples` suites use the same
+artifact argument. Run `Product` and `Documentation` separately for the complete
 implemented checks within the outer-loop budget. `All` combines those
 selections; none establishes the full architecture or compatibility matrix.
 The runner enters the [test sandbox](#test-sandbox), so every test child
@@ -642,9 +642,10 @@ passes for each variable, parameter and `TMUX`.
 
 The `Sandbox` suite runs `tests/Sandbox.Tests.ps1` against a recording tmux,
 [tests/support/RecordingTmux](../tests/support/RecordingTmux/Program.cs), a small
-.NET program the suites build once, which keeps argument lists and variable names and nothing else. It plants a dirty
-environment and a default socket, and runs a copy of `eng/Test.ps1` against a
-stub suite, to show that each check can fail:
+.NET program the suites build once, which keeps argument lists and variable
+names and nothing else. It plants a dirty environment and a default socket, and
+runs a copy of `eng/Test.ps1` against a stub suite, to show that each check can
+fail:
 
 ```console
 $ pwsh -NoLogo -NoProfile -File eng/Test.ps1 \
