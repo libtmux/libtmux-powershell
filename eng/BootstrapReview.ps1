@@ -127,10 +127,10 @@ try {
         } finally { Pop-Location }
     }
 
-    $review = Join-Path $port 'eng/ci/review_dependencies.py'
+    $review = Join-Path $port 'scripts/review-dependencies/ReviewDependencies.ps1'
     $runId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $attempt = [Security.Cryptography.RandomNumberGenerator]::GetInt32(1, [int]::MaxValue)
-    $version = & $python $review version --run-id $runId --attempt $attempt
+    $version = & $pwsh -NoLogo -NoProfile -File $review version -RunId $runId -Attempt $attempt
     if ($LASTEXITCODE -or [string]::IsNullOrWhiteSpace($version)) {
         throw 'Cannot create a unique review package version from the committed dependency pin.'
     }
@@ -144,12 +144,12 @@ try {
         throw 'Inspected .NET package provenance differs from the requested version or revision.'
     }
 
-    Invoke-Native $python @($review, 'prepare', '--version', $version,
-        '--baseline', $baseline) 'Prepare disposable dependency pins'
+    Invoke-Native $pwsh @('-NoLogo', '-NoProfile', '-File', $review, 'prepare', '-Version', $version,
+        '-Baseline', $baseline) 'Prepare disposable dependency pins'
     Invoke-Native $pwsh @('-NoLogo', '-NoProfile', '-File', (Join-Path $port 'eng/Build.ps1'),
         '-Restore', '-UpdateLock', '-CorePackageDirectory', $feed, '-PackageCache', $cache) 'Build PowerShell modules'
-    Invoke-Native $python @($review, 'verify', '--version', $version,
-        '--baseline', $baseline) 'Verify disposable dependency locks'
+    Invoke-Native $pwsh @('-NoLogo', '-NoProfile', '-File', $review, 'verify', '-Version', $version,
+        '-Baseline', $baseline) 'Verify disposable dependency locks'
 
     foreach ($name in @('LibTmux', 'LibTmux.Query.Json', 'LibTmux.Workspace')) {
         $file = "$name.$version.nupkg"

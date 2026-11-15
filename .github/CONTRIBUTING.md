@@ -392,6 +392,7 @@ analyses the scripts, and the `port` job in `ci.yml` runs their tests.
 | --- | --- |
 | [plan-matrix](../scripts/plan-matrix/README.md) | Plans the Linux jobs from the tmux table, and checks the gate |
 | [release-artifacts](../scripts/release-artifacts/README.md) | Binds a release to the packages CI tested |
+| [review-dependencies](../scripts/review-dependencies/README.md) | Pins the shared packages to a disposable review build |
 | [check-workflows](../scripts/check-workflows/README.md) | Checks the workflows against the plan, the release gate and the shared actions |
 
 Run one script's tests, for example the planner's:

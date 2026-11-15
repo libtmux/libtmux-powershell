@@ -129,11 +129,9 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/PlanMatrix.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/MatrixManifest.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/release-artifacts/tests/ReleaseArtifacts.Tests.ps1
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/review-dependencies/tests/ReviewDependencies.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/tests/CheckWorkflows.Tests.ps1
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/CheckWorkflows.ps1
-
-      - name: Test optional review dependency helpers
-        run: python3 -m unittest discover -s eng/ci -p 'test_*.py'
 
       - name: Build from locked NuGet dependencies
         run: |
