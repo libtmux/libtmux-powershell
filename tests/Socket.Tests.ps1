@@ -76,7 +76,7 @@ function Get-RouteProblem($Calls, $Case) {
 
 $scratch = Join-Path $env:TMUX_TMPDIR 'socket'
 $null = New-Item -ItemType Directory -Path $scratch -Force
-$recorder = Join-Path $PSScriptRoot 'support/RecordingTmux.sh'
+$recorder = Install-RecordingTmux (Join-Path $scratch 'recorder')
 $name = 'libtmux-case-name'
 $other = 'libtmux-case-other'
 $path = Join-Path $scratch 'case-path.sock'

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- The tests put this program first on PATH as tmux. -->
+    <AssemblyName>tmux</AssemblyName>
+    <RootNamespace>LibTmux.Testing</RootNamespace>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

@@ -641,8 +641,8 @@ example `LIBTMUX_SOCKET=libtmux-dev pwsh`. The `Socket` suite runs
 passes for each variable, parameter and `TMUX`.
 
 The `Sandbox` suite runs `tests/Sandbox.Tests.ps1` against a recording tmux,
-[tests/support/RecordingTmux.sh](../tests/support/RecordingTmux.sh), which
-keeps argument lists and variable names and nothing else. It plants a dirty
+[tests/support/RecordingTmux](../tests/support/RecordingTmux/Program.cs), a small
+.NET program the suites build once, which keeps argument lists and variable names and nothing else. It plants a dirty
 environment and a default socket, and runs a copy of `eng/Test.ps1` against a
 stub suite, to show that each check can fail:
 

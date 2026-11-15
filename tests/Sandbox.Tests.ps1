@@ -26,7 +26,9 @@ $decoys = [ordered]@{
 $directory = $env:TMUX_TMPDIR
 $scratch = Join-Path $directory 'canary'
 $null = New-Item -ItemType Directory -Path $scratch -Force
-$recorder = Join-Path $PSScriptRoot 'support/RecordingTmux.sh'
+# A recording tmux first on PATH is what a child's sandbox, runner and servers are seen by.
+$bin = Join-Path $scratch 'bin'
+$recorder = Install-RecordingTmux $bin
 $tmux = (Get-Command tmux -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $ownerOnly = [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute
 $started = [Collections.Generic.List[object]]::new()
@@ -97,11 +99,6 @@ function Clear-ServedSandbox([string] $Report) {
 
 # --- Processes started now and read back below ------------------------------------------
 
-# A recording tmux first on PATH is what a child's sandbox, runner and servers are seen by.
-$bin = Join-Path $scratch 'bin'
-$null = New-Item -ItemType Directory -Path $bin -Force
-Copy-Item -LiteralPath $recorder -Destination (Join-Path $bin 'tmux')
-[IO.File]::SetUnixFileMode((Join-Path $bin 'tmux'), $ownerOnly)
 
 # A process that arrives dirty and without a sandbox gets one, removes it on exit and
 # fails the run if tmux chose the default socket in it. One started inside a sandbox
