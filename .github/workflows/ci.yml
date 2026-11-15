@@ -220,10 +220,12 @@ jobs:
             "if (\$PSVersionTable.PSVersion.ToString() -cne \$env:POWERSHELL_VERSION) { throw 'Unexpected PowerShell version' }"
 
       - name: Install tmux build dependencies
-        run: |
-          ./eng/ci/apt-get.sh update
-          ./eng/ci/apt-get.sh install --yes \
-            autoconf automake bison build-essential jq \
+        uses: libtmux/.github/actions/apt-get@bd3bae79572512da032287202d74c8da03b5967b
+        with:
+          update: 'true'
+          args: >-
+            install --yes
+            autoconf automake bison build-essential jq
             libevent-dev libncurses-dev pkg-config
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -383,10 +385,12 @@ jobs:
           chmod +x "${RUNNER_TEMP}/powershell/pwsh"
 
       - name: Install tmux build dependencies
-        run: |
-          ./eng/ci/apt-get.sh update
-          ./eng/ci/apt-get.sh install --yes \
-            autoconf automake bison build-essential \
+        uses: libtmux/.github/actions/apt-get@bd3bae79572512da032287202d74c8da03b5967b
+        with:
+          update: 'true'
+          args: >-
+            install --yes
+            autoconf automake bison build-essential
             libevent-dev libncurses-dev pkg-config
 
       - name: Build and identify tmux ${{ matrix.tmux }}
@@ -452,10 +456,12 @@ jobs:
           chmod +x "${RUNNER_TEMP}/powershell/pwsh"
 
       - name: Install tmux build dependencies
-        run: |
-          ./eng/ci/apt-get.sh update
-          ./eng/ci/apt-get.sh install --yes \
-            autoconf automake bison build-essential \
+        uses: libtmux/.github/actions/apt-get@bd3bae79572512da032287202d74c8da03b5967b
+        with:
+          update: 'true'
+          args: >-
+            install --yes
+            autoconf automake bison build-essential
             libevent-dev libncurses-dev pkg-config
 
       - name: Build the ${{ matrix.client_tmux }} client and the old daemon
