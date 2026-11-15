@@ -58,6 +58,18 @@ endpoint". (#65)
   `tests/fixtures/workspace/`, in the `WorkspaceFiles` suite. The docs site shows
   the files `Import-TmuxWorkspace` accepts as workspace presets, and each file it
   refuses fails with the error the test records.
+- Write the support scripts in PowerShell. The tmux matrix planner, the release
+  provenance check, the workflow check and the review dependency pins move from
+  Python to `scripts/`, each with a README and tests. The attachment tests take
+  their terminal from an owned tmux pane, the package feed is served by
+  `HttpListener`, and the recording tmux is a small .NET program the suites
+  build. No Python or shell script file remains, apart from the libtmux for .NET
+  review recipe that `eng/BootstrapReview.ps1` still runs. (#96)
+- Use the `apt-get`, `build-tmux` and `check-example-width` actions of
+  libtmux/.github, each pinned to a commit, in place of the copies of those
+  scripts this repository carried. The weekly job that compared the example-width
+  checker with libtmux/docs is gone, since the checker is no longer a copy.
+  (#96)
 
 ### Documentation
 
