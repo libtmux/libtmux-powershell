@@ -133,7 +133,7 @@ function Invoke-AttachmentCase {
             $want = @($Borrowed.Windows + $workspaceWindow | Sort-Object)
             Assert-Attachment (!@(Compare-Object $surviving $want -CaseSensitive).Count) "The session kept windows $($surviving -join ',') instead of $($want -join ',')."
         }
-        # Only the sentinel is left: the attaching client is gone, and so is nothing else.
+        # The attaching client is gone and the sentinel is the only client left.
         $clients = @(Get-AttachmentClient $Inner)
         Assert-Attachment ($clients.Count -eq 1 -and $clients[0][0] -ceq [string] $Sentinel.Id) "Clients left after the attachment: $(@($clients | ForEach-Object { $_ -join '|' }) -join '; ')."
         Assert-Attachment ((Invoke-AttachmentTmux $Inner @('display-message', '-p', '#{pid}:#{start_time}')).Trim() -ceq $Borrowed.Generation) 'The borrowed daemon was replaced.'

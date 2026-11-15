@@ -2,7 +2,7 @@
 
 # Builds the recording tmux once per source and returns the directory that holds it.
 # Socket and Sandbox start it for each tmux call they check, so it is a compiled
-# program that starts in a tenth of a second, where a PowerShell script took a second.
+# program: a PowerShell script starts too slowly for that many calls.
 function Get-RecordingTmuxBuild {
     $project = Join-Path $PSScriptRoot 'RecordingTmux'
     $sources = @('RecordingTmux.csproj', 'Program.cs') | ForEach-Object { Join-Path $project $_ }

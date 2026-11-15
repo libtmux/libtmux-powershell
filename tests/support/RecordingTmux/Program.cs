@@ -2,8 +2,8 @@
 // appends its argument list and the names of the selector variables it inherited
 // to $LIBTMUX_TEST_RECORD, never a value, and fails as a tmux with no server does.
 // RecordingTmux.ps1 reads the record. It is a program, not a script, because a
-// test starts it dozens of times and a PowerShell start costs a second under load.
-using System.Collections;
+// test starts it for every tmux call it checks and a PowerShell start is slow
+// enough to push the suites past their deadlines.
 using System.Text;
 
 string? record = Environment.GetEnvironmentVariable("LIBTMUX_TEST_RECORD");
