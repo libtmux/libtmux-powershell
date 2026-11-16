@@ -152,6 +152,11 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
           -File scripts/release-source/tests/ReleaseSource.Tests.ps1
 
+      - name: Test the docs preview cleanup
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/docs-preview-cleanup/tests/DocsPreviewCleanup.Tests.ps1
+
       - name: Check the workflows
         run: >-
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
