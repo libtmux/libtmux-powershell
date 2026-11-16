@@ -15,7 +15,8 @@ try {
     $env:PATH = ''
     $env:PSModulePath = @("$root/build/tool-modules", "$root/build/Modules", "$PSHOME/Modules") -join [IO.Path]::PathSeparator
     $diagnostics = @(foreach ($directory in @('eng', 'module', 'scripts', 'tests', 'examples')) {
-        Invoke-ScriptAnalyzer -Path "$root/$directory" -Recurse -Settings $settings -Severity Error, Warning
+        $directorySettings = if ($directory -ceq 'scripts') { "$root/scripts/PSScriptAnalyzerSettings.psd1" } else { $settings }
+        Invoke-ScriptAnalyzer -Path "$root/$directory" -Recurse -Settings $directorySettings -Severity Error, Warning
     })
 } finally {
     $env:PATH = $previousPath

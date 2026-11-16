@@ -21,7 +21,8 @@ It prints each problem and exits 1 when there is one. The rules:
 - `release.yml` calls the CI of its own commit at scope `full`, from `master`,
   and takes the packages from that run, not from a run someone passes in.
 - No `run` line calls `apt` or `apt-get`, and no workflow starts Python or sets
-  it up. The shared `apt-get` action runs apt.
+  it up. The shared `apt-get` action runs apt, and `ci.yml` builds tmux with
+  the shared `build-tmux` action, not `autogen.sh`.
 - A `libtmux/.github` action is pinned to a full commit SHA.
 
 ## Tests

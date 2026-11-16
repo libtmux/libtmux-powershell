@@ -73,18 +73,7 @@ jobs:
           echo "commit=${source_commit}" >> "${GITHUB_OUTPUT}"
 
       - name: Install official PowerShell 7.4.20
-        run: |
-          archive="${RUNNER_TEMP}/powershell-7.4.20-linux-x64.tar.gz"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20-linux-x64.tar.gz \
-            --output "${archive}"
-          echo "ed8008345c7f5337f5e293145f5e243ce132e5ee4dfc24ac551c45a4b3092181  ${archive}" \
-            | sha256sum --check --strict
-          mkdir -p "${RUNNER_TEMP}/powershell"
-          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
-          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
-            "if (\$PSVersionTable.PSVersion.ToString() -cne '7.4.20') { throw 'Unexpected PowerShell version' }; Import-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1"
+        run: pwsh -NoLogo -NoProfile -File scripts/install-powershell/InstallPowerShell.ps1 -Version 7.4.20
 
       - name: Verify the source, Linux gates and package artifact
         id: provenance

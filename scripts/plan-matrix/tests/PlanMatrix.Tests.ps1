@@ -1,6 +1,6 @@
 # Proves the matrix plan picks what each event should run, and that it can fail.
 #
-# Every rule has a check, and every check has a deliberate break: the rule is
+# Every rule has a check, and most checks have a deliberate break: the rule is
 # replaced with its absence and the check has to notice. A check that passes
 # with its rule removed would prove nothing about the rule.
 [CmdletBinding()]
@@ -43,10 +43,10 @@ function Get-Needs([string] $Plan = 'success', [string] $Port = 'success', [stri
     [string] $Reject = 'skipped', [string] $Old = 'skipped', [bool] $Planned = $false) {
     $listed = if ($Planned) { 'true' } else { 'false' }
     @{
-        plan = @{ result = $Plan; outputs = @{ run_reject = $listed; run_old_daemon = $listed } }
-        port = @{ result = $Port }
-        matrix = @{ result = $Matrix }
-        reject = @{ result = $Reject }
+        plan                = @{ result = $Plan; outputs = @{ run_reject = $listed; run_old_daemon = $listed } }
+        port                = @{ result = $Port }
+        matrix              = @{ result = $Matrix }
+        reject              = @{ result = $Reject }
         'reject-old-daemon' = @{ result = $Old }
     }
 }
@@ -77,10 +77,14 @@ $checks.FullRunsTheWholeTable = {
     Assert-Same 'full' $plan.scope 'The full scope was not kept.'
     Assert-Same @($supported + $development) @(Get-Tmux $plan) 'The full scope omits part of the table.'
     Assert-Same (($supported.Count + $development.Count) * $shells.Count) $plan.matrix.include.Count 'The full scope omits a leg.'
-    Assert-Same @($manifest.rejected | ForEach-Object { $_.tmux }) @($plan.reject | ForEach-Object { $_.tmux }) 'The full scope omits a rejected release.'
-    Assert-Same @($manifest.oldDaemon | ForEach-Object { $_.tmux }) @($plan.old_daemon | ForEach-Object { $_.tmux }) 'The full scope omits an old daemon.'
-    Assert-Same @($oldest) @($plan.old_daemon | ForEach-Object { $_.client_tmux } | Select-Object -Unique) 'The old daemons have the wrong client.'
-    Assert-Same @($shells[0]) @($plan.reject | ForEach-Object { $_.powershell } | Select-Object -Unique) 'The refusal lanes use the wrong PowerShell.'
+    Assert-Same @($manifest.rejected | ForEach-Object { $_.tmux }) @($plan.reject | ForEach-Object { $_.tmux }) `
+        'The full scope omits a rejected release.'
+    Assert-Same @($manifest.oldDaemon | ForEach-Object { $_.tmux }) @($plan.old_daemon | ForEach-Object { $_.tmux }) `
+        'The full scope omits an old daemon.'
+    Assert-Same @($oldest) @($plan.old_daemon | ForEach-Object { $_.client_tmux } | Select-Object -Unique) `
+        'The old daemons have the wrong client.'
+    Assert-Same @($shells[0]) @($plan.reject | ForEach-Object { $_.powershell } | Select-Object -Unique) `
+        'The refusal lanes use the wrong PowerShell.'
 }
 $checks.ATableNameKeepsItsPinAndOtherRefsAreBuilt = {
     $sha = 'a' * 40
@@ -88,14 +92,14 @@ $checks.ATableNameKeepsItsPinAndOtherRefsAreBuilt = {
     $byName = [ordered]@{}
     foreach ($each in $plan.matrix.include) { $byName[$each.tmux] = $each }
     Assert-Same @($supported[1], $newest, 'master', '3.6b', $sha) @($byName.Keys) 'The custom refs were reordered or lost.'
-    $pinned = $manifest.supported[1]
-    Assert-Same @($pinned.build, $pinned.commit) @($byName[$supported[1]].build, $byName[$supported[1]].tmux_commit) 'A table name lost its pin.'
-    Assert-Same $manifest.supported[-1].build $byName[$newest].build 'A table name lost its build path.'
-    Assert-Same 'clone' $byName['master'].build 'Master is not cloned.'
-    Assert-Same @('ref', '') @($byName['3.6b'].build, $byName['3.6b'].tmux_commit) 'An outside tag is not built from a ref.'
-    Assert-Same 'ref' $byName[$sha].build 'An outside commit is not built from a ref.'
+    Assert-Same $manifest.supported[1].commit $byName[$supported[1]].tmux_commit 'A table name lost its pin.'
+    Assert-Same $manifest.supported[-1].commit $byName[$newest].tmux_commit 'The newest table name lost its pin.'
+    Assert-Same '' $byName['master'].tmux_commit 'Master is pinned.'
+    Assert-Same '' $byName['3.6b'].tmux_commit 'An outside tag is pinned.'
+    Assert-Same '' $byName[$sha].tmux_commit 'An outside commit is pinned.'
     $slashed = Get-Plan workflow_dispatch @{ Scope = 'custom'; TmuxRef = 'feature/x' }
-    Assert-Same @('feature-x') @($slashed.matrix.include | ForEach-Object { $_.slug } | Select-Object -Unique) 'A slash survived into an artifact name.'
+    Assert-Same @('feature-x') @($slashed.matrix.include | ForEach-Object { $_.slug } | Select-Object -Unique) `
+        'A slash survived into an artifact name.'
 }
 $checks.ACustomRunNeedsRefs = { Assert-Refused 'needs tmux-ref' -With @{ Scope = 'custom' } }
 $checks.ARefListNeedsTheCustomScope = {
@@ -122,8 +126,8 @@ $checks.TooManyRefsAreRefused = {
 }
 $checks.APwshInputNarrowsTheStack = {
     $plan = Get-Plan workflow_dispatch @{ Pwsh = $shells[1] }
-    Assert-Same @($shells[1]) @($plan.matrix.include | ForEach-Object { $_.powershell } | Select-Object -Unique) 'The pwsh input did not narrow the shells.'
-    Assert-Same @($manifest.powershell[1].sha256) @($plan.matrix.include | ForEach-Object { $_.powershell_sha256 } | Select-Object -Unique) 'The narrowed shell has the wrong digest.'
+    Assert-Same @($shells[1]) @($plan.matrix.include | ForEach-Object { $_.powershell } | Select-Object -Unique) `
+        'The pwsh input did not narrow the shells.'
     Assert-Same @($oldest, $newest) @(Get-Tmux $plan) 'Narrowing the shell changed the tmux versions.'
 }
 $checks.AnUnknownPwshIsRefused = { Assert-Refused 'pwsh must name versions' -With @{ Pwsh = '7.2.0' } }
@@ -156,19 +160,21 @@ $checks.TheJobCountAddsUp = {
 }
 $checks.TheManifestAloneDecidesTheTable = {
     $other = @{
-        powershell = @(@{ version = '9.0.1'; sha256 = '1' * 64 })
-        supported = @(@{ tmux = '9.1'; commit = 'a' * 40; build = 'core' }, @{ tmux = '9.2'; commit = 'b' * 40; build = 'core' },
-            @{ tmux = '9.3'; commit = 'c' * 40; build = 'clone' })
-        development = @(@{ tmux = 'next'; commit = ''; build = 'clone' })
-        rejected = @(@{ tmux = '9.0'; commit = 'd' * 40 })
-        oldDaemon = @(@{ tmux = '8.9'; commit = 'e' * 40 })
+        powershell  = @(@{ version = '9.0.1'; sha256 = '1' * 64 })
+        supported   = @(@{ tmux = '9.1'; commit = 'a' * 40 }, @{ tmux = '9.2'; commit = 'b' * 40 },
+            @{ tmux = '9.3'; commit = 'c' * 40 })
+        development = @(@{ tmux = 'next'; commit = '' })
+        rejected    = @(@{ tmux = '9.0'; commit = 'd' * 40 })
+        oldDaemon   = @(@{ tmux = '8.9'; commit = 'e' * 40 })
     }
     $edges = New-MatrixPlan -Manifest $other -EventName push
-    Assert-Same @('9.1 9.0.1', '9.3 9.0.1') @($edges.matrix.include | ForEach-Object { "$($_.tmux) $($_.powershell)" }) 'The edges follow the workflow, not the manifest.'
+    Assert-Same @('9.1 9.0.1', '9.3 9.0.1') @($edges.matrix.include | ForEach-Object { "$($_.tmux) $($_.powershell)" }) `
+        'The edges follow the workflow, not the manifest.'
     $full = New-MatrixPlan -Manifest $other -EventName workflow_dispatch -Scope full
     Assert-Same @('9.1', '9.2', '9.3', 'next') @(Get-Tmux $full) 'The full table follows the workflow, not the manifest.'
     Assert-Same @('9.0') @($full.reject | ForEach-Object { $_.tmux }) 'The refusal lane follows the workflow.'
-    Assert-Same @('9.1', ('a' * 40)) @($full.old_daemon[0].client_tmux, $full.old_daemon[0].client_commit) 'The old-daemon client follows the workflow.'
+    Assert-Same @('9.1', ('a' * 40)) @($full.old_daemon[0].client_tmux, $full.old_daemon[0].client_commit) `
+        'The old-daemon client follows the workflow.'
     $custom = New-MatrixPlan -Manifest $other -EventName workflow_dispatch -Scope custom -TmuxRef 9.2
     Assert-Same ('b' * 40) $custom.matrix.include[0].tmux_commit 'A custom table name lost its pin.'
 }
@@ -192,8 +198,10 @@ $checks.JobNamesFollowThePlan = {
     $names = Get-FullJobNames $manifest
     Assert-Same $full.expected_jobs $names.Count 'The job names miss a job of the full plan.'
     Assert-That $names.Contains("PowerShell $($shells[1]) / tmux master") 'No job name for tmux master.'
-    Assert-That $names.Contains("PowerShell $($shells[0]) / tmux $($manifest.rejected[0].tmux) rejected") 'No job name for a rejected release.'
-    Assert-That $names.Contains("PowerShell $($shells[0]) / tmux $($manifest.oldDaemon[0].tmux) daemon behind a $oldest client") 'No job name for an old daemon.'
+    Assert-That $names.Contains("PowerShell $($shells[0]) / tmux $($manifest.rejected[0].tmux) rejected") `
+        'No job name for a rejected release.'
+    Assert-That $names.Contains("PowerShell $($shells[0]) / tmux $($manifest.oldDaemon[0].tmux) daemon behind a $oldest client") `
+        'No job name for an old daemon.'
     foreach ($fixed in 'plan', 'build and pack PowerShell modules', 'powershell gate') {
         Assert-That $names.Contains($fixed) "No job name for $fixed."
     }

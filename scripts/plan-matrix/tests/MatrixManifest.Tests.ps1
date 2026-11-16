@@ -30,6 +30,13 @@ function Get-Bullet([string] $Text, [string] $Start) {
     $lines[$first..($last - 1)] -join ' '
 }
 
+# Names the repository paths in a text that do not exist.
+function Get-MissingPath([string] $Text) {
+    @([regex]::Matches($Text, '(?<![\w./-])[\w.-]+(?:/[\w.-]+)+\.\w+') |
+            ForEach-Object { $_.Value } |
+            Where-Object { !(Test-Path -LiteralPath (Join-Path $root $_)) })
+}
+
 # Reads each tmux release and source commit pair from the macOS trial.
 function Get-TrialPin([string] $Text) {
     foreach ($match in [regex]::Matches($Text, "tmux: '([^']+)'\s+tmux_commit: ([0-9a-f]{40})")) {
@@ -48,7 +55,8 @@ $row = ($guide -split "`n" | Where-Object { $_.StartsWith('| Linux x64') } | Sel
 Assert-That ($null -ne $row) 'The compatibility guide has no Linux x64 row.'
 $gone = @(Get-MissingVersion $row @($supported + $shells + 'master'))
 Assert-That (!$gone.Count) "The compatibility guide row omits: $($gone -join ', ')."
-Assert-That ($guide.Contains("The minimum for ordinary operations is tmux $($supported[0])")) 'The guide floor is not the first supported release.'
+Assert-That ($guide.Contains("The minimum for ordinary operations is tmux $($supported[0])")) `
+    'The guide floor is not the first supported release.'
 
 $readme = Get-Content -LiteralPath (Join-Path $root 'README.md') -Raw
 Assert-That (!@(Get-MissingVersion (Get-Bullet $readme '- **tmux.**') @($supported[0])).Count) 'The README names no tmux floor.'
@@ -61,7 +69,12 @@ Assert-That (!@(Get-DriftedPin $trial).Count) 'A macOS trial pin differs from th
 $trialShells = [regex]::Matches($trial, "powershell: '([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
 Assert-That (!@($trialShells | Where-Object { $_ -cnotin $shells }).Count) 'The macOS trial runs a PowerShell version outside the table.'
 
+$gone = @(Get-MissingPath $manifest['$comment'])
+Assert-That (!$gone.Count) "The manifest comment names paths that do not exist: $($gone -join ', ')."
+
 # Each check above can fail: plant the fault and expect it reported.
+Assert-That ((Get-MissingPath 'eng/ci/plan_matrix.py runs it.') -ceq 'eng/ci/plan_matrix.py') 'A deleted path passed.'
+Assert-That (@(Get-MissingPath 'scripts/plan-matrix/PlanMatrix.ps1 runs it.').Count -eq 0) 'An existing path was reported.'
 Assert-That (@(Get-MissingVersion 'tmux 3.4 or newer.' @($supported[0])).Count -eq 1) 'A drifted tmux floor passed.'
 Assert-That (@(Get-MissingVersion '- **PowerShell.** 7.2 or newer.' @($shellFloor)).Count -eq 1) 'A drifted PowerShell floor passed.'
 $dropped = 'tmux ' + ($supported[0..($supported.Count - 2)] -join ', ') + ' and master with PowerShell ' + ($shells -join ' and ')

@@ -98,8 +98,8 @@ function Get-CustomRefs([string] $TmuxRef) {
     foreach ($item in $items) { Test-PlanRef $item }
 }
 
-# A name in the table keeps its pinned commit and its build path. Any other ref
-# is resolved to a commit and built from source when the job runs.
+# A name in the table keeps its pinned commit. Any other ref is resolved to a commit
+# and built from source when the job runs.
 function Get-TmuxEntries($Manifest, [string] $Scope, [string] $TmuxRef) {
     $table = [ordered]@{}
     foreach ($each in @($Manifest.supported) + @($Manifest.development)) { $table[$each.tmux] = $each }
@@ -107,20 +107,18 @@ function Get-TmuxEntries($Manifest, [string] $Scope, [string] $TmuxRef) {
     if ($Scope -ceq 'full') { return @($table.Values) }
     if ($Scope -ceq 'edges') { return @(Get-EdgeVersions $supported | ForEach-Object { $table[$_] }) }
     @(Get-CustomRefs $TmuxRef | ForEach-Object {
-        if ($table.Contains($_)) { $table[$_] } else { @{ tmux = $_; commit = ''; build = 'ref' } }
-    })
+            if ($table.Contains($_)) { $table[$_] } else { @{ tmux = $_; commit = '' } }
+        })
 }
 
 function New-PlanCell($PowerShell, $Tmux) {
     [ordered]@{
-        powershell = $PowerShell.version
-        powershell_sha256 = $PowerShell.sha256
-        tmux = $Tmux.tmux
+        powershell  = $PowerShell.version
+        tmux        = $Tmux.tmux
         tmux_commit = $Tmux.commit
-        build = $Tmux.build
         # Artifact names cannot hold a slash, which a branch name can.
-        slug = $Tmux.tmux.Replace('/', '-')
-        tmate = 'off'
+        slug        = $Tmux.tmux.Replace('/', '-')
+        tmate       = 'off'
     }
 }
 
@@ -130,15 +128,15 @@ function Select-PlanLanes($Manifest, [string] $Scope) {
     $base = $Manifest.powershell[0]
     $client = $Manifest.supported[0]
     @{
-        reject = @($Manifest.rejected | ForEach-Object {
-            [ordered]@{ powershell = $base.version; powershell_sha256 = $base.sha256
-                tmux = $_.tmux; tmux_commit = $_.commit }
-        })
+        reject     = @($Manifest.rejected | ForEach-Object {
+                [ordered]@{ powershell = $base.version
+                    tmux = $_.tmux; tmux_commit = $_.commit }
+            })
         old_daemon = @($Manifest.oldDaemon | ForEach-Object {
-            [ordered]@{ powershell = $base.version; powershell_sha256 = $base.sha256
-                tmux = $_.tmux; tmux_commit = $_.commit
-                client_tmux = $client.tmux; client_commit = $client.commit }
-        })
+                [ordered]@{ powershell = $base.version
+                    tmux = $_.tmux; tmux_commit = $_.commit
+                    client_tmux = $client.tmux; client_commit = $client.commit }
+            })
     }
 }
 
@@ -169,16 +167,16 @@ function New-MatrixPlan {
     $chosen = Resolve-PlanScope $EventName $Scope
     Assert-ScopeInputs $chosen $TmuxRef
     $cells = @(foreach ($tmux in @(Get-TmuxEntries $Manifest $chosen $TmuxRef)) {
-        foreach ($shell in @(Select-PowerShellVersions $Manifest $Pwsh)) { New-PlanCell $shell $tmux }
-    })
+            foreach ($shell in @(Select-PowerShellVersions $Manifest $Pwsh)) { New-PlanCell $shell $tmux }
+        })
     Assert-PlanCells $cells
     $lanes = Select-PlanLanes $Manifest $chosen
     Set-PlanTmate $EventName $(if ($Tmate) { $Tmate } else { 'off' }) $cells $lanes
     [ordered]@{
-        scope = $chosen
-        matrix = [ordered]@{ include = $cells }
-        reject = @($lanes.reject)
-        old_daemon = @($lanes.old_daemon)
+        scope         = $chosen
+        matrix        = [ordered]@{ include = $cells }
+        reject        = @($lanes.reject)
+        old_daemon    = @($lanes.old_daemon)
         expected_jobs = $script:FixedJobs + $cells.Count + @($lanes.reject).Count + @($lanes.old_daemon).Count
     }
 }
@@ -239,7 +237,7 @@ function Get-PlanSummary($Plan) {
     $lines.Add('')
     $lines.Add("Expected jobs in this workflow: $($Plan.expected_jobs)")
     $lines.Add('')
-    foreach ($each in $Plan.matrix.include) { $lines.Add("- PowerShell $($each.powershell) with tmux $($each.tmux) ($($each.build))") }
+    foreach ($each in $Plan.matrix.include) { $lines.Add("- PowerShell $($each.powershell) with tmux $($each.tmux)") }
     foreach ($each in $Plan.reject) { $lines.Add("- tmux $($each.tmux) is refused") }
     foreach ($each in $Plan.old_daemon) { $lines.Add("- tmux $($each.tmux) daemon is refused") }
     ($lines -join "`n") + "`n"
@@ -248,15 +246,15 @@ function Get-PlanSummary($Plan) {
 # Flattens a plan into single-line workflow outputs.
 function Get-PlanOutputs($Plan) {
     [ordered]@{
-        scope = $Plan.scope
-        matrix = ConvertTo-Json -InputObject $Plan.matrix -Compress -Depth 6
-        reject = ConvertTo-Json -InputObject ([ordered]@{ include = @($Plan.reject) }) -Compress -Depth 6
-        run_reject = if (@($Plan.reject).Count) { 'true' } else { 'false' }
-        old_daemon = ConvertTo-Json -InputObject ([ordered]@{ include = @($Plan.old_daemon) }) -Compress -Depth 6
+        scope          = $Plan.scope
+        matrix         = ConvertTo-Json -InputObject $Plan.matrix -Compress -Depth 6
+        reject         = ConvertTo-Json -InputObject ([ordered]@{ include = @($Plan.reject) }) -Compress -Depth 6
+        run_reject     = if (@($Plan.reject).Count) { 'true' } else { 'false' }
+        old_daemon     = ConvertTo-Json -InputObject ([ordered]@{ include = @($Plan.old_daemon) }) -Compress -Depth 6
         run_old_daemon = if (@($Plan.old_daemon).Count) { 'true' } else { 'false' }
-        expected_jobs = [string] $Plan.expected_jobs
+        expected_jobs  = [string] $Plan.expected_jobs
     }
 }
 
 Export-ModuleMember -Function Read-MatrixManifest, New-MatrixPlan, Get-PlanJobNames, Get-FullJobNames,
-    Test-GateNeeds, Get-PlanSummary, Get-PlanOutputs, Split-List
+Test-GateNeeds, Get-PlanSummary, Get-PlanOutputs, Split-List

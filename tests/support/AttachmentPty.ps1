@@ -96,7 +96,8 @@ function Invoke-AttachmentCase {
             if ($Mode -ceq 'Detach') {
                 $active = (Invoke-AttachmentTmux $Inner @('display-message', '-p', '-t', "$($Borrowed.Session):",
                     '#{window_name}|#{window_id}|#{pane_id}')).Trim().Split('|')
-                Assert-Attachment ($active.Count -eq 3 -and $active[0] -ceq 'workspace-attachment') "The workspace window was not active: $($active -join '|')."
+                Assert-Attachment ($active.Count -eq 3 -and $active[0] -ceq 'workspace-attachment') `
+                    "The workspace window was not active: $($active -join '|')."
                 $workspaceWindow, $workspacePane = $active[1], $active[2]
             }
             $marker = 'PS_ATTACH_INPUT_' + [Guid]::NewGuid().ToString('N')
@@ -107,7 +108,8 @@ function Invoke-AttachmentCase {
             } else {
                 Wait-AttachmentText $OuterPane $marker 5
                 $target = if ($workspacePane) { $workspacePane } else { "$($Borrowed.Session):" }
-                Assert-Attachment ((Invoke-AttachmentTmux $Inner @('capture-pane', '-p', '-t', $target)).Contains($marker)) 'Foreground input did not reach the attached pane.'
+                Assert-Attachment ((Invoke-AttachmentTmux $Inner @('capture-pane', '-p', '-t', $target)).Contains($marker)) `
+                    'Foreground input did not reach the attached pane.'
                 if ($Mode -ceq 'Cancel') { $null = Invoke-AttachmentTmux $Inner @('wait-for', '-S', $cancel) }
                 else { $null = Invoke-AttachmentTmux $Inner @('detach-client', '-t', $selected[0][1]) }
             }
@@ -116,27 +118,36 @@ function Invoke-AttachmentCase {
         $null = Invoke-OwnedTmux $Outer -Arguments @('wait-for', 'pane-died') -WaitTimeout ([TimeSpan]::FromSeconds(10))
         $status = (Invoke-AttachmentTmux $Outer @('display-message', '-p', '-t', 'fixture:0.0', '#{pane_dead_status}')).Trim()
         if ($Mode -ceq 'ReadOnly') {
-            Assert-Attachment (!(Invoke-AttachmentTmux $Inner @('capture-pane', '-p', '-t', "$($Borrowed.Session):")).Contains($marker)) 'A read-only attachment accepted input.'
+            Assert-Attachment (!(Invoke-AttachmentTmux $Inner @('capture-pane', '-p', '-t', "$($Borrowed.Session):")).Contains($marker)) `
+                'A read-only attachment accepted input.'
         }
         Assert-Attachment (Test-Path -LiteralPath $resultPath) 'The attaching process left no result.'
         $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
         $expected = @{ Cancel = 'Stopped'; Nested = 'NestedRejected'; WhatIf = 'Previewed' }[$Mode]
         if (!$expected) { $expected = 'Returned' }
-        Assert-Attachment ($status -ceq '0' -and $result.outcome -ceq $expected) "The attaching process exited $status with outcome $($result.outcome); expected $expected."
+        Assert-Attachment ($status -ceq '0' -and $result.outcome -ceq $expected) `
+            "The attaching process exited $status with outcome $($result.outcome); expected $expected."
         if ($Mode -ceq 'Detach') {
             Assert-Attachment ($result.workspaceApplied -eq $true -and $result.appliedSessionId -ceq $result.returnedId -and
                 $result.returnedId -ceq $Borrowed.Session) 'The applied workspace session is not the returned borrowed session.'
-            Assert-Attachment ($result.workspaceWindowId -ceq $workspaceWindow -and $result.workspacePaneId -ceq $workspacePane) 'The applied workspace window or pane differs from the attached one.'
-            Assert-Attachment ((Invoke-AttachmentTmux $Inner @('show-window-options', '-v', '-t', $workspaceWindow, 'automatic-rename')).Trim() -ceq 'off') 'automatic-rename was not off.'
-            Assert-Attachment ((Invoke-AttachmentTmux $Inner @('show-window-options', '-v', '-t', $workspaceWindow, '@workspace-attachment')).Trim() -ceq 'installed') 'Applied workspace window option was not retained.'
-            $surviving = @((Invoke-AttachmentTmux $Inner @('list-windows', '-t', $Borrowed.Session, '-F', '#{window_id}')).Split("`n", [StringSplitOptions]::RemoveEmptyEntries) | Sort-Object)
+            Assert-Attachment ($result.workspaceWindowId -ceq $workspaceWindow -and $result.workspacePaneId -ceq $workspacePane) `
+                'The applied workspace window or pane differs from the attached one.'
+            $automaticRename = Invoke-AttachmentTmux $Inner @('show-window-options', '-v', '-t', $workspaceWindow, 'automatic-rename')
+            Assert-Attachment ($automaticRename.Trim() -ceq 'off') 'automatic-rename was not off.'
+            $retained = Invoke-AttachmentTmux $Inner @('show-window-options', '-v', '-t', $workspaceWindow, '@workspace-attachment')
+            Assert-Attachment ($retained.Trim() -ceq 'installed') 'Applied workspace window option was not retained.'
+            $listed = Invoke-AttachmentTmux $Inner @('list-windows', '-t', $Borrowed.Session, '-F', '#{window_id}')
+            $surviving = @($listed.Split("`n", [StringSplitOptions]::RemoveEmptyEntries) | Sort-Object)
             $want = @($Borrowed.Windows + $workspaceWindow | Sort-Object)
-            Assert-Attachment (!@(Compare-Object $surviving $want -CaseSensitive).Count) "The session kept windows $($surviving -join ',') instead of $($want -join ',')."
+            Assert-Attachment (!@(Compare-Object $surviving $want -CaseSensitive).Count) `
+                "The session kept windows $($surviving -join ',') instead of $($want -join ',')."
         }
         # The attaching client is gone and the sentinel is the only client left.
         $clients = @(Get-AttachmentClient $Inner)
-        Assert-Attachment ($clients.Count -eq 1 -and $clients[0][0] -ceq [string] $Sentinel.Id) "Clients left after the attachment: $(@($clients | ForEach-Object { $_ -join '|' }) -join '; ')."
-        Assert-Attachment ((Invoke-AttachmentTmux $Inner @('display-message', '-p', '#{pid}:#{start_time}')).Trim() -ceq $Borrowed.Generation) 'The borrowed daemon was replaced.'
+        Assert-Attachment ($clients.Count -eq 1 -and $clients[0][0] -ceq [string] $Sentinel.Id) `
+            "Clients left after the attachment: $(@($clients | ForEach-Object { $_ -join '|' }) -join '; ')."
+        $generation = Invoke-AttachmentTmux $Inner @('display-message', '-p', '#{pid}:#{start_time}')
+        Assert-Attachment ($generation.Trim() -ceq $Borrowed.Generation) 'The borrowed daemon was replaced.'
         $null = Invoke-AttachmentTmux $Inner @('has-session', '-t', $Borrowed.Session)
         $null = Invoke-AttachmentTmux $Inner @('has-session', '-t', $Borrowed.SentinelSession)
         $restored = $result.terminalBefore -ceq $result.terminalAfter
@@ -160,10 +171,11 @@ function Invoke-AttachmentCases {
     Register-OwnedTmuxPane $Inner
     $Report.tmuxVersion = (Invoke-AttachmentTmux $Inner @('display-message', '-p', '#{version}')).Trim()
     $Report.tmuxSha256 = (Get-FileHash -LiteralPath $Inner.TmuxPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $windows = Invoke-AttachmentTmux $Inner @('list-windows', '-t', $session, '-F', '#{window_id}')
     $borrowed = @{
         Session = $session; SentinelSession = $sentinelSession
         Generation = (Invoke-AttachmentTmux $Inner @('display-message', '-p', '#{pid}:#{start_time}')).Trim()
-        Windows = @((Invoke-AttachmentTmux $Inner @('list-windows', '-t', $session, '-F', '#{window_id}')).Split("`n", [StringSplitOptions]::RemoveEmptyEntries))
+        Windows = @($windows.Split("`n", [StringSplitOptions]::RemoveEmptyEntries))
     }
 
     # The owner keeps a process's pane after it exits, and says so through a hook.

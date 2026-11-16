@@ -32,11 +32,11 @@ function New-Checkout {
         "<PackageVersion Include=`"LibTmux.Workspace`" Version=`"[$base]`" />" +
         '</ItemGroup></Project>')
     $lock = @{
-        version = 1
+        version      = 1
         dependencies = @{ 'net8.0' = @{
-                LibTmux = @{ resolved = $base; contentHash = 'original-core' }
+                LibTmux              = @{ resolved = $base; contentHash = 'original-core' }
                 'LibTmux.Query.Json' = @{ resolved = $base; contentHash = 'original-query'; dependencies = @{ LibTmux = $base } }
-                ThirdParty = @{ resolved = '1.0.0'; contentHash = 'original-third-party' }
+                ThirdParty           = @{ resolved = '1.0.0'; contentHash = 'original-third-party' }
             }
         }
     }
@@ -79,9 +79,11 @@ try {
     Assert-That ((Get-ReviewVersion -Root $root -RunId 123 -Attempt 1) -ceq $ci) 'The review version does not extend the pin.'
     Initialize-ReviewPins -Root $root -Version $ci -Baseline $baseline
     $props = Get-Content -LiteralPath (Join-Path $root 'Directory.Packages.props') -Raw
-    Assert-That (([regex]::Matches($props, [regex]::Escape("Version=`"[$ci]`""))).Count -eq 3) 'Prepare did not rewrite the three shared pins.'
+    Assert-That (([regex]::Matches($props, [regex]::Escape("Version=`"[$ci]`""))).Count -eq 3) `
+        'Prepare did not rewrite the three shared pins.'
     foreach ($project in $projects) {
-        Assert-That (Test-Path -LiteralPath (Join-Path $baseline "src/$project/packages.lock.json")) "Prepare did not save the $project lock."
+        Assert-That (Test-Path -LiteralPath (Join-Path $baseline "src/$project/packages.lock.json")) `
+            "Prepare did not save the $project lock."
     }
     Set-ReviewLocks $root
     Test-ReviewLocks -Root $root -Version $ci -Baseline $baseline

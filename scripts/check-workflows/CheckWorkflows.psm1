@@ -92,9 +92,9 @@ function Test-CiWorkflow([string] $Text, $Manifest = (Read-MatrixManifest)) {
     $full = New-MatrixPlan -Manifest $Manifest -EventName workflow_dispatch -Scope full
 
     $names = [ordered]@{
-        'plan' = Get-JobField $jobs['plan'] 'name'
+        'plan'                              = Get-JobField $jobs['plan'] 'name'
         'build and pack PowerShell modules' = Get-JobField $jobs['port'] 'name'
-        'powershell gate' = Get-JobField $jobs['gate'] 'name'
+        'powershell gate'                   = Get-JobField $jobs['gate'] 'name'
     }
     foreach ($expected in $names.Keys) {
         if ($names[$expected] -cne $expected) { $problems.Add("the job named '$($names[$expected])' must be named '$expected'") }
@@ -114,8 +114,8 @@ function Test-CiWorkflow([string] $Text, $Manifest = (Read-MatrixManifest)) {
     if ($drift.Count) { $problems.Add("job names differ from the release gate's job set: $($drift -join ', ')") }
 
     $sources = [ordered]@{
-        'matrix' = 'matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}'
-        'reject' = 'matrix: ${{ fromJSON(needs.plan.outputs.reject) }}'
+        'matrix'            = 'matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}'
+        'reject'            = 'matrix: ${{ fromJSON(needs.plan.outputs.reject) }}'
         'reject-old-daemon' = 'matrix: ${{ fromJSON(needs.plan.outputs.old_daemon) }}'
     }
     foreach ($job in $sources.Keys) {
@@ -158,7 +158,8 @@ function Test-CiWorkflow([string] $Text, $Manifest = (Read-MatrixManifest)) {
     $number = 0
     foreach ($line in $Text -split "`n") {
         $number++
-        if ($line.Contains('inputs.') -and $line -cnotmatch '^\s+[A-Z_]+: \$\{\{ inputs\.[a-z-]+ \}\}$' -and !$line.TrimStart().StartsWith('#')) {
+        $passedThroughEnv = $line -cmatch '^\s+[A-Z_]+: \$\{\{ inputs\.[a-z-]+ \}\}$'
+        if ($line.Contains('inputs.') -and !$passedThroughEnv -and !$line.TrimStart().StartsWith('#')) {
             $problems.Add("line ${number}: pass an input to a script through env")
         }
     }
@@ -170,6 +171,7 @@ function Test-CiWorkflow([string] $Text, $Manifest = (Read-MatrixManifest)) {
     foreach ($each in @($Manifest.supported) + @($Manifest.rejected) + @($Manifest.oldDaemon)) {
         if ($Text.Contains($each.commit)) { $problems.Add("the source commit of tmux $($each.tmux) belongs in the manifest") }
     }
+    if ($Text.Contains('autogen.sh')) { $problems.Add('ci: build tmux with the shared build-tmux action, not a script') }
     foreach ($each in @($Manifest.supported) + @($Manifest.development)) {
         if ($Text.Contains("'$($each.tmux)'")) { $problems.Add("tmux $($each.tmux) belongs in the manifest") }
     }
@@ -185,7 +187,9 @@ function Test-ReleaseWorkflow([string] $Text) {
     }
     if ($problems.Count) { return $problems.ToArray() }
     $caller = $jobs['ci']
-    if ((Get-JobField $caller 'uses') -cne './.github/workflows/ci.yml') { $problems.Add('ci: the release must call the CI workflow of this commit') }
+    if ((Get-JobField $caller 'uses') -cne './.github/workflows/ci.yml') {
+        $problems.Add('ci: the release must call the CI workflow of this commit')
+    }
     if (!("`n$caller").Contains("`n      scope: full")) { $problems.Add('ci: the release must call the CI workflow at scope full') }
     if ($null -ne (Get-JobField $caller 'name') -or (Get-CallerJobName) -cne 'ci') {
         $problems.Add('ci: the calling job must keep the name the job set expects')
@@ -225,7 +229,8 @@ function Get-RunLine([string] $Text) {
         if ($start.Groups[2].Success) { $step = $null }
         $indent = $start.Groups[1].Length + $(if ($start.Groups[2].Success) { 2 } else { 0 })
         if ([regex]::IsMatch($start.Groups[3].Value, '^[|>][+-]?\d*\s*(#.*)?$')) {
-            while ($index -lt $lines.Count -and (!$lines[$index].Trim() -or ($lines[$index].Length - $lines[$index].TrimStart().Length) -gt $indent)) {
+            while ($index -lt $lines.Count -and
+                (!$lines[$index].Trim() -or ($lines[$index].Length - $lines[$index].TrimStart().Length) -gt $indent)) {
                 $found.Add([pscustomobject]@{ Number = $index + 1; Job = $job; Step = $step; Line = $lines[$index] })
                 $index++
             }
@@ -241,7 +246,10 @@ function Get-Where($Row) {
     $place + $(if ($Row.Step) { "step '$($Row.Step)'" } else { 'an unnamed step' })
 }
 
-$script:RawApt = [regex]::new('(?:^|[;&|(`])\s*(?:\w+=\S*\s+)*(?:(?:sudo|env|time|timeout|nice)\s+(?:(?:-\S+|\w+=\S*|\d+[smh]?)\s+)*)*(apt(?:-get)?)(?![\w./-])')
+$script:RawApt = [regex]::new(
+    '(?:^|[;&|(`])\s*(?:\w+=\S*\s+)*' +
+    '(?:(?:sudo|env|time|timeout|nice)\s+(?:(?:-\S+|\w+=\S*|\d+[smh]?)\s+)*)*' +
+    '(apt(?:-get)?)(?![\w./-])')
 
 # Returns each `run` line that calls apt or apt-get without the shared action.
 function Get-RawAptProblem([string] $Path, [string] $Text) {
@@ -292,7 +300,10 @@ function Test-RepositoryWorkflows([string] $Root) {
     foreach ($file in Get-ChildItem -LiteralPath $workflows -Filter '*.yml') {
         $text = Get-Content -LiteralPath $file.FullName -Raw
         $path = ".github/workflows/$($file.Name)"
-        foreach ($problem in @(Get-RawAptProblem $path $text) + @(Get-PythonProblem $path $text) + @(Get-UnpinnedActionProblem $path $text)) {
+        $found = @(Get-RawAptProblem $path $text)
+        $found += @(Get-PythonProblem $path $text)
+        $found += @(Get-UnpinnedActionProblem $path $text)
+        foreach ($problem in $found) {
             if ($problem) { $problems.Add($problem) }
         }
     }
@@ -300,4 +311,4 @@ function Test-RepositoryWorkflows([string] $Root) {
 }
 
 Export-ModuleMember -Function Get-WorkflowJobs, Test-CiWorkflow, Test-ReleaseWorkflow, Get-RawAptProblem,
-    Get-PythonProblem, Get-UnpinnedActionProblem, Test-RepositoryWorkflows
+Get-PythonProblem, Get-UnpinnedActionProblem, Test-RepositoryWorkflows

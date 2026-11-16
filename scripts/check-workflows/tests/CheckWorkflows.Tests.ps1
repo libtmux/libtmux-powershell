@@ -54,6 +54,9 @@ Assert-CiMutation "    needs: plan`n    name: build and pack" "    needs: []`n  
 $legName = "    needs: [plan, port]`n    name: PowerShell `${{ matrix.powershell }} / tmux `${{ matrix.tmux }}`n"
 Assert-CiMutation $legName $legName.Replace('[plan, port]', '[port]') 'matrix: needs must be [plan, port]'
 
+# tmux builds through the shared action.
+Assert-CiMutation 'name: Select the tmux build' "name: Build tmux`n        run: sh autogen.sh`n      - name: Select the tmux build" 'build tmux with the shared build-tmux action'
+
 # The gate keeps checking the plan.
 Assert-CiMutation 'run: pwsh -NoLogo -NoProfile -File scripts/plan-matrix/PlanMatrix.ps1 gate' 'run: true' 'gate: must check the needs context'
 Assert-CiMutation 'needs: [plan, port, matrix, reject, reject-old-daemon]' 'needs: [port, matrix]' 'gate: needs must list'
@@ -74,8 +77,8 @@ Assert-CiMutation '-TmuxRef "${TMUX_REF}"' '-TmuxRef "${{ inputs.tmux-ref }}"' '
 
 # A pin copied back into the workflow, which belongs in the manifest.
 $commit = $manifest.supported[0].commit
-Assert-CiMutation "run: printf 'TMUX_BINARY=%s\n' `"`${REF_BINARY}`"" "run: echo $commit; printf 'TMUX_BINARY=%s\n' `"`${REF_BINARY}`"" 'belongs in the manifest'
-Assert-CiMutation "      - name: Select the ref build`n" "      - name: Select the '$($manifest.supported[-1].tmux)' build`n" "tmux $($manifest.supported[-1].tmux) belongs in the manifest"
+Assert-CiMutation "run: printf 'TMUX_BINARY=%s\n' `"`${TMUX_BUILD}`"" "run: echo $commit; printf 'TMUX_BINARY=%s\n' `"`${TMUX_BUILD}`"" 'belongs in the manifest'
+Assert-CiMutation "      - name: Select the tmux build`n" "      - name: Select the '$($manifest.supported[-1].tmux)' build`n" "tmux $($manifest.supported[-1].tmux) belongs in the manifest"
 
 # The debugging session stays pinned, limited and bounded.
 $sha = '35b54afac29c97fb54faba5b513f8fbd1882f113'
@@ -96,14 +99,16 @@ $dropped = $ci.Remove($start, $end - $start)
 Assert-That (@(Test-CiWorkflow $dropped $manifest) -contains 'the matrix must offer a debugging session before the tests and after a failure') 'A dropped debugging session passed.'
 $gate = $dropped.IndexOf('      - name: Require every planned job', [StringComparison]::Ordinal)
 $moved = $dropped.Insert($gate, $block)
-Assert-That (@(Test-CiWorkflow $moved $manifest) -contains 'gate: a debugging session belongs only in the matrix') 'A debugging session moved into the gate passed.'
+Assert-That (@(Test-CiWorkflow $moved $manifest) -contains 'gate: a debugging session belongs only in the matrix') `
+    'A debugging session moved into the gate passed.'
 
 # A dispatch run must not share a cancelling group.
 $group = "format('-{0}', github.run_id) || '' }}"
 Assert-CiMutation $group "'' }}" "add github.run_id to a dispatch run's group"
 Assert-CiMutation "`${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}" '-${{ github.run_id }}' "add github.run_id to a dispatch run's group"
 Assert-CiMutation "  cancel-in-progress: true`n" "  cancel-in-progress: false`n" 'a superseded push must still be cancelled'
-Assert-That (@(Test-CiWorkflow $ci.Replace("  reject:`n", "  rejected:`n") $manifest) -contains 'reject: missing job') 'A removed job passed.'
+Assert-That (@(Test-CiWorkflow $ci.Replace("  reject:`n", "  rejected:`n") $manifest) -contains 'reject: missing job') `
+    'A removed job passed.'
 
 # release.yml proves the full set itself.
 Assert-Empty (Test-ReleaseWorkflow $release) 'release.yml'
@@ -125,7 +130,8 @@ Assert-That ((Get-RawAptProblem 'ci.yml' $sample) -ceq "ci.yml:6: job build, ste
 foreach ($command in 'apt-get install --yes tmux', 'sudo apt install tmux', 'sudo -E apt-get update', 'DEBIAN_FRONTEND=noninteractive apt-get update',
     'sudo timeout 60 apt-get update', 'sudo apt-get update || true', 'true && sudo apt-get update') {
     $problems = @(Get-RawAptProblem 'ci.yml' "jobs:`n  a:`n    steps:`n      - run: $command`n")
-    Assert-That ($problems.Count -eq 1 -and $problems[0].Contains('use libtmux/.github/actions/apt-get')) "A way to call apt went unreported: $command"
+    Assert-That ($problems.Count -eq 1 -and $problems[0].Contains('use libtmux/.github/actions/apt-get')) `
+        "A way to call apt went unreported: $command"
 }
 $clean = "jobs:`n  build:`n    steps:`n      - name: Install tmux`n        run: |`n          # sudo apt-get update`n          echo `"apt is slow`"`n      - name: Not a script`n        with:`n          note: sudo apt-get update`n"
 Assert-Empty (Get-RawAptProblem 'ci.yml' $clean) 'A comment, an echo and a non-script line'
@@ -142,6 +148,7 @@ Assert-Empty (Get-PythonProblem 'x.yml' "      - run: echo pythonic`n") 'A word 
 # A shared action is pinned to a full commit.
 Assert-Empty (Get-UnpinnedActionProblem 'ci.yml' $ci) 'ci.yml pins'
 foreach ($ref in 'main', 'v1', 'bd3bae7', '') {
-    Assert-That (@(Get-UnpinnedActionProblem 'x.yml' "      - uses: libtmux/.github/actions/apt-get@$ref`n").Count -eq 1) "A shared action at '$ref' went unreported."
+    Assert-That (@(Get-UnpinnedActionProblem 'x.yml' "      - uses: libtmux/.github/actions/apt-get@$ref`n").Count -eq 1) `
+        "A shared action at '$ref' went unreported."
 }
 'PASS workflow checks: this repository passes and each planted fault is reported'

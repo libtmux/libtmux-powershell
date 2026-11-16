@@ -125,10 +125,16 @@ function Test-ReviewLocks {
         $new = Read-Lock (Join-Path $Root $relative)
         if ($old.Contains('dependencies')) {
             foreach ($framework in $old['dependencies'].Keys) {
-                $updated = if ($new.Contains('dependencies') -and $new['dependencies'].Contains($framework)) { $new['dependencies'][$framework] } else { @{} }
+                $updated = @{}
+                if ($new.Contains('dependencies') -and $new['dependencies'].Contains($framework)) {
+                    $updated = $new['dependencies'][$framework]
+                }
                 foreach ($name in $script:Shared) {
                     if (!$old['dependencies'][$framework].Contains($name)) { continue }
-                    $resolved = if ($updated.Contains($name) -and $updated[$name].Contains('resolved')) { $updated[$name]['resolved'] } else { $null }
+                    $resolved = $null
+                    if ($updated.Contains($name) -and $updated[$name].Contains('resolved')) {
+                        $resolved = $updated[$name]['resolved']
+                    }
                     if ($resolved -cne $Version) { Stop-Review "$relative does not resolve CI review version for $name" }
                 }
             }

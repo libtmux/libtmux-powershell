@@ -43,15 +43,15 @@ function New-Jobs([string[]] $Names) {
 function New-Fixture {
     $repo = @{ id = 456; full_name = $repository }
     @{
-        Run = @{
+        Run       = @{
             id = $runId; repository = $repo; head_repository = $repo.Clone(); path = '.github/workflows/release.yml'
             event = 'workflow_dispatch'; head_branch = 'master'; head_sha = $source; status = 'in_progress'
             conclusion = $null; run_attempt = 1
         }
-        Jobs = New-Jobs $names
+        Jobs      = New-Jobs $names
         Artifacts = @{
             total_count = 1
-            artifacts = @(@{
+            artifacts   = @(@{
                     id = 789; name = 'port-package'; expired = $false; digest = 'sha256:' + ('b' * 64)
                     workflow_run = @{ id = $runId; head_sha = $source; head_branch = 'master'; repository_id = 456; head_repository_id = 456 }
                 })
@@ -73,11 +73,14 @@ function Assert-Refused([string] $Pattern, $Fixture, [string] $Label) {
 
 # A trusted run keeps the artifact and the source identity.
 $receipt = Get-Receipt (New-Fixture)
-Assert-That ($receipt.sourceCommit -ceq $source -and $receipt.repository -ceq $repository -and $receipt.runId -eq $runId) 'The receipt lost the source identity.'
-Assert-That ($receipt.artifactId -eq 789 -and $receipt.artifactDigest -ceq ('sha256:' + ('b' * 64))) 'The receipt lost the artifact identity.'
+Assert-That ($receipt.sourceCommit -ceq $source -and $receipt.repository -ceq $repository -and $receipt.runId -eq $runId) `
+    'The receipt lost the source identity.'
+Assert-That ($receipt.artifactId -eq 789 -and $receipt.artifactDigest -ceq ('sha256:' + ('b' * 64))) `
+    'The receipt lost the artifact identity.'
 Assert-That ($receipt.workflowPath -ceq '.github/workflows/ci.yml') 'The receipt names the wrong workflow.'
 Assert-That ($receipt.runUrl -ceq "https://github.com/$repository/actions/runs/$runId") 'The receipt names the wrong run.'
-Assert-That (!@(Compare-Object @($receipt.jobs | ForEach-Object { $_.name }) $names -CaseSensitive).Count) 'The receipt lists the wrong jobs.'
+Assert-That (!@(Compare-Object @($receipt.jobs | ForEach-Object { $_.name }) $names -CaseSensitive).Count) `
+    'The receipt lists the wrong jobs.'
 Assert-That ('gallery' -cnotin @($receipt.jobs | ForEach-Object { $_.name })) 'The receipt names the release job.'
 
 # A stale, forked, pull request, wrong-workflow or unfinished run is refused.
@@ -148,12 +151,12 @@ Assert-Refused 'Linux jobs' $fixture 'Jobs that are not named for the calling jo
 
 # The one release job must sit beside the called jobs, still running.
 $cases = [ordered]@{
-    absent = { param($rows) $rows.RemoveAt($rows.Count - 1) }
-    twice = { param($rows) $rows.Add((New-Job 99 'gallery' 'in_progress' $null)) }
+    absent   = { param($rows) $rows.RemoveAt($rows.Count - 1) }
+    twice    = { param($rows) $rows.Add((New-Job 99 'gallery' 'in_progress' $null)) }
     stranger = { param($rows) $rows.Add((New-Job 99 'publish elsewhere')) }
     finished = { param($rows) $rows[$rows.Count - 1].status = 'completed'; $rows[$rows.Count - 1].conclusion = 'success' }
-    foreign = { param($rows) $rows[$rows.Count - 1].head_sha = 'c' * 40 }
-    attempt = { param($rows) $rows[$rows.Count - 1].run_attempt = 2 }
+    foreign  = { param($rows) $rows[$rows.Count - 1].head_sha = 'c' * 40 }
+    attempt  = { param($rows) $rows[$rows.Count - 1].run_attempt = 2 }
 }
 foreach ($kind in $cases.Keys) {
     $fixture = New-Fixture
