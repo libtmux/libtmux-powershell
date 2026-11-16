@@ -112,16 +112,45 @@ jobs:
       - name: Install official PowerShell 7.4.20
         run: pwsh -NoLogo -NoProfile -File scripts/install-powershell/InstallPowerShell.ps1 -Version 7.4.20
 
-      - name: Test the support scripts
-        run: |
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/PlanMatrix.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/plan-matrix/tests/MatrixManifest.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/release-artifacts/tests/ReleaseArtifacts.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/review-dependencies/tests/ReviewDependencies.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/tests/CheckWorkflows.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/install-powershell/tests/InstallPowerShell.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/verify-package/tests/VerifyPackage.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File scripts/check-workflows/CheckWorkflows.ps1
+      - name: Test the CI planner
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/plan-matrix/tests/PlanMatrix.Tests.ps1
+
+      - name: Test the CI table against the documents
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/plan-matrix/tests/MatrixManifest.Tests.ps1
+
+      - name: Test the release binding
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/release-artifacts/tests/ReleaseArtifacts.Tests.ps1
+
+      - name: Test the dependency review
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/review-dependencies/tests/ReviewDependencies.Tests.ps1
+
+      - name: Test the workflow check
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/check-workflows/tests/CheckWorkflows.Tests.ps1
+
+      - name: Test the PowerShell installer
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/install-powershell/tests/InstallPowerShell.Tests.ps1
+
+      - name: Test the package verifier
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/verify-package/tests/VerifyPackage.Tests.ps1
+
+      - name: Check the workflows
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/check-workflows/CheckWorkflows.ps1
 
       - name: Build from locked NuGet dependencies
         run: |
@@ -132,26 +161,68 @@ jobs:
       - name: Check example width
         uses: libtmux/.github/actions/check-example-width@bd3bae79572512da032287202d74c8da03b5967b
 
-      - name: Check source, examples, and generated help
-        run: |
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Setup.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Lint.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Help.ps1 -Check
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/GuideExamples.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/ReadmeLinks.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/BootstrapReview.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/Publish.Tests.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/Changelog.Tests.ps1
-          dotnet format src/LibTmux.PowerShell/LibTmux.PowerShell.csproj \
-            --verify-no-changes --no-restore
-          dotnet format src/LibTmux.Workspace.PowerShell/LibTmux.Workspace.PowerShell.csproj \
-            --verify-no-changes --no-restore
-          git diff --check
+      - name: Install the pinned analyzer
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Setup.ps1
 
-      - name: Verify native documentation export
-        run: |
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Export-Docs.ps1
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File tests/DocsExport.Tests.ps1
+      - name: Analyse the PowerShell
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Lint.ps1
+
+      - name: Check the generated help
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Help.ps1 -Check
+
+      - name: Check the guide examples
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/GuideExamples.Tests.ps1
+
+      - name: Check the README links
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/ReadmeLinks.Tests.ps1
+
+      - name: Review the bootstrap
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/BootstrapReview.Tests.ps1
+
+      - name: Test publishing
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/Publish.Tests.ps1
+
+      - name: Test the changelog checks
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/Changelog.Tests.ps1
+
+      - name: Check the format of the core cmdlets
+        run: >-
+          dotnet format src/LibTmux.PowerShell/LibTmux.PowerShell.csproj
+          --verify-no-changes --no-restore
+
+      - name: Check the format of the workspace cmdlets
+        run: >-
+          dotnet format src/LibTmux.Workspace.PowerShell/LibTmux.Workspace.PowerShell.csproj
+          --verify-no-changes --no-restore
+
+      - name: Check for whitespace errors
+        run: git diff --check
+
+      - name: Export the native documentation
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Export-Docs.ps1
+
+      - name: Verify the native documentation export
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File tests/DocsExport.Tests.ps1
 
       - name: Preserve native documentation artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
