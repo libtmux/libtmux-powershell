@@ -119,7 +119,8 @@ Assert-ReleaseMutation "    needs: ci`n" "    needs: []`n" 'it must wait for the
 Assert-ReleaseMutation "      release_tag:`n" "      ci_run_id:`n        required: true`n        type: string`n      release_tag:`n" 'must not take the ID'
 Assert-ReleaseMutation '          artifact-ids:' "          run-id: 1`n          artifact-ids:" 'must come from this run'
 Assert-ReleaseMutation 'CI_RUN_ID: ${{ github.run_id }}' 'CI_RUN_ID: ${{ inputs.release_tag }}' 'must read this run'
-Assert-ReleaseMutation 'Release tag must point at the commit being released.' 'Release tag is fine.' 'must name the commit that was tested'
+Assert-ReleaseMutation '-Commit "${GITHUB_SHA}"' '-Commit "${RELEASE_TAG}"' 'must name the commit that was tested'
+Assert-ReleaseMutation 'scripts/release-source/ReleaseSource.ps1' 'scripts/release-source/Other.ps1' 'must name the commit that was tested'
 Assert-That (@(@(Test-ReleaseWorkflow ($release + "`n# git merge-base --is-ancestor`n")) -match 'a release tag may not be an ancestor').Count -gt 0) 'A tag that may be an ancestor passed.'
 Assert-ReleaseMutation "  ci:`n    if: github.repository == 'libtmux/libtmux-powershell' && github.ref == 'refs/heads/master'`n" "  ci:`n" 'ci: a release runs from master only'
 

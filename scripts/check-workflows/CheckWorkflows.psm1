@@ -198,7 +198,7 @@ function Test-ReleaseWorkflow([string] $Text) {
     if ($Text.Contains('ci_run_id')) { $problems.Add('a release must not take the ID of a run someone else dispatched') }
     if ($Text.Contains('run-id:')) { $problems.Add('gallery: the packages must come from this run') }
     if (!$jobs['gallery'].Contains('CI_RUN_ID: ${{ github.run_id }}')) { $problems.Add('gallery: the provenance check must read this run') }
-    if (!$jobs['gallery'].Contains('Release tag must point at the commit being released.')) {
+    if (!$jobs['gallery'].Contains('scripts/release-source/ReleaseSource.ps1') -or !$jobs['gallery'].Contains('-Commit "${GITHUB_SHA}"')) {
         $problems.Add('gallery: a release tag must name the commit that was tested')
     }
     if ($Text.Contains('merge-base')) { $problems.Add('gallery: a release tag may not be an ancestor of the tested commit') }

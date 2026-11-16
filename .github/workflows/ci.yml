@@ -147,6 +147,11 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
           -File scripts/verify-package/tests/VerifyPackage.Tests.ps1
 
+      - name: Test the release source check
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/release-source/tests/ReleaseSource.Tests.ps1
+
       - name: Check the workflows
         run: >-
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile

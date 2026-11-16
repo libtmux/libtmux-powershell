@@ -49,28 +49,12 @@ jobs:
         id: source
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          source_commit="${GITHUB_SHA}"
-          if [[ -n "${RELEASE_TAG}" ]]; then
-            if [[ ! "${RELEASE_TAG}" =~ ^v0\.1\.(0-alpha[1-9][0-9]*|0|[1-9][0-9]*)$ ]]; then
-              echo 'Release tag must use v0.1.N or v0.1.0-alphaN.' >&2
-              exit 1
-            fi
-            tag_ref="refs/tags/${RELEASE_TAG}"
-            git show-ref --verify --quiet "${tag_ref}"
-            if [[ "$(git cat-file -t "${tag_ref}")" != tag ]]; then
-              echo 'Release tag must be annotated.' >&2
-              exit 1
-            fi
-            if [[ "$(git rev-parse --verify "${tag_ref}^{commit}")" != "${GITHUB_SHA}" ]]; then
-              echo 'Release tag must point at the commit being released.' >&2
-              exit 1
-            fi
-          fi
-          [[ "${source_commit}" =~ ^[0-9a-f]{40}$ ]]
-          echo "commit=${source_commit}" >> "${GITHUB_OUTPUT}"
+        run: >-
+          pwsh -NoLogo -NoProfile
+          -File scripts/release-source/ReleaseSource.ps1
+          -Tag "${RELEASE_TAG}"
+          -Commit "${GITHUB_SHA}"
+          -GithubOutput "${GITHUB_OUTPUT}"
 
       - name: Install official PowerShell 7.4.20
         run: pwsh -NoLogo -NoProfile -File scripts/install-powershell/InstallPowerShell.ps1 -Version 7.4.20
