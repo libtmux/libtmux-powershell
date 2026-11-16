@@ -9,6 +9,10 @@ the PowerShell releases and refuses it unless its SHA-256 is the one in
 [`matrix.json`](../plan-matrix/matrix.json). It extracts only after that check,
 then runs the installed `pwsh` to confirm it reports the version.
 
+The [macOS trial](../../.github/workflows/macos-trial.yml) installs the macOS
+asset the same way. `-Platform osx-x64` or `osx-arm64` picks the asset, and
+`-Sha256` gives its digest, because the table lists only the Linux digests.
+
 ```console
 $ pwsh -NoLogo -NoProfile -File \
     scripts/install-powershell/InstallPowerShell.ps1 \
@@ -27,5 +31,6 @@ $ pwsh -NoLogo -NoProfile -File \
 ```
 
 The test installs an archive it builds, refuses one whose digest differs
-without extracting it, refuses a version the table lacks, and compares the
+without extracting it, refuses a version the table lacks unless `-Sha256`
+gives the digest, names the asset URL for each platform, and compares the
 version of the running `pwsh`. The download itself runs in CI.

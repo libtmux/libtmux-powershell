@@ -48,6 +48,19 @@ try {
         Install-PowerShellArchive -Version '1.2.3' -Manifest $manifest -Destination $refused -Source $archive
     }
 
+    # A digest given by the caller replaces the table's, for a platform the table does not list.
+    $given = Join-Path $scratch 'given'
+    $null = Install-PowerShellArchive -Version '1.2.3' -Manifest $manifest -Destination $given -Platform osx-arm64 -Sha256 $digest -Source $archive
+    Assert-That (Test-Path -LiteralPath (Join-Path $given 'pwsh')) 'An archive with the given digest was not installed.'
+    $wrong = Join-Path $scratch 'wrong'
+    Assert-Refused 'SHA-256' {
+        Install-PowerShellArchive -Version '9.9.9' -Manifest $manifest -Destination $wrong -Sha256 ('0' * 64) -Source $archive
+    }
+    Assert-That (!(Test-Path -LiteralPath $wrong)) 'An archive that differs from the given digest was extracted.'
+    $base = 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.20/powershell-7.4.20'
+    Assert-That ((Get-PowerShellArchiveUrl '7.4.20') -ceq "$base-linux-x64.tar.gz") 'The default asset is not linux-x64.'
+    Assert-That ((Get-PowerShellArchiveUrl '7.4.20' 'osx-arm64') -ceq "$base-osx-arm64.tar.gz") 'The macOS asset URL is wrong.'
+
     $running = [Environment]::ProcessPath
     $version = $PSVersionTable.PSVersion.ToString()
     Assert-PowerShellVersion $running $version

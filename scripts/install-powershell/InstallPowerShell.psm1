@@ -14,8 +14,9 @@ function Get-PowerShellRelease([string] $Version, [string] $Manifest) {
     $found[0]
 }
 
-function Get-PowerShellArchiveUrl([string] $Version) {
-    "https://github.com/PowerShell/PowerShell/releases/download/v$Version/powershell-$Version-linux-x64.tar.gz"
+# Platform is the suffix of the release asset: linux-x64, osx-x64 or osx-arm64.
+function Get-PowerShellArchiveUrl([string] $Version, [string] $Platform = 'linux-x64') {
+    "https://github.com/PowerShell/PowerShell/releases/download/v$Version/powershell-$Version-$Platform.tar.gz"
 }
 
 # Refuses an archive whose SHA-256 is not the one the table lists.
@@ -31,26 +32,30 @@ function Assert-PowerShellVersion([string] $Pwsh, [string] $Expected) {
 }
 
 # Fetches the archive, checks its digest, and only then extracts it into Destination.
-# Source is a local archive that stands in for the download, which tests use.
+# The digest is the one the table lists for Version, or Sha256 for a platform the
+# table has no digest for. Source is a local archive that stands in for the
+# download, which tests use.
 function Install-PowerShellArchive {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $Version,
         [Parameter(Mandatory)] [string] $Manifest,
         [Parameter(Mandatory)] [string] $Destination,
+        [string] $Platform = 'linux-x64',
+        [string] $Sha256,
         [string] $Source
     )
-    $release = Get-PowerShellRelease $Version $Manifest
+    $expected = if ($Sha256) { $Sha256 } else { (Get-PowerShellRelease $Version $Manifest).sha256 }
     $staging = Join-Path ([IO.Path]::GetTempPath()) "libtmux-powershell-$([Guid]::NewGuid().ToString('N'))"
     $null = New-Item -ItemType Directory -Path $staging
     try {
-        $archive = Join-Path $staging "powershell-$Version-linux-x64.tar.gz"
+        $archive = Join-Path $staging "powershell-$Version-$Platform.tar.gz"
         if ($Source) {
             Copy-Item -LiteralPath $Source -Destination $archive
         } else {
-            Invoke-WebRequest -Uri (Get-PowerShellArchiveUrl $Version) -OutFile $archive -MaximumRetryCount 3 -RetryIntervalSec 2
+            Invoke-WebRequest -Uri (Get-PowerShellArchiveUrl $Version $Platform) -OutFile $archive -MaximumRetryCount 3 -RetryIntervalSec 2
         }
-        Assert-ArchiveDigest $archive $release.sha256
+        Assert-ArchiveDigest $archive $expected
         $null = New-Item -ItemType Directory -Path $Destination -Force
         & tar -xzf $archive -C $Destination
         if ($LASTEXITCODE) { Stop-Install "tar could not extract the PowerShell archive (exit $LASTEXITCODE)." }
@@ -63,4 +68,4 @@ function Install-PowerShellArchive {
     }
 }
 
-Export-ModuleMember -Function Get-PowerShellRelease, Assert-ArchiveDigest, Assert-PowerShellVersion, Install-PowerShellArchive
+Export-ModuleMember -Function Get-PowerShellRelease, Get-PowerShellArchiveUrl, Assert-ArchiveDigest, Assert-PowerShellVersion, Install-PowerShellArchive
