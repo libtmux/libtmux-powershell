@@ -33,16 +33,25 @@ jobs:
       - name: Install official PowerShell 7.4.20 for packaging
         run: pwsh -NoLogo -NoProfile -File scripts/install-powershell/InstallPowerShell.ps1 -Version 7.4.20
 
-      - name: Restore locked dependencies and pack the modules
-        run: |
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Build.ps1 \
-            -Restore \
-            -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
-          PSModulePath="${GITHUB_WORKSPACE}/build/Modules" \
-            "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -File eng/Package.ps1 \
-            -DestinationPath "${RUNNER_TEMP}/port-package"
-          cp build/Modules/LibTmux/0.1.0/dependencies.json \
-            "${RUNNER_TEMP}/port-package/core-dependencies.json"
+      - name: Restore locked dependencies
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Build.ps1
+          -Restore
+          -PackageCache "${RUNNER_TEMP}/port-nuget-cache"
+
+      - name: Pack the modules
+        env:
+          PSModulePath: ${{ github.workspace }}/build/Modules
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File eng/Package.ps1
+          -DestinationPath "${RUNNER_TEMP}/port-package"
+
+      - name: Record the core dependency versions
+        run: >-
+          cp build/Modules/LibTmux/0.1.0/dependencies.json
+          "${RUNNER_TEMP}/port-package/core-dependencies.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -137,60 +146,39 @@ jobs:
           POWERSHELL_VERSION: ${{ matrix.powershell }}
           POWERSHELL_SHA256: ${{ matrix.powershell_sha256 }}
           ASSET_ARCH: ${{ matrix.asset_arch }}
-          EXPECTED_ARCH: ${{ matrix.arch }}
-        run: |
-          archive="${RUNNER_TEMP}/powershell-${POWERSHELL_VERSION}-osx-${ASSET_ARCH}.tar.gz"
-          curl --fail --location --retry 3 --silent --show-error \
-            "https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-osx-${ASSET_ARCH}.tar.gz" \
-            --output "${archive}"
-          digest="$(shasum -a 256 "${archive}" | awk '{print $1}')"
-          test "${digest}" = "${POWERSHELL_SHA256}"
-          mkdir -p "${RUNNER_TEMP}/powershell"
-          tar -xzf "${archive}" -C "${RUNNER_TEMP}/powershell"
-          chmod +x "${RUNNER_TEMP}/powershell/pwsh"
-          test "$(lipo -archs "${RUNNER_TEMP}/powershell/pwsh")" = "${EXPECTED_ARCH}"
-          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile -Command \
-            "if (\$PSVersionTable.PSVersion.ToString() -cne \$env:POWERSHELL_VERSION) { throw 'Unexpected PowerShell version' }"
+        run: >-
+          pwsh -NoLogo -NoProfile
+          -File scripts/install-powershell/InstallPowerShell.ps1
+          -Version "${POWERSHELL_VERSION}"
+          -Platform "osx-${ASSET_ARCH}"
+          -Sha256 "${POWERSHELL_SHA256}"
 
+      - name: Verify the PowerShell architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: test "$(lipo -archs "${RUNNER_TEMP}/powershell/pwsh")" = "${EXPECTED_ARCH}"
+
+      - name: Verify the core checkout
+        run: test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
+
+      # The shared build-tmux action installs its dependencies with apt, so it
+      # does not run on macOS.
       - name: Build tmux ${{ matrix.tmux }} from its pinned source tag
         env:
           TMUX_VERSION: ${{ matrix.tmux }}
           TMUX_SOURCE_COMMIT: ${{ matrix.tmux_commit }}
           EXPECTED_ARCH: ${{ matrix.arch }}
-          LIBTMUX_BUILD_JOBS: '3'
-        run: |
-          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          brew install autoconf automake bison pkg-config libevent ncurses utf8proc jemalloc jq
-          PATH="$(brew --prefix bison)/bin:${PATH}"
-          PKG_CONFIG_PATH="$(brew --prefix libevent)/lib/pkgconfig:$(brew --prefix ncurses)/lib/pkgconfig:$(brew --prefix utf8proc)/lib/pkgconfig:$(brew --prefix jemalloc)/lib/pkgconfig"
-          export PATH PKG_CONFIG_PATH
-          pkg-config --exists libutf8proc jemalloc
-          source="${GITHUB_WORKSPACE}/core/artifacts/tmux/sources/${TMUX_VERSION}"
-          mkdir -p "$(dirname "${source}")"
-          git clone --depth 1 --branch "${TMUX_VERSION}" https://github.com/tmux/tmux.git "${source}"
-          test "$(git -C "${source}" rev-parse HEAD)" = "${TMUX_SOURCE_COMMIT}"
-          test "$(git -C "${source}" describe --tags --exact-match HEAD)" = "${TMUX_VERSION}"
-          # The shared build script runs a bare configure, which tmux 3.3a rejects
-          # without an explicit utf8proc choice; brew installs utf8proc above.
-          install="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}"
-          # Homebrew on Apple silicon keeps utf8proc outside the default search paths.
-          export CPPFLAGS="-I$(brew --prefix utf8proc)/include"
-          export LDFLAGS="-L$(brew --prefix utf8proc)/lib"
-          (cd "${source}" \
-            && sh autogen.sh \
-            && ./configure --prefix="${install}" --enable-utf8proc \
-            && make --jobs="${LIBTMUX_BUILD_JOBS}" \
-            && make install)
-          printf '%s\n' "${TMUX_SOURCE_COMMIT}" > "${install}/source-commit"
-          binary="${GITHUB_WORKSPACE}/core/artifacts/tmux/installs/${TMUX_VERSION}/bin/tmux"
-          test -x "${binary}"
-          test "$(cat "core/artifacts/tmux/installs/${TMUX_VERSION}/source-commit")" = "${TMUX_SOURCE_COMMIT}"
-          test "$("${binary}" -V)" = "tmux ${TMUX_VERSION}"
-          test "$(lipo -archs "${binary}")" = "${EXPECTED_ARCH}"
-          printf '%s\n' "$(dirname "${binary}")" >> "${GITHUB_PATH}"
-          printf 'TMUX_BINARY=%s\n' "${binary}" >> "${GITHUB_ENV}"
-          brew list --versions autoconf automake bison pkgconf libevent ncurses utf8proc jemalloc jq \
-            > "${RUNNER_TEMP}/tmux-build-dependencies.txt"
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/build-tmux-macos/BuildTmuxMacos.ps1
+          -Version "${TMUX_VERSION}"
+          -SourceCommit "${TMUX_SOURCE_COMMIT}"
+          -Architecture "${EXPECTED_ARCH}"
+          -Root "${GITHUB_WORKSPACE}/core/artifacts/tmux"
+          -DependenciesFile "${RUNNER_TEMP}/tmux-build-dependencies.txt"
+          -Jobs 3
+          -GithubPath "${GITHUB_PATH}"
+          -GithubEnv "${GITHUB_ENV}"
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -205,40 +193,24 @@ jobs:
           POWERSHELL_VERSION: ${{ matrix.powershell }}
           POWERSHELL_SHA256: ${{ matrix.powershell_sha256 }}
           EXPECTED_ARCH: ${{ matrix.arch }}
-        run: |
-          test "$(command -v tmux)" = "${TMUX_BINARY}"
-          test "$(git -C core rev-parse HEAD)" = "${CORE_REVISION}"
-          jq -e --arg version "${CORE_VERSION}" \
-            '.corePackageVersion == $version' \
-            "${RUNNER_TEMP}/port-package/core-dependencies.json"
-          jq -e '.version as $version | .packages | length == 2 and ([.[].file] | sort) == ["LibTmux.\($version).nupkg", "LibTmux.Workspace.\($version).nupkg"]' \
-            "${RUNNER_TEMP}/port-package/package-evidence.json"
-          jq -r '.packages[] | [.sha256, .file] | @tsv' \
-            "${RUNNER_TEMP}/port-package/package-evidence.json" \
-            | while IFS=$'\t' read -r digest file; do
-                actual="$(shasum -a 256 "${RUNNER_TEMP}/port-package/${file}" | awk '{print $1}')"
-                test "${actual}" = "${digest}"
-              done
-          mkdir -p build
-          jq -n \
-            --arg runner "${RUNNER_NAME}" \
-            --arg arch "${EXPECTED_ARCH}" \
-            --arg core "${CORE_REVISION}" \
-            --arg corePackageVersion "${CORE_VERSION}" \
-            --arg powershell "${POWERSHELL_VERSION}" \
-            --arg powershellSha256 "${POWERSHELL_SHA256}" \
-            --arg powershellBinarySha256 "$(shasum -a 256 "${RUNNER_TEMP}/powershell/pwsh" | awk '{print $1}')" \
-            --arg tmux "${TMUX_VERSION}" \
-            --arg tmuxCommit "${TMUX_SOURCE_COMMIT}" \
-            --arg tmuxSha256 "$(shasum -a 256 "${TMUX_BINARY}" | awk '{print $1}')" \
-            --rawfile buildDependencies "${RUNNER_TEMP}/tmux-build-dependencies.txt" \
-            --slurpfile packages "${RUNNER_TEMP}/port-package/package-evidence.json" \
-            '{runner:$runner,arch:$arch,coreRevision:$core,corePackageVersion:$corePackageVersion,
-              powershell:$powershell,powershellSha256:$powershellSha256,
-              powershellBinarySha256:$powershellBinarySha256,
-              tmux:$tmux,tmuxCommit:$tmuxCommit,tmuxSha256:$tmuxSha256,
-              buildDependencies:$buildDependencies,packages:$packages[0].packages}' \
-            > build/macos-provenance.json
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/macos-trial/MacosTrial.ps1
+          provenance
+          -Runner "${RUNNER_NAME}"
+          -Architecture "${EXPECTED_ARCH}"
+          -Core core
+          -CoreRevision "${CORE_REVISION}"
+          -CoreVersion "${CORE_VERSION}"
+          -Powershell "${POWERSHELL_VERSION}"
+          -PowershellSha256 "${POWERSHELL_SHA256}"
+          -PowershellBinary "${RUNNER_TEMP}/powershell/pwsh"
+          -Tmux "${TMUX_VERSION}"
+          -TmuxCommit "${TMUX_SOURCE_COMMIT}"
+          -TmuxBinary "${TMUX_BINARY}"
+          -PackageRoot "${RUNNER_TEMP}/port-package"
+          -DependenciesFile "${RUNNER_TEMP}/tmux-build-dependencies.txt"
+          -Output build/macos-provenance.json
 
       - name: Run installed version check suite
         id: version-check
@@ -282,20 +254,19 @@ jobs:
           CELL_RUNNER: ${{ matrix.runner }}
           CELL_POWERSHELL: ${{ matrix.powershell }}
           CELL_TMUX: ${{ matrix.tmux }}
-        run: |
-          mkdir -p build
-          printf '{"runner":"%s","powershell":"%s","tmux":"%s","version_check":"%s","features":"%s","product":"%s","documentation":"%s"}\n' \
-            "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
-            > build/macos-cell.json
-          printf '| Runner | PowerShell | tmux | Version check | Features | Product | Documentation |\n| --- | --- | --- | --- | --- | --- | --- |\n| %s | %s | %s | %s | %s | %s | %s |\n' \
-            "${CELL_RUNNER}" "${CELL_POWERSHELL}" "${CELL_TMUX}" \
-            "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}" \
-            >> "${GITHUB_STEP_SUMMARY}"
-          if [[ "${VERSION_CHECK_OUTCOME}" != success || "${FEATURES_OUTCOME}" != success || "${PRODUCT_OUTCOME}" != success || "${DOCUMENTATION_OUTCOME}" != success ]]; then
-            printf '::warning::macOS trial suites failed: Version check=%s, Features=%s, Product=%s, Documentation=%s\n' \
-              "${VERSION_CHECK_OUTCOME}" "${FEATURES_OUTCOME}" "${PRODUCT_OUTCOME}" "${DOCUMENTATION_OUTCOME}"
-          fi
+        run: >-
+          pwsh -NoLogo -NoProfile
+          -File scripts/macos-trial/MacosTrial.ps1
+          report
+          -Runner "${CELL_RUNNER}"
+          -Powershell "${CELL_POWERSHELL}"
+          -Tmux "${CELL_TMUX}"
+          -VersionCheck "${VERSION_CHECK_OUTCOME}"
+          -Features "${FEATURES_OUTCOME}"
+          -Product "${PRODUCT_OUTCOME}"
+          -Documentation "${DOCUMENTATION_OUTCOME}"
+          -Output build/macos-cell.json
+          -Summary "${GITHUB_STEP_SUMMARY}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -318,7 +289,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require package build and trial reporting
-        run: |
-          test "${{ needs.package.result }}" = success
-          test "${{ needs.matrix.result }}" = success
+      - name: Require the package build
+        env:
+          RESULT: ${{ needs.package.result }}
+        run: test "${RESULT}" = success
+
+      - name: Require the trial reporting
+        env:
+          RESULT: ${{ needs.matrix.result }}
+        run: test "${RESULT}" = success
