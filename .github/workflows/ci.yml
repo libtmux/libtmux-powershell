@@ -162,6 +162,11 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
           -File scripts/build-tmux-macos/tests/BuildTmuxMacos.Tests.ps1
 
+      - name: Test the macOS trial records
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/macos-trial/tests/MacosTrial.Tests.ps1
+
       - name: Check the workflows
         run: >-
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
