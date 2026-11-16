@@ -157,6 +157,11 @@ jobs:
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
           -File scripts/docs-preview-cleanup/tests/DocsPreviewCleanup.Tests.ps1
 
+      - name: Test the macOS tmux build checks
+        run: >-
+          "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
+          -File scripts/build-tmux-macos/tests/BuildTmuxMacos.Tests.ps1
+
       - name: Check the workflows
         run: >-
           "${RUNNER_TEMP}/powershell/pwsh" -NoLogo -NoProfile
