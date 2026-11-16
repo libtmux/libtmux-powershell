@@ -104,9 +104,10 @@ try {
         $null = New-Item -ItemType SymbolicLink -Path (Join-Path $fallback $name) -Target $binary.Source
     }
     $oldPython = Join-Path $fallback 'python3'
-    Set-Content -LiteralPath $oldPython -NoNewline -Value "#!/bin/sh`nprintf '3.8\n'`n"
-    & chmod +x $oldPython
-    if ($LASTEXITCODE) { throw 'Cannot create an old-Python fixture.' }
+    # The shebang names this pwsh by path: the PATH set below holds no pwsh for `env` to find.
+    Set-Content -LiteralPath $oldPython -Value "#!$([Environment]::ProcessPath) -NoProfile`n'Python 3.8.18'"
+    [IO.File]::SetUnixFileMode($oldPython, [IO.UnixFileMode]::UserRead -bor
+        [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
     try {
         $env:PATH = $fallback
         Assert-BootstrapFailure $script $existing 'already exists'

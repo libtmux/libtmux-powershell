@@ -23,9 +23,9 @@ foreach ($name in @('python3', 'python')) {
     $command = Get-Command $name -CommandType Application -ErrorAction Ignore | Select-Object -First 1
     if (!$command) { continue }
     try {
-        $candidateVersion = & $command.Source -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")'
-        if (!$LASTEXITCODE -and $candidateVersion -match '^[0-9]+\.[0-9]+$' -and
-            [version] $candidateVersion -ge [version] '3.9') {
+        $banner = & $command.Source --version
+        if (!$LASTEXITCODE -and "$banner" -match '^Python ([0-9]+\.[0-9]+)' -and
+            [version] $Matches[1] -ge [version] '3.9') {
             $python = $command.Source
             break
         }
@@ -62,12 +62,19 @@ function Assert-OutsideSource([string] $Path, [string] $Source) {
     }
 }
 
+# Resolves every link in the path, so an output reached through a link into a source checkout is
+# still seen as inside it.
 function Get-CanonicalPath([string] $Path) {
-    $canonical = & $python -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' $Path
-    if ($LASTEXITCODE -or [string]::IsNullOrWhiteSpace($canonical)) {
-        throw "Cannot resolve directory path: $Path"
+    $full = [IO.Path]::GetFullPath($Path)
+    $anchor = [IO.Path]::GetPathRoot($full)
+    $resolved = $anchor
+    foreach ($segment in $full.Substring($anchor.Length).Split(
+        [IO.Path]::DirectorySeparatorChar, [StringSplitOptions]::RemoveEmptyEntries)) {
+        $candidate = Join-Path $resolved $segment
+        $target = [IO.DirectoryInfo]::new($candidate).ResolveLinkTarget($true)
+        $resolved = if ($target) { Get-CanonicalPath $target.FullName } else { $candidate }
     }
-    [IO.Path]::GetFullPath($canonical.Trim())
+    $resolved
 }
 
 if (Test-Path -LiteralPath $output) { throw "Output directory already exists: $output" }
