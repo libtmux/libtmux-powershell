@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Package', 'Install', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Rename', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
+    [ValidateSet('Package', 'Install', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Rename', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Fixture', 'RecordingTmux', 'Product', 'Documentation', 'All')] [string] $Suite = 'All',
     [string] $PackageRoot,
     [ValidateSet('1.1.1', '1.2.0')]
     [string] $PSResourceGetVersion = $(if ($PSVersionTable.PSVersion -ge [version] '7.6') { '1.2.0' } else { '1.1.1' })
@@ -155,10 +155,8 @@ try {
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
-    if ($Suite -eq 'Fixture') {
-        Invoke-TestScript 'tests/Fixture.Tests.ps1'
-        Invoke-TestScript 'tests/RecordingTmux.Tests.ps1'
-    }
+    if ($Suite -eq 'Fixture') { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
+    if ($Suite -eq 'RecordingTmux') { Invoke-TestScript 'tests/RecordingTmux.Tests.ps1' }
     if ($Suite -in @('Package', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Rename', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
