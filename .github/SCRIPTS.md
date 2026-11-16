@@ -43,48 +43,62 @@ for the library. Do not add shell or Python script files.
 - A capability PowerShell lacks comes from a test-only PowerShell dependency,
   not from a second language.
 - Test data that is not a comparison, such as workspace files a loader reads.
-- A minimal POSIX `sh` script that stands in for tmux in a test. It records or
-  rewrites the arguments of a call and then runs the real tmux with `exec`, or
-  answers a daemon start with a fixed result. A suite hands it to the library
-  as the tmux binary, so the library starts it once for each tmux process it
-  runs. A PowerShell script is not a substitute:
-  - It starts slowly. A script with an empty body behind a `pwsh` shebang takes
-    about 250 ms to start, and about 380 ms with four starting at once on four
-    cores. The `sh` script takes 1 ms. The measurement ran on a 12-core WSL2
-    host under load, with the first command below.
-  - It breaks the suites' one-second bounds. `Invoke-OwnedTmux` waits one
-    second by default, and `tests/Wait.Tests.ps1` asserts that a stopped wait
-    ends within one second. With an equivalent PowerShell stand-in the Wait
-    suite passed 1 of 5 runs, every failure a timeout; with the `sh` stand-in
-    it passed 5 of 5.
-  - It costs a start for every call. The Layout suite runs its stand-in 9
-    times, and took 5.0 s with `sh` and 6.4 s with PowerShell.
-  - It cannot `exec`. The process the library signals is `pwsh`, and the tmux
-    client is its child, but the Wait suite reads the client's process ID from
-    the stand-in and asserts that the client exits.
 
-  ```console
-  $ hyperfine \
-      -N \
-      --warmup 3 \
-      --runs 20 \
-      ./shim.sh \
-      ./shim.ps1
-  ```
+## POSIX `sh` programs in tests
 
-  `shim.sh` is `exec /usr/bin/true "$@"` under `#!/bin/sh`; `shim.ps1` is
-  `exit 0` under a `pwsh` shebang. The suite figures come from running each
-  suite against the modules that `eng/Build.ps1 -Restore` stages, once as
-  written and once with its stand-in rewritten in PowerShell:
+A test may write a minimal POSIX `sh` program in two places. A PowerShell
+program starts too slowly for either, and the suites bound a wait at one second.
 
-  ```console
-  $ pwsh -NoLogo -NoProfile -File tests/Wait.Tests.ps1 -ModuleRoot build/Modules
-  ```
-
-  These suites, each `tests/<name>.Tests.ps1`, write the stand-in: Attachment,
-  Capture, Completion, Create, CreateStartup, Criteria, Features, Fixture,
-  Formatting, GuideExamples, Input, Layout, Placement, Remove, Rename,
-  Sandbox, Selectors, Snapshot, SourceQuery, VersionCheck, Wait,
-  WorkspaceApply and WorkspaceSerialization. A stand-in that runs on every tmux
-  call, with no per-call logic, is a compiled program instead:
+- **A stand-in for tmux.** It records or rewrites the arguments of a call and
+  then runs the real tmux with `exec`, or answers a daemon start with a fixed
+  result. A suite hands it to the library as the tmux binary, so the library
+  starts it once for each tmux process it runs. A stand-in that runs on every
+  tmux call, with no per-call logic, is a compiled program instead:
   `tests/support/RecordingTmux`.
+- **A pane program.** A few lines that a test starts in a pane: print a marker,
+  signal readiness with `tmux wait-for -S`, read input, then `exec /bin/cat`.
+  The test waits for the signal with `Invoke-OwnedTmux`, which gives up after
+  one second.
+
+`rg -l '#!/bin/sh' tests` lists the files that write one.
+
+### Start cost
+
+The figures are `hyperfine` means of 20 runs after 3 warm-up runs, on a 12-core
+WSL2 host with a tmux server running for the `wait-for` rows.
+
+```console
+$ hyperfine \
+    -N \
+    --warmup 3 \
+    --runs 20 \
+    ./empty.sh \
+    ./empty.ps1 \
+    ./signal.sh \
+    ./signal.ps1
+```
+
+```console
+$ hyperfine \
+    -N \
+    --warmup 3 \
+    --runs 20 \
+    'bash -c "./empty.sh & ./empty.sh & ./empty.sh & ./empty.sh & wait"' \
+    'bash -c "./empty.ps1 & ./empty.ps1 & ./empty.ps1 & ./empty.ps1 & wait"'
+```
+
+| Program | `sh` | PowerShell |
+| --- | --- | --- |
+| Empty body | 0.5 ms | 181 ms |
+| Signals `wait-for -S` | 1.8 ms | 194 ms |
+| Empty body, four starting at once | 2.7 ms | 301 ms |
+
+`empty.sh` is `exit 0` under `#!/bin/sh` and `empty.ps1` is `exit 0` under a
+`pwsh -NoProfile` shebang. `signal.sh` and `signal.ps1` run
+`tmux -S <socket> wait-for -S ready` in each language.
+
+A PowerShell start takes a fifth of the one-second bound with nothing else
+running, and the Product suites run three scripts at once. The bound leaves no
+room for the second start a stand-in costs on every tmux call, and little for a
+pane program, which is why neither is rewritten. No suite run with PowerShell
+variants is claimed here.
