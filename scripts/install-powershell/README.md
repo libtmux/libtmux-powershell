@@ -10,7 +10,8 @@ the PowerShell releases and refuses it unless its SHA-256 is the one in
 then runs the installed `pwsh` to confirm it reports the version.
 
 ```console
-$ pwsh -NoLogo -NoProfile -File scripts/install-powershell/InstallPowerShell.ps1 \
+$ pwsh -NoLogo -NoProfile -File \
+    scripts/install-powershell/InstallPowerShell.ps1 \
     -Version 7.4.20
 ```
 
