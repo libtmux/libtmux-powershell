@@ -1,27 +1,4 @@
-function Get-HelpExampleAssertion {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'pane',
-        Justification = 'Preparation binds the documented pane variable in the example execution scope.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'server',
-        Justification = 'Preparation binds the documented server variable in the example execution scope.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'session',
-        Justification = 'Preparation binds the documented session variable in the example execution scope.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'window',
-        Justification = 'Preparation binds the documented window variable in the example execution scope.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', 'control',
-        Justification = 'Preparation binds the documented control variable in the example execution scope.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Result',
-        Justification = 'Zero-output assertions use fixture state and retain the shared result/context callback signature.')]
-    param()
-
-    $prepareWorkspacePlan = {
-        param($Context)
-        $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
-        $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: workspace-help, options: {default-command: "exec /bin/cat"}, windows: [{window_name: editor}]}'
-        $Plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server
-        $Context.Plan = $Plan
-    }
-
-    # Each packaged example needs its own outcome assertion, including examples with no output.
+function Get-EnterTmuxSessionHelpAssertion {
     @{
         'LibTmux\Enter-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
@@ -45,6 +22,11 @@ function Get-HelpExampleAssertion {
                     throw 'Attachment example did not return one refreshed session from its explicit endpoint.'
                 }
             } }
+    }
+}
+
+function Get-ConvertToTmuxWorkspaceHelpAssertion {
+    @{
         'LibTmux.Workspace\ConvertTo-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -62,6 +44,11 @@ function Get-HelpExampleAssertion {
                     throw 'Snapshot conversion example lost captured structure or invented startup commands.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxWorkspaceHelpAssertion {
+    @{
         'LibTmux.Workspace\Get-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $WorkspacePath = Join-Path $Context.Fixture.DirectoryPath '[team].yaml'
@@ -74,6 +61,11 @@ function Get-HelpExampleAssertion {
                     throw 'Workspace discovery example did not return its literal native file.'
                 }
             } }
+    }
+}
+
+function Get-ResolveTmuxWorkspaceHelpAssertion {
+    @{
         'LibTmux.Workspace\Resolve-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $expectedBase = (Get-Location).Path
@@ -83,6 +75,11 @@ function Get-HelpExampleAssertion {
                     throw 'Workspace resolution example lost the explicit base or inherited expansion.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxWorkspacePlanHelpAssertion {
+    @{
         'LibTmux.Workspace\Get-TmuxWorkspacePlan#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 $plan = $Result[0]
@@ -93,6 +90,19 @@ function Get-HelpExampleAssertion {
                     throw 'Workspace plan example lost its native actions or created its session during planning.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxWorkspaceHelpAssertion {
+    $prepareWorkspacePlan = {
+        param($Context)
+        $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
+        $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml '{session_name: workspace-help, options: {default-command: "exec /bin/cat"}, windows: [{window_name: editor}]}'
+        $Plan = $workspace | LibTmux.Workspace\Get-TmuxWorkspacePlan -Server $server
+        $Context.Plan = $Plan
+    }
+
+    @{
         'LibTmux.Workspace\Invoke-TmuxWorkspace#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = $prepareWorkspacePlan; Assert = {
                 param($Result, $Context)
                 if (@($Context.Plan.Endpoint | LibTmux\Get-TmuxSession -Name workspace-help).Count -ne 0) {
@@ -110,12 +120,22 @@ function Get-HelpExampleAssertion {
                     throw 'Workspace apply example did not execute its exact plan into the expected captured session.'
                 }
             } }
+    }
+}
+
+function Get-TestTmuxWorkspaceHelpAssertion {
+    @{
         'LibTmux.Workspace\Test-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0] -isnot [bool] -or !$Result[0]) {
                     throw 'Workspace validation example did not accept its complete declaration.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxQueryPlanHelpAssertion {
+    @{
         'LibTmux\Get-TmuxQueryPlan#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $plan = $Result[0]
@@ -126,6 +146,11 @@ function Get-HelpExampleAssertion {
                     throw 'Plan example did not preserve the native exact pane-ID source plan.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxQueryHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxQuery#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0] -isnot [LibTmux.Pane] -or
@@ -143,6 +168,11 @@ function Get-HelpExampleAssertion {
                     throw 'Result example did not retain matching rows from its complete snapshot.'
                 }
             } }
+    }
+}
+
+function Get-NewTmuxQueryHelpAssertion {
+    @{
         'LibTmux\New-TmuxQuery#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 $query = $Result[0]
@@ -154,6 +184,11 @@ function Get-HelpExampleAssertion {
                     throw 'Query example did not construct the documented native pane-width criterion.'
                 }
             } }
+    }
+}
+
+function Get-ConvertToTmuxQueryJsonHelpAssertion {
+    @{
         'LibTmux\ConvertTo-TmuxQueryJson#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $query = LibTmux\New-TmuxQuery -Json $Result[0]
@@ -162,6 +197,11 @@ function Get-HelpExampleAssertion {
                     throw 'Query JSON example did not round-trip the documented pane-width criterion.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxQueryFieldHelpAssertion {
+    @{
         'LibTmux\Get-TmuxQueryField#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0].WireName -cne 'pane_width' -or $Result[0].ScalarPropertyPath -cne 'Width' -or
@@ -169,36 +209,66 @@ function Get-HelpExampleAssertion {
                     throw 'Field discovery example did not return the native numeric Width binding.'
                 }
             } }
+    }
+}
+
+function Get-SelectTmuxPaneHelpAssertion {
+    @{
         'LibTmux\Select-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Id.ToString() -cne $Context.PaneId -or $Result[0].Width -lt 80) {
                     throw 'Pane selection example did not return the captured wide pane.'
                 }
             } }
+    }
+}
+
+function Get-SelectTmuxSessionHelpAssertion {
+    @{
         'LibTmux\Select-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0].Name -cne 'fixture' -or $Result[0].Attached) {
                     throw 'Session selection example did not return the detached fixture session.'
                 }
             } }
+    }
+}
+
+function Get-SelectTmuxWindowHelpAssertion {
+    @{
         'LibTmux\Select-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Id.ToString() -cne $Context.WindowId -or !$Result[0].IsActive) {
                     throw 'Window selection example did not return the active captured placement.'
                 }
             } }
+    }
+}
+
+function Get-NewTmuxServerHelpAssertion {
+    @{
         'LibTmux\New-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].IsMaterialized -or $Result[0].ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath) {
                     throw 'Endpoint example acquired data or selected the wrong socket.'
                 }
             } }
+    }
+}
+
+function Get-ConnectTmuxServerHelpAssertion {
+    @{
         'LibTmux\Connect-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if (!$Result[0].IsMaterialized -or $Result[0].ConnectionOptions.SocketPath -cne $Context.Fixture.SocketPath) {
                     throw 'Connection example did not materialize the owned endpoint.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxServerHelpAssertion {
+    @{
         'LibTmux\Get-TmuxServer#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 $version = (Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '#{version}')).StdOut.Trim()
@@ -207,6 +277,11 @@ function Get-HelpExampleAssertion {
                     throw 'Inspection example did not preserve daemon identity and version without capturing relationships.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxSnapshotHelpAssertion {
+    @{
         'LibTmux\Get-TmuxSnapshot#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Panes.Count -ne 1 -or $Result[0].Panes[0].Id.ToString() -cne $Context.PaneId -or
@@ -216,28 +291,58 @@ function Get-HelpExampleAssertion {
                     throw 'Snapshot example did not capture the fixture pane.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxSessionHelpAssertion {
+    @{
         'LibTmux\Get-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0].Name -cne 'fixture') { throw 'Session example selected the wrong fixture session.' }
             } }
+    }
+}
+
+function Get-GetTmuxWindowHelpAssertion {
+    @{
         'LibTmux\Get-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Id.ToString() -cne $Context.WindowId) { throw 'Window example selected the wrong fixture window.' }
             } }
+    }
+}
+
+function Get-GetTmuxPaneHelpAssertion {
+    @{
         'LibTmux\Get-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Id.ToString() -cne $Context.PaneId) { throw 'Pane example selected the wrong fixture pane.' }
             } }
+    }
+}
+
+function Get-UpdateTmuxPaneHelpAssertion {
+    @{
         'LibTmux\Update-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].Id.ToString() -cne $Context.PaneId -or $Result[0].Title -cne 'help-example-pane') {
                     throw 'Refresh example did not return current fixture metadata.'
                 }
             } }
+    }
+}
+
+function Get-GetTmuxPaneContentHelpAssertion {
+    @{
         'LibTmux\Get-TmuxPaneContent#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if (!$Result[0].Contains('libtmux-help-example-output')) { throw 'Capture example lost the completed fixture output.' }
             } }
+    }
+}
+
+function Get-ConvertToTmuxWorkspaceYamlHelpAssertion {
+    @{
         'LibTmux.Workspace\ConvertTo-TmuxWorkspaceYaml#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $Result[0]
@@ -248,6 +353,11 @@ function Get-HelpExampleAssertion {
                     throw 'YAML conversion example lost the declared workspace or pane order.'
                 }
             } }
+    }
+}
+
+function Get-ConvertToTmuxWorkspaceJsonHelpAssertion {
+    @{
         'LibTmux.Workspace\ConvertTo-TmuxWorkspaceJson#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 $workspace = LibTmux.Workspace\Import-TmuxWorkspace -Yaml $Result[0]
@@ -258,6 +368,11 @@ function Get-HelpExampleAssertion {
                     throw 'JSON conversion example lost the declared workspace or pane order.'
                 }
             } }
+    }
+}
+
+function Get-ImportTmuxWorkspaceHelpAssertion {
+    @{
         'LibTmux.Workspace\Import-TmuxWorkspace#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0].SessionName -cne 'development' -or
@@ -268,6 +383,11 @@ function Get-HelpExampleAssertion {
                     throw 'Workspace example lost its indexed window declaration.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxCommandHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxCommand#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result, $Context)
                 if ($Result[0].ExitCode -ne 0 -or $Result[0].StandardOutputLines.Count -ne 1 -or
@@ -275,6 +395,11 @@ function Get-HelpExampleAssertion {
                     throw 'Raw command example did not return a successful version.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxPaneCommandHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxPaneCommand#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -296,6 +421,11 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.Session) { $Context.Session | LibTmux\Remove-TmuxSession -Confirm:$false }
             } }
+    }
+}
+
+function Get-NewTmuxSessionHelpAssertion {
+    @{
         'LibTmux\New-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $true; Expected = 'help-session|work'; Assert = {
                 param($Result, $Context, $Expected)
                 $actual = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Result[0].Id.ToString(), '#{session_name}|#{window_name}')
@@ -303,6 +433,11 @@ function Get-HelpExampleAssertion {
                     throw 'Session creation example did not create its named session and initial window.'
                 }
             } }
+    }
+}
+
+function Get-NewTmuxWindowHelpAssertion {
+    @{
         'LibTmux\New-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true; Assert = {
                 param($Result, $Context)
                 $actual = Invoke-OwnedTmux $Context.Fixture -Arguments @('display-message', '-p', '-t', $Result[0].Id.ToString(), '#{session_name}|#{window_name}|#{window_index}')
@@ -310,6 +445,11 @@ function Get-HelpExampleAssertion {
                     throw 'Window creation example did not create its named window at the requested index.'
                 }
             } }
+    }
+}
+
+function Get-NewTmuxWindowLinkHelpAssertion {
+    @{
         'LibTmux\New-TmuxWindowLink#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -327,6 +467,11 @@ function Get-HelpExampleAssertion {
                     throw 'Window-link help did not retain source and create destination placement.'
                 }
             } }
+    }
+}
+
+function Get-MoveTmuxWindowHelpAssertion {
+    @{
         'LibTmux\Move-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -342,6 +487,11 @@ function Get-HelpExampleAssertion {
                     throw 'Window-move help did not return a replacement at the destination index.'
                 }
             } }
+    }
+}
+
+function Get-RemoveTmuxWindowLinkHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxWindowLink#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -361,6 +511,11 @@ function Get-HelpExampleAssertion {
                     throw 'Window-unlink help removed more than the selected placement.'
                 }
             } }
+    }
+}
+
+function Get-SplitTmuxPaneHelpAssertion {
+    @{
         'LibTmux\Split-TmuxPane#1' = @{ ExpectedCount = 1; Isolated = $true; Assert = {
                 param($Result, $Context)
                 $target = $Result[0].Id.ToString()
@@ -369,6 +524,11 @@ function Get-HelpExampleAssertion {
                     throw 'Split example did not return a new unselected pane with the requested width.'
                 }
             } }
+    }
+}
+
+function Get-SetTmuxLayoutHelpAssertion {
+    @{
         'LibTmux\Set-TmuxLayout#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -380,6 +540,11 @@ function Get-HelpExampleAssertion {
                 $panes = @($Result[0] | LibTmux\Get-TmuxPane)
                 if ($panes.Count -ne 2 -or [Math]::Abs($panes[0].Width - $panes[1].Width) -gt 1) { throw 'Layout help did not tile both panes.' }
             } }
+    }
+}
+
+function Get-SetTmuxWindowSizeHelpAssertion {
+    @{
         'LibTmux\Set-TmuxWindowSize#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $window = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxWindow | Select-Object -First 1
@@ -387,6 +552,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0].Width -ne 120 -or $Result[0].Height -ne 40) { throw 'Window-size help did not resize.' }
             } }
+    }
+}
+
+function Get-SetTmuxPaneSizeHelpAssertion {
+    @{
         'LibTmux\Set-TmuxPaneSize#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $pane = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxPane | Select-Object -First 1
@@ -395,6 +565,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0].Width -ne 40) { throw 'Pane-size help did not resize.' }
             } }
+    }
+}
+
+function Get-GetTmuxClientHelpAssertion {
+    @{
         'LibTmux\Get-TmuxClient#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $client = Initialize-HelpClient $Context
@@ -403,6 +578,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 if ($Result[0].Name -cne $Context.Client.Name) { throw 'Client help selected the wrong client.' }
             }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
+    }
+}
+
+function Get-UpdateTmuxClientHelpAssertion {
+    @{
         'LibTmux\Update-TmuxClient#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $client = Initialize-HelpClient $Context
@@ -411,6 +591,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 if ($Result[0].Name -cne $Context.Client.Name) { throw 'Client help selected the wrong client.' }
             }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
+    }
+}
+
+function Get-GetTmuxClientAttachmentHelpAssertion {
+    @{
         'LibTmux\Get-TmuxClientAttachment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $client = Initialize-HelpClient $Context
@@ -419,6 +604,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 if ($Result[0].Session.Id -ne $Context.Client.AttachedSessionId -or !$Result[0].Window -or !$Result[0].Pane) { throw 'Attachment help did not resolve native relations.' }
             }; Cleanup = { param($Context) if ($Context.ContainsKey('Control')) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() } } }
+    }
+}
+
+function Get-GetTmuxOptionHelpAssertion {
+    @{
         'LibTmux\Get-TmuxOption#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -427,6 +617,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0].Value.Raw -cne 'vi' -or !$Result[0].Inherited) { throw 'Option help read lost inheritance.' }
             } }
+    }
+}
+
+function Get-SetTmuxOptionHelpAssertion {
+    @{
         'LibTmux\Set-TmuxOption#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -435,6 +630,11 @@ function Get-HelpExampleAssertion {
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-options', '-v', '-t', 'fixture', 'status-keys')).StdOut.TrimEnd("`n")
                 if ($Result[0].Raw -cne 'vi' -or $actual -cne 'vi') { throw 'Option help set did not store its readback.' }
             } }
+    }
+}
+
+function Get-RemoveTmuxOptionHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxOption#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -443,6 +643,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 if ((Invoke-OwnedTmux $Context.Fixture -Arguments @('show-options', '-q', '-t', 'fixture', '@scratch')).StdOut -cne '') { throw 'Option help remove left its entry.' }
             } }
+    }
+}
+
+function Get-GetTmuxHookHelpAssertion {
+    @{
         'LibTmux\Get-TmuxHook#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -451,6 +656,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0].Name -cne 'alert-bell' -or $Result[0].Values[0].Index -ne 7) { throw 'Hook help read lost grouped index.' }
             } }
+    }
+}
+
+function Get-SetTmuxHookHelpAssertion {
+    @{
         'LibTmux\Set-TmuxHook#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -459,6 +669,11 @@ function Get-HelpExampleAssertion {
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-hooks', '-t', 'fixture', 'alert-bell')).StdOut
                 if ($Result[0].Values[0].Index -ne 7 -or !$actual.Contains('alert-bell[7]') -or !$actual.Contains('build finished')) { throw 'Hook help set lost its indexed command.' }
             } }
+    }
+}
+
+function Get-InvokeTmuxHookHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxHook#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -468,6 +683,11 @@ function Get-HelpExampleAssertion {
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
                 if (!($server | LibTmux\Wait-TmuxChannel -Channel 'help-hook-completed' -Timeout 0.5)) { throw 'Hook help invoke did not signal completion.' }
             } }
+    }
+}
+
+function Get-RemoveTmuxHookHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxHook#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -479,6 +699,11 @@ function Get-HelpExampleAssertion {
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-hooks', '-t', 'fixture', 'alert-bell')).StdOut
                 if ($actual.Contains('alert-bell[7]') -or !$actual.Contains('alert-bell[19]')) { throw 'Hook help remove changed the wrong entries.' }
             } }
+    }
+}
+
+function Get-GetTmuxEnvironmentHelpAssertion {
+    @{
         'LibTmux\Get-TmuxEnvironment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -487,6 +712,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0].Name -cne 'APP_MODE' -or $Result[0].Value -cne 'development' -or $Result[0].IsRemoved) { throw 'Environment help read lost stored value.' }
             } }
+    }
+}
+
+function Get-SetTmuxEnvironmentHelpAssertion {
+    @{
         'LibTmux\Set-TmuxEnvironment#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -495,6 +725,11 @@ function Get-HelpExampleAssertion {
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-environment', '-t', 'fixture', 'APP_MODE')).StdOut.TrimEnd("`n")
                 if ($Result[0].Value -cne 'development' -or $actual -cne 'APP_MODE=development') { throw 'Environment help set did not store its readback.' }
             } }
+    }
+}
+
+function Get-RemoveTmuxEnvironmentHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxEnvironment#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $session = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath | LibTmux\Get-TmuxSession -Name 'fixture'
@@ -504,12 +739,22 @@ function Get-HelpExampleAssertion {
                 $actual = (Invoke-OwnedTmux $Context.Fixture -Arguments @('show-environment', '-t', 'fixture', 'APP_MODE')).StdOut.TrimEnd("`n")
                 if ($actual -cne '-APP_MODE') { throw 'Environment help removal did not leave a marker.' }
             } }
+    }
+}
+
+function Get-NewTmuxCommandHelpAssertion {
+    @{
         'LibTmux\New-TmuxCommand#1' = @{ ExpectedCount = 1; Isolated = $false; Assert = {
                 param($Result)
                 if ($Result[0].Name -cne 'display-message' -or [string]::Join('|', $Result[0].Arguments) -cne '-p|hello; tmux') {
                     throw 'Command example lost literal argv.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxChainHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxChain#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -519,6 +764,11 @@ function Get-HelpExampleAssertion {
                     throw 'Chain example lost ordered merged output.'
                 }
             } }
+    }
+}
+
+function Get-ConnectTmuxControlHelpAssertion {
+    @{
         'LibTmux\Connect-TmuxControl#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -537,6 +787,11 @@ function Get-HelpExampleAssertion {
                     throw 'Control attachment example leaked its client.'
                 }
             } }
+    }
+}
+
+function Get-InvokeTmuxControlCommandHelpAssertion {
+    @{
         'LibTmux\Invoke-TmuxControlCommand#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -548,6 +803,11 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
             } }
+    }
+}
+
+function Get-DisconnectTmuxControlHelpAssertion {
+    @{
         'LibTmux\Disconnect-TmuxControl#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -563,6 +823,11 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.Control) { $null = $Context.Control.DisposeAsync().AsTask().GetAwaiter().GetResult() }
             } }
+    }
+}
+
+function Get-WatchTmuxEventHelpAssertion {
+    @{
         'LibTmux\Watch-TmuxEvent#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -574,6 +839,11 @@ function Get-HelpExampleAssertion {
                     throw 'Watch example lost its notification, leaked a client or removed the borrowed session.'
                 }
             } }
+    }
+}
+
+function Get-WaitTmuxChannelHelpAssertion {
+    @{
         'LibTmux\Wait-TmuxChannel#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -582,6 +852,11 @@ function Get-HelpExampleAssertion {
                 param($Result)
                 if ($Result[0] -isnot [bool] -or !$Result[0]) { throw 'Wait example did not consume its pending signal.' }
             } }
+    }
+}
+
+function Get-WaitTmuxPaneTextHelpAssertion {
+    @{
         'LibTmux\Wait-TmuxPaneText#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -612,6 +887,11 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.Session) { $Context.Session | LibTmux\Remove-TmuxSession -Confirm:$false }
             } }
+    }
+}
+
+function Get-SendTmuxTextHelpAssertion {
+    @{
         'LibTmux\Send-TmuxText#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -622,6 +902,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 Assert-Received $Context.Fixture $Context.InputReceiver ([Text.Encoding]::UTF8.GetBytes('Enter'))
             } }
+    }
+}
+
+function Get-SendTmuxKeyHelpAssertion {
+    @{
         'LibTmux\Send-TmuxKey#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath -TmuxBinaryPath $Context.Fixture.TmuxPath
@@ -632,6 +917,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 Assert-Received $Context.Fixture $Context.InputReceiver ([byte[]] @(1, 13))
             } }
+    }
+}
+
+function Get-RemoveTmuxSessionHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxSession#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
@@ -643,6 +933,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 Assert-HelpRemovalOutcome $Context @('list-sessions', '-F', '#{session_id}')
             } }
+    }
+}
+
+function Get-RemoveTmuxWindowHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxWindow#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
@@ -655,6 +950,11 @@ function Get-HelpExampleAssertion {
                 param($Result, $Context)
                 Assert-HelpRemovalOutcome $Context @('list-windows', '-a', '-F', '#{window_id}')
             } }
+    }
+}
+
+function Get-StopTmuxServerHelpAssertion {
+    @{
         'LibTmux\Stop-TmuxServer#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 # The example stops its own server, so it gets one beside the shared fixture.
@@ -667,6 +967,11 @@ function Get-HelpExampleAssertion {
                 param($Context)
                 if ($Context.ContainsKey('Stopped')) { Remove-OwnedTmuxFixture $Context.Stopped }
             } }
+    }
+}
+
+function Get-RenameTmuxSessionHelpAssertion {
+    @{
         'LibTmux\Rename-TmuxSession#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
@@ -680,6 +985,11 @@ function Get-HelpExampleAssertion {
                     throw 'Session rename example did not return and apply the new name.'
                 }
             } }
+    }
+}
+
+function Get-RenameTmuxWindowHelpAssertion {
+    @{
         'LibTmux\Rename-TmuxWindow#1' = @{ ExpectedCount = 1; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
@@ -694,6 +1004,11 @@ function Get-HelpExampleAssertion {
                     throw 'Window rename example did not return and apply the new name.'
                 }
             } }
+    }
+}
+
+function Get-RemoveTmuxPaneHelpAssertion {
+    @{
         'LibTmux\Remove-TmuxPane#1' = @{ ExpectedCount = 0; Isolated = $true; Prepare = {
                 param($Context)
                 $server = LibTmux\New-TmuxServer -SocketPath $Context.Fixture.SocketPath
@@ -707,6 +1022,19 @@ function Get-HelpExampleAssertion {
             } }
     }
 }
+
+# Each packaged example needs its own outcome assertion, including examples
+# with no output. A function per cmdlet returns the entries for its examples.
+function Get-HelpExampleAssertion {
+    $assertions = @{}
+    foreach ($source in Get-ChildItem -Path 'Function:Get-*HelpAssertion') {
+        foreach ($entry in (& $source.ScriptBlock).GetEnumerator()) {
+            $assertions[$entry.Key] = $entry.Value
+        }
+    }
+    $assertions
+}
+
 
 function Assert-HelpRemovalOutcome($Context, [string[]] $ListArguments) {
     $remaining = Invoke-OwnedTmux $Context.Fixture -Arguments $ListArguments
