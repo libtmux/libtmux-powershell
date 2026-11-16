@@ -254,4 +254,25 @@ exec $quotedTmux "`$@"
     }
 }
 
-'PASS: installed native removals, zero output, confirmation previews, target errors, shared topology, generation isolation and server stop'
+# A session created right after Stop-TmuxServer starts a replacement on the same socket: tmux answers
+# kill-server before the daemon exits, so a stop that returned early would fail the creation. One round runs
+# by default, and LIBTMUX_TEST_SLOW=1 repeats it, because the race is rare.
+Invoke-WithOwnedTmux {
+    param($fixture)
+    $server = LibTmux\New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $fixture.TmuxPath -ConfigurationFile '/dev/null'
+    $rounds = if ($env:LIBTMUX_TEST_SLOW -ceq '1') { 100 } else { 1 }
+    try {
+        for ($round = 0; $round -lt $rounds; $round++) {
+            $null = $server | LibTmux\Stop-TmuxServer -Confirm:$false -ErrorAction Stop
+            $name = "replacement-$round"
+            $session = $server | LibTmux\New-TmuxSession -Name $name -Command 'exec /bin/sh' -Confirm:$false -ErrorAction Stop
+            Assert-True ($session.Name -ceq $name) "Round $round did not start a replacement server."
+        }
+    } finally {
+        $null = $server | LibTmux\Stop-TmuxServer -Confirm:$false -ErrorAction SilentlyContinue
+        $answer = Invoke-OwnedTmux $fixture -Arguments @('-N', 'list-sessions') -AllowFailure -CancellationToken ([Threading.CancellationToken]::None)
+        Assert-True ($answer.ExitCode -ne 0) 'A replacement server was left answering on the fixture socket.'
+    }
+}
+
+'PASS: installed native removals, zero output, confirmation previews, target errors, shared topology, generation isolation, server stop and replacement'
