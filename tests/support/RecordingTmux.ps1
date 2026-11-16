@@ -1,12 +1,10 @@
 # Helpers for the recording tmux, the program in tests/support/RecordingTmux.
 
-# Runs `dotnet build` and returns its output, or throws when it fails or runs past the limit.
-function Invoke-RecordingTmuxBuild([string] $Project, [string] $Output, [int] $TimeoutSeconds) {
-    $start = [Diagnostics.ProcessStartInfo]::new('dotnet')
-    foreach ($argument in @('build', $Project, '--configuration', 'Release', '--output', $Output,
-            '--nologo', '--verbosity', 'quiet', '-nodeReuse:false', '-p:UseSharedCompilation=false')) {
-        $start.ArgumentList.Add($argument)
-    }
+# Runs a program and returns what it printed, or kills its process tree and throws when it runs
+# past the limit or exits nonzero.
+function Invoke-BoundedProcess([string] $FileName, [string[]] $Arguments, [int] $TimeoutSeconds) {
+    $start = [Diagnostics.ProcessStartInfo]::new($FileName)
+    foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
     $process = [Diagnostics.Process]::Start($start)
@@ -15,13 +13,21 @@ function Invoke-RecordingTmuxBuild([string] $Project, [string] $Output, [int] $T
         $err = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit([TimeSpan]::FromSeconds($TimeoutSeconds))) {
             $process.Kill($true)
-            throw "The recording tmux build ran past $TimeoutSeconds seconds."
+            throw "$FileName ran past $TimeoutSeconds seconds."
         }
         $log = "$($out.GetAwaiter().GetResult()) $($err.GetAwaiter().GetResult())".Trim()
-        if ($process.ExitCode) { throw "The recording tmux did not build: $log" }
+        if ($process.ExitCode) { throw "$FileName exited $($process.ExitCode): $log" }
+        $log
     } finally {
         $process.Dispose()
     }
+}
+
+# Runs `dotnet build` for the recording tmux, bounded.
+function Invoke-RecordingTmuxBuild([string] $Project, [string] $Output, [int] $TimeoutSeconds) {
+    $arguments = @('build', $Project, '--configuration', 'Release', '--output', $Output,
+        '--nologo', '--verbosity', 'quiet', '-nodeReuse:false', '-p:UseSharedCompilation=false')
+    $null = Invoke-BoundedProcess 'dotnet' $arguments $TimeoutSeconds
 }
 
 # Takes the named mutex, waiting up to the limit, and returns whether its last owner died

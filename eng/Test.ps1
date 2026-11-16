@@ -171,12 +171,12 @@ try {
             if ($runProduct) {
                 # MixedCore changes shared files; finish before starting their readers.
                 Invoke-TestScript 'tests/MixedCore.Tests.ps1' @('-ModuleRoot', $installed) $installed
+                Invoke-TestScript 'tests/RecordingTmux.Tests.ps1'
                 $workerLimit = 3
                 $parallelTests = $true
                 Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', $PackageRoot,
                     '-PSResourceGetVersion', $PSResourceGetVersion)
                 Invoke-TestScript 'tests/Fixture.Tests.ps1'
-                Invoke-TestScript 'tests/RecordingTmux.Tests.ps1'
             }
             if ($Suite -eq 'Package' -or $runProduct) {
                 foreach ($order in @('CoreFirst', 'WorkspaceFirst')) {

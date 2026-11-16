@@ -1,5 +1,5 @@
 # Proves the recording tmux build is bounded: a lock another suite holds stops a
-# waiter, a lock its owner abandoned does not, and a build past its limit is killed.
+# waiter, a lock its owner abandoned does not, and a process past its limit is killed.
 [CmdletBinding()]
 param()
 
@@ -57,14 +57,12 @@ try {
     $lock.Dispose()
 }
 
-$project = Join-Path $PSScriptRoot 'support/RecordingTmux/RecordingTmux.csproj'
-$output = Join-Path ([IO.Path]::GetTempPath()) "libtmux-powershell-recording-tmux-test-$([Guid]::NewGuid().ToString('N'))"
-try {
-    $failure = $null
-    try { Invoke-RecordingTmuxBuild $project $output 0 } catch { $failure = $_.Exception.Message }
-    Assert-True ($failure -clike '*ran past 0 seconds*') 'A build past its limit was not stopped.'
-} finally {
-    Remove-Item -LiteralPath $output -Recurse -Force -ErrorAction SilentlyContinue
-}
+$failure = $null
+try { $null = Invoke-BoundedProcess '/bin/sleep' @('30') 0 } catch { $failure = $_.Exception.Message }
+Assert-True ($failure -clike '*ran past 0 seconds*') 'A process past its limit was not stopped.'
+$failure = $null
+try { $null = Invoke-BoundedProcess ([Environment]::ProcessPath) @('-NoProfile', '-Command', '[Console]::Error.WriteLine("broken"); exit 3') 10 } catch { $failure = $_.Exception.Message }
+Assert-True ($failure -clike '*exited 3*broken*') 'A failing process was not reported with its output.'
+Assert-True ((Invoke-BoundedProcess '/bin/echo' @('ready') 5) -ceq 'ready') 'A passing process did not return its output.'
 
 'PASS: the recording tmux build waits for a bounded time and survives an abandoned lock'
