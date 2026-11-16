@@ -155,7 +155,10 @@ try {
         Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', (Resolve-Path $PackageRoot).Path,
             '-PSResourceGetVersion', $PSResourceGetVersion)
     }
-    if ($Suite -eq 'Fixture') { Invoke-TestScript 'tests/Fixture.Tests.ps1' }
+    if ($Suite -eq 'Fixture') {
+        Invoke-TestScript 'tests/Fixture.Tests.ps1'
+        Invoke-TestScript 'tests/RecordingTmux.Tests.ps1'
+    }
     if ($Suite -in @('Package', 'Sandbox', 'Socket', 'VersionCheck', 'Features', 'Capabilities', 'Read', 'Snapshot', 'Formatting', 'Completion', 'Capture', 'Create', 'Remove', 'Rename', 'Input', 'PaneRun', 'PaneTextWait', 'PaneTextContract', 'Wait', 'Options', 'Hooks', 'Environment', 'Layout', 'Placement', 'Clients', 'Attachment', 'Commands', 'Watch', 'Criteria', 'Selectors', 'SourceQuery', 'WorkspaceFiles', 'WorkspaceDiscovery', 'WorkspaceValidation', 'WorkspaceApply', 'WorkspaceCorpus', 'WorkspaceSerialization', 'Runtime', 'Help', 'Examples', 'Guides', 'Product', 'Documentation', 'All')) {
         if (!$PackageRoot) { throw '-PackageRoot must name the artifact directory to test.' }
         $PackageRoot = (Resolve-Path $PackageRoot).Path
@@ -175,6 +178,7 @@ try {
                 Invoke-TestScript 'tests/ResourceInstall.Tests.ps1' @('-PackageRoot', $PackageRoot,
                     '-PSResourceGetVersion', $PSResourceGetVersion)
                 Invoke-TestScript 'tests/Fixture.Tests.ps1'
+                Invoke-TestScript 'tests/RecordingTmux.Tests.ps1'
             }
             if ($Suite -eq 'Package' -or $runProduct) {
                 foreach ($order in @('CoreFirst', 'WorkspaceFirst')) {
