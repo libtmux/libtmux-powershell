@@ -43,6 +43,53 @@ None.
 
 Acquire panes from the native owning object. Id is an ordinal literal selector. Linked windows can expose multiple contextual placements of one physical pane. Use native Where-Object over the returned captured properties for local selection.
 
+**What is on here.** A pane is the native LibTmux.Pane that Get-TmuxPane
+returns. The cmdlets below return one, take one directly or from the pipeline,
+or query for one. They fall into a few groups:
+
+**Finding panes.** Get-TmuxPane lists the panes of a server, a session or a
+window, or the one that matches an exact id. Update-TmuxPane reads a pane again
+into a new capture. Get-TmuxSnapshot captures panes with the windows and
+sessions that hold them, and Get-TmuxClientAttachment resolves the pane a client
+is viewing.
+
+Get-TmuxPane, Update-TmuxPane, Get-TmuxSnapshot and Get-TmuxClientAttachment
+
+**Filtering and querying panes.** Select-TmuxPane filters panes you already
+captured without contacting tmux, and can require exactly one match.
+New-TmuxQuery builds criteria for the Pane target and Get-TmuxQueryField lists
+the fields they accept. Invoke-TmuxQuery acquires fresh panes instead.
+
+Select-TmuxPane, New-TmuxQuery, Get-TmuxQueryField and Invoke-TmuxQuery
+
+**Splitting, resizing and removing a pane.** Split-TmuxPane splits a pane and
+returns the new one. Set-TmuxPaneSize resizes a pane in cells or percent, by
+an edge, or toggles its zoom. Remove-TmuxPane deletes a pane; removing the
+last pane of a window destroys the window.
+
+Split-TmuxPane, Set-TmuxPaneSize and Remove-TmuxPane
+
+**Sending input and running commands.** Send-TmuxText types literal text, and
+adds Enter only when you ask. Send-TmuxKey sends tmux key tokens such as C-a
+or Enter. Invoke-TmuxPaneCommand runs a shell command in the pane and returns
+its exit status; a nonzero status is a result, not an error.
+
+Send-TmuxText, Send-TmuxKey and Invoke-TmuxPaneCommand
+
+**Reading what a pane shows.** Get-TmuxPaneContent captures the rendered text,
+and its history when you ask. Wait-TmuxPaneText waits for text to appear. A
+timeout or a pane that exits comes back as an outcome of the wait, not as an
+error.
+
+Get-TmuxPaneContent and Wait-TmuxPaneText
+
+**Options and hooks.** Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
+read, write and unset the options of one pane. Get-TmuxHook, Set-TmuxHook and
+Remove-TmuxHook do the same for its hooks, and Invoke-TmuxHook runs one now.
+
+Get-TmuxOption, Set-TmuxOption, Remove-TmuxOption, Get-TmuxHook, Set-TmuxHook,
+Remove-TmuxHook and Invoke-TmuxHook
+
 ## EXAMPLES
 
 ### Example 1

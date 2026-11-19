@@ -1714,7 +1714,54 @@ $session | LibTmux\Get-TmuxOption -Name 'status-keys' -IncludeInherited
       <command:noun>TmuxPane</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Acquire panes from the native owning object. Id is an ordinal literal selector. Linked windows can expose multiple contextual placements of one physical pane. Use native Where-Object over the returned captured properties for local selection.</maml:para>
+      <maml:para>Acquire panes from the native owning object. Id is an ordinal literal selector. Linked windows can expose multiple contextual placements of one physical pane. Use native Where-Object over the returned captured properties for local selection.
+
+What is on here. A pane is the native LibTmux.Pane that Get-TmuxPane
+returns. The cmdlets below return one, take one directly or from the pipeline,
+or query for one. They fall into a few groups:
+
+Finding panes. Get-TmuxPane lists the panes of a server, a session or a
+window, or the one that matches an exact id. Update-TmuxPane reads a pane again
+into a new capture. Get-TmuxSnapshot captures panes with the windows and
+sessions that hold them, and Get-TmuxClientAttachment resolves the pane a client
+is viewing.
+
+Get-TmuxPane, Update-TmuxPane, Get-TmuxSnapshot and Get-TmuxClientAttachment
+
+Filtering and querying panes. Select-TmuxPane filters panes you already
+captured without contacting tmux, and can require exactly one match.
+New-TmuxQuery builds criteria for the Pane target and Get-TmuxQueryField lists
+the fields they accept. Invoke-TmuxQuery acquires fresh panes instead.
+
+Select-TmuxPane, New-TmuxQuery, Get-TmuxQueryField and Invoke-TmuxQuery
+
+Splitting, resizing and removing a pane. Split-TmuxPane splits a pane and
+returns the new one. Set-TmuxPaneSize resizes a pane in cells or percent, by
+an edge, or toggles its zoom. Remove-TmuxPane deletes a pane; removing the
+last pane of a window destroys the window.
+
+Split-TmuxPane, Set-TmuxPaneSize and Remove-TmuxPane
+
+Sending input and running commands. Send-TmuxText types literal text, and
+adds Enter only when you ask. Send-TmuxKey sends tmux key tokens such as C-a
+or Enter. Invoke-TmuxPaneCommand runs a shell command in the pane and returns
+its exit status; a nonzero status is a result, not an error.
+
+Send-TmuxText, Send-TmuxKey and Invoke-TmuxPaneCommand
+
+Reading what a pane shows. Get-TmuxPaneContent captures the rendered text,
+and its history when you ask. Wait-TmuxPaneText waits for text to appear. A
+timeout or a pane that exits comes back as an outcome of the wait, not as an
+error.
+
+Get-TmuxPaneContent and Wait-TmuxPaneText
+
+Options and hooks. Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
+read, write and unset the options of one pane. Get-TmuxHook, Set-TmuxHook and
+Remove-TmuxHook do the same for its hooks, and Invoke-TmuxHook runs one now.
+
+Get-TmuxOption, Set-TmuxOption, Remove-TmuxOption, Get-TmuxHook, Set-TmuxHook,
+Remove-TmuxHook and Invoke-TmuxHook</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -2709,7 +2756,69 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath | LibTmux\Get-TmuxServer
       <command:noun>TmuxSession</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Acquire sessions from a native Server. Id and Name are ordinal, case-sensitive literal selectors; combining them requires both to match. Wildcards are not expanded. An unmatched selector emits nothing; a failed acquisition writes an error.</maml:para>
+      <maml:para>Acquire sessions from a native Server. Id and Name are ordinal, case-sensitive literal selectors; combining them requires both to match. Wildcards are not expanded. An unmatched selector emits nothing; a failed acquisition writes an error.
+
+What is on here. A session is the native LibTmux.Session that
+Get-TmuxSession returns. The cmdlets below return one, take one directly or from
+the pipeline, or query for one. They fall into a few groups:
+
+Finding sessions. Get-TmuxSession lists every session on a server, or the
+ones that match an exact id or name. Get-TmuxSnapshot captures sessions with
+their windows and panes, and Get-TmuxClientAttachment resolves the session a
+client is viewing.
+
+Get-TmuxSession, Get-TmuxSnapshot and Get-TmuxClientAttachment
+
+Filtering and querying sessions. Select-TmuxSession filters sessions you
+already captured without contacting tmux, and can require exactly one match.
+New-TmuxQuery builds criteria for the Session target and Get-TmuxQueryField
+lists the fields they accept. Invoke-TmuxQuery acquires fresh sessions instead.
+
+Select-TmuxSession, New-TmuxQuery, Get-TmuxQueryField and Invoke-TmuxQuery
+
+Creating a session. New-TmuxSession creates a detached session with its
+first window and pane, and returns it. It can start a daemon that is not
+running yet, and an existing name is an error.
+
+New-TmuxSession
+
+Renaming or removing a session. Rename-TmuxSession names the session by id
+and, with PassThru, returns a replacement that carries the new name.
+Remove-TmuxSession deletes it, and destroys the windows that only it owns.
+Windows linked into another session survive.
+
+Rename-TmuxSession and Remove-TmuxSession
+
+Working inside a session. New-TmuxWindow adds a window, and
+New-TmuxWindowLink links an existing one into the session. Move-TmuxWindow
+moves a window placement to it. Get-TmuxWindow and Get-TmuxPane list what it
+holds.
+
+New-TmuxWindow, New-TmuxWindowLink, Move-TmuxWindow, Get-TmuxWindow and
+Get-TmuxPane
+
+Attaching a terminal. Enter-TmuxSession attaches your foreground terminal
+to the session and returns when you detach. Run it outside tmux; it rejects
+redirected input.
+
+Enter-TmuxSession
+
+Options, hooks and environment. Get-TmuxOption, Set-TmuxOption and
+Remove-TmuxOption read, write and unset the options of one session.
+Get-TmuxHook, Set-TmuxHook and Remove-TmuxHook do the same for its hooks, and
+Invoke-TmuxHook runs one now. Get-TmuxEnvironment, Set-TmuxEnvironment and
+Remove-TmuxEnvironment manage its environment table.
+
+Get-TmuxOption, Set-TmuxOption, Remove-TmuxOption, Get-TmuxHook, Set-TmuxHook,
+Remove-TmuxHook, Invoke-TmuxHook, Get-TmuxEnvironment, Set-TmuxEnvironment and
+Remove-TmuxEnvironment
+
+Saving a session as a workspace. ConvertTo-TmuxWorkspace turns a captured
+session into a workspace declaration without contacting tmux. Capture the
+session with Get-TmuxSnapshot first, at the Panes depth, so its windows and
+panes come with it.
+
+ConvertTo-TmuxWorkspace and Get-TmuxSnapshot</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
@@ -2954,7 +3063,54 @@ LibTmux\New-TmuxServer -SocketPath $SocketPath |
       <command:noun>TmuxWindow</command:noun>
     </command:details>
     <maml:description>
-      <maml:para>Accept a native Server or Session as the owner. Each result retains its session placement. A linked window can therefore appear more than once. Id and Name are ordinal literal selectors; they do not expand wildcards.</maml:para>
+      <maml:para>Accept a native Server or Session as the owner. Each result retains its session placement. A linked window can therefore appear more than once. Id and Name are ordinal literal selectors; they do not expand wildcards.
+
+What is on here. A window is the native LibTmux.Window that Get-TmuxWindow
+returns. It carries its session placement, so a window linked into two sessions
+appears twice. The cmdlets below return one, take one directly or from the
+pipeline, or query for one. They fall into a few groups:
+
+Finding windows. Get-TmuxWindow lists the windows of a server or a session,
+or the ones that match an exact id or name. Get-TmuxPane lists the panes of one
+window. Get-TmuxSnapshot captures windows with their panes, and
+Get-TmuxClientAttachment resolves the window a client is viewing.
+
+Get-TmuxWindow, Get-TmuxPane, Get-TmuxSnapshot and Get-TmuxClientAttachment
+
+Filtering and querying windows. Select-TmuxWindow filters windows you
+already captured without contacting tmux, and can require exactly one match.
+New-TmuxQuery builds criteria for the Window target and Get-TmuxQueryField
+lists the fields they accept. Invoke-TmuxQuery acquires fresh windows instead.
+
+Select-TmuxWindow, New-TmuxQuery, Get-TmuxQueryField and Invoke-TmuxQuery
+
+Creating, renaming and removing a window. New-TmuxWindow creates a window
+and its first pane in a session, and returns it. Rename-TmuxWindow names the
+window by id and, with PassThru, returns a replacement that carries the new
+name. Remove-TmuxWindow destroys the physical window and its panes in every
+session that links it.
+
+New-TmuxWindow, Rename-TmuxWindow and Remove-TmuxWindow
+
+Linking and moving a window. New-TmuxWindowLink links a window into
+another session. Move-TmuxWindow moves one placement, within its session or to
+another. Remove-TmuxWindowLink removes one placement and leaves the other links
+alone; tmux refuses to remove the last one unless you pass KillIfLast.
+
+New-TmuxWindowLink, Move-TmuxWindow and Remove-TmuxWindowLink
+
+Arranging and resizing a window. Set-TmuxLayout applies a named preset or a
+layout string you captured, and arranges the panes. Set-TmuxWindowSize resizes
+the window in cells or against its attached clients.
+
+Set-TmuxLayout and Set-TmuxWindowSize
+
+Options and hooks. Get-TmuxOption, Set-TmuxOption and Remove-TmuxOption
+read, write and unset the options of one window. Get-TmuxHook, Set-TmuxHook and
+Remove-TmuxHook do the same for its hooks, and Invoke-TmuxHook runs one now.
+
+Get-TmuxOption, Set-TmuxOption, Remove-TmuxOption, Get-TmuxHook, Set-TmuxHook,
+Remove-TmuxHook and Invoke-TmuxHook</maml:para>
     </maml:description>
     <command:syntax>
       <command:syntaxItem>
