@@ -180,6 +180,12 @@ client in the worker that uses it. This example emits two short replies, and
 `-ThrottleLimit 2` bounds the workers. Results arrive in completion order; add an
 identifier to a real workload if input order matters.
 
+Each worker attaches its own control client, which needs tmux 3.7 or newer.
+Before 3.7, one client detaching while another is still attaching ends the
+server, so every worker's `Connect-TmuxControl` refuses an older daemon before
+it attaches. On an older server, run the commands as
+[process commands](commands.md#collect-concurrent-command-results) instead.
+
 <!-- example: watch.parallel -->
 ```powershell
 & {
