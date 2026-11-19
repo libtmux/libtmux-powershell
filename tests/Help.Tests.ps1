@@ -106,6 +106,17 @@ function Assert-HelpFixtureCleanup($Fixtures) {
     }
 }
 
+# Session, window and pane have no type pages: each cmdlet that gets the object carries its directory.
+$objectDirectoryOwners = @{
+    'Get-TmuxSession' = 'LibTmux.Session'
+    'Get-TmuxWindow' = 'LibTmux.Window'
+    'Get-TmuxPane' = 'LibTmux.Pane'
+}
+
+function Get-UnnamedCmdlet([string] $Prose, [string[]] $Name) {
+    @($Name | Where-Object { $Prose -cnotmatch "(?<![\w-])$([regex]::Escape($_))(?![\w-])" })
+}
+
 $examples = [Collections.Generic.List[object]]::new()
 foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
     Import-Module (Join-Path $ModuleRoot "$module/0.1.0/$module.psd1")
@@ -136,6 +147,24 @@ foreach ($module in @('LibTmux', 'LibTmux.Workspace')) {
             } | ForEach-Object Name)
             if ($prose -match '\*\*|`') { throw 'New-TmuxServer native help kept Markdown markers.' }
             if ($unlisted.Count) { throw "New-TmuxServer native help omits: $($unlisted -join ', ')." }
+        }
+        if ($module -ceq 'LibTmux' -and $command.Name -cin $objectDirectoryOwners.Keys) {
+            # An object's directory names every cmdlet that takes the object or returns it.
+            $type = [type] $objectDirectoryOwners[$command.Name]
+            $prose = @($help.description.Text) -join "`n"
+            $users = @(Get-Command -Module $module | Where-Object {
+                $parameters = @($_.Parameters.Values | Where-Object ParameterType -EQ $type)
+                $parameters.Count -or @($_.OutputType | Where-Object Type -EQ $type).Count
+            } | ForEach-Object Name)
+            if ($prose -match '\*\*|`') { throw "$($command.Name) native help kept Markdown markers." }
+            if (@(Get-UnnamedCmdlet $prose $users).Count) {
+                throw "$($command.Name) native help omits: $((Get-UnnamedCmdlet $prose $users) -join ', ')."
+            }
+            # The check must fail for a cmdlet the directory leaves out.
+            $omitted = $users[0]
+            if (@(Get-UnnamedCmdlet ($prose -replace [regex]::Escape($omitted), '') @($omitted)).Count -ne 1) {
+                throw "$($command.Name) directory omission control was accepted."
+            }
         }
         $expected = @($command.Parameters.Values | Where-Object {
             $_.Name -notin [Management.Automation.PSCmdlet]::CommonParameters
