@@ -118,6 +118,37 @@ Invoke-WithOwnedTmux {
     Assert-True ((Get-ClientCount) -eq 0) 'a control client remains attached'
     Assert-True ((Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid) 'the daemon changed during control refusals'
 
+    # Two runspaces attach at once, as the watch.parallel guide does. Before 3.7, a control client
+    # that detaches while another is still identifying ends the whole server (tmux e5a2a25fa), so
+    # the refusal has to come before any attach. The client count and the pid above cannot see a
+    # client that attached and left again; the argument log can. The control run proves the log
+    # records an attach where one is allowed.
+    $attachLog = Join-Path $bin ('argv-' + [Guid]::NewGuid().ToString('N'))
+    $belowFloor = New-ClaimingWrapper $bin $fixture.TmuxPath '3.3a' $realRaw $attachLog
+    $workers = @(1..2 | ForEach-Object -ThrottleLimit 2 -Parallel {
+        Import-Module (Join-Path $using:ModuleRoot 'LibTmux/0.1.0/LibTmux.psd1')
+        $endpoint = New-TmuxServer -SocketPath $using:fixture.SocketPath -TmuxBinaryPath $using:belowFloor
+        $failures = @()
+        $connection = $endpoint | Connect-TmuxControl -Target fixture -ErrorAction SilentlyContinue -ErrorVariable failures
+        [pscustomobject]@{ Connection = $connection; Errors = $failures }
+    })
+    $sent = @(if (Test-Path -LiteralPath $attachLog) { Get-Content -LiteralPath $attachLog })
+    Assert-True ($sent.Count -gt 0) 'the argument log saw no call, so it cannot show an absent attach'
+    Assert-True ($sent -cnotcontains 'attach-session') 'a control client reached tmux below 3.7'
+    Assert-True ($workers.Count -eq 2 -and @($workers | Where-Object { $null -ne $_.Connection }).Count -eq 0 -and
+        @($workers | Where-Object { @(Get-Refusal $_.Errors '3.7').Count -eq 1 }).Count -eq 2) 'two runspaces were not both refused below 3.7'
+    Assert-True ((Get-ClientCount) -eq 0 -and
+        (Invoke-OwnedTmux $fixture -Arguments @('display-message', '-p', '#{pid}')).StdOut.Trim() -ceq [string] $fixture.ServerPid) `
+        'parallel control refusals left a client or changed the daemon'
+    if ($control) {
+        $controlLog = Join-Path $bin ('argv-' + [Guid]::NewGuid().ToString('N'))
+        $recording = New-ClaimingWrapper $bin $fixture.TmuxPath $realRaw $realRaw $controlLog
+        $attached = New-TmuxServer -SocketPath $fixture.SocketPath -TmuxBinaryPath $recording |
+            Connect-TmuxControl -Target fixture
+        $attached | Disconnect-TmuxControl
+        Assert-True (@(Get-Content -LiteralPath $controlLog) -ccontains 'attach-session') 'the argument log did not record an allowed attach'
+    }
+
     # A pane text wait is never refused: below 3.7 it polls and attaches no control client.
     $errors = @()
     $wait = @($pane | Wait-TmuxPaneText -Pattern 'never-printed' -Timeout 0.2 -ErrorAction SilentlyContinue -ErrorVariable errors)
