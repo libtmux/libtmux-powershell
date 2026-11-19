@@ -85,6 +85,11 @@ endpoint". (#65)
   and `Set-TmuxHook` from the documentation index.
 - Shorten the guides to short sections and bullets, and drop their notes on
   which tests cover them.
+- List the cmdlets that take or return a session, window or pane in a "What is
+  on here" directory in the `Get-TmuxSession`, `Get-TmuxWindow` and
+  `Get-TmuxPane` references, grouped by what you do with the object, as the
+  `New-TmuxServer` reference does for the server. The `Help` suite fails when a
+  directory leaves such a cmdlet out.
 
 ## 0.1.0 - 2026-10-25
 
