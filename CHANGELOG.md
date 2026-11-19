@@ -70,6 +70,11 @@ endpoint". (#65)
   scripts this repository carried. The weekly job that compared the example-width
   checker with libtmux/docs is gone, since the checker is no longer a copy.
   (#96)
+- Check in the `Features` suite that two runspaces calling `Connect-TmuxControl`
+  at once on a daemon reported as older than 3.7 are both refused and that no
+  `attach-session` reaches tmux. A refusal that came after an attach would
+  pass the earlier checks and still end a tmux 3.3a server at random, which is
+  what the `watch.parallel` guide did before the refusal existed. (#5)
 
 ### Documentation
 
@@ -90,6 +95,10 @@ endpoint". (#65)
   `Get-TmuxPane` references, grouped by what you do with the object, as the
   `New-TmuxServer` reference does for the server. The `Help` suite fails when a
   directory leaves such a cmdlet out.
+- Say beside the parallel watch example that each worker attaches a control
+  client, which needs tmux 3.7 or newer, and point readers on an older server
+  to process commands. The compatibility guide links the two tmux fixes that
+  first ship in 3.7. (#5)
 
 ## 0.1.0 - 2026-10-25
 

@@ -90,7 +90,11 @@ holds the current package pins.
   client identifies itself crashes the whole server, as the
   [libtmux for .NET one-shot guide](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/one-shot.md?plain=1#L46-L50) records with the tmux commit
   that changed it. The same package's [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L178)
-  lists the requirement.
+  lists the requirement. tmux 3.7 is the first release with both fixes,
+  ["Do not notify clients if not fully initialized"](https://github.com/tmux/tmux/commit/e5a2a25fafb8ee107c230d8acad694f6b635f8bb)
+  and ["Another check for partially initialized control client"](https://github.com/tmux/tmux/commit/31c93c483afa4f94ef2091c8d9f25db4731d0e7f).
+  A second client detaching is such a notification, so two clients attaching
+  at once can end a server before 3.7.
 - `buffer-delete-named` and `buffer-rename`: before 3.4, a buffer name that
   does not exist acts on the most recent buffer instead of failing. See the
   [version matrix](https://github.com/libtmux/libtmux-dotnet/blob/b1e8156/docs/modes/matrix.md?plain=1#L181).
