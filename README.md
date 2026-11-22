@@ -22,8 +22,22 @@ objects that a pipeline can filter.
 
 </div>
 
-Needs PowerShell 7.4 or newer and tmux 3.3a or newer, on Linux or WSL. Some
-cmdlets need a newer tmux; [compatibility](docs/compatibility.md) lists them.
+Install [`LibTmux`](https://www.powershellgallery.com/packages/LibTmux/) from
+the PowerShell Gallery with PowerShell 7.4 or newer and tmux 3.3a or newer on
+Linux or WSL ([compatibility](docs/compatibility.md)):
+
+```console
+$ Install-Module -Name LibTmux
+```
+
+Or with `PSResourceGet`:
+
+```console
+$ Install-PSResource -Name LibTmux
+```
+
+For a source checkout, see [Install from source](#install-from-source) and
+[CONTRIBUTING.md](.github/CONTRIBUTING.md#setup).
 
 **Contents** — [Quick start](#quick-start) ·
 [Find things](#find-sessions-windows-and-panes) ·
@@ -31,26 +45,9 @@ cmdlets need a newer tmux; [compatibility](docs/compatibility.md) lists them.
 [Service readiness](#wait-for-service-readiness) ·
 [Choose how to run](#choose-how-to-run) ·
 [Workspaces](#build-a-workspace-from-a-file) · [Packages](#packages) ·
-[From source](#install-from-source) · [Leaves out](#what-it-leaves-out) ·
-[Support](#support-and-status) · [Documentation](#documentation)
-
-**Reference** — [Cmdlet reference](docs/reference/README.md) ·
-[Compatibility](docs/compatibility.md) ·
-[Troubleshooting](docs/troubleshooting.md) · [License](#license)
+[Leaves out](#what-it-leaves-out) · [Support](#support-and-status)
 
 ## Quick start
-
-Install the module from the PowerShell Gallery with `pwsh`:
-
-```console
-$ Install-PSResource -Name LibTmux
-```
-
-Import it:
-
-```console
-$ Import-Module -Name LibTmux -ErrorAction Stop
-```
 
 ### [`New-TmuxServer`][new-tmuxserver]: a handle on a private server
 
@@ -97,6 +94,65 @@ exit status.
 
 More: [command completion](docs/input.md#run-a-command-to-completion). Later
 sections reuse `$server`.
+
+### [`examples/QuickStart.ps1`](examples/QuickStart.ps1): a private server and three panes
+
+Run it from a checkout root to start a private server, split `editor`, add
+`logs`, stop the server, and return a captured [`LibTmux.Session`][session]:
+
+<!-- example: readme.quickstart -->
+```powershell
+(./examples/QuickStart.ps1).Windows | Select-Object Name, @{
+    Name = 'PaneIds'
+    Expression = { $_.Panes.Id -join ', ' }
+}
+```
+
+It prints:
+
+```text
+Name   PaneIds
+----   -------
+editor %0, %1
+logs   %2
+```
+
+Its [`Windows`][session-windows] and [`Panes`][session-panes] stay readable
+after cleanup, and your default tmux server stays untouched.
+
+### Install from source
+
+From a checkout with [mise](https://mise.jdx.dev/) tools installed
+([setup](.github/CONTRIBUTING.md#setup)), restore the
+[libtmux for .NET packages](https://www.nuget.org/packages/LibTmux) and build
+both modules into `build/Modules`:
+
+```console
+$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
+    -Restore
+```
+
+Start PowerShell with the staged module path (see
+[review package builds](.github/CONTRIBUTING.md#review-package-builds) for
+shared .NET changes):
+
+```console
+$ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/build/Modules" \
+    pwsh \
+    -NoLogo \
+    -NoProfile
+```
+
+Import the staged manifests so an installed module cannot shadow the build:
+
+<!-- example: readme.install.import -->
+```powershell
+$modules = $env:LIBTMUX_REVIEW_MODULE_ROOT
+Import-Module -Name @(
+    "$modules/LibTmux/0.1.0/LibTmux.psd1",
+    "$modules/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
+) -ErrorAction Stop
+```
 
 ## Find sessions, windows, and panes
 
@@ -401,10 +457,10 @@ More: [execute an ordered chain](docs/commands.md#execute-an-ordered-chain).
 
 ### [`Connect-TmuxControl`][connect-tmuxcontrol]: one client for repeated commands
 
-It attaches one control client. [`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand]
-sends a command through it, and
-[`Disconnect-TmuxControl`][disconnect-tmuxcontrol] ends it. This example reads a
-session name, then disconnects and removes its session:
+It attaches one control client.
+[`Invoke-TmuxControlCommand`][invoke-tmuxcontrolcommand] sends a command
+through it, and [`Disconnect-TmuxControl`][disconnect-tmuxcontrol] ends it.
+This example reads a session name, then disconnects and removes its session:
 
 <!-- example: readme.control -->
 ```powershell
@@ -579,80 +635,6 @@ Reference: [every LibTmux.Workspace cmdlet][workspace-module],
 [PowerShell Gallery](https://www.powershellgallery.com/packages/LibTmux.Workspace),
 [changelog](module/LibTmux.Workspace/CHANGELOG.md).
 
-## Install from source
-
-Install PowerShell and the .NET SDK from [.tool-versions](.tool-versions) with
-[mise](https://mise.jdx.dev/):
-
-```console
-$ mise install
-```
-
-Install tmux with your package manager and check that it is on `PATH`:
-
-```console
-$ tmux -V
-```
-
-From the checkout root, restore the
-[libtmux for .NET packages](https://www.nuget.org/packages/LibTmux) and build
-both modules:
-
-```console
-$ pwsh -NoLogo -NoProfile -File eng/Build.ps1 \
-    -Restore
-```
-
-The build stages both modules under `build/Modules`. For shared .NET changes,
-see [review package builds](.github/CONTRIBUTING.md#review-package-builds).
-Start PowerShell with the staged module path:
-
-```console
-$ LIBTMUX_REVIEW_MODULE_ROOT="$PWD/build/Modules" \
-    pwsh \
-    -NoLogo \
-    -NoProfile
-```
-
-Import the staged manifests so an installed module cannot shadow the build:
-
-<!-- example: readme.install.import -->
-```powershell
-$modules = $env:LIBTMUX_REVIEW_MODULE_ROOT
-Import-Module -Name @(
-    "$modules/LibTmux/0.1.0/LibTmux.psd1",
-    "$modules/LibTmux.Workspace/0.1.0/LibTmux.Workspace.psd1"
-) -ErrorAction Stop
-```
-
-### [`examples/QuickStart.ps1`](examples/QuickStart.ps1): a private server and three panes
-
-Run it from the checkout root. It starts a private server, splits the `editor`
-window, adds `logs`, stops the server, and returns a captured
-[`LibTmux.Session`][session]. Show each window's pane IDs:
-
-<!-- example: readme.quickstart -->
-```powershell
-(./examples/QuickStart.ps1).Windows | Select-Object Name, @{
-    Name = 'PaneIds'
-    Expression = { $_.Panes.Id -join ', ' }
-}
-```
-
-It prints:
-
-```text
-Name   PaneIds
-----   -------
-editor %0, %1
-logs   %2
-```
-
-Assign the script's output to a variable to keep the session. Its
-[`Windows`][session-windows] and [`Panes`][session-panes] stay readable after
-the script removes its session. It uses a unique socket, so your default tmux
-server stays untouched.
-
 ## What it leaves out
 
 - **Live objects.** A captured object keeps what tmux said when you read it.
@@ -680,46 +662,20 @@ server stays untouched.
   The cmdlets return its native objects and add parameter binding, help,
   formatting and `-WhatIf` / `-Confirm`.
 
-## Documentation
+[Documentation](https://libtmux.org/en/powershell/) ·
+[Cmdlet reference](docs/reference/README.md) ·
+[Compatibility](docs/compatibility.md) ·
+[Troubleshooting](docs/troubleshooting.md) ·
+[Benchmarks](benchmarks/README.md) ·
+[Changelog](CHANGELOG.md) ·
+[Contributing](.github/CONTRIBUTING.md) ·
+[AI policy](https://libtmux.org/en/meta/ai-policy/)
 
-- **Read:** [snapshots and filtering](docs/read.md), [structured queries](docs/query.md),
-  [pane contents and scrollback](docs/capture.md), [attached clients](docs/clients.md).
-- **Automate:** [create](docs/create.md), [send text and keys](docs/input.md),
-  [arrange and resize](docs/layout.md), [link and move windows](docs/placement.md),
-  [remove sessions, windows and panes](docs/remove.md).
-- **Configure:** [options](docs/options.md) with [`Set-TmuxOption`][set-tmuxoption],
-  [hooks](docs/hooks.md) with [`Set-TmuxHook`][set-tmuxhook],
-  [environment for new panes](docs/environment.md).
-- **Coordinate:** [chains and control clients](docs/commands.md),
-  [event streams, jobs and parallel workers](docs/watch.md).
-- **Workspaces:** [load, review and apply](docs/workspace.md),
-  [export a starting declaration](docs/workspace.md#export-a-starting-declaration),
-  [edit a declaration](docs/workspace.md#edit-the-declaration).
-
-Browse cmdlets with `Get-Command -Module LibTmux` and examples with
-`Get-Help LibTmux\New-TmuxSession -Examples`. Further reading:
-
-- [Compatibility](docs/compatibility.md): the support contract
-- [Troubleshooting](docs/troubleshooting.md): endpoint, package, input and
-  stream failures
-- [Benchmarks](benchmarks/README.md): workloads and how to rerun them
-- [Changelog](CHANGELOG.md): changes across both modules, plus
-  [`LibTmux`](module/LibTmux/CHANGELOG.md) and
-  [`LibTmux.Workspace`](module/LibTmux.Workspace/CHANGELOG.md)
-- [Contributing](.github/CONTRIBUTING.md): runners and development checks
-- [Example sources](examples/Guides.ps1): the code behind every block here
-
-## AI policy
-
-Use these packages with AI tools as you like. When contributing, check what you
-submit and wait for a maintainer's invitation before preparing a pull request.
-See the [AI policy](https://libtmux.org/en/meta/ai-policy/), also kept as
-[AI_POLICY.md](https://github.com/libtmux/.github/blob/HEAD/AI_POLICY.md).
-
-## License
-
-[MIT](LICENSE). See [third-party notices](licenses/THIRD-PARTY-NOTICES.md)
-for bundled dependencies.
+Licensed under [MIT](LICENSE)
+([third-party notices](licenses/THIRD-PARTY-NOTICES.md)). Part of the
+[libtmux.org](https://libtmux.org/) family alongside
+[Python libtmux](https://github.com/tmux-python/libtmux) and
+[libtmux for .NET](https://github.com/libtmux/libtmux-dotnet).
 
 [libtmux-module]: https://libtmux.org/en/powershell/latest/reference/
 [workspace-module]: https://libtmux.org/en/powershell/latest/workspace/reference/
@@ -727,8 +683,6 @@ for bundled dependencies.
 [new-tmuxsession]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxsession/
 [split-tmuxpane]: https://libtmux.org/en/powershell/latest/reference/libtmux-split-tmuxpane/
 [set-tmuxpanesize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxpanesize/
-[set-tmuxoption]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxoption/
-[set-tmuxhook]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxhook/
 [set-tmuxwindowsize]: https://libtmux.org/en/powershell/latest/reference/libtmux-set-tmuxwindowsize/
 [new-tmuxwindow]: https://libtmux.org/en/powershell/latest/reference/libtmux-new-tmuxwindow/
 [get-tmuxsnapshot]: https://libtmux.org/en/powershell/latest/reference/libtmux-get-tmuxsnapshot/
