@@ -1,82 +1,50 @@
 # Writing
 
-This guide governs documentation, user-facing text, comments, Markdown,
-commit messages, changelogs, and release notes. [CONTRIBUTING.md](CONTRIBUTING.md)
-governs development workflow.
+Repository-specific rules for documentation, help text, comments, changelogs,
+and commits in libtmux for PowerShell. Shared organization voice, CommonMark
+wrapping, code-fence formatting, source-comment gates, slop prevention, and
+commit conventions live in [`libtmux/.github` `WRITING.md`][org-writing];
+development workflow lives in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Consult Microsoft's
-[PowerShell-Docs style guide](https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/powershell-style-guide?view=powershell-7.6)
-and [Markdown best practices](https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/general-markdown?view=powershell-7.6)
-for PowerShell examples and markup. This guide's conventions take precedence
-where they differ.
+Consult Microsoft's [PowerShell-Docs style guide][ps-style] and
+[Markdown best practices][ps-markdown] for PowerShell examples and markup; this
+guide and the shared organization guide take precedence where they differ.
 
-## Voice
+## Terminology and documentation
 
-Lead with the conclusion or observable behavior, then give the evidence or
-constraints needed to understand it. Use active voice, present tense, concrete
-nouns, and short sentences. Assume no shared conversation history; explain
-what a referenced ticket or decision means rather than relying on its ID.
+Use "libtmux for PowerShell" in prose and titles. Reserve `LibTmux`,
+`LibTmux.Workspace`, `LibTmux.PowerShell`, and `LibTmux.Workspace.PowerShell`
+for module, type, and assembly identifiers. Write PowerShell, `tmux`, `server`,
+`session`, `window`, and `pane` consistently.
 
-State facts rather than praising them. Replace vague claims such as "robust"
-or "optimized" with the handled failure or measured improvement. Remove
-filler, promotional language, emoji, agent attribution, and tool metadata.
-
-Use "libtmux for PowerShell" in prose and titles. Reserve `LibTmux` and
-`LibTmux.PowerShell` for their module, type, and assembly identifiers. Write
-PowerShell, tmux, server, session, window, and pane consistently.
-
-## Documentation and examples
-
-Document what exists. Distinguish a scaffold, an implemented capability, a
-tested capability, and a published release. Do not advertise planned cmdlets
-as available or copy compatibility promises from another port.
-
-Explain the reader's task before APIs or flags. State prerequisites,
-defaults, errors, side effects, ownership, ordering, and concurrency when
-they affect the contract. Do not repeat signatures or language basics.
-
-Examples must match available APIs and include required setup and cleanup.
-When executable examples exist, prefer quoting their tested source over
-maintaining a second copy. A performance claim needs a measurement and a
-reproduction command. Link to the source of a rule instead of copying it
-across documents.
+Document what exists: distinguish a scaffold, an implemented capability, a
+tested capability, and a published release, and do not advertise planned
+cmdlets or copy compatibility claims from another port. State prerequisites,
+defaults, errors, side effects, ownership, ordering, and concurrency when they
+affect the caller contract. Prefer quoting tested source over maintaining a
+second copy, and attach every performance figure to its reproduction command.
 
 ## Comments and errors
 
-Keep comments that explain a non-obvious invariant, protocol constraint,
-platform workaround, ordering requirement, or failure mode. Prefer one or
-two direct lines. Preserve tool directives and comments that explain code
-which appears wrong but is required.
-
-Remove narration of the next lines, duplicated names or defaults,
-speculative future work, and history already held by Git. Put rejected
-alternatives and the reasoning behind a change in its commit message.
-
-Error messages name the failed operation and concrete cause. Include a
-useful next action when one exists; omit empty phrases such as "an error
-occurred".
+Follow the Loss, Ceiling, and Upkeep gates in
+[`libtmux/.github` `WRITING.md`][org-comments]: keep one or two lines for a
+non-obvious invariant, protocol or `tmux` version constraint, ordering rule, or
+code that looks wrong but is intentional, and preserve analyzer directives.
+Error messages name the failed operation, the concrete cause, and a useful next
+action when one exists.
 
 ## Markdown
 
-Use plain CommonMark with descriptive sentence-case headings. Put a blank
-line before lists and after headings. Wrap repository prose at 80 columns
-where practical; do not break URLs, identifiers, or tables to meet the width.
-Do not hard-wrap GitHub issue or pull request paragraphs.
-
-Avoid personal information, machine-specific paths, brittle line references,
-bare commit hashes, and counts that duplicate source state.
+Follow [`libtmux/.github` `WRITING.md`][org-commonmark] for plain CommonMark
+(no GitHub alert markers in repository `.md` files), 80-column prose wrapping,
+and unwrapped GitHub issue and pull request bodies.
 
 ### Code blocks
 
-Code blocks are paste-and-run units:
-
-- Put one command in each block. An explicit `&&`, `;`, or `\` continuation
-  counts as one command.
-- Put explanations in prose above the block, not comments inside it.
-- Mark shell commands as `console` and prefix them with `$ `.
-- Split long commands with `\`, one flag per continuation line.
-- Use the actual language tag for source examples. Keep executed examples
-  valid for their runner.
+Follow [`libtmux/.github` `WRITING.md`][org-code-blocks]: keep one paste-and-run
+command per `console` fence with a `$ ` prompt (`\` continuations, one flag per
+line) and prose explanations above the fence. Use `powershell` on PowerShell
+source fences and keep executed examples valid for their runner.
 
 ## Examples
 
@@ -168,77 +136,44 @@ Good, name the value first:
 
 ## README shape
 
-A README reads at a glance: tasks, the API for each, and an example. The root
-README and each module README follow this shape.
+The root `README.md` and each module `README.md` follow the shared
+[`libtmux/.github` `README shape`][org-readme-shape] with these PowerShell
+specifics:
 
-- **Header:** the logo block, a centred title, the badge row (CI, PowerShell
-  Gallery version, libtmux.org, license) and one sentence, all as Markdown
-  inside the centred block. A badge or link points at a page that exists; a
-  package with no Gallery page gets no badge.
-- **Sections:** a `##` heading names a task in the reader's words, such as
-  "Find sessions, windows, and panes".
-- **API headings:** a `###` heading names a cmdlet or type as a link to its
-  libtmux.org reference page, then a colon and its job in plain words.
-- **Under a heading:** a line or two that link sibling APIs, the example, what
-  it prints, at most one short note, and a More link to the guide.
-- **Length:** no paragraph over three lines. A list of facts is a bullet list.
-  The README links test fails a paragraph or list item over 240 characters.
-- **No inventory:** do not list features. Sections and examples show them.
-- **Floors:** state requirements as floors a reader can act on, such as "tmux
-  3.3a or newer". Leave out toolchain patch versions, CI matrix narration and
-  kernel details, and link the compatibility guide.
-- **Assumed facts:** do not say that examples are tested, how docs are built or
-  what the checks cover.
-- **Packages:** keep the table. Give each module one heading that links its
-  directory on the trunk branch, a one-line description and a link line for the
-  reference, the Gallery page and the changelog. A product with no published
-  package gets no page, link or section.
-- **Closing:** "What it leaves out" and "Support and status" are short bullets
-  with a bold lead.
-- **Imports first:** the first example in each README section starts with its
-  `Import-Module` line.
-- **Own server:** an example starts its server through `New-TmuxServer` on a
-  unique socket and cleans up through the cmdlets, not with `tmux` shell
-  commands.
-- **Run in CI:** every displayed example is a copy of a region of
-  `examples/Guides.ps1`, or a script under `examples/`, that the guide tests
-  run.
-- **Headline features:** the root README shows the query and filter cmdlets, the
-  query plan, command chains and control-mode clients and events, each under an
-  API heading with an example, or links the guide's complete tested program.
+- **Header and install:** the logo block, centred title, badge row (CI,
+  PowerShell Gallery version when published, `libtmux.org`, license), and
+  one-sentence summary inside the centred block, followed by Gallery install
+  commands, runtime floors (`PowerShell 7.4 or newer`, `tmux 3.3a or newer`),
+  and a checkout pointer ahead of or within `Quick start`.
+- **Tasks and linked APIs:** `##` task headings and `###` headings linking each
+  cmdlet or native type on `libtmux.org`. `tests/ReadmeLinks.Tests.ps1` fails on
+  unlinked first API mentions, broken anchors, or any paragraph or list item
+  over 240 rendered characters.
+- **Examples:** start each section's first example with `Import-Module`, use
+  `New-TmuxServer` on a unique socket with cmdlet cleanup (never shell `tmux`),
+  and copy every displayed `powershell` fence from `examples/Guides.ps1` or
+  `examples/`.
+- **Headline features:** show query and filter cmdlets, `Get-TmuxQueryPlan`,
+  command chains, and control-mode clients and events (or link the tested guide
+  program).
+- **Packages and closing:** keep the package table and per-module trunk
+  headings linking the reference, Gallery page, and module changelog, then
+  close with `What it leaves out`, `Support and status`, compact reference
+  links, and the `libtmux.org` family line.
 
 ## Commit messages
 
-Use `Scope(type[detail]): Description`. The detail qualifier is optional.
-Name the affected component and use an imperative, capitalized description
-without a trailing period. Keep subjects within 50 characters and body
-lines within 72, except indivisible URLs or identifiers.
-
-Use `docs` for documentation, `chore` for configuration, and `rules[AGENTS]`
-or `rules[CLAUDE]` under the `Ai` scope for agent entry points. Use `feat`,
-`fix`, `refactor`, `test`, `style`, or `ci` when they describe the change.
-
-A small, self-explanatory change can use a subject alone. For a change that
-needs a body, explain the reason in a `why:` paragraph, then list the
-concrete changes under `what:`. Separate those sections with a blank line.
-Use a heredoc or message file to preserve newlines.
-
-Keep each commit focused on one logical change. Do not add emoji, tool
-signatures, attribution trailers, or pull request numbers to ordinary
-commits. Keep intermediate attempts and rejected approaches in commit
-history when they explain a decision, not in product documentation.
+Follow the `Scope(type[detail]): Description` format, 50/72 limits, and `why:`
+/ `what:` body in [`libtmux/.github` `WRITING.md`][org-commits]. Use `docs`,
+`chore`, `feat`, `fix`, `refactor`, `test`, `style`, or `ci`, and use
+`Ai(rules[AGENTS])` or `Ai(rules[CLAUDE])` for agent entry points.
 
 ## Pull requests, changelogs, and releases
 
-Describe the final change for someone who has not read the conversation.
-Lead with the problem and resulting behavior, then give relevant validation
-and limits. Name the checks that ran and distinguish passing, failing,
-skipped, and unverified work.
-
-When a changelog exists, record caller-visible changes under its unreleased
-section. State changed defaults and incompatibilities with migration
-guidance. Do not invent versions or release dates. Mention old behavior only
-when users of a published release experienced it.
+Follow [`libtmux/.github` `WRITING.md`][org-commits] for pull requests and
+release notes. Report the checks run and distinguish passing, failing, skipped,
+and unverified work. Record caller-visible changes and migration guidance under
+the unreleased changelog section without inventing versions or dates.
 
 Each module keeps its own `CHANGELOG.md` in its `module/` directory, which the
 build copies into the package: `module/LibTmux/CHANGELOG.md` for `LibTmux` and
@@ -253,6 +188,11 @@ The unreleased heading of every file is dated at the release. A module's
 that ships none. When the first entry lands in a release that says ``No entries
 for `LibTmux`.``, delete that line.
 
-Release notes explain why an upgrader should care and what action is needed.
-Link the detailed changelog instead of repeating it. Internal refactors and
-branch history belong in commits unless they affect users.
+[org-writing]: https://github.com/libtmux/.github/blob/main/WRITING.md
+[org-commonmark]: https://github.com/libtmux/.github/blob/main/WRITING.md#commonmark
+[org-code-blocks]: https://github.com/libtmux/.github/blob/main/WRITING.md#code-blocks
+[org-readme-shape]: https://github.com/libtmux/.github/blob/main/WRITING.md#readme-shape
+[org-comments]: https://github.com/libtmux/.github/blob/main/WRITING.md#source-comments
+[org-commits]: https://github.com/libtmux/.github/blob/main/WRITING.md#commits-and-pull-requests
+[ps-style]: https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/powershell-style-guide?view=powershell-7.6
+[ps-markdown]: https://learn.microsoft.com/en-us/powershell/scripting/community/contributing/general-markdown?view=powershell-7.6
