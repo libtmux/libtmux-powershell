@@ -27,6 +27,12 @@ dated release, such as `master`, is refused.
 tmux release candidates are not supported: a feature can require one only
 until its release ships. See [Release candidates](https://libtmux.org/en/tmux/guides/tmux-support/#release-candidates).
 
+`Get-TmuxPane` exposes tmux's native exit status as `DeadStatus`. On unpatched
+tmux builds before 3.6 linked with `libutempter`, the status can stay empty and
+the `pane-died` hook can be delayed until another child exits. For timely exit
+reporting, use tmux 3.6 or later or a build with the
+[upstream fix](https://github.com/tmux/tmux/commit/fa5f3cef3d651b0eb9abfa77fc37ccade81679b5).
+
 ## Optional features
 
 A feature that a release cannot run safely is refused for that cmdlet alone,
